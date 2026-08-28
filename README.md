@@ -1,1 +1,59 @@
-# catfood_web
+# Catfood Web
+
+Catfood의 **public frontend repository**다. 사용자에게 배포되는 React/Vite UI의 source of truth이며, private core repository인 `osrm/catfood`의 데이터·research·Supabase 구현과 분리해서 운영한다.
+
+현재 milestone은 **Stage 6 — UI 구현**이다. 현재 구현은 Supabase의 curated browser-facing read model을 읽는 General Screener V0와 기본 inspector다.
+
+## Repository boundary
+
+- `osrm/catfood`: private core — data, research/strategy/internal docs, Supabase schema/migrations, normalization, internal scripts, evidence/provenance
+- `osrm/catfood_web`: public frontend — React/Vite UI, frontend build, GitHub Pages preview, 이후 Vercel production 배포
+
+이 repository는 private `catfood`를 build-time/runtime에 직접 읽지 않는다. 브라우저는 Supabase의 공개 `api` read model만 사용한다. `service_role`, secret key, private repository token, raw private data와 internal evidence는 넣지 않는다.
+
+## Local development
+
+Node.js 22.12 이상을 사용한다.
+
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+`.env.local`에 다음 public browser 값을 설정한다.
+
+```env
+VITE_SUPABASE_URL=https://gnosbstdatkytsyxuapt.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key>
+```
+
+브라우저에는 Supabase publishable key만 사용한다. `.env.local`은 commit하지 않는다.
+
+## Current API contract
+
+- read model: `api.effective_product_catalog_summary`
+- read-only 요청만 수행한다.
+- 최대 1000행을 읽고 브라우저에서 현재 검색 조건을 적용한다.
+- 빈 normalized array나 미확인 상태를 `없음`으로 추론하지 않는다.
+- `official_target`: 복수 선택 OR
+- `feature`: 복수 선택 AND
+- `recipe_family`: 복수 선택 OR
+- `recipe_detail`: 복수 선택 OR
+- Grain-Free: 명시적 positive claim만 충족
+- 결과 0건이어도 조건을 자동 완화하지 않는다.
+
+현재 V0는 제품에 저장된 canonical `life_stage`를 그대로 사용하며 사용자 나이에서 생애주기를 추론하지 않는다. Switching, 비교, 제품 상세와 추가 contextual refine은 후속 Stage 6 작업이다.
+
+## Build and preview
+
+```bash
+npm run build
+npm run preview
+```
+
+Vite는 상대 asset base를 사용해 GitHub Pages project site와 root 배포 양쪽에서 정적 asset 경로가 동작하도록 구성한다.
+
+GitHub Pages는 Stage 6 개발 중 디자인·동작 preview 용도다. Pages workflow는 이 public repository만 checkout/build하며 private `catfood` 접근 token을 사용하지 않는다. 배포용 Supabase browser 값은 repository Variables의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`로 주입한다.
+
+향후 production 배포는 이 repository를 Vercel에 직접 연결하는 방향을 사용한다.

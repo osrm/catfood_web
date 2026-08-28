@@ -17,18 +17,11 @@ Node.js 22.12 이상을 사용한다.
 
 ```bash
 cp .env.example .env.local
-npm install
+npm ci
 npm run dev
 ```
 
-`.env.local`에 다음 public browser 값을 설정한다.
-
-```env
-VITE_SUPABASE_URL=https://gnosbstdatkytsyxuapt.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key>
-```
-
-브라우저에는 Supabase publishable key만 사용한다. `.env.local`은 commit하지 않는다.
+`.env.example`에는 브라우저 공개용 Supabase URL과 `sb_publishable_...` key가 들어 있다. 이 publishable key는 공개 client용이며 `service_role`/secret key와 다르다. `.env.local`에는 필요할 때 로컬 override만 두고 commit하지 않는다.
 
 ## Current API contract
 
@@ -54,6 +47,10 @@ npm run preview
 
 Vite는 상대 asset base를 사용해 GitHub Pages project site와 root 배포 양쪽에서 정적 asset 경로가 동작하도록 구성한다.
 
-GitHub Pages는 Stage 6 개발 중 디자인·동작 preview 용도다. Pages workflow는 이 public repository만 checkout/build하며 private `catfood` 접근 token을 사용하지 않는다. 배포용 Supabase browser 값은 repository Variables의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`로 주입한다.
+GitHub Pages preview:
+
+https://osrm.github.io/catfood_web/
+
+Pages workflow는 이 public repository만 checkout/build하며 private `catfood` 접근 token을 사용하지 않는다. 배포에 필요한 Supabase client 설정도 브라우저 공개용 URL과 publishable key만 사용한다.
 
 향후 production 배포는 이 repository를 Vercel에 직접 연결하는 방향을 사용한다.

@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CATFOOD UI v29 — Home + Explore</title>
+<style>
+:root{
+  --bg:#fff;
+  --text:#111;
+  --text-2:#2b2b2b;
+  --muted:#676767;
+  --faint:#8a8a8a;
+  --line:#dedede;
+  --line-2:#ededed;
+  --green:#0b4a22;
+  --amber:#8a641d;
+  --sans:Inter,Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.app{min-height:100vh;background:#fff}
+.header{
+  height:64px;
+  display:grid;
+  grid-template-columns:190px 1fr 220px;
+  align-items:center;
+  padding:0 34px;
+  border-bottom:1px solid var(--line);
+}
+.brand{font-size:21px;font-weight:820;letter-spacing:.055em}.brand::after{content:"_";color:var(--green)}
+.nav{display:flex;justify-content:center;align-self:stretch}
+.nav button{position:relative;min-width:108px;border:0;background:transparent;color:#5b5b5b;font-size:13px;font-weight:680}
+.nav button.active{color:var(--text);font-weight:780}
+.nav button.active::after{content:"";position:absolute;left:22px;right:22px;bottom:0;height:2px;background:var(--green)}
+.header-meta{justify-self:end;color:var(--muted);font-size:11px}
+.screen{display:none}.screen.active{display:block}
+
+/* HOME */
+.home-top{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,.45fr);border-bottom:1px solid var(--line)}
+.home-main{padding:54px 48px 40px 54px;min-height:510px}
+.home-side{padding:34px 40px 28px;border-left:1px solid var(--line)}
+.home-title{margin:0;font-size:42px;line-height:1.08;letter-spacing:-.045em;font-weight:770}
+.home-search{margin-top:31px;max-width:760px;height:64px;display:grid;grid-template-columns:1fr 64px;align-items:center;border:1px solid #202020;padding-left:18px}
+.home-search input{min-width:0;border:0;outline:0;background:transparent;font-size:19px;letter-spacing:-.02em}
+.home-search input::placeholder{color:#868686}
+.home-search button{height:100%;border:0;background:transparent;color:var(--green);font-size:19px;font-weight:800}
+.home-routes{margin-top:30px;max-width:760px;display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.home-route{position:relative;min-height:92px;display:flex;flex-direction:column;justify-content:center;padding:17px 48px 17px 5px;border:0;background:transparent;text-align:left}
+.home-route+.home-route{border-left:1px solid var(--line);padding-left:24px}
+.home-route:hover{background:#fafafa}
+.route-name{font-size:16px;font-weight:790;letter-spacing:-.01em}
+.route-copy{margin-top:5px;color:var(--muted);font-size:11px;line-height:1.5}
+.route-arrow{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--green);font-size:16px}
+.home-note{margin-top:15px;color:#808780;font-size:10px;line-height:1.5}
+.side-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:10px}
+.side-head h2{margin:0;font-size:18px;letter-spacing:-.02em}
+.side-head button,.text-link{border:0;background:transparent;color:var(--green);font-size:10px;font-weight:760}
+.recall{display:grid;grid-template-columns:86px 1fr auto;gap:12px;align-items:start;padding:15px 0}
+.recall+.recall{border-top:1px solid var(--line-2)}
+.recall-date{color:var(--green);font-size:10px;font-weight:700}
+.recall b{display:block;font-size:13px}
+.recall p{margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.52}
+.recall-state{font-size:10px;font-weight:700;color:#777;text-align:right}.recall-state.warn{color:var(--amber)}.recall-state.ok{color:var(--green)}
+.side-note{margin-top:12px;color:#7c7c7c;font-size:10px;line-height:1.55}
+.reading{padding:22px 54px 26px}
+.read-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.read-head h2{margin:0;font-size:16px}
+.read-grid{display:grid;grid-template-columns:repeat(5,1fr)}
+.read-item{min-height:76px;padding:0 18px}.read-item:first-child{padding-left:0}.read-item+.read-item{border-left:1px solid var(--line)}
+.read-title{font-size:12px;font-weight:750;line-height:1.4}.read-copy{margin-top:5px;color:var(--muted);font-size:10px;line-height:1.45}
+
+/* EXPLORE */
+.explore-wrap{max-width:1120px;margin:0 auto;padding:46px 34px 54px}
+.explore-back{border:0;background:transparent;padding:0;color:var(--muted);font-size:11px;font-weight:700}
+.explore-title{margin:28px 0 0;font-size:34px;line-height:1.15;letter-spacing:-.04em;font-weight:780}
+.explore-sub{margin:9px 0 0;color:var(--muted);font-size:12px}
+.current-summary{margin-top:29px;display:grid;grid-template-columns:150px 1fr;align-items:center;min-height:54px;padding:0 8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.current-summary strong{font-size:13px}.summary-value{color:var(--green);font-size:14px;font-weight:700}
+.condition-row{display:grid;grid-template-columns:66px 190px minmax(0,1fr);gap:18px;align-items:center;min-height:92px;padding:12px 8px;border-bottom:1px solid var(--line-2)}
+.condition-index{font-size:16px;font-weight:760}.condition-index::after{content:"";display:block;width:24px;height:1px;margin-top:8px;background:var(--green)}
+.condition-label{font-size:15px;font-weight:760}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:22px;min-width:0}
+.controls label{display:inline-flex;align-items:center;gap:8px;min-height:42px;font-size:13px;cursor:pointer}
+.controls input[type="checkbox"],.controls input[type="radio"]{width:17px;height:17px;accent-color:var(--green)}
+.age-input{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #777}
+.age-input input{width:66px;border:0;outline:0;background:transparent;font-size:18px;font-weight:720;text-align:right}
+.age-input span{color:var(--muted);font-size:13px}
+.explore-actions{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:24px 8px 0;flex-wrap:wrap}
+.reset{border:0;background:transparent;padding:10px 0;color:var(--text-2);font-size:12px}
+.result-cta{display:flex;align-items:center;gap:18px}.result-count{font-size:13px}.result-count strong{color:var(--green);font-size:19px}
+.primary{min-width:152px;height:48px;border:0;border-radius:3px;background:var(--green);color:#fff;font-size:13px;font-weight:760}
+.prototype-note{margin-top:17px;color:#8a8a8a;font-size:10px;line-height:1.5}
+.feedback{min-height:22px;margin-top:10px;color:var(--green);font-size:11px}
+
+@media(max-width:820px){
+  .header{grid-template-columns:1fr auto;padding:0 18px}.header-meta{display:none}.nav button{min-width:auto;padding:0 12px}
+  .home-top{grid-template-columns:1fr}.home-main{padding:36px 20px}.home-side{border-left:0;border-top:1px solid var(--line);padding:28px 20px}
+  .reading{padding:20px}.read-grid{grid-template-columns:1fr 1fr}.read-item{padding:12px 8px}.read-item+.read-item{border-left:0;border-top:1px solid var(--line)}
+  .condition-row{grid-template-columns:44px 1fr;gap:8px;align-items:start}.controls{grid-column:2}.condition-label{padding-top:5px}
+  .current-summary{grid-template-columns:1fr;gap:4px;padding:12px 8px}.explore-wrap{padding:34px 20px 44px}
+}
+@media(max-width:560px){
+  .nav button:nth-child(3){display:none}.home-routes{grid-template-columns:1fr}.home-route+.home-route{border-left:0;border-top:1px solid var(--line);padding-left:5px}.read-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="brand">CATFOOD</div>
+    <nav class="nav" aria-label="주요 화면">
+      <button class="active" type="button" data-screen="home">사료 찾기</button>
+      <button type="button" data-action="switch">사료 바꾸기</button>
+      <button type="button" data-action="compare">비교</button>
+    </nav>
+    <div class="header-meta">한국 판매 제품 데이터</div>
+  </header>
+
+  <section class="screen active" id="home">
+    <div class="home-top">
+      <main class="home-main">
+        <h1 class="home-title">사료 찾기</h1>
+        <form class="home-search" id="homeSearch">
+          <input id="homeQuery" type="search" placeholder="제품명 또는 브랜드 검색" aria-label="제품명 또는 브랜드 검색" />
+          <button type="submit" aria-label="검색">→</button>
+        </form>
+
+        <div class="home-routes">
+          <button class="home-route" type="button" data-action="switch">
+            <span class="route-name">사료 바꾸기</span>
+            <span class="route-copy">현재 사료를 기준으로 다음 후보를 찾습니다.</span>
+            <span class="route-arrow">→</span>
+          </button>
+          <button class="home-route" type="button" data-screen="explore">
+            <span class="route-name">조건으로 찾기</span>
+            <span class="route-copy">필요한 조건으로 제품을 찾습니다.</span>
+            <span class="route-arrow">→</span>
+          </button>
+        </div>
+
+        <div class="home-note">확인된 사실과 미확인 상태를 구분합니다.</div>
+        <div class="feedback" id="homeFeedback" aria-live="polite"></div>
+      </main>
+
+      <aside class="home-side">
+        <div class="side-head"><h2>최근 리콜</h2><button type="button" data-action="recall">전체 보기 →</button></div>
+        <div class="recall"><div class="recall-date">2026.08.18</div><div><b>제품 A</b><p>미국 FDA 공식 리콜<br>한국 판매 대응 확인 필요</p></div><div class="recall-state warn">확인 필요</div></div>
+        <div class="recall"><div class="recall-date">2026.06.04</div><div><b>제품 B</b><p>캐나다 CFIA 공식 리콜<br>한국 판매 대응 미확인</p></div><div class="recall-state">미확인</div></div>
+        <div class="recall"><div class="recall-date">2026.04.27</div><div><b>제품 C</b><p>유럽 RASFF 알림<br>한국 판매 대응 확인 완료</p></div><div class="recall-state ok">확인 완료</div></div>
+        <div class="side-note">리콜 정보는 국내 유통 여부와 별개로 업데이트됩니다.</div>
+      </aside>
+    </div>
+
+    <section class="reading">
+      <div class="read-head"><h2>데이터 읽기</h2><button class="text-link" type="button" data-action="reading">전체 보기 →</button></div>
+      <div class="read-grid">
+        <article class="read-item"><div class="read-title">Grain-Free란?</div><div class="read-copy">공식 표방의 의미와 확인 기준</div></article>
+        <article class="read-item"><div class="read-title">공식 대상과 부가 기능</div><div class="read-copy">둘은 같은 의미가 아닙니다</div></article>
+        <article class="read-item"><div class="read-title">레시피와 실제 원재료</div><div class="read-copy">제품명과 원재료표는 분리해서 봅니다</div></article>
+        <article class="read-item"><div class="read-title">보증성분 읽는 법</div><div class="read-copy">보증값과 분석값의 차이</div></article>
+        <article class="read-item"><div class="read-title">제조국 ≠ 브랜드 국가</div><div class="read-copy">제조국·OEM·브랜드 국가 구분</div></article>
+      </div>
+    </section>
+  </section>
+
+  <section class="screen" id="explore">
+    <main class="explore-wrap">
+      <button class="explore-back" type="button" data-screen="home">← 사료 찾기</button>
+      <h1 class="explore-title">조건으로 찾기</h1>
+      <p class="explore-sub">기본 정보부터 검색 조건을 설정합니다.</p>
+
+      <div class="current-summary">
+        <strong>현재 조건</strong>
+        <div class="summary-value" id="summaryValue" aria-live="polite">36개월 · 건식 · Grain-Free</div>
+      </div>
+
+      <div class="condition-row">
+        <div class="condition-index">01</div>
+        <div class="condition-label">고양이 나이</div>
+        <div class="controls">
+          <div class="age-input"><input id="age" inputmode="numeric" value="36" aria-label="고양이 나이" /><span>개월</span></div>
+          <label><input id="ageUnknown" type="checkbox" /> 나이 모름</label>
+        </div>
+      </div>
+
+      <div class="condition-row">
+        <div class="condition-index">02</div>
+        <div class="condition-label">사료 형태</div>
+        <div class="controls">
+          <label><input type="radio" name="feedType" value="건식" checked /> 건식</label>
+          <label><input type="radio" name="feedType" value="습식" /> 습식</label>
+          <label><input type="radio" name="feedType" value="동결건조" /> 동결건조</label>
+          <label><input type="radio" name="feedType" value="" /> 상관없음</label>
+        </div>
+      </div>
+
+      <div class="condition-row">
+        <div class="condition-index">03</div>
+        <div class="condition-label">부가 기능</div>
+        <div class="controls" id="featureControls">
+          <label><input type="checkbox" value="헤어볼" /> 헤어볼</label>
+          <label><input type="checkbox" value="소화" /> 소화</label>
+          <label><input type="checkbox" value="요로" /> 요로</label>
+          <label><input type="checkbox" value="피부·피모" /> 피부 · 피모</label>
+          <label><input type="checkbox" value="구강·치아" /> 구강 · 치아</label>
+          <label><input type="checkbox" value="변 상태" /> 변 상태</label>
+        </div>
+      </div>
+
+      <div class="condition-row">
+        <div class="condition-index">04</div>
+        <div class="condition-label">Grain-Free</div>
+        <div class="controls"><label><input id="grainFree" type="checkbox" checked /> 적용</label></div>
+      </div>
+
+      <div class="explore-actions">
+        <button class="reset" id="resetExplore" type="button">↻ &nbsp;조건 초기화</button>
+        <div class="result-cta">
+          <div class="result-count"><strong id="resultCount">148</strong>개 제품</div>
+          <button class="primary" id="showResults" type="button">결과 보기 →</button>
+        </div>
+      </div>
+      <div class="prototype-note">UI 동작 확인용 프로토타입입니다. 제품 수는 실제 API 조회값이 아닙니다.</div>
+      <div class="feedback" id="exploreFeedback" aria-live="polite"></div>
+    </main>
+  </section>
+</div>
+<script>
+(() => {
+  const screens = [...document.querySelectorAll('.screen')];
+  const navHome = document.querySelector('[data-screen="home"].nav button');
+  function showScreen(id){
+    screens.forEach((screen) => screen.classList.toggle('active', screen.id === id));
+    document.querySelectorAll('.nav button').forEach((button) => button.classList.remove('active'));
+    const homeNav = document.querySelector('.nav button[data-screen="home"]');
+    if(id === 'home' && homeNav) homeNav.classList.add('active');
+  }
+  document.querySelectorAll('[data-screen]').forEach((button) => {
+    button.addEventListener('click', () => showScreen(button.dataset.screen));
+  });
+
+  const homeFeedback = document.getElementById('homeFeedback');
+  const homeSearch = document.getElementById('homeSearch');
+  homeSearch.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const query = document.getElementById('homeQuery').value.trim();
+    homeFeedback.textContent = query ? `“${query}” 제품 검색 화면으로 이어지는 동작입니다.` : '제품명 또는 브랜드를 입력해주세요.';
+  });
+  document.querySelectorAll('[data-action]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const labels = { switch:'사료 바꾸기', compare:'제품 비교', recall:'최근 리콜', reading:'데이터 읽기' };
+      homeFeedback.textContent = `${labels[button.dataset.action] ?? '다음'} 화면으로 이어지는 동작입니다.`;
+    });
+  });
+
+  const age = document.getElementById('age');
+  const ageUnknown = document.getElementById('ageUnknown');
+  const grainFree = document.getElementById('grainFree');
+  const feedInputs = [...document.querySelectorAll('input[name="feedType"]')];
+  const featureInputs = [...document.querySelectorAll('#featureControls input')];
+  const summaryValue = document.getElementById('summaryValue');
+  const resultCount = document.getElementById('resultCount');
+  const exploreFeedback = document.getElementById('exploreFeedback');
+
+  function updateExplore(){
+    let agePart = '';
+    if(!ageUnknown.checked){
+      const raw = Number.parseInt(age.value, 10);
+      const clamped = Number.isFinite(raw) ? Math.max(0, Math.min(300, raw)) : 0;
+      if(age.value !== '' && clamped !== raw) age.value = String(clamped);
+      if(clamped > 0) agePart = `${clamped}개월`;
+    }
+    age.disabled = ageUnknown.checked;
+    age.style.opacity = ageUnknown.checked ? '.45' : '1';
+
+    const feedType = feedInputs.find((input) => input.checked)?.value ?? '';
+    const features = featureInputs.filter((input) => input.checked).map((input) => input.value);
+    const parts = [agePart, feedType, ...features, grainFree.checked ? 'Grain-Free' : ''].filter(Boolean);
+    summaryValue.textContent = parts.length ? parts.join(' · ') : '조건 없음';
+
+    let count = 843;
+    if(agePart) count = Math.round(count * .62);
+    if(feedType) count = Math.round(count * .48);
+    count = Math.round(count * Math.pow(.82, features.length));
+    if(grainFree.checked) count = Math.round(count * .59);
+    resultCount.textContent = String(Math.max(1, count));
+  }
+
+  age.addEventListener('input', updateExplore);
+  ageUnknown.addEventListener('change', updateExplore);
+  grainFree.addEventListener('change', updateExplore);
+  feedInputs.forEach((input) => input.addEventListener('change', updateExplore));
+  featureInputs.forEach((input) => input.addEventListener('change', updateExplore));
+
+  document.getElementById('resetExplore').addEventListener('click', () => {
+    age.value = '';
+    ageUnknown.checked = false;
+    feedInputs.forEach((input) => { input.checked = input.value === ''; });
+    featureInputs.forEach((input) => { input.checked = false; });
+    grainFree.checked = false;
+    exploreFeedback.textContent = '';
+    updateExplore();
+  });
+  document.getElementById('showResults').addEventListener('click', () => {
+    exploreFeedback.textContent = `${resultCount.textContent}개 제품을 현재 조건으로 탐색하는 결과 화면으로 이어지는 동작입니다.`;
+  });
+
+  updateExplore();
+})();
+</script>
+</body>
+</html>

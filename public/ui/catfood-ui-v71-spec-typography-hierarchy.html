@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATFOOD UI v71 — Spec Typography Hierarchy</title>
+</head>
+<body>
+<script>
+(async()=>{
+  const response=await fetch('./catfood-ui-v70-warm-editorial-polish.html');
+  let html=await response.text();
+  const polish=`<style>
+    .section-head h2{font-size:27px}
+    .section-head p{color:#8f857d}
+    .section-kicker{color:#a69d96}
+    .spec-row{min-height:82px}
+    .spec-label{padding:20px 24px 20px 0;align-self:center}
+    .spec-label b{font-size:15px;font-weight:730;color:#5b5049;letter-spacing:-.015em}
+    .spec-label small{font-size:11px;font-weight:500;color:#a49a92;margin-top:6px;line-height:1.45}
+    .spec-value{padding:20px 24px;font-size:20px;font-weight:830;color:#1c1714;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+    @media(max-width:1280px){.spec-label b{font-size:14px}.spec-value{font-size:18px}}
+  </style>`;
+  html=html.replace('<title>CATFOOD UI v70 — Warm Editorial Polish</title>','<title>CATFOOD UI v71 — Spec Typography Hierarchy</title>');
+  html=html.replace('</head>',polish+'</head>');
+  document.open();
+  document.write(html);
+  document.close();
+})();
+</script>
+</body>
+</html>

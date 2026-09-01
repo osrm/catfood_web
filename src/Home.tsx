@@ -25,7 +25,7 @@ export default function Home({
           <strong className="home-logo">CATFOOD</strong>
           <nav className="home-nav" aria-label="주요 메뉴">
             <button type="button" onClick={() => onStart('lookup')}>사료 찾기</button>
-            <button className="is-signature" type="button" onClick={() => onStart('switch')}>사료 바꾸기</button>
+            <button type="button" onClick={() => onStart('switch')}>사료 바꾸기</button>
             <button type="button" onClick={() => onStart('explore')}>조건 탐색</button>
             <span className="home-nav-divider" />
             <button type="button">리콜</button>
@@ -42,7 +42,12 @@ export default function Home({
 
         <section className="home-tool" aria-label="사료 탐색 시작">
           <form className="home-search" onSubmit={submitLookup}>
-            <span className="home-search-icon" aria-hidden="true">⌕</span>
+            <span className="home-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m16 16 4 4" />
+              </svg>
+            </span>
             <input
               type="search"
               value={query}
@@ -55,7 +60,14 @@ export default function Home({
 
           <div className="home-workflows">
             <button className="home-workflow home-workflow-primary" type="button" onClick={() => onStart('switch')}>
-              <span className="home-workflow-symbol" aria-hidden="true">↔</span>
+              <span className="home-workflow-symbol" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M4 8h13" />
+                  <path d="m14 5 3 3-3 3" />
+                  <path d="M20 16H7" />
+                  <path d="m10 13-3 3 3 3" />
+                </svg>
+              </span>
               <span className="home-workflow-copy">
                 <span className="home-workflow-title-row">
                   <strong>현재 사료에서 바꾸기</strong>
@@ -66,7 +78,19 @@ export default function Home({
             </button>
 
             <button className="home-workflow" type="button" onClick={() => onStart('explore')}>
-              <span className="home-workflow-symbol" aria-hidden="true">≡</span>
+              <span className="home-workflow-symbol" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M4 7h10" />
+                  <path d="M18 7h2" />
+                  <circle cx="16" cy="7" r="2" />
+                  <path d="M4 12h3" />
+                  <path d="M11 12h9" />
+                  <circle cx="9" cy="12" r="2" />
+                  <path d="M4 17h8" />
+                  <path d="M16 17h4" />
+                  <circle cx="14" cy="17" r="2" />
+                </svg>
+              </span>
               <span className="home-workflow-copy">
                 <strong>조건으로 찾기</strong>
                 <small>필요한 조건으로 전체 제품을 탐색합니다.</small>
@@ -87,15 +111,12 @@ export default function Home({
 
         <section className="home-trust" aria-label="데이터 기준 요약">
           <div>
-            <span className="home-trust-mark" aria-hidden="true">○</span>
             <strong>{loading ? '한국 현재 판매 제품 데이터 확인 중' : `${productCount || '—'}개 제품 · 한국 현재 판매 제품 기준`}</strong>
           </div>
           <div>
-            <span className="home-trust-mark" aria-hidden="true">≠</span>
             <strong>확인된 사실과 미확인 상태를 구분</strong>
           </div>
           <div>
-            <span className="home-trust-mark" aria-hidden="true">≋</span>
             <strong>결과가 없어도 조건 자동 완화 없음</strong>
           </div>
         </section>

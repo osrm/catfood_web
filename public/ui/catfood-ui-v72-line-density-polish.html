@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATFOOD UI v72 — Line Density Polish</title>
+</head>
+<body>
+<script>
+(async()=>{
+  const response=await fetch('./catfood-ui-v70-warm-editorial-polish.html');
+  let html=await response.text();
+  const polish=`<style>
+    /* v71 typography hierarchy */
+    .section-head h2{font-size:27px}
+    .section-head p{color:#8f857d}
+    .section-kicker{color:#a69d96}
+    .spec-row{min-height:82px}
+    .spec-label{padding:20px 24px 20px 0;align-self:center}
+    .spec-label b{font-size:15px;font-weight:730;color:#5b5049;letter-spacing:-.015em}
+    .spec-label small{font-size:11px;font-weight:500;color:#a49a92;margin-top:6px;line-height:1.45}
+    .spec-value{padding:20px 24px;font-size:20px;font-weight:830;color:#1c1714;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+
+    /* v72 line / density polish */
+    .section-accent{display:none}
+    .section-head{margin-bottom:24px}
+
+    .basic-spec{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .spec-row{border-bottom:1px solid var(--line-soft)}
+    .spec-value{border-left:0}
+
+    .life-wrap{background:rgba(255,254,250,.46);border-left:0;border-right:0;border-color:var(--line);padding:22px 8px 20px}
+    .life-top{margin-bottom:20px}
+    .life-rows{gap:11px}
+    .life-note{margin-top:14px;padding-top:12px}
+
+    .nutrition-board{border-bottom:0}
+    .energy-strip{margin-top:0;background:transparent;border-left:0;border-right:0;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line);min-height:100px}
+
+    @media(max-width:1280px){.spec-label b{font-size:14px}.spec-value{font-size:18px}}
+  </style>`;
+  html=html.replace('<title>CATFOOD UI v70 — Warm Editorial Polish</title>','<title>CATFOOD UI v72 — Line Density Polish</title>');
+  html=html.replace('</head>',polish+'</head>');
+  document.open();
+  document.write(html);
+  document.close();
+})();
+</script>
+</body>
+</html>

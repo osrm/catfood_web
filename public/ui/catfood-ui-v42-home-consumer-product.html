@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CATFOOD UI v42 — Consumer Product Home</title>
+<style>
+:root{
+  --bg:#f4f6f1;
+  --paper:#fcfdf9;
+  --surface:#ffffff;
+  --ink:#172019;
+  --ink2:#354139;
+  --muted:#6e7971;
+  --line:#dbe1da;
+  --line-strong:#c8d1c8;
+  --green:#0a4a29;
+  --green-2:#0e5a34;
+  --green-soft:#edf4ee;
+  --warm:#f4f0e6;
+  --sans:Inter,Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+body{min-width:1080px}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.site-header{height:72px;background:rgba(252,253,249,.96);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;backdrop-filter:blur(12px)}
+.header-inner{width:min(1260px,calc(100% - 72px));height:100%;margin:0 auto;display:flex;align-items:center}
+.brand{font-size:22px;font-weight:900;letter-spacing:.045em;color:var(--green);line-height:1}
+.nav{margin-left:auto;display:flex;align-items:center;gap:30px}
+.nav a{font-size:13px;font-weight:730;color:#435048}
+.nav a:hover{color:var(--green)}
+.nav .quiet{color:var(--muted)}
+.main{background:var(--paper)}
+.hero{width:min(1260px,calc(100% - 72px));margin:0 auto;padding:72px 0 56px;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(420px,.78fr);gap:76px;align-items:stretch}
+.hero-left{padding-top:8px}
+.eyebrow{font-size:12px;font-weight:800;color:var(--green);letter-spacing:-.01em}
+.hero h1{margin:15px 0 0;max-width:670px;font-size:42px;line-height:1.12;letter-spacing:-.05em;font-weight:850}
+.search-wrap{margin-top:34px;position:relative;max-width:720px}
+.search-label{display:block;margin-bottom:9px;font-size:12px;font-weight:760;color:var(--ink2)}
+.search-box{height:64px;display:grid;grid-template-columns:1fr 62px;background:#fff;border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgba(24,42,30,.06);overflow:hidden}
+.search-box:focus-within{border-color:#7ca68a;box-shadow:0 0 0 3px rgba(10,74,41,.08),0 8px 24px rgba(24,42,30,.06)}
+.search-box input{border:0;outline:0;background:transparent;padding:0 20px;font-size:16px}
+.search-box input::placeholder{color:#9aa39c}
+.search-box button{border:0;border-left:1px solid var(--line);background:#fff;color:var(--green);font-size:20px}
+.search-box button:hover{background:#f8faf7}
+.search-note{margin-top:12px;font-size:11px;color:var(--muted)}
+.search-result{display:none;position:absolute;left:0;right:0;top:92px;background:#fff;border:1px solid var(--line-strong);border-radius:0 0 8px 8px;box-shadow:0 18px 38px rgba(25,38,29,.12);overflow:hidden;z-index:20}
+.search-result.show{display:block}
+.result-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:17px 18px;border-top:1px solid var(--line)}
+.result-item:first-child{border-top:0}
+.result-brand{font-size:11px;font-weight:800;color:var(--green)}
+.result-name{margin-top:3px;font-size:15px;font-weight:820}
+.result-meta{margin-top:4px;font-size:11px;color:var(--muted)}
+.result-actions{display:flex;gap:9px}
+.result-actions button{height:34px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:760}
+.result-actions .detail{border:1px solid var(--line-strong);background:#fff}
+.result-actions .switch{border:1px solid var(--green);background:var(--green);color:#fff}
+.hero-tools{margin-top:28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.text-route{display:inline-flex;align-items:center;gap:8px;border:0;background:transparent;padding:0;color:var(--ink2);font-size:13px;font-weight:760}
+.text-route strong{color:var(--green)}
+.text-route:hover{color:var(--green)}
+.route-sep{width:1px;height:16px;background:var(--line)}
+.switch-card{background:var(--green);color:#fff;border-radius:12px;padding:34px 34px 30px;display:flex;flex-direction:column;min-height:330px;box-shadow:0 14px 34px rgba(6,62,32,.12)}
+.switch-kicker{font-size:12px;font-weight:800;color:#cce0d2}
+.switch-card h2{margin:12px 0 0;max-width:340px;font-size:29px;line-height:1.2;letter-spacing:-.04em}
+.switch-card p{margin:12px 0 0;max-width:350px;color:#dce9df;font-size:13px;line-height:1.65}
+.current-select{margin-top:auto;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#fff;color:var(--ink);border-radius:8px;border:0;text-align:left}
+.current-select span{display:block}
+.current-select .small{font-size:10px;color:var(--muted);margin-bottom:3px}
+.current-select .maintext{font-size:13px;font-weight:780}
+.current-select .arrow{color:var(--green);font-size:18px}
+.switch-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:18px}
+.switch-bottom small{font-size:10px;line-height:1.45;color:#cce0d2}
+.switch-start{height:38px;padding:0 15px;border:1px solid #fff;background:#fff;color:var(--green);border-radius:6px;font-size:11px;font-weight:800}
+.product-band{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}
+.band-inner{width:min(1260px,calc(100% - 72px));margin:0 auto;display:grid;grid-template-columns:1.2fr .8fr .8fr}
+.band-item{min-height:118px;padding:24px 28px 22px 0;display:flex;flex-direction:column;justify-content:center}
+.band-item+.band-item{border-left:1px solid var(--line);padding-left:28px}
+.band-item .label{font-size:11px;font-weight:780;color:var(--green)}
+.band-item h3{margin:7px 0 0;font-size:17px;letter-spacing:-.025em}
+.band-item p{margin:6px 0 0;font-size:11px;line-height:1.55;color:var(--muted)}
+.band-link{display:inline-flex;margin-top:11px;font-size:11px;font-weight:760;color:var(--green)}
+.content{width:min(1260px,calc(100% - 72px));margin:0 auto;padding:42px 0 58px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr);gap:64px}
+.section-title{display:flex;align-items:end;justify-content:space-between;margin-bottom:16px}
+.section-title h2{margin:0;font-size:20px;letter-spacing:-.03em}
+.section-title a{font-size:11px;color:var(--green);font-weight:760}
+.guide-list{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.guide-card{min-height:150px;padding:19px 18px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.guide-card b{font-size:14px;letter-spacing:-.015em}
+.guide-card p{margin:8px 0 0;font-size:11px;line-height:1.55;color:var(--muted)}
+.guide-card span{display:block;margin-top:20px;font-size:10px;font-weight:780;color:var(--green)}
+.recall-box{background:#f7f8f4;border:1px solid var(--line);border-radius:8px;padding:18px 18px 8px}
+.recall-row{padding:12px 0;border-top:1px solid var(--line)}
+.recall-row:first-child{border-top:0;padding-top:0}
+.recall-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.recall-date{font-size:10px;color:var(--muted)}
+.recall-state{font-size:10px;font-weight:760;color:#795d22;background:#f5edda;padding:4px 7px;border-radius:999px}
+.recall-row b{display:block;margin-top:6px;font-size:12px}
+.recall-row p{margin:4px 0 0;font-size:10px;line-height:1.5;color:var(--muted)}
+.footer{border-top:1px solid var(--line);background:#fff}
+.footer-inner{width:min(1260px,calc(100% - 72px));margin:0 auto;min-height:84px;display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:10px}
+.footer-inner b{color:var(--ink2);font-size:11px}
+@media(max-width:1180px){.hero,.band-inner,.content,.header-inner,.footer-inner{width:calc(100% - 44px)}.hero{gap:44px;grid-template-columns:minmax(0,1fr) 420px}.content{gap:38px}}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" id="homeBrand" href="#home" aria-label="CATFOOD 홈">CATFOOD_</a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a id="homeNav" href="#home">사료 찾기</a>
+      <a href="#switch">사료 바꾸기</a>
+      <a href="#explore">조건으로 찾기</a>
+      <a class="quiet" href="#guides">데이터 읽기</a>
+    </nav>
+  </div>
+</header>
+<main class="main" id="home">
+  <section class="hero">
+    <div class="hero-left">
+      <div class="eyebrow">고양이 사료 데이터</div>
+      <h1>찾고, 바꾸고, 비교합니다.</h1>
+      <div class="search-wrap">
+        <label class="search-label" for="searchInput">제품명 또는 브랜드</label>
+        <div class="search-box">
+          <input id="searchInput" type="search" placeholder="로얄캐닌 인도어, 오리젠 오리지널" autocomplete="off" />
+          <button id="searchButton" type="button" aria-label="검색">⌕</button>
+        </div>
+        <div class="search-result" id="searchResult" aria-live="polite">
+          <div class="result-item">
+            <div><div class="result-brand">로얄캐닌</div><div class="result-name">인도어 27</div><div class="result-meta">제품 정보 보기</div></div>
+            <div class="result-actions"><button class="detail" type="button">정보 보기</button><button class="switch" type="button">이 제품에서 바꾸기</button></div>
+          </div>
+          <div class="result-item">
+            <div><div class="result-brand">ORIJEN</div><div class="result-name">오리지널 캣</div><div class="result-meta">제품 정보 보기</div></div>
+            <div class="result-actions"><button class="detail" type="button">정보 보기</button><button class="switch" type="button">이 제품에서 바꾸기</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-tools">
+        <button class="text-route" type="button"><strong>조건으로 찾기</strong><span>필요한 조건부터 전체 제품 탐색</span></button>
+        <span class="route-sep" aria-hidden="true"></span>
+        <button class="text-route" type="button"><strong>제품 정보 보기</strong><span>알고 있는 제품 바로 확인</span></button>
+      </div>
+    </div>
+
+    <section class="switch-card" id="switch">
+      <div class="switch-kicker">사료 바꾸기</div>
+      <h2>지금 먹이는 사료에서 시작합니다.</h2>
+      <p>현재 제품을 선택한 뒤 바꿀 조건과 유지할 조건을 정합니다.</p>
+      <button class="current-select" id="currentSelect" type="button">
+        <span><span class="small">현재 사료</span><span class="maintext">제품 선택하기</span></span>
+        <span class="arrow">→</span>
+      </button>
+      <div class="switch-bottom"><small>정확한 제품과 규격을 확인한 뒤 비교를 시작합니다.</small><button class="switch-start" id="switchStart" type="button">시작하기</button></div>
+    </section>
+  </section>
+
+  <section class="product-band" id="explore">
+    <div class="band-inner">
+      <div class="band-item"><div class="label">조건으로 찾기</div><h3>현재 사료 없이도 탐색할 수 있습니다.</h3><p>형태, 연령, 공식 대상, 원료 조건부터 필요한 만큼 선택합니다.</p><a class="band-link" href="#explore-start">조건 설정하기</a></div>
+      <div class="band-item"><div class="label">데이터 기준</div><h3>한국 현재 판매 제품</h3><p>제품·포장·배합을 구분하고, 확인되지 않은 정보는 따로 표시합니다.</p></div>
+      <div class="band-item"><div class="label">비교 방식</div><h3>점수 대신 차이를 봅니다.</h3><p>현재 제품과 후보 사이의 확인된 차이와 미확인 상태를 나눠 보여줍니다.</p></div>
+    </div>
+  </section>
+
+  <section class="content">
+    <section id="guides">
+      <div class="section-title"><h2>데이터 읽기</h2><a href="#all-guides">전체 보기</a></div>
+      <div class="guide-list">
+        <a class="guide-card" href="#g1"><b>원재료표 읽기</b><p>레시피 이름과 전체 원재료를 같은 정보로 보지 않습니다.</p><span>읽기</span></a>
+        <a class="guide-card" href="#g2"><b>공식 대상과 부가 기능</b><p>제조사 표기와 CATFOOD의 해석을 분리해서 봅니다.</p><span>읽기</span></a>
+        <a class="guide-card" href="#g3"><b>영양성분 읽기</b><p>수치가 높고 낮다는 이유만으로 좋은지 나쁜지 판단하지 않습니다.</p><span>읽기</span></a>
+      </div>
+    </section>
+
+    <aside>
+      <div class="section-title"><h2>리콜</h2><a href="#all-recalls">전체 기록</a></div>
+      <div class="recall-box">
+        <div class="recall-row"><div class="recall-top"><span class="recall-date">공식 기록</span><span class="recall-state">제품 범위 확인</span></div><b>리콜 기록을 제품 단위로 확인합니다.</b><p>발생 시점과 대상 제품, 한국 판매 범위를 구분해 표시합니다.</p></div>
+        <div class="recall-row"><div class="recall-top"><span class="recall-date">표시 원칙</span></div><b>과거 기록과 현재 판매 제품을 구분합니다.</b><p>브랜드 전체의 현재 상태처럼 보이지 않도록 범위를 함께 표시합니다.</p></div>
+      </div>
+    </aside>
+  </section>
+</main>
+<footer class="footer"><div class="footer-inner"><b>CATFOOD_</b><span>고양이 사료 탐색·비교 데이터 서비스</span></div></footer>
+<script>
+const input=document.getElementById('searchInput');
+const result=document.getElementById('searchResult');
+const searchButton=document.getElementById('searchButton');
+const homeBrand=document.getElementById('homeBrand');
+const homeNav=document.getElementById('homeNav');
+const currentSelect=document.getElementById('currentSelect');
+const switchStart=document.getElementById('switchStart');
+function runSearch(){result.classList.toggle('show',input.value.trim().length>0)}
+function resetHome(e){if(e)e.preventDefault();input.value='';result.classList.remove('show');window.scrollTo({top:0,behavior:'smooth'});history.replaceState(null,'','#home')}
+searchButton.addEventListener('click',runSearch);
+input.addEventListener('input',()=>{if(!input.value.trim())result.classList.remove('show')});
+input.addEventListener('keydown',e=>{if(e.key==='Enter')runSearch()});
+homeBrand.addEventListener('click',resetHome);
+homeNav.addEventListener('click',resetHome);
+currentSelect.addEventListener('click',()=>{input.focus();window.scrollTo({top:0,behavior:'smooth'})});
+switchStart.addEventListener('click',()=>{input.focus();window.scrollTo({top:0,behavior:'smooth'})});
+</script>
+</body>
+</html>

@@ -58,17 +58,17 @@
 .home-main {
   width: min(1420px, calc(100% - 7vw));
   margin: 0 auto;
-  padding: 64px 0 58px;
+  padding: 48px 0 46px;
 }
 
 .home-intro {
-  max-width: 960px;
+  max-width: 880px;
 }
 
 .home-eyebrow {
-  margin-bottom: 17px;
+  margin-bottom: 13px;
   color: #8e3028;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 820;
   letter-spacing: 0.02em;
 }
@@ -76,16 +76,16 @@
 .home-intro h1 {
   margin: 0;
   color: #1b1613;
-  font-size: clamp(42px, 4.6vw, 72px);
-  line-height: 1.02;
-  letter-spacing: -0.055em;
+  font-size: clamp(40px, 3.7vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.05em;
   font-weight: 900;
 }
 
 .home-intro p {
-  margin: 20px 0 0;
+  margin: 14px 0 0;
   color: #756e68;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 560;
 }
 
@@ -94,8 +94,8 @@
   grid-template-columns: minmax(280px, 0.62fr) minmax(520px, 1.38fr);
   gap: 46px;
   align-items: end;
-  margin-top: 60px;
-  padding: 30px 0 34px;
+  margin-top: 42px;
+  padding: 26px 0 30px;
   border-top: 1px solid #e8dfd6;
   border-bottom: 1px solid #e8dfd6;
 }
@@ -109,9 +109,9 @@
 
 .home-section-label > span,
 .home-action-no {
-  color: #a49a92;
-  font-size: 11px;
-  font-weight: 760;
+  color: #b7ada5;
+  font-size: 10px;
+  font-weight: 680;
   font-variant-numeric: tabular-nums;
 }
 
@@ -176,14 +176,14 @@
 }
 
 .home-action {
-  min-height: 188px;
+  min-height: 166px;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
   border: 0;
   background: transparent;
-  padding: 32px 34px 32px 0;
+  padding: 28px 34px 28px 0;
   text-align: left;
   cursor: pointer;
 }
@@ -238,14 +238,14 @@
 .home-trust {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  margin-top: 34px;
+  margin-top: 26px;
   border-top: 1px solid #e8dfd6;
   border-bottom: 1px solid #e8dfd6;
 }
 
 .home-trust > div {
-  min-height: 92px;
-  padding: 20px 20px 18px 0;
+  min-height: 78px;
+  padding: 16px 20px 14px 0;
 }
 
 .home-trust > div + div {
@@ -255,23 +255,23 @@
 
 .home-trust-kicker {
   display: block;
-  margin-bottom: 9px;
-  color: #a49a92;
-  font-size: 9px;
-  font-weight: 780;
+  margin-bottom: 7px;
+  color: #aaa098;
+  font-size: 8px;
+  font-weight: 740;
   letter-spacing: 0.07em;
 }
 
 .home-trust strong {
-  color: #554a43;
-  font-size: 12px;
-  font-weight: 720;
-  line-height: 1.45;
+  color: #625750;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .home-footer {
   width: min(1420px, calc(100% - 7vw));
-  min-height: 70px;
+  min-height: 64px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -326,11 +326,11 @@
   }
 
   .home-main {
-    padding-top: 42px;
+    padding-top: 36px;
   }
 
   .home-intro h1 {
-    font-size: 44px;
+    font-size: 40px;
   }
 
   .home-lookup,

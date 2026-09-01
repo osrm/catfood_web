@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CATFOOD UI v41 — Data-led Home</title>
+<style>
+:root{
+  --bg:#f4f5f1;--paper:#fbfcf9;--ink:#151816;--ink2:#3b423d;--muted:#727a73;--faint:#9ca49d;
+  --line:#d9ded9;--line2:#e9ece8;--green:#0d4b28;--green-soft:#edf4ee;--warn:#86621f;--warn-soft:#f8f2e4;
+  --sans:Inter,Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+body{min-width:1120px}button,input{font:inherit;color:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}
+.shell{width:min(1380px,calc(100% - 64px));margin:0 auto;min-height:100vh;background:var(--paper);border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.header{height:66px;padding:0 34px;display:flex;align-items:center;border-bottom:1px solid var(--line)}
+.brand{font-size:21px;font-weight:880;letter-spacing:.045em}.brand span{color:var(--green)}
+.nav{margin-left:auto;display:flex;gap:24px;align-items:center}.nav a{font-size:12px;font-weight:700;color:#4b534c}.nav a:hover{color:var(--green)}
+.main{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(330px,.8fr);min-height:calc(100vh - 66px)}
+.primary{padding:44px 46px 56px 44px}.rail{padding:35px 34px 48px;border-left:1px solid var(--line);background:#f8f9f6}
+.search-wrap{position:relative}.search-label{font-size:12px;font-weight:780;color:var(--ink2);margin-bottom:9px}.search{height:62px;display:grid;grid-template-columns:1fr 64px;border:1px solid #222724;background:#fff}
+.search input{border:0;outline:0;padding:0 18px;font-size:17px;background:transparent}.search button{border:0;border-left:1px solid var(--line);background:#fff;color:var(--green);font-size:21px}.search button:hover{background:#f7faf7}
+.search-result{display:none;position:absolute;left:0;right:0;top:91px;z-index:20;background:#fff;border:1px solid #2d342e;border-top:0;box-shadow:0 14px 30px rgba(20,28,21,.08)}
+.search-result.show{display:block}.search-item{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:15px;align-items:center;padding:15px 16px}
+.thumb{width:46px;height:58px;border:1px solid #cfd5ce;background:linear-gradient(155deg,#f1ede1 0 45%,#c8d8c7 46% 100%);position:relative;overflow:hidden}
+.thumb::before{content:"";position:absolute;left:7px;right:7px;top:9px;height:5px;background:#31533b}.thumb::after{content:"";position:absolute;left:7px;right:15px;top:21px;height:2px;background:#8e998f;box-shadow:0 6px 0 #aab2aa,0 12px 0 #bbc1bb}
+.brandline{font-size:10px;font-weight:800;color:var(--green)}.name{margin-top:3px;font-size:15px;font-weight:820}.meta{margin-top:4px;font-size:10px;color:var(--muted)}
+.actions{display:flex;gap:16px}.actions button{border:0;background:transparent;padding:0;font-size:11px;font-weight:760}.actions .strong{color:var(--green)}
+.intent{margin-top:24px;padding-top:24px;border-top:1px solid var(--line)}
+.switch-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:center;padding:19px 20px 19px 0;background:linear-gradient(90deg,var(--green-soft),rgba(237,244,238,0) 88%);border-top:1px solid #c9d7cc;border-bottom:1px solid #c9d7cc}
+.switch-row h2{margin:0;font-size:20px;letter-spacing:-.025em}.switch-row p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.5}.switch-cta{border:0;background:var(--green);color:#fff;height:38px;padding:0 15px;font-size:11px;font-weight:780}
+.explore-row{display:flex;align-items:center;gap:12px;padding:14px 0 2px}.explore-row b{font-size:13px}.explore-row span{font-size:11px;color:var(--muted)}.explore-row button{margin-left:auto;border:0;background:transparent;color:var(--green);font-size:11px;font-weight:770;padding:0}
+.preview{margin-top:40px}.section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:10px}.section-head h2{margin:0;font-size:16px;letter-spacing:-.015em}.section-head span{font-size:10px;color:var(--muted)}
+.product-list{border-top:1px solid #bcc5bd}.product{display:grid;grid-template-columns:72px minmax(0,1fr) 150px 80px;gap:16px;align-items:center;min-height:90px;border-bottom:1px solid var(--line2)}
+.product .thumb{width:52px;height:66px}.product:nth-child(2) .thumb{background:linear-gradient(155deg,#f0ece3 0 45%,#d7c29d 46% 100%)}.product:nth-child(3) .thumb{background:linear-gradient(155deg,#f1f1ea 0 45%,#bccad8 46% 100%)}
+.product-brand{font-size:10px;color:var(--green);font-weight:800}.product-name{margin-top:3px;font-size:14px;font-weight:820}.product-meta{margin-top:5px;font-size:10px;color:var(--muted)}
+.facts{font-size:10px;color:var(--ink2);line-height:1.55}.facts span{display:block}.updated{font-family:var(--mono);font-size:9px;color:var(--muted);text-align:right}.product-link{border:0;background:transparent;padding:0;color:var(--ink2);font-size:10px;font-weight:760;text-align:right}.product-link:hover{color:var(--green)}
+.footnote{margin-top:13px;font-size:10px;color:var(--muted);line-height:1.6}
+.rail-section{padding:0 0 24px;margin-bottom:24px;border-bottom:1px solid var(--line)}.rail-section:last-child{border-bottom:0;margin-bottom:0}
+.rail-kicker{font-size:10px;color:var(--muted);font-weight:800;margin-bottom:9px}.scope-line{display:flex;justify-content:space-between;gap:20px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line2)}.scope-line:first-of-type{border-top:0}.scope-line span{font-size:11px;color:var(--muted)}.scope-line b{font-size:11px;font-weight:760;text-align:right}
+.rail h2{margin:0 0 9px;font-size:15px}.recall{padding:11px 0;border-top:1px solid var(--line2)}.recall:first-of-type{border-top:0}.recall-top{display:flex;justify-content:space-between;gap:12px;align-items:center}.recall-date{font-family:var(--mono);font-size:9px;color:var(--muted)}.status{font-size:9px;font-weight:760;padding:3px 6px;background:var(--warn-soft);color:var(--warn)}.status.neutral{background:#ecefea;color:#626b63}.recall b{display:block;margin-top:5px;font-size:11px}.recall p{margin:4px 0 0;font-size:10px;color:var(--muted);line-height:1.45}.rail-more{display:inline-block;margin-top:9px;font-size:10px;color:var(--green);font-weight:760}
+.guide{display:block;padding:9px 0;border-top:1px solid var(--line2);font-size:11px;font-weight:690}.guide:first-of-type{border-top:0}.guide small{display:block;margin-top:4px;color:var(--muted);font-weight:500;font-size:9px}.guide:hover{color:var(--green)}
+.footer-note{margin-top:28px;font-size:9px;line-height:1.55;color:var(--faint)}
+@media(max-width:1220px){.shell{width:calc(100% - 36px)}.primary{padding-left:34px;padding-right:34px}.rail{padding-left:26px;padding-right:26px}.product{grid-template-columns:62px minmax(0,1fr) 130px 72px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="header">
+    <a class="brand" id="homeBrand" href="#home" aria-label="CATFOOD 홈"><span>CATFOOD_</span></a>
+    <nav class="nav" aria-label="주요 메뉴"><a id="homeNav" href="#home">사료 찾기</a><a href="#switch">사료 바꾸기</a><a href="#recalls">리콜</a><a href="#guides">데이터 읽기</a></nav>
+  </header>
+
+  <main class="main" id="home">
+    <section class="primary">
+      <div class="search-wrap">
+        <div class="search-label">제품명 또는 브랜드</div>
+        <div class="search"><input id="searchInput" type="search" placeholder="예: 로얄캐닌 인도어, 오리젠 오리지널" autocomplete="off"/><button id="searchButton" type="button" aria-label="검색">⌕</button></div>
+        <div class="search-result" id="searchResult" aria-live="polite">
+          <div class="search-item"><div class="thumb" aria-hidden="true"></div><div><div class="brandline">로얄캐닌</div><div class="name">인도어 27</div><div class="meta">건식 · 성묘 · 예시 제품 레코드</div></div><div class="actions"><button type="button">제품 정보 보기</button><button class="strong" type="button">이 제품에서 바꾸기</button></div></div>
+        </div>
+      </div>
+
+      <section class="intent" aria-label="주요 탐색 경로">
+        <div class="switch-row"><div><h2>현재 사료에서 바꾸기</h2><p>현재 제품을 기준으로 바꾸고 싶은 조건과 유지할 조건을 정합니다.</p></div><button class="switch-cta" type="button">사료 바꾸기</button></div>
+        <div class="explore-row"><b>조건으로 전체 제품 찾기</b><span>현재 사료 없이도 조건부터 탐색할 수 있습니다.</span><button type="button">조건으로 찾기</button></div>
+      </section>
+
+      <section class="preview">
+        <div class="section-head"><h2>제품 데이터</h2><span>프로토타입 · 이미지 자산 연결 전</span></div>
+        <div class="product-list">
+          <div class="product"><div class="thumb" aria-hidden="true"></div><div><div class="product-brand">로얄캐닌</div><div class="product-name">인도어 27</div><div class="product-meta">건식 · 성묘</div></div><div class="facts"><span>제품 정보</span><span>현재 판매 범위 기준</span></div><div><div class="updated">UPDATED —</div><button class="product-link" type="button">보기</button></div></div>
+          <div class="product"><div class="thumb" aria-hidden="true"></div><div><div class="product-brand">ORIJEN</div><div class="product-name">오리지널 캣</div><div class="product-meta">건식 · 예시 제품</div></div><div class="facts"><span>제품 정보</span><span>상태 확인 가능</span></div><div><div class="updated">UPDATED —</div><button class="product-link" type="button">보기</button></div></div>
+          <div class="product"><div class="thumb" aria-hidden="true"></div><div><div class="product-brand">HILL'S</div><div class="product-name">Science Diet Adult</div><div class="product-meta">건식 · 예시 제품</div></div><div class="facts"><span>제품 정보</span><span>상세 데이터 연결 예정</span></div><div><div class="updated">UPDATED —</div><button class="product-link" type="button">보기</button></div></div>
+        </div>
+        <p class="footnote">제품 이미지는 식별을 위한 요소로 사용합니다. 이 프로토타입에는 실제 패키지 이미지 계약이 아직 없어 중립 썸네일로 표시했습니다.</p>
+      </section>
+    </section>
+
+    <aside class="rail">
+      <section class="rail-section"><div class="rail-kicker">데이터 현황</div><div class="scope-line"><span>대상</span><b>한국 현재 판매 제품</b></div><div class="scope-line"><span>표시 원칙</span><b>확인된 사실 / 미확인 구분</b></div><div class="scope-line"><span>추천 점수</span><b>사용하지 않음</b></div></section>
+
+      <section class="rail-section" id="recalls"><h2>리콜</h2><div class="recall"><div class="recall-top"><span class="recall-date">2026.08.18</span><span class="status">대응 확인 중</span></div><b>제품 A 리콜 확인</b><p>한국 판매 SKU와 직접 연결되는지 확인 중입니다.</p></div><div class="recall"><div class="recall-top"><span class="recall-date">2026.06.04</span><span class="status neutral">국내 범위 확인</span></div><b>제품 B 라벨 관련 리콜</b><p>국내 판매 범위와의 관계를 분리해 기록합니다.</p></div><a class="rail-more" href="#all-recalls">전체 기록 보기</a></section>
+
+      <section class="rail-section" id="guides"><h2>데이터 읽기</h2><a class="guide" href="#g1">원재료표 읽기<small>레시피 이름과 전체 원재료를 구분합니다.</small></a><a class="guide" href="#g2">공식 대상과 부가 기능<small>제조사 표기와 CATFOOD의 해석을 섞지 않습니다.</small></a><a class="guide" href="#g3">영양성분 읽기<small>수치의 높고 낮음을 자동으로 좋고 나쁨으로 판단하지 않습니다.</small></a></section>
+      <div class="footer-note">CATFOOD는 제품의 품질·적합도 순위를 제공하지 않습니다. 확인되지 않은 정보는 부재로 처리하지 않습니다.</div>
+    </aside>
+  </main>
+</div>
+<script>
+const input=document.getElementById('searchInput');
+const result=document.getElementById('searchResult');
+const button=document.getElementById('searchButton');
+const homeBrand=document.getElementById('homeBrand');
+const homeNav=document.getElementById('homeNav');
+function runSearch(){result.classList.toggle('show',input.value.trim().length>0)}
+function resetHome(e){if(e)e.preventDefault();input.value='';result.classList.remove('show');window.scrollTo({top:0,behavior:'smooth'});history.replaceState(null,'','#home')}
+button.addEventListener('click',runSearch);
+input.addEventListener('keydown',e=>{if(e.key==='Enter')runSearch()});
+input.addEventListener('input',()=>{if(!input.value.trim())result.classList.remove('show')});
+homeBrand.addEventListener('click',resetHome);homeNav.addEventListener('click',resetHome);
+</script>
+</body>
+</html>

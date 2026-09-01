@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATFOOD UI v60 — Compare Service Polish</title>
+<style>
+:root{
+  --bg:#f3f5f7;--surface:#fff;--ink:#17212a;--muted:#63717b;--faint:#8a949b;
+  --line:#d9dfe4;--line-soft:#e9edf0;--navy:#173f53;--navy-2:#294f61;--navy-soft:#edf3f6;
+  --current:#f5f8fa;--changed:#f1f5f7;--soft:#f8fafb;--chip:#eef2f4;
+  --sans:Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;min-width:1180px}button{font:inherit;color:inherit;cursor:pointer}
+a{color:inherit}
+header{height:68px;background:rgba(255,255,255,.97);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 max(34px,4vw);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
+.logo{font-size:21px;font-weight:900;color:#23485a;letter-spacing:.025em}.nav{display:flex;gap:27px;margin-left:48px}.nav a{font-size:13px;color:#55636c;text-decoration:none;font-weight:660}.nav a.active{color:#172b36}.right{margin-left:auto;display:flex;gap:18px;color:#52636f;font-size:16px}
+.page{width:min(1560px,calc(100% - 5.5vw));margin:0 auto;padding:28px 0 56px}.notice{font-size:11px;color:#7d878e;margin:0 0 18px}
+.toolbar{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;margin-bottom:20px}.toolbar h1{font-size:28px;line-height:1.12;margin:0;letter-spacing:-.04em}.toolbar p{font-size:13px;color:#6c7982;margin:7px 0 0}.controls{display:flex;align-items:center;gap:10px}.view-switch{display:inline-flex;border:1px solid #ccd4da;background:#fff;border-radius:5px;padding:3px}.view-switch button{border:0;background:transparent;border-radius:3px;padding:8px 13px;font-size:12px;color:#65727b}.view-switch button.active{background:#e9eff3;color:#183949;font-weight:780}.add-product{height:36px;border:1px solid #cad3d9;background:#fff;border-radius:4px;padding:0 12px;font-size:12px;font-weight:720}
+.section-nav{height:44px;display:flex;align-items:center;gap:4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff;padding:0 12px;margin-bottom:0}.section-nav a{text-decoration:none;padding:8px 12px;border-radius:3px;font-size:12px;color:#5f6c75;font-weight:670}.section-nav a.active{background:var(--navy-soft);color:#173d50}
+.compare{background:#fff;border-bottom:1px solid var(--line)}
+.grid,.data-row{display:grid;grid-template-columns:minmax(205px,.72fr) repeat(3,minmax(270px,1fr))}
+.product-grid{display:grid;grid-template-columns:minmax(205px,.72fr) repeat(3,minmax(270px,1fr));border-bottom:1px solid var(--line);position:sticky;top:68px;z-index:35;background:#fff;box-shadow:0 6px 14px rgba(24,40,52,.035)}
+.product-spacer{padding:16px 18px 16px 0;display:flex;align-items:flex-end}.product-spacer span{font-size:11px;color:#7c878e}.product{position:relative;padding:18px 20px;border-left:1px solid var(--line);display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;align-items:center;min-height:142px}.product.current{background:var(--current)}.product.current:before{content:"";position:absolute;left:-1px;right:-1px;top:0;height:3px;background:var(--navy)}
+.pack{height:108px;background:#ecefea;border:1px solid #dfe4e0;display:grid;place-items:center;position:relative;overflow:hidden}.pack:before{content:"";width:48px;height:74px;background:#fff;box-shadow:0 7px 15px rgba(25,35,28,.10);position:absolute;border-radius:2px}.pack:after{content:"01";font-size:10px;font-weight:850;z-index:1}.candidate-a .pack:after{content:"02"}.candidate-b .pack:after{content:"03"}
+.role{font-size:10px;font-weight:820;color:#6d7a83;margin-bottom:5px;letter-spacing:.02em}.role.current-label{color:#244b5e}.brand{font-size:12px;color:#5e6c75;font-weight:680}.pname{font-size:19px;font-weight:860;margin-top:3px;letter-spacing:-.03em}.meta{font-size:11px;color:#77838a;margin-top:7px;line-height:1.55}.actions{display:flex;gap:6px;margin-top:10px}.mini{height:28px;padding:0 9px;border:1px solid #ced6dc;background:#fff;border-radius:3px;font-size:10px;font-weight:720}.mini.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.section{border-bottom:1px solid var(--line);scroll-margin-top:230px}.section:last-child{border-bottom:0}.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:30px 0 12px}.section-head h2{font-size:18px;margin:0;letter-spacing:-.025em}.section-head p{font-size:11px;color:#7c878e;margin:4px 0 0}.section-head .hint{font-size:10px;color:#74818a;white-space:nowrap}
+.data-row{min-height:60px;border-top:1px solid var(--line-soft)}.row-label{padding:18px 18px 16px 0}.row-label b{display:block;font-size:13px}.row-label small{display:block;margin-top:3px;color:#8a949a;font-size:10px;line-height:1.4}.cell{padding:16px 20px;border-left:1px solid var(--line-soft);display:flex;align-items:center;min-width:0;position:relative}.cell.current{background:#fbfcfd}.cell.changed{background:var(--changed)}.value{font-size:13px;font-weight:700}.value.big{font-size:18px;font-weight:830;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.unit{font-size:10px;color:#78848c;margin-left:3px;font-weight:600}.state-note{font-size:9px;color:#60717b;margin-left:auto;padding-left:10px;white-space:nowrap;font-weight:720}.same-note{font-size:9px;color:#7a858d;margin-left:auto;padding-left:10px;white-space:nowrap}.unknown{font-size:12px;color:#7b868d}
+.age-track{width:100%;max-width:210px}.age-labels{display:flex;justify-content:space-between;color:#8b959b;font-size:8px;margin-bottom:6px}.track{height:6px;background:#e8ecef;position:relative;border-radius:9px;overflow:hidden}.track span{position:absolute;top:0;bottom:0;background:#6e8895;border-radius:9px}.track.current-age span{left:52%;right:7%}.track.candidate-age-a span{left:52%;right:7%}.track.candidate-age-b span{left:28%;right:7%}.age-caption{font-size:10px;color:#65727b;margin-top:6px}
+
+/* Ingredient composition */
+.ingredient-composition{display:grid;grid-template-columns:minmax(205px,.72fr) repeat(3,minmax(270px,1fr));border-top:1px solid var(--line-soft)}.composition-label{padding:20px 18px 20px 0}.composition-label b{display:block;font-size:13px}.composition-label small{display:block;margin-top:5px;font-size:10px;color:#89939a;line-height:1.5}.composition-card{border-left:1px solid var(--line-soft);padding:18px 20px 20px;min-height:202px}.composition-card.current{background:#fbfcfd}.ingredient-group{padding:0 0 13px;margin-bottom:13px;border-bottom:1px solid var(--line-soft)}.ingredient-group:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}.group-name{font-size:9px;color:#869198;font-weight:760;letter-spacing:.03em;margin-bottom:7px}.ingredient-values{font-size:13px;color:#26343d;font-weight:680;line-height:1.55}.ingredient-values span{display:inline-block;margin-right:9px}.ingredient-values .unknown-text{color:#7f898f;font-weight:560}
+.ingredient-summary{display:grid;grid-template-columns:minmax(205px,.72fr) 1fr;border-top:1px solid var(--line-soft)}.summary-label{padding:18px 18px 18px 0}.summary-label b{font-size:13px}.summary-body{border-left:1px solid var(--line-soft);padding:16px 20px;display:grid;grid-template-columns:1.08fr repeat(3,1fr);gap:10px}.summary-block{background:var(--soft);border:1px solid #e4e9ec;padding:12px 13px;min-height:72px}.summary-block strong{display:block;font-size:10px;color:#65747d;margin-bottom:6px}.summary-block span{font-size:12px;font-weight:680;color:#2a3942;line-height:1.45}.summary-block.common{background:#eef3f5;border-color:#dce5e9}
+.evidence-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0 10px;border-top:1px solid var(--line)}.evidence-toolbar strong{font-size:13px}.evidence-toolbar span{font-size:10px;color:#7f8a91;margin-left:8px}.evidence-toolbar button{height:29px;border:1px solid #cfd7dc;background:#fff;border-radius:3px;padding:0 10px;font-size:10px;font-weight:700}.evidence{display:flex;align-items:center;gap:8px;font-size:12px;color:#52616b;line-height:1.45}.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}.solid{background:#193b4a}.hollow{border:1.5px solid #5a6972}.dash{border:1.5px dashed #8d979d}.evidence-note{padding:13px 0 0;color:#7d878e;font-size:10px;line-height:1.55}
+
+.bottom-note{margin-top:22px;padding:16px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:30px;font-size:10px;color:#7b858c;line-height:1.55}.bottom-note strong{color:#4f5e67}
+footer{height:64px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 max(34px,4vw);background:#fff;color:#7b858c;font-size:10px}.foot-logo{font-size:12px;font-weight:850;color:#24485a;margin-right:9px}.foot-links{margin-left:auto;display:flex;gap:18px}.foot-links a{text-decoration:none;color:#6c7982}
+@media(max-width:1280px){.page{width:calc(100% - 36px)}.grid,.data-row,.product-grid,.ingredient-composition{grid-template-columns:180px repeat(3,minmax(245px,1fr))}.ingredient-summary{grid-template-columns:180px 1fr}.product{padding:16px 15px;grid-template-columns:72px 1fr}.pack{height:96px}.pname{font-size:17px}.cell,.composition-card{padding-left:16px;padding-right:16px}.summary-body{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">CATFOOD_</div>
+  <nav class="nav"><a href="#">사료 찾기</a><a href="#">사료 바꾸기</a><a class="active" href="#">비교</a><a href="#">리콜</a><a href="#">데이터 기준</a></nav>
+  <div class="right"><span>⌕</span><span>◎</span></div>
+</header>
+
+<main class="page">
+  <p class="notice">아래 제품·국가·수치는 UI 검증용 중립 placeholder입니다. 실제 제품 사실이나 추천을 의미하지 않습니다.</p>
+
+  <div class="toolbar">
+    <div><h1>사료 비교</h1><p>현재 사료를 기준으로 제품의 구성과 확인된 차이를 함께 봅니다.</p></div>
+    <div class="controls"><div class="view-switch"><button class="active">차이 중심</button><button>전체 정보</button></div><button class="add-product">+ 비교 제품 추가</button></div>
+  </div>
+
+  <nav class="section-nav"><a class="active" href="#basic">기본 정보</a><a href="#nutrition">영양</a><a href="#ingredients">원재료</a></nav>
+
+  <div class="compare">
+    <div class="product-grid">
+      <div class="product-spacer"><span>비교 대상 3개</span></div>
+      <article class="product current">
+        <div class="pack"></div>
+        <div><div class="role current-label">기준 · 현재 사료</div><div class="brand">🇺🇸 브랜드 A</div><div class="pname">제품 01</div><div class="meta">건식 · 성묘 · 2 kg<br>제조국 태국</div><div class="actions"><button class="mini">제품 정보</button></div></div>
+      </article>
+      <article class="product candidate-a">
+        <div class="pack"></div>
+        <div><div class="role">후보 A</div><div class="brand">🇨🇦 브랜드 B</div><div class="pname">제품 02</div><div class="meta">건식 · 성묘 · 1.8 kg<br>제조국 캐나다</div><div class="actions"><button class="mini">제품 정보</button><button class="mini primary">현재 사료로 설정</button></div></div>
+      </article>
+      <article class="product candidate-b">
+        <div class="pack"></div>
+        <div><div class="role">후보 B</div><div class="brand">🇩🇪 브랜드 C</div><div class="pname">제품 03</div><div class="meta">건식 · 성묘 · 2 kg<br>제조국 독일</div><div class="actions"><button class="mini">제품 정보</button><button class="mini primary">현재 사료로 설정</button></div></div>
+      </article>
+    </div>
+
+    <section id="basic" class="section">
+      <div class="section-head"><div><h2>기본 정보</h2><p>제품을 식별하는 공통 항목을 같은 위치에서 확인합니다.</p></div><span class="hint">현재 사료가 기준축입니다.</span></div>
+      <div class="data-row">
+        <div class="row-label"><b>포장 / SKU</b><small>비교 중인 정확한 포장 단위</small></div>
+        <div class="cell current"><span class="value">2 kg</span></div>
+        <div class="cell changed"><span class="value">1.8 kg</span><span class="state-note">다름</span></div>
+        <div class="cell"><span class="value">2 kg</span><span class="same-note">같음</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>제조국</b></div>
+        <div class="cell current"><span class="value">태국</span></div>
+        <div class="cell changed"><span class="value">캐나다</span><span class="state-note">다름</span></div>
+        <div class="cell changed"><span class="value">독일</span><span class="state-note">다름</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>제조사 대상 연령</b><small>범위의 차이만 표시합니다.</small></div>
+        <div class="cell current"><div class="age-track"><div class="age-labels"><span>0</span><span>1</span><span>7</span><span>10+</span></div><div class="track current-age"><span></span></div><div class="age-caption">7세 이상</div></div></div>
+        <div class="cell"><div class="age-track"><div class="age-labels"><span>0</span><span>1</span><span>7</span><span>10+</span></div><div class="track candidate-age-a"><span></span></div><div class="age-caption">7세 이상</div></div></div>
+        <div class="cell changed"><div class="age-track"><div class="age-labels"><span>0</span><span>1</span><span>7</span><span>10+</span></div><div class="track candidate-age-b"><span></span></div><div class="age-caption">성묘</div></div><span class="state-note">범위 다름</span></div>
+      </div>
+    </section>
+
+    <section id="nutrition" class="section">
+      <div class="section-head"><div><h2>영양 정보</h2><p>같은 영양 항목은 정렬하고, 확인되지 않은 값은 비워 두지 않고 상태를 표시합니다.</p></div><span class="hint">높고 낮음을 평가하지 않습니다.</span></div>
+      <div class="data-row">
+        <div class="row-label"><b>조단백질</b><small>제품 표기값</small></div>
+        <div class="cell current"><span class="value big">32.0<span class="unit">%</span></span></div>
+        <div class="cell changed"><span class="value big">30.0<span class="unit">%</span></span><span class="state-note">다름</span></div>
+        <div class="cell changed"><span class="value big">34.0<span class="unit">%</span></span><span class="state-note">다름</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>조지방</b><small>제품 표기값</small></div>
+        <div class="cell current"><span class="value big">15.0<span class="unit">%</span></span></div>
+        <div class="cell"><span class="value big">15.0<span class="unit">%</span></span><span class="same-note">같음</span></div>
+        <div class="cell changed"><span class="value big">17.0<span class="unit">%</span></span><span class="state-note">다름</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>열량</b><small>kcal/kg</small></div>
+        <div class="cell current"><span class="value big">3,800<span class="unit">kcal/kg</span></span></div>
+        <div class="cell changed"><span class="value big">3,420<span class="unit">kcal/kg</span></span><span class="state-note">다름</span></div>
+        <div class="cell changed"><span class="value big">3,910<span class="unit">kcal/kg</span></span><span class="state-note">다름</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>칼슘</b><small>조건부 항목 예시</small></div>
+        <div class="cell current"><span class="unknown">확인 자료 부족</span></div>
+        <div class="cell changed"><span class="value big">1.1<span class="unit">%</span></span><span class="state-note">값 확인</span></div>
+        <div class="cell"><span class="unknown">확인 자료 부족</span></div>
+      </div>
+    </section>
+
+    <section id="ingredients" class="section">
+      <div class="section-head"><div><h2>원재료</h2><p>제품마다 다른 구성을 먼저 보여주고, 필요한 원재료만 같은 질문 아래 비교합니다.</p></div><span class="hint">구성 ≠ 포함 여부 대결</span></div>
+
+      <div class="ingredient-composition">
+        <div class="composition-label"><b>제품별 확인된 구성</b><small>각 제품에서 확인된 원재료를 제품별로 읽습니다. 서로 다른 주원료를 억지로 같은 행에 맞추지 않습니다.</small></div>
+        <div class="composition-card current">
+          <div class="ingredient-group"><div class="group-name">확인된 동물성 원료</div><div class="ingredient-values"><span>닭고기</span><span>닭간</span></div></div>
+          <div class="ingredient-group"><div class="group-name">확인된 곡물</div><div class="ingredient-values"><span>옥수수</span><span>쌀</span></div></div>
+          <div class="ingredient-group"><div class="group-name">기타 확인 원료</div><div class="ingredient-values"><span>타우린</span></div></div>
+        </div>
+        <div class="composition-card">
+          <div class="ingredient-group"><div class="group-name">확인된 동물성 원료</div><div class="ingredient-values"><span>소고기</span><span>소간</span></div></div>
+          <div class="ingredient-group"><div class="group-name">확인된 곡물</div><div class="ingredient-values"><span>현미</span></div></div>
+          <div class="ingredient-group"><div class="group-name">기타 확인 원료</div><div class="ingredient-values"><span>글루코사민</span><span>타우린</span></div></div>
+        </div>
+        <div class="composition-card">
+          <div class="ingredient-group"><div class="group-name">확인된 동물성 원료</div><div class="ingredient-values"><span>오리고기</span><span>생선</span></div></div>
+          <div class="ingredient-group"><div class="group-name">확인된 곡물</div><div class="ingredient-values"><span class="unknown-text">확인 자료 부족</span></div></div>
+          <div class="ingredient-group"><div class="group-name">기타 확인 원료</div><div class="ingredient-values"><span>타우린</span><span>감자</span></div></div>
+        </div>
+      </div>
+
+      <div class="ingredient-summary">
+        <div class="summary-label"><b>확인 요약</b></div>
+        <div class="summary-body">
+          <div class="summary-block common"><strong>세 제품에서 공통으로 확인</strong><span>타우린</span></div>
+          <div class="summary-block"><strong>현재 사료에서 확인</strong><span>닭고기 · 닭간 · 옥수수</span></div>
+          <div class="summary-block"><strong>후보 A에서 확인</strong><span>소고기 · 소간 · 현미</span></div>
+          <div class="summary-block"><strong>후보 B에서 확인</strong><span>오리고기 · 생선 · 감자</span></div>
+        </div>
+      </div>
+
+      <div class="evidence-toolbar"><div><strong>중요 원재료 확인</strong><span>검색 조건이나 사용자가 직접 확인하려는 원재료</span></div><button>+ 확인 항목 추가</button></div>
+      <div class="data-row">
+        <div class="row-label"><b>닭고기</b><small>확인할 원재료</small></div>
+        <div class="cell current"><span class="evidence"><i class="dot solid"></i>포함 확인</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span><span class="state-note">상태 다름</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot dash"></i>확인 자료 부족</span><span class="state-note">상태 다름</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>소고기</b><small>확인할 원재료</small></div>
+        <div class="cell current"><span class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot solid"></i>포함 확인</span><span class="state-note">상태 다름</span></div>
+        <div class="cell"><span class="evidence"><i class="dot dash"></i>확인 자료 부족</span></div>
+      </div>
+      <div class="data-row">
+        <div class="row-label"><b>옥수수</b><small>확인할 원재료</small></div>
+        <div class="cell current"><span class="evidence"><i class="dot solid"></i>포함 확인</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span><span class="state-note">상태 다름</span></div>
+        <div class="cell"><span class="evidence"><i class="dot dash"></i>확인 자료 부족</span></div>
+      </div>
+      <div class="evidence-note">‘검토한 자료에서 찾지 못함’은 실제 미포함을 의미하지 않습니다. ‘확인 자료 부족’ 역시 포함 여부를 추론하지 않습니다.</div>
+    </section>
+  </div>
+
+  <div class="bottom-note"><span><strong>정보 확인일</strong> YYYY.MM.DD</span><span>비교 화면은 제품의 차이를 정리할 뿐 품질·적합도·추천 순위를 판단하지 않습니다.</span></div>
+</main>
+
+<footer><span class="foot-logo">CATFOOD_</span><span>제품 정보를 확인하고 비교하는 도구</span><div class="foot-links"><a href="#">데이터 기준</a><a href="#">이용약관</a><a href="#">개인정보처리방침</a></div></footer>
+</body>
+</html>

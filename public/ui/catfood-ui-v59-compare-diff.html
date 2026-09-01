@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATFOOD UI v59 — Compare</title>
+<style>
+:root{
+  --bg:#f3f5f7;--surface:#fff;--ink:#17212a;--muted:#66727b;--faint:#8a949b;
+  --line:#d8dee4;--line-soft:#e9edf0;--navy:#183f53;--navy-soft:#eef3f6;--diff:#f3f6f8;--current:#f7f9fb;
+  --sans:Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;min-width:1120px}button{font:inherit;color:inherit;cursor:pointer}
+header{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 max(32px,4vw);position:sticky;top:0;z-index:20}.logo{font-size:21px;font-weight:900;color:#23485a;letter-spacing:.025em}.nav{display:flex;gap:26px;margin-left:46px}.nav a{font-size:13px;color:#52616b;text-decoration:none;font-weight:650}.nav a.active{color:#172b36}.right{margin-left:auto;display:flex;gap:18px;color:#52636f;font-size:16px}
+.page{width:min(1540px,calc(100% - 6vw));margin:0 auto;padding:28px 0 48px}.notice{font-size:11px;color:#7d878e;margin:0 0 16px}.toolbar{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:16px}.toolbar h1{font-size:25px;line-height:1.15;margin:0;letter-spacing:-.035em}.toolbar p{font-size:12px;color:#72808a;margin:6px 0 0}.switch{display:inline-flex;border:1px solid #cfd6dc;background:#fff;border-radius:4px;padding:3px}.switch button{border:0;background:transparent;border-radius:2px;padding:7px 12px;font-size:12px;color:#66747d}.switch button.active{background:#e9eff3;color:#183949;font-weight:760}
+.compare-shell{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.product-grid,.row{display:grid;grid-template-columns:minmax(190px,.78fr) repeat(3,minmax(250px,1fr))}.label-cell{padding:18px 18px 18px 0;color:#65717a}.product-grid{border-bottom:1px solid var(--line);position:sticky;top:68px;z-index:15;background:#fff}.product-empty{padding:24px 18px 22px 0}.product{padding:22px 22px 20px;border-left:1px solid var(--line);display:grid;grid-template-columns:82px minmax(0,1fr);gap:16px;align-items:center;min-height:150px}.product.current{background:var(--current)}.pack{height:105px;background:#ecefea;display:grid;place-items:center;position:relative;overflow:hidden;border:1px solid #e0e4e0}.pack:before{content:"";width:44px;height:70px;background:#fff;box-shadow:0 6px 14px rgba(25,35,28,.09);position:absolute}.pack:after{content:"01";font-size:10px;font-weight:850;z-index:1}.candidate-b .pack:after{content:"03"}.candidate-a .pack:after{content:"02"}.eyebrow{font-size:10px;font-weight:800;color:#6d7a83;margin-bottom:5px}.eyebrow.current-label{color:#244b5e}.brand{font-size:12px;color:#5f6d76;font-weight:680}.pname{font-size:18px;font-weight:850;margin-top:3px;letter-spacing:-.025em}.meta{font-size:11px;color:#78838a;margin-top:7px;line-height:1.55}.actions{display:flex;gap:6px;margin-top:10px}.mini{height:28px;padding:0 9px;border:1px solid #ced6dc;background:#fff;border-radius:3px;font-size:10px;font-weight:700}.mini.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.section{border-bottom:1px solid var(--line)}.section:last-child{border-bottom:0}.section-head{display:flex;align-items:center;gap:10px;padding:22px 0 10px;font-size:16px;font-weight:850}.section-head span{font-size:10px;font-weight:700;color:#7d878e;border:1px solid #d7dde2;padding:3px 6px;border-radius:3px}.row{min-height:58px;border-top:1px solid var(--line-soft)}.row-label{padding:18px 18px 16px 0}.row-label b{display:block;font-size:13px}.row-label small{display:block;margin-top:3px;color:#89939a;font-size:10px}.cell{padding:16px 22px;border-left:1px solid var(--line-soft);display:flex;align-items:center;min-width:0}.cell.current{background:#fbfcfd}.cell.changed{background:var(--diff)}.value{font-size:13px;font-weight:690}.value.big{font-size:17px;font-weight:820;font-variant-numeric:tabular-nums}.unit{font-size:10px;color:#78848c;margin-left:3px;font-weight:600}.unknown{font-size:12px;color:#7d878e}.same-tag,.diff-tag{font-size:9px;color:#697680;margin-left:auto;padding-left:10px;white-space:nowrap}.diff-tag{font-weight:760;color:#355366}
+.evidence{display:flex;align-items:center;gap:8px;font-size:12px;color:#55636c}.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}.solid{background:#183948}.hollow{border:1.5px solid #55656f}.dash{border:1.5px dashed #8b969d}.evidence-note{padding:11px 0 0;color:#7d878e;font-size:10px;line-height:1.55}
+.diff-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 28px}.summary{background:#fff;border:1px solid var(--line);padding:14px 16px}.summary b{font-size:12px}.summary span{display:block;margin-top:5px;font-size:11px;color:#748089;line-height:1.5}
+footer{height:64px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 max(32px,4vw);background:#fff;color:#7b858c;font-size:10px}.foot-logo{font-size:12px;font-weight:850;color:#24485a;margin-right:9px}.foot-links{margin-left:auto;display:flex;gap:18px}.foot-links a{text-decoration:none;color:#6c7982}
+@media(max-width:1260px){.page{width:calc(100% - 36px)}.product-grid,.row{grid-template-columns:170px repeat(3,minmax(235px,1fr))}.product{padding:18px 16px;grid-template-columns:68px 1fr}.pname{font-size:16px}.cell{padding:15px 16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">CATFOOD_</div>
+  <nav class="nav"><a href="#">사료 찾기</a><a href="#">사료 바꾸기</a><a class="active" href="#">비교</a><a href="#">리콜</a><a href="#">데이터 기준</a></nav>
+  <div class="right"><span>⌕</span><span>◎</span></div>
+</header>
+<main class="page">
+  <p class="notice">아래 제품·국가·수치는 UI 검증용 중립 placeholder입니다. 실제 제품 사실이나 추천을 의미하지 않습니다.</p>
+  <div class="toolbar">
+    <div><h1>사료 비교</h1><p>현재 사료를 기준으로 같은 항목과 다른 항목을 나란히 확인합니다.</p></div>
+    <div class="switch"><button class="active">차이만 보기</button><button>전체 보기</button></div>
+  </div>
+
+  <div class="diff-summary">
+    <div class="summary"><b>제품 식별</b><span>제품·포장/SKU를 고정된 열에서 비교합니다.</span></div>
+    <div class="summary"><b>차이 우선</b><span>다른 값은 중립적인 배경으로만 구분합니다.</span></div>
+    <div class="summary"><b>확인 상태 유지</b><span>자료가 없거나 불충분한 값을 0이나 미포함으로 바꾸지 않습니다.</span></div>
+  </div>
+
+  <div class="compare-shell">
+    <div class="product-grid">
+      <div class="product-empty"></div>
+      <div class="product current">
+        <div class="pack"></div>
+        <div><div class="eyebrow current-label">현재 사료</div><div class="brand">🇺🇸 브랜드 A</div><div class="pname">제품 01</div><div class="meta">건식 · 성묘 · 2 kg<br>제조국 태국</div><div class="actions"><button class="mini">제품 정보</button></div></div>
+      </div>
+      <div class="product candidate-a">
+        <div class="pack"></div>
+        <div><div class="eyebrow">후보 A</div><div class="brand">🇨🇦 브랜드 B</div><div class="pname">제품 02</div><div class="meta">건식 · 성묘 · 1.8 kg<br>제조국 캐나다</div><div class="actions"><button class="mini">제품 정보</button><button class="mini primary">현재 사료로 설정</button></div></div>
+      </div>
+      <div class="product candidate-b">
+        <div class="pack"></div>
+        <div><div class="eyebrow">후보 B</div><div class="brand">🇩🇪 브랜드 C</div><div class="pname">제품 03</div><div class="meta">건식 · 성묘 · 2 kg<br>제조국 독일</div><div class="actions"><button class="mini">제품 정보</button><button class="mini primary">현재 사료로 설정</button></div></div>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="section-head">기본 정보 <span>COMMON AXIS</span></div>
+      <div class="row">
+        <div class="row-label"><b>포장 / SKU</b><small>비교 중인 정확한 포장 단위</small></div>
+        <div class="cell current"><span class="value">2 kg</span></div>
+        <div class="cell changed"><span class="value">1.8 kg</span><span class="diff-tag">다름</span></div>
+        <div class="cell"><span class="value">2 kg</span><span class="same-tag">현재와 같음</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>제조국</b></div>
+        <div class="cell current"><span class="value">태국</span></div>
+        <div class="cell changed"><span class="value">캐나다</span><span class="diff-tag">다름</span></div>
+        <div class="cell changed"><span class="value">독일</span><span class="diff-tag">다름</span></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">영양 정보 <span>ALIGNED VALUES</span></div>
+      <div class="row">
+        <div class="row-label"><b>조단백질</b><small>제품 표기값</small></div>
+        <div class="cell current"><span class="value big">32.0<span class="unit">%</span></span></div>
+        <div class="cell changed"><span class="value big">30.0<span class="unit">%</span></span><span class="diff-tag">다름</span></div>
+        <div class="cell changed"><span class="value big">34.0<span class="unit">%</span></span><span class="diff-tag">다름</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>조지방</b><small>제품 표기값</small></div>
+        <div class="cell current"><span class="value big">15.0<span class="unit">%</span></span></div>
+        <div class="cell"><span class="value big">15.0<span class="unit">%</span></span><span class="same-tag">현재와 같음</span></div>
+        <div class="cell changed"><span class="value big">17.0<span class="unit">%</span></span><span class="diff-tag">다름</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>열량</b><small>kcal/kg</small></div>
+        <div class="cell current"><span class="value big">3,800<span class="unit">kcal/kg</span></span></div>
+        <div class="cell changed"><span class="value big">3,420<span class="unit">kcal/kg</span></span><span class="diff-tag">다름</span></div>
+        <div class="cell changed"><span class="value big">3,910<span class="unit">kcal/kg</span></span><span class="diff-tag">다름</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>칼슘</b><small>조건부 항목 예시</small></div>
+        <div class="cell current"><span class="unknown">확인 자료 부족</span></div>
+        <div class="cell changed"><span class="value big">1.1<span class="unit">%</span></span><span class="diff-tag">값 있음</span></div>
+        <div class="cell"><span class="unknown">확인 자료 부족</span></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">원재료 확인 <span>STATUS BY QUESTION</span></div>
+      <div class="row">
+        <div class="row-label"><b>닭고기</b><small>같은 원료 질문 아래 상태 정렬</small></div>
+        <div class="cell current"><span class="evidence"><i class="dot solid"></i>포함 확인</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span><span class="diff-tag">상태 다름</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot dash"></i>확인 자료 부족</span><span class="diff-tag">상태 다름</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>옥수수</b></div>
+        <div class="cell current"><span class="evidence"><i class="dot solid"></i>포함 확인</span></div>
+        <div class="cell"><span class="evidence"><i class="dot solid"></i>포함 확인</span><span class="same-tag">현재와 같음</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span><span class="diff-tag">상태 다름</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>글루코사민</b></div>
+        <div class="cell current"><span class="evidence"><i class="dot dash"></i>확인 자료 부족</span></div>
+        <div class="cell changed"><span class="evidence"><i class="dot solid"></i>포함 확인</span><span class="diff-tag">상태 다름</span></div>
+        <div class="cell"><span class="evidence"><i class="dot dash"></i>확인 자료 부족</span><span class="same-tag">현재와 같음</span></div>
+      </div>
+      <div class="evidence-note">‘검토한 자료에서 찾지 못함’과 ‘확인 자료 부족’은 실제 미포함을 의미하지 않습니다.</div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">연령 정보 <span>CONTEXT</span></div>
+      <div class="row">
+        <div class="row-label"><b>제조사 대상</b><small>공식 표기 범위</small></div>
+        <div class="cell current"><span class="value">7세 이상</span></div>
+        <div class="cell changed"><span class="value">1세 이상</span><span class="diff-tag">다름</span></div>
+        <div class="cell"><span class="value">7세 이상</span><span class="same-tag">현재와 같음</span></div>
+      </div>
+      <div class="row">
+        <div class="row-label"><b>내 고양이 8세</b><small>Mature adult · AAHA/AAFP 2021</small></div>
+        <div class="cell current"><span class="value">제조사 표기 연령 범위에 포함</span></div>
+        <div class="cell"><span class="value">제조사 표기 연령 범위에 포함</span></div>
+        <div class="cell"><span class="value">제조사 표기 연령 범위에 포함</span></div>
+      </div>
+    </section>
+  </div>
+</main>
+<footer><span class="foot-logo">CATFOOD_</span><span>제품 정보를 확인하고 비교하는 도구</span><div class="foot-links"><a href="#">데이터 기준</a><a href="#">이용약관</a><a href="#">개인정보처리방침</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CATFOOD UI v44 — Tool-first Home</title>
+<style>
+:root{
+  --bg:#f3f5f1;--paper:#fbfcf8;--surface:#fff;--ink:#142018;--ink2:#38443d;--muted:#6d786f;
+  --faint:#98a199;--line:#d9dfd8;--line2:#e9ede8;--green:#0a4a29;--green2:#155d38;--green-soft:#edf4ee;
+  --sans:Inter,Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+body{min-width:1080px}a{color:inherit;text-decoration:none}button,input{font:inherit;color:inherit}button{cursor:pointer}
+.site{min-height:100vh;background:var(--paper)}
+.header{height:64px;border-top:3px solid var(--green);border-bottom:1px solid var(--line);background:rgba(251,252,248,.97)}
+.header-inner{width:min(1320px,calc(100% - 64px));height:100%;margin:0 auto;display:flex;align-items:center}
+.brand{font-size:22px;font-weight:900;letter-spacing:.045em;color:var(--green)}
+.nav{margin-left:auto;display:flex;align-items:center;gap:27px}.nav a{font-size:12px;font-weight:730;color:#465149}.nav a:hover{color:var(--green)}.nav .quiet{color:var(--muted)}
+.home{width:min(1320px,calc(100% - 64px));margin:0 auto;padding:34px 0 22px}
+.search-stage{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;align-items:center;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.search-label h1{margin:0;font-size:24px;line-height:1.2;letter-spacing:-.035em}.search-label p{margin:7px 0 0;color:var(--muted);font-size:10px;line-height:1.5}
+.search-wrap{position:relative}.search-box{height:58px;display:grid;grid-template-columns:1fr 58px;border:1px solid #b9c4ba;background:#fff;overflow:hidden}
+.search-box:focus-within{border-color:#6f9a7d;box-shadow:0 0 0 2px rgba(10,74,41,.06)}.search-box input{border:0;outline:0;background:transparent;padding:0 18px;font-size:15px}.search-box input::placeholder{color:#9aa39c}.search-box button{border:0;border-left:1px solid var(--line);background:#fff;color:var(--green);font-size:20px}.search-box button:hover{background:#f7faf7}
+.search-hint{margin-top:8px;color:var(--faint);font-size:9px}.search-result{display:none;position:absolute;left:0;right:0;top:58px;z-index:10;background:#fff;border:1px solid #b9c4ba;border-top:0;padding:14px 16px;color:var(--muted);font-size:11px}.search-result.show{display:block}
+.workbench{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(410px,.75fr);min-height:510px;border-bottom:1px solid var(--line)}
+.panel{min-width:0;padding:30px 34px 28px 0}.panel+.panel{border-left:1px solid var(--line);padding-left:34px;padding-right:0}
+.panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}.panel-head h2{margin:0;font-size:19px;letter-spacing:-.025em}.panel-head span{font-size:9px;color:var(--faint)}
+.current-field{display:grid;grid-template-columns:150px minmax(0,1fr) 112px;align-items:center;min-height:66px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.current-field label{font-size:11px;font-weight:760}.current-input{height:40px;border:1px solid var(--line);background:#fff;padding:0 12px;outline:0;font-size:12px}.current-input:focus{border-color:#86a98f}.current-action{justify-self:end;width:98px;height:36px;border:1px solid var(--green);background:var(--green);color:#fff;font-size:11px;font-weight:780}
+.flow{margin-top:24px}.flow-row{display:grid;grid-template-columns:34px 160px 1fr auto;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid var(--line2)}.flow-row:first-child{border-top:1px solid var(--line2)}
+.flow-no{font-size:10px;color:var(--faint)}.flow-title{font-size:12px;font-weight:780}.flow-copy{font-size:10px;color:var(--muted)}.flow-state{font-size:9px;color:var(--faint);white-space:nowrap}.flow-state.ready{color:var(--green);font-weight:760}
+.switch-note{margin-top:17px;display:flex;justify-content:space-between;align-items:center;gap:24px}.switch-note p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}.plain-link{border:0;background:transparent;padding:0;color:var(--green);font-size:10px;font-weight:780;white-space:nowrap}
+.filters{border-top:1px solid var(--line)}.filter-row{display:grid;grid-template-columns:92px 1fr;gap:18px;align-items:start;padding:15px 0;border-bottom:1px solid var(--line2)}.filter-label{font-size:10px;font-weight:780;color:var(--ink2);padding-top:7px}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{height:29px;padding:0 10px;border:1px solid var(--line);background:#fff;font-size:10px;color:#4a554d}.chip:hover,.chip.active{border-color:#8eae97;background:var(--green-soft);color:var(--green)}
+.explore-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:17px}.explore-foot span{font-size:9px;color:var(--faint)}.explore-start{height:36px;padding:0 14px;border:1px solid var(--green);background:#fff;color:var(--green);font-size:10px;font-weight:780}
+.statusbar{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;min-height:72px}.status-left{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.status-left b{font-size:10px}.status-left span{font-size:9px;color:var(--muted)}.status-links{display:flex;align-items:center;gap:20px}.status-links a{font-size:10px;font-weight:760;color:var(--ink2)}.status-links a:hover{color:var(--green)}
+@media(max-width:1180px){.header-inner,.home{width:calc(100% - 40px)}.workbench{grid-template-columns:minmax(0,1fr) 390px}.panel{padding-right:26px}.panel+.panel{padding-left:26px}.search-stage{grid-template-columns:180px 1fr}}
+</style>
+</head>
+<body>
+<div class="site">
+<header class="header"><div class="header-inner"><a class="brand" id="homeBrand" href="#home">CATFOOD_</a><nav class="nav"><a href="#lookup">사료 찾기</a><a href="#switch">사료 바꾸기</a><a href="#explore">조건 탐색</a><a class="quiet" href="#recall">리콜</a><a class="quiet" href="#guide">데이터 읽기</a></nav></div></header>
+<main class="home" id="home">
+  <section class="search-stage" id="lookup">
+    <div class="search-label"><h1>사료 찾기</h1><p>제품명이나 브랜드를 알고 있다면 바로 찾습니다.</p></div>
+    <div class="search-wrap"><div class="search-box"><input id="searchInput" type="search" placeholder="제품명 또는 브랜드 검색" autocomplete="off"/><button id="searchButton" type="button" aria-label="검색">⌕</button></div><div class="search-hint">검색한 제품은 정보 확인 또는 사료 바꾸기의 기준으로 사용할 수 있습니다.</div><div class="search-result" id="searchResult">검색 결과가 이 영역에 표시됩니다.</div></div>
+  </section>
+
+  <section class="workbench">
+    <section class="panel" id="switch">
+      <div class="panel-head"><h2>현재 사료에서 바꾸기</h2><span>현재 제품 기준</span></div>
+      <div class="current-field"><label for="currentInput">현재 먹이는 제품</label><input class="current-input" id="currentInput" type="search" placeholder="제품 검색"/><button class="current-action" type="button">제품 선택</button></div>
+      <div class="flow" aria-label="사료 바꾸기 단계">
+        <div class="flow-row"><span class="flow-no">1</span><span class="flow-title">정확한 제품과 규격</span><span class="flow-copy">현재 먹이는 제품과 포장 규격을 확인합니다.</span><span class="flow-state ready">시작</span></div>
+        <div class="flow-row"><span class="flow-no">2</span><span class="flow-title">바꾸고 싶은 것</span><span class="flow-copy">변경하려는 조건만 선택합니다.</span><span class="flow-state">제품 선택 후</span></div>
+        <div class="flow-row"><span class="flow-no">3</span><span class="flow-title">유지하고 싶은 것</span><span class="flow-copy">그대로 두고 싶은 조건만 선택합니다.</span><span class="flow-state">제품 선택 후</span></div>
+        <div class="flow-row"><span class="flow-no">4</span><span class="flow-title">후보 비교</span><span class="flow-copy">확인된 차이와 미확인 상태를 함께 봅니다.</span><span class="flow-state">조건 설정 후</span></div>
+      </div>
+      <div class="switch-note"><p>선택하지 않은 항목은 반대 조건으로 해석하지 않습니다.</p><button class="plain-link" type="button">사료 바꾸기 자세히</button></div>
+    </section>
+
+    <section class="panel" id="explore">
+      <div class="panel-head"><h2>조건으로 찾기</h2><span>전체 제품 탐색</span></div>
+      <div class="filters">
+        <div class="filter-row"><div class="filter-label">급여 형태</div><div class="chips"><button class="chip" type="button">건식</button><button class="chip" type="button">습식</button></div></div>
+        <div class="filter-row"><div class="filter-label">연령</div><div class="chips"><button class="chip" type="button">키튼</button><button class="chip" type="button">성묘</button><button class="chip" type="button">시니어</button></div></div>
+        <div class="filter-row"><div class="filter-label">생활 / 관리</div><div class="chips"><button class="chip" type="button">실내 생활</button><button class="chip" type="button">체중관리</button><button class="chip" type="button">헤어볼</button></div></div>
+        <div class="filter-row"><div class="filter-label">원료</div><div class="chips"><button class="chip" type="button">포함 조건</button><button class="chip" type="button">피하기</button></div></div>
+      </div>
+      <div class="explore-foot"><span>선택한 조건에 맞춰 필요한 심화 필터만 이어서 표시합니다.</span><button class="explore-start" type="button">전체 조건 열기</button></div>
+    </section>
+  </section>
+
+  <section class="statusbar">
+    <div class="status-left"><b>한국 현재 판매 제품 기준</b><span>제품 · SKU · 배합 구분</span><span>확인되지 않은 정보는 별도 표시</span></div>
+    <div class="status-links"><a id="recall" href="#recall-page">리콜 기록</a><a id="guide" href="#guide-page">데이터 읽기</a></div>
+  </section>
+</main>
+</div>
+<script>
+const input=document.getElementById('searchInput');const result=document.getElementById('searchResult');const searchButton=document.getElementById('searchButton');const homeBrand=document.getElementById('homeBrand');
+function runSearch(){result.classList.toggle('show',input.value.trim().length>0)}function resetHome(e){if(e)e.preventDefault();input.value='';result.classList.remove('show');window.scrollTo({top:0,behavior:'smooth'});history.replaceState(null,'','#home')}
+searchButton.addEventListener('click',runSearch);input.addEventListener('keydown',e=>{if(e.key==='Enter')runSearch()});input.addEventListener('input',()=>{if(!input.value.trim())result.classList.remove('show')});homeBrand.addEventListener('click',resetHome);
+document.querySelectorAll('.chip').forEach(btn=>btn.addEventListener('click',()=>btn.classList.toggle('active')));
+</script>
+</body>
+</html>

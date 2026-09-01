@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATFOOD UI v58 — Full-width Product Detail</title>
+<style>
+:root{
+  --canvas:#f4f6f8;--surface:#fff;--ink:#13202a;--muted:#66727c;--faint:#8b959d;
+  --line:#d8dee5;--line-soft:#e9edf1;--navy:#183d50;--chip:#edf3f9;--visual:#eceeea;--visual2:#d4d8d2;
+  --sans:Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}body{font-family:var(--sans);background:var(--canvas);color:var(--ink);font-size:14px;min-width:1080px}button{font:inherit;color:inherit;cursor:pointer}
+header{height:68px;background:#fff;border-bottom:1px solid var(--line)}
+.header-inner{width:min(1540px,calc(100% - 72px));height:100%;margin:0 auto;display:flex;align-items:center}.logo{font-size:20px;font-weight:900;letter-spacing:.025em;color:#244457}.nav{display:flex;gap:27px;margin-left:48px}.nav a{font-size:12px;color:#45545f;text-decoration:none;font-weight:650}.nav a:first-child{color:#162d3a}.icons{margin-left:auto;display:flex;gap:18px;color:#435967;font-size:17px}
+main{width:min(1540px,calc(100% - 72px));margin:0 auto;padding:40px 0 48px}.hero{display:grid;grid-template-columns:minmax(430px,.92fr) minmax(0,1.08fr);gap:clamp(48px,5vw,88px);align-items:stretch}.visual-card{background:#fff;border:1px solid var(--line);border-radius:5px;padding:27px;display:grid;place-items:center;min-height:370px}.visual{width:100%;height:100%;min-height:316px;background:var(--visual);display:grid;place-items:center;position:relative;overflow:hidden}.visual:before{content:"";position:absolute;width:440px;height:440px;border-radius:50%;background:rgba(255,255,255,.48);left:-115px;top:-130px}.pack{width:184px;height:252px;background:#fdfdfd;position:relative;z-index:1;box-shadow:0 13px 28px rgba(27,39,32,.10);border-radius:3px;overflow:hidden}.pack:before{content:"";position:absolute;left:0;right:0;bottom:0;height:43%;background:var(--visual2)}.pack:after{content:"제품 01";position:absolute;left:24px;top:40px;font-size:20px;font-weight:820;color:#1c2720}
+.identity{display:flex;flex-direction:column;justify-content:center;min-width:0;padding:3px 0}.brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:760;color:#51616d}.flag{font-size:18px;line-height:1}.name{margin-top:6px;font-size:35px;line-height:1.08;letter-spacing:-.04em;font-weight:900}.chips{display:flex;align-items:center;gap:6px;margin-top:13px}.chip{font-size:12px;padding:5px 8px;background:var(--chip);border-radius:3px;color:#435663}.origin{font-size:12px;color:#566670;margin-left:4px}.origin b{color:#293944;font-weight:720}
+.age-card{margin-top:25px;background:#fff;border:1px solid var(--line);padding:16px 18px 15px;max-width:720px}.age-title{font-size:12px;font-weight:780;margin-bottom:11px}.age-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}.age-block span{display:block;font-size:11px;color:#7a858d}.age-block b{display:block;margin-top:4px;font-size:13px;font-weight:750}.age-block small{display:block;margin-top:3px;font-size:10px;color:#7c878f;line-height:1.45}.age-result{margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft);font-size:11px;color:#5e6b74}.age-result b{color:#25343d;font-weight:750;margin-left:7px}
+.actions{display:grid;grid-template-columns:minmax(150px,220px) minmax(150px,220px);gap:10px;margin-top:22px}.btn{height:42px;border-radius:3px;border:1px solid #cfd6dc;background:#fff;font-size:13px;font-weight:740}.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.details{display:grid;grid-template-columns:minmax(0,1.68fr) minmax(320px,.72fr);gap:clamp(32px,3vw,52px);margin-top:38px;align-items:start}.section-title{font-size:16px;font-weight:850;margin:0 0 11px;letter-spacing:-.02em}.panel{background:#fff;border:1px solid var(--line);border-radius:4px}.ingredients{padding:0 19px}.ingredient-row{min-height:54px;display:grid;grid-template-columns:minmax(160px,1fr) auto;align-items:center;gap:22px;border-bottom:1px solid var(--line-soft)}.ingredient-row:last-child{border-bottom:0}.ingredient-name{font-size:14px;font-weight:650;color:#24343d}.evidence{display:flex;align-items:center;gap:8px;font-size:13px;color:#55636d;white-space:nowrap}.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}.solid{background:#183948}.hollow{border:1.5px solid #55656f}.dash{border:1.5px dashed #8b969d}.evidence.low{color:#6d7981}.nutrition{padding:4px 17px}.nutri-row{min-height:55px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px;border-bottom:1px solid var(--line-soft)}.nutri-row:last-child{border-bottom:0}.nutri-row span{font-size:13px;color:#53616a}.nutri-row b{font-size:20px;font-weight:820;letter-spacing:-.02em;font-variant-numeric:tabular-nums}.nutri-row small{font-size:10px;font-weight:600;color:#6b7780;margin-left:2px}.more{margin-top:11px;border:0;background:transparent;padding:0;font-size:12px;font-weight:760;color:#294b5b}
+.info-note{margin-top:30px;padding-top:15px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:24px;color:#77828a;font-size:11px;line-height:1.5}.info-note strong{color:#485760}
+footer{height:68px;border-top:1px solid var(--line);background:#fff}.footer-inner{width:min(1540px,calc(100% - 72px));height:100%;margin:0 auto;display:flex;align-items:center;font-size:10px;color:#7a858d}.foot-logo{font-size:12px;font-weight:850;color:#234657;margin-right:8px}.foot-links{margin-left:auto;display:flex;gap:18px}.foot-links a{color:#697780;text-decoration:none}
+@media(max-width:1180px){body{min-width:960px}.header-inner,main,.footer-inner{width:calc(100% - 40px)}.hero{grid-template-columns:370px 1fr;gap:38px}.details{grid-template-columns:1.5fr .8fr;gap:28px}}
+</style>
+</head>
+<body>
+<header><div class="header-inner"><div class="logo">CATFOOD_</div><nav class="nav"><a href="#">사료 찾기</a><a href="#">사료 바꾸기</a><a href="#">리콜</a><a href="#">데이터 읽기</a><a href="#">데이터 기준</a></nav><div class="icons"><span>⌕</span><span>◎</span></div></div></header>
+<main>
+  <section class="hero">
+    <div class="visual-card"><div class="visual"><div class="pack"></div></div></div>
+    <div class="identity">
+      <div class="brand"><span class="flag">🇺🇸</span>브랜드 A</div>
+      <div class="name">제품 01</div>
+      <div class="chips"><span class="chip">건식</span><span class="chip">성묘</span><span class="chip">2 kg</span><span class="origin">· 제조국 <b>태국</b></span></div>
+      <div class="age-card"><div class="age-title">연령 정보</div><div class="age-grid"><div class="age-block"><span>내 고양이</span><b>8세 · 성숙 성묘</b><small>Mature adult · AAHA/AAFP 2021</small></div><div class="age-block"><span>제조사 대상</span><b>7세 이상</b></div></div><div class="age-result">연령 범위 비교 <b>제조사 표기 연령 범위에 포함</b></div></div>
+      <div class="actions"><button class="btn primary">현재 사료로 설정</button><button class="btn">비교에 추가</button></div>
+    </div>
+  </section>
+  <section class="details">
+    <div><h2 class="section-title">주요 원재료 확인</h2><div class="panel ingredients"><div class="ingredient-row"><span class="ingredient-name">닭고기</span><span class="evidence"><i class="dot solid"></i>포함 확인</span></div><div class="ingredient-row"><span class="ingredient-name">옥수수</span><span class="evidence low"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span></div><div class="ingredient-row"><span class="ingredient-name">글루코사민</span><span class="evidence low"><i class="dot dash"></i>확인 자료 부족</span></div><div class="ingredient-row"><span class="ingredient-name">타우린</span><span class="evidence"><i class="dot solid"></i>포함 확인</span></div><div class="ingredient-row"><span class="ingredient-name">현미</span><span class="evidence low"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</span></div></div><button class="more">전체 원재료 보기</button></div>
+    <div><h2 class="section-title">영양 정보</h2><div class="panel nutrition"><div class="nutri-row"><span>조단백질</span><b>32.0<small>%</small></b></div><div class="nutri-row"><span>조지방</span><b>15.0<small>%</small></b></div><div class="nutri-row"><span>수분</span><b>10.0<small>%</small></b></div><div class="nutri-row"><span>열량</span><b>3,800<small>kcal/kg</small></b></div></div><button class="more">전체 영양성분 보기</button></div>
+  </section>
+  <div class="info-note"><span><strong>정보 확인일</strong> YYYY.MM.DD</span><span>‘검토한 자료에서 찾지 못함’과 ‘확인 자료 부족’은 실제 미포함을 의미하지 않습니다.</span></div>
+</main>
+<footer><div class="footer-inner"><span class="foot-logo">CATFOOD_</span><span>제품 정보를 확인하고 비교하는 도구</span><div class="foot-links"><a href="#">데이터 기준</a><a href="#">이용약관</a><a href="#">개인정보처리방침</a></div></div></footer>
+</body>
+</html>

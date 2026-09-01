@@ -50,13 +50,8 @@
 }
 
 .home-nav button:hover,
-.home-footer button:hover,
-.home-nav .is-signature {
+.home-footer button:hover {
   color: #783421;
-}
-
-.home-nav .is-signature {
-  box-shadow: inset 0 -2px 0 #783421;
 }
 
 .home-nav-divider {
@@ -103,7 +98,7 @@
   height: 58px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 64px;
+  grid-template-columns: 38px minmax(0, 1fr) 76px;
   align-items: center;
   border: 0;
   border-bottom: 2px solid #dac1bb;
@@ -122,10 +117,19 @@
 
 .home-search-icon {
   display: inline-flex;
+  align-items: center;
   justify-content: center;
   color: #783421;
-  font-size: 20px;
-  line-height: 1;
+}
+
+.home-search-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .home-search input {
@@ -146,8 +150,9 @@
 }
 
 .home-search button {
-  height: 34px;
+  height: 36px;
   border: 0;
+  border-left: 1px solid rgba(218, 193, 187, 0.85);
   background: transparent;
   color: #783421;
   cursor: pointer;
@@ -157,7 +162,7 @@
 }
 
 .home-search button:hover {
-  background: rgba(120, 52, 33, 0.05);
+  background: rgba(120, 52, 33, 0.055);
 }
 
 .home-workflows {
@@ -204,10 +209,18 @@
 }
 
 .home-workflow-symbol {
-  margin-top: 5px;
+  margin-top: 4px;
   color: #635d5b;
-  font-size: 17px;
-  font-weight: 700;
+}
+
+.home-workflow-symbol svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .home-workflow-primary .home-workflow-symbol {
@@ -324,20 +337,16 @@
   min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 9px;
 }
 
 .home-trust > div:nth-child(2) {
   justify-content: center;
+  text-align: center;
 }
 
 .home-trust > div:nth-child(3) {
   justify-content: flex-end;
-}
-
-.home-trust-mark {
-  color: #87736d;
-  font-size: 10px;
+  text-align: right;
 }
 
 .home-trust strong {
@@ -451,5 +460,6 @@
     justify-content: flex-start;
     padding: 8px 0;
     border-bottom: 1px solid #eee6df;
+    text-align: left;
   }
 }

@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import './refinements.css'
 import './warm-editorial.css'
+import './home.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

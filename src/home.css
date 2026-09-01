@@ -170,18 +170,18 @@
 
 .home-workflows {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: 1.16fr 0.84fr;
 }
 
 .home-workflow {
-  min-height: 94px;
+  min-height: 82px;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 15px;
   align-items: center;
   border: 0;
   background: #fffdf9;
-  padding: 20px 26px;
+  padding: 17px 26px;
   color: inherit;
   cursor: pointer;
   text-align: left;
@@ -196,8 +196,13 @@
 }
 
 .home-workflow-primary {
-  box-shadow: inset 3px 0 0 #8e3028;
-  background: #fffaf6;
+  min-height: 106px;
+  box-shadow: inset 4px 0 0 #8e3028;
+  background: #fff8f3;
+}
+
+.home-workflow-primary:hover {
+  background: #fdf2ec;
 }
 
 .home-workflow-mark {
@@ -209,13 +214,15 @@
   border: 1px solid #d8ccc3;
   border-radius: 50%;
   color: #6e625b;
+  background: #fffdf9;
   font-size: 19px;
   font-weight: 660;
 }
 
 .home-workflow-primary .home-workflow-mark {
-  border-color: #c68b82;
-  color: #8e3028;
+  border-color: #8e3028;
+  background: #8e3028;
+  color: #fffaf6;
 }
 
 .home-workflow-copy {
@@ -227,9 +234,15 @@
 
 .home-workflow-copy strong {
   color: #2a211d;
-  font-size: 17px;
-  font-weight: 810;
+  font-size: 16px;
+  font-weight: 790;
   letter-spacing: -0.025em;
+}
+
+.home-workflow-primary .home-workflow-copy strong {
+  color: #241914;
+  font-size: 19px;
+  font-weight: 850;
 }
 
 .home-workflow-copy small {
@@ -237,6 +250,10 @@
   color: #817870;
   font-size: 11px;
   line-height: 1.5;
+}
+
+.home-workflow-primary .home-workflow-copy small {
+  color: #70645d;
 }
 
 .home-condition-row {

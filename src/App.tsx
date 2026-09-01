@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import Home from './Home'
 import { fetchCatalog, type CatalogProduct } from './api'
 import {
   INITIAL_REFINE,
@@ -70,6 +71,7 @@ const RECIPE_DETAIL_LABELS: Record<string, string> = {
 }
 
 type Mode = 'switch' | 'explore' | 'lookup'
+type Screen = 'home' | 'workspace'
 type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies'
 type SingleSearchField = 'feedType' | 'lifeStage'
 type Option = readonly [string, string]
@@ -236,6 +238,7 @@ function ModeButton({ mode, active, label, onClick }: { mode: Mode; active: Mode
 }
 
 export default function App() {
+  const [screen, setScreen] = useState<Screen>('home')
   const [products, setProducts] = useState<CatalogProduct[]>([])
   const [mode, setMode] = useState<Mode>('explore')
   const [search, setSearch] = useState<SearchState>(INITIAL_SEARCH)
@@ -360,6 +363,16 @@ export default function App() {
   function changeMode(nextMode: Mode) {
     setMode(nextMode)
     setSelectedId(null)
+    setScreen('workspace')
+  }
+
+  function startFromHome(nextMode: Mode, query = '') {
+    if (nextMode === 'lookup') setLookupQuery(query)
+    if (nextMode === 'switch') setSwitchQuery(query)
+    if (nextMode === 'explore') setEditingConditions(true)
+    setMode(nextMode)
+    setSelectedId(null)
+    setScreen('workspace')
   }
 
   function exploreResultNote(): string {
@@ -618,13 +631,23 @@ export default function App() {
     )
   }
 
+  if (screen === 'home') {
+    return (
+      <Home
+        productCount={products.length}
+        loading={loading}
+        onStart={startFromHome}
+      />
+    )
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand-mark">
+        <button className="brand-mark workspace-brand" type="button" onClick={() => setScreen('home')}>
           <strong>CATFOOD</strong>
           <span>/ PRODUCT EXPLORER</span>
-        </div>
+        </button>
         <nav className="mode-nav" aria-label="탐색 모드">
           <ModeButton mode="switch" active={mode} label="SWITCH" onClick={changeMode} />
           <ModeButton mode="explore" active={mode} label="EXPLORE" onClick={changeMode} />

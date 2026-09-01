@@ -69,10 +69,7 @@ export default function Home({
                 </svg>
               </span>
               <span className="home-workflow-copy">
-                <span className="home-workflow-title-row">
-                  <strong>현재 사료에서 바꾸기</strong>
-                  <span className="home-workflow-accent" aria-hidden="true" />
-                </span>
+                <strong>현재 사료에서 바꾸기</strong>
                 <small>현재 제품을 기준으로 바꿀 조건과 유지할 조건을 정합니다.</small>
               </span>
             </button>

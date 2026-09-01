@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CATFOOD UI v56 — Product Detail</title>
+<style>
+:root{
+  --bg:#f4f6f4;--surface:#fff;--ink:#171b18;--muted:#667068;--faint:#8a938c;
+  --line:#dce2de;--line-soft:#edf0ee;--green:#164d36;--green-soft:#edf3ef;
+  --visual:#e8eeea;--visual-2:#c9d8ce;
+  --sans:Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-width:1180px;font-size:14px}button{font:inherit;color:inherit;cursor:pointer}
+header{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 38px}.logo{font-size:22px;font-weight:900;letter-spacing:.04em;color:var(--green)}nav{margin-left:auto;display:flex;gap:28px}nav a{font-size:13px;color:#4f5952;text-decoration:none}.note{width:min(1380px,calc(100% - 72px));margin:16px auto 0;font-size:12px;color:#7c857e}
+.page{width:min(1380px,calc(100% - 72px));margin:14px auto 42px;background:#fff;border:1px solid var(--line);padding:34px 40px 30px}
+.hero{display:grid;grid-template-columns:minmax(420px,.95fr) minmax(0,1.05fr);gap:52px;align-items:stretch}.visual{min-height:350px;background:var(--visual);display:grid;place-items:center;position:relative;overflow:hidden}.visual:after{content:"";position:absolute;width:560px;height:560px;border-radius:50%;background:rgba(255,255,255,.34);left:-190px;top:-190px}.pack{width:190px;height:266px;background:#fff;border-radius:8px;box-shadow:0 16px 34px rgba(25,40,31,.10);position:relative;overflow:hidden;z-index:1}.pack:before{content:"";position:absolute;left:0;right:0;bottom:0;height:43%;background:var(--visual-2)}.pack:after{content:"제품 01";position:absolute;left:25px;top:44px;font-size:21px;font-weight:850}
+.identity{display:flex;flex-direction:column;justify-content:center;min-width:0}.brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:750;color:#4e5a52}.flag{font-size:20px;line-height:1}.name{margin-top:8px;font-size:42px;line-height:1.05;letter-spacing:-.045em;font-weight:900}.descriptor{margin-top:13px;font-size:15px;color:#4f5952}.manufacture{margin-top:26px;display:flex;gap:36px;flex-wrap:wrap;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.meta-item span{display:block;font-size:12px;color:#7c857e}.meta-item b{display:block;margin-top:4px;font-size:14px;font-weight:720}.actions{display:flex;gap:10px;margin-top:24px}.btn{height:42px;padding:0 17px;border-radius:4px;border:1px solid #ccd5cf;background:#fff;font-size:14px;font-weight:720}.btn.primary{background:var(--green);border-color:var(--green);color:#fff}.checked{margin-top:11px;font-size:12px;color:#8a938c}
+.age{margin-top:26px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0;min-height:56px}.age-label{font-weight:780;font-size:14px;padding-right:24px}.age-part{padding:0 24px;border-left:1px solid var(--line);font-size:13px;color:#58635b}.age-part b{font-size:14px;color:#252b27}.age-result{margin-left:auto;padding-left:24px;border-left:1px solid var(--line);font-size:13px;font-weight:720}.age small{display:block;margin-top:2px;font-size:11px;color:#858e87;font-weight:500}
+.content{display:grid;grid-template-columns:minmax(0,1.22fr) minmax(340px,.78fr);gap:52px;margin-top:34px}.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:18px;margin-bottom:12px}.section-head h2{margin:0;font-size:20px;letter-spacing:-.02em}.section-head span{font-size:12px;color:#858e87}.sub{font-size:12px;color:#79827b;line-height:1.5;margin:-2px 0 13px}.ingredient-list{border-top:2px solid #202622}.ingredient{min-height:55px;border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:minmax(160px,1fr) auto;align-items:center;gap:24px}.ingredient-name{font-size:15px;font-weight:650}.evidence{display:flex;align-items:center;gap:10px;font-size:14px;color:#4f5a52;white-space:nowrap}.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}.solid{background:#202622}.hollow{border:1.6px solid #202622}.dash{border:1.6px dashed #7f8981}.more{margin-top:14px;padding:0;border:0;background:transparent;font-size:13px;font-weight:750;color:#1f4b35}
+.nutrition{border-top:2px solid #202622}.nutrition-row{display:grid;grid-template-columns:1fr auto;align-items:end;gap:20px;padding:18px 0 16px;border-bottom:1px solid var(--line-soft)}.nutrition-row span{font-size:14px;color:#566159}.nutrition-row b{font-size:31px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.025em}.nutrition-row small{font-size:13px;color:#69736b;margin-left:3px;font-weight:600}.source{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);display:grid;grid-template-columns:120px 1fr auto;gap:22px;align-items:start}.source b{font-size:13px}.source p,.source time{margin:0;font-size:12px;color:#727c74;line-height:1.55}.source time{text-align:right;white-space:nowrap}
+@media(max-width:1180px){body{min-width:960px}.hero{grid-template-columns:390px 1fr}.content{gap:36px}.page,.note{width:calc(100% - 40px)}}
+</style>
+</head>
+<body>
+<header><div class="logo">CATFOOD_</div><nav><a href="#">리콜</a><a href="#">데이터 읽기</a><a href="#">데이터 기준</a></nav></header>
+<div class="note">아래 제품·국가·수치는 UI 검증용 중립 placeholder입니다. 실제 제품 사실이나 추천을 의미하지 않습니다.</div>
+<main class="page">
+  <section class="hero">
+    <div class="visual"><div class="pack"></div></div>
+    <div class="identity">
+      <div class="brand"><span class="flag">🇺🇸</span>브랜드 A</div>
+      <div class="name">제품 01</div>
+      <div class="descriptor">건식 · 성묘 · 2 kg</div>
+      <div class="manufacture">
+        <div class="meta-item"><span>제조국</span><b>태국</b></div>
+        <div class="meta-item"><span>제조사 대상</span><b>7세 이상</b></div>
+        <div class="meta-item"><span>포장 / SKU</span><b>2 kg</b></div>
+      </div>
+      <div class="actions"><button class="btn primary">현재 사료로 설정</button><button class="btn">비교에 추가</button></div>
+      <div class="checked">정보 확인일 YYYY.MM.DD</div>
+    </div>
+  </section>
+
+  <section class="age">
+    <div class="age-label">연령 정보</div>
+    <div class="age-part"><b>내 고양이 8세 · 성숙 성묘</b><small>Mature adult · AAHA/AAFP 2021</small></div>
+    <div class="age-part"><b>제조사 대상 7세 이상</b></div>
+    <div class="age-result">제조사 표기 연령 범위에 포함</div>
+  </section>
+
+  <section class="content">
+    <div>
+      <div class="section-head"><h2>주요 원재료 확인</h2><span>확인 상태를 구분해 표시</span></div>
+      <p class="sub">‘검토한 자료에서 찾지 못함’과 ‘확인 자료 부족’은 실제 미포함을 의미하지 않습니다.</p>
+      <div class="ingredient-list">
+        <div class="ingredient"><div class="ingredient-name">닭고기</div><div class="evidence"><i class="dot solid"></i>포함 확인</div></div>
+        <div class="ingredient"><div class="ingredient-name">옥수수</div><div class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</div></div>
+        <div class="ingredient"><div class="ingredient-name">글루코사민</div><div class="evidence"><i class="dot dash"></i>확인 자료 부족</div></div>
+        <div class="ingredient"><div class="ingredient-name">타우린</div><div class="evidence"><i class="dot solid"></i>포함 확인</div></div>
+        <div class="ingredient"><div class="ingredient-name">현미</div><div class="evidence"><i class="dot hollow"></i>검토한 자료에서 찾지 못함</div></div>
+      </div>
+      <button class="more">전체 원재료 보기</button>
+    </div>
+
+    <div>
+      <div class="section-head"><h2>영양 정보</h2><span>제품 표기값</span></div>
+      <div class="nutrition">
+        <div class="nutrition-row"><span>조단백질</span><b>32.0<small>%</small></b></div>
+        <div class="nutrition-row"><span>조지방</span><b>15.0<small>%</small></b></div>
+        <div class="nutrition-row"><span>수분</span><b>10.0<small>%</small></b></div>
+        <div class="nutrition-row"><span>열량</span><b>3,800<small>kcal/kg</small></b></div>
+      </div>
+      <button class="more">전체 영양성분 보기</button>
+    </div>
+  </section>
+
+  <section class="source"><b>확인 정보</b><p>제품 · 포장/SKU · 원재료 · 영양 정보를 구분해 표시합니다. 확인되지 않은 정보는 임의로 보완하지 않습니다.</p><time>확인일 YYYY.MM.DD</time></section>
+</main>
+</body>
+</html>

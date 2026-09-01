@@ -1,0 +1,352 @@
+.home-shell {
+  min-height: 100vh;
+  background: #fbf8f3;
+  color: #211d1a;
+}
+
+.home-header {
+  height: 70px;
+  border-bottom: 1px solid #e8dfd6;
+  background: rgba(255, 254, 250, 0.98);
+}
+
+.home-header-inner {
+  width: min(1420px, calc(100% - 7vw));
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.home-logo {
+  font-size: 26px;
+  font-weight: 920;
+  letter-spacing: -0.03em;
+  color: #171310;
+}
+
+.home-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  gap: 26px;
+}
+
+.home-nav button,
+.home-footer button {
+  border: 0;
+  background: transparent;
+  color: #746d67;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.home-nav button:hover,
+.home-footer button:hover {
+  color: #76261f;
+}
+
+.home-nav-divider {
+  width: 1px;
+  height: 18px;
+  align-self: center;
+  background: #e8dfd6;
+}
+
+.home-main {
+  width: min(1420px, calc(100% - 7vw));
+  margin: 0 auto;
+  padding: 64px 0 58px;
+}
+
+.home-intro {
+  max-width: 960px;
+}
+
+.home-eyebrow {
+  margin-bottom: 17px;
+  color: #8e3028;
+  font-size: 12px;
+  font-weight: 820;
+  letter-spacing: 0.02em;
+}
+
+.home-intro h1 {
+  margin: 0;
+  color: #1b1613;
+  font-size: clamp(42px, 4.6vw, 72px);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+  font-weight: 900;
+}
+
+.home-intro p {
+  margin: 20px 0 0;
+  color: #756e68;
+  font-size: 17px;
+  font-weight: 560;
+}
+
+.home-lookup {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.62fr) minmax(520px, 1.38fr);
+  gap: 46px;
+  align-items: end;
+  margin-top: 60px;
+  padding: 30px 0 34px;
+  border-top: 1px solid #e8dfd6;
+  border-bottom: 1px solid #e8dfd6;
+}
+
+.home-section-label {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.home-section-label > span,
+.home-action-no {
+  color: #a49a92;
+  font-size: 11px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-section-label h2 {
+  margin: -3px 0 0;
+  color: #2b221d;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.home-section-label p {
+  margin: 7px 0 0;
+  color: #8a817a;
+  font-size: 12px;
+}
+
+.home-search {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  height: 64px;
+  border: 1px solid #bfb2a8;
+  background: #fffefa;
+}
+
+.home-search:focus-within {
+  border-color: #9f5b52;
+  box-shadow: 0 0 0 3px rgba(142, 48, 40, 0.06);
+}
+
+.home-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  padding: 0 20px;
+  background: transparent;
+  color: #211d1a;
+  font-size: 17px;
+}
+
+.home-search input::placeholder {
+  color: #a49a92;
+}
+
+.home-search button {
+  border: 0;
+  border-left: 1px solid #e8dfd6;
+  background: #fffefa;
+  color: #76261f;
+  font-size: 13px;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.home-search button:hover {
+  background: #fdf8f3;
+}
+
+.home-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.85fr);
+  border-bottom: 1px solid #e8dfd6;
+}
+
+.home-action {
+  min-height: 188px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 32px 34px 32px 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-action + .home-action {
+  border-left: 1px solid #e8dfd6;
+  padding-left: 34px;
+}
+
+.home-action:hover {
+  background: rgba(255, 254, 250, 0.62);
+}
+
+.home-action-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-action-copy strong {
+  color: #211a17;
+  font-size: 30px;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+}
+
+.home-action-copy small {
+  max-width: 560px;
+  color: #817870;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.home-action-arrow {
+  color: #8e3028;
+  font-size: 28px;
+  transition: transform 150ms ease;
+}
+
+.home-action:hover .home-action-arrow {
+  transform: translateX(5px);
+}
+
+.home-action-primary {
+  background: #fffaf6;
+}
+
+.home-action-secondary .home-action-copy strong {
+  font-size: 25px;
+}
+
+.home-trust {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 34px;
+  border-top: 1px solid #e8dfd6;
+  border-bottom: 1px solid #e8dfd6;
+}
+
+.home-trust > div {
+  min-height: 92px;
+  padding: 20px 20px 18px 0;
+}
+
+.home-trust > div + div {
+  border-left: 1px solid #f0e9e2;
+  padding-left: 24px;
+}
+
+.home-trust-kicker {
+  display: block;
+  margin-bottom: 9px;
+  color: #a49a92;
+  font-size: 9px;
+  font-weight: 780;
+  letter-spacing: 0.07em;
+}
+
+.home-trust strong {
+  color: #554a43;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.45;
+}
+
+.home-footer {
+  width: min(1420px, calc(100% - 7vw));
+  min-height: 70px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #e8dfd6;
+  color: #8a817a;
+}
+
+.home-footer > span {
+  color: #3b302a;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.home-footer > div {
+  margin-left: auto;
+  display: flex;
+  gap: 22px;
+}
+
+.workspace-brand {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+@media (max-width: 1180px) {
+  .home-header-inner,
+  .home-main,
+  .home-footer {
+    width: calc(100% - 48px);
+  }
+
+  .home-lookup {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .home-actions {
+    grid-template-columns: 1.35fr 0.85fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .home-shell {
+    min-width: 0;
+  }
+
+  .home-nav button:nth-of-type(n+4),
+  .home-nav-divider {
+    display: none;
+  }
+
+  .home-main {
+    padding-top: 42px;
+  }
+
+  .home-intro h1 {
+    font-size: 44px;
+  }
+
+  .home-lookup,
+  .home-actions,
+  .home-trust {
+    grid-template-columns: 1fr;
+  }
+
+  .home-lookup {
+    gap: 22px;
+  }
+
+  .home-action + .home-action,
+  .home-trust > div + div {
+    border-left: 0;
+    border-top: 1px solid #f0e9e2;
+    padding-left: 0;
+  }
+}

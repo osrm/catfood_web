@@ -1,0 +1,187 @@
+.research-shell .switch-baseline-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  border-bottom: 1px solid var(--research-line);
+  padding: 14px 16px 12px;
+  background: #fff;
+}
+
+.research-shell .switch-baseline-image,
+.research-shell .switch-baseline-card .image-placeholder {
+  width: 52px;
+  height: 64px;
+  border: 1px solid var(--research-line-soft);
+  background: #f6f8f9;
+  object-fit: contain;
+}
+
+.research-shell .switch-baseline-card .image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--research-dim);
+  font-size: 8px;
+  text-align: center;
+}
+
+.research-shell .switch-baseline-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.research-shell .switch-baseline-copy > span {
+  color: var(--research-accent);
+  font-size: 9px;
+  font-weight: 820;
+}
+
+.research-shell .switch-baseline-copy > strong {
+  color: var(--research-muted);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.research-shell .switch-baseline-copy > b {
+  overflow: hidden;
+  color: var(--research-text);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+.research-shell .switch-baseline-copy > small {
+  overflow: hidden;
+  color: var(--research-dim);
+  font-size: 9px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.research-shell .switch-baseline-card > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border: 0;
+  padding: 3px 0;
+  background: transparent;
+  color: var(--research-accent);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.research-shell .switch-baseline-card > button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.research-shell .switch-known-facts {
+  border-bottom: 1px solid var(--research-line);
+  padding: 12px 16px 14px;
+  background: #f8fafb;
+}
+
+.research-shell .switch-known-facts > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #4b5960;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.research-shell .switch-known-facts dl {
+  margin: 0;
+  border-top: 1px solid var(--research-line-soft);
+}
+
+.research-shell .switch-known-facts .definition {
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 9.5px;
+}
+
+.research-shell .switch-known-facts > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--research-dim);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.research-shell .switch-adjust-intro {
+  background: #eef3f5;
+}
+
+.research-shell .switch-scope-note {
+  margin: 0;
+  border-bottom: 1px solid var(--research-line-soft);
+  padding: 12px 16px;
+  color: var(--research-dim);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.research-shell .criteria-current-product {
+  border-color: #8da5ae;
+  background: var(--research-accent-soft);
+  color: var(--research-accent);
+  font-weight: 720;
+}
+
+.research-shell .switch-next-step {
+  box-shadow: inset 3px 0 0 var(--research-accent);
+  background: #f8fafb;
+}
+
+.research-shell .quick-view-switch-context {
+  display: flex;
+  max-width: 820px;
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--research-line-soft);
+  padding: 16px 30px;
+  background: #f7fafb;
+}
+
+.research-shell .quick-view-switch-context > span {
+  color: var(--research-dim);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.research-shell .quick-view-switch-context > strong {
+  color: var(--research-accent);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.research-shell .quick-view-switch-context > small {
+  color: var(--research-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+@media (max-width: 820px) {
+  .research-shell .switch-baseline-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .research-shell .switch-baseline-image,
+  .research-shell .switch-baseline-card .image-placeholder {
+    width: 46px;
+    height: 58px;
+  }
+
+  .research-shell .quick-view-switch-context {
+    padding: 14px 18px;
+  }
+}

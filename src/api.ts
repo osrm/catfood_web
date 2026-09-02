@@ -45,7 +45,6 @@ export interface ProductVariant {
   units_per_sale: number | null
   sale_total_weight_g: number | null
   sales_bundle_status: string | null
-  formula_resolution_status: string | null
   display_rank: number
   variant_count: number
 }
@@ -97,7 +96,6 @@ const VARIANT_FIELDS = [
   'units_per_sale',
   'sale_total_weight_g',
   'sales_bundle_status',
-  'formula_resolution_status',
   'display_rank',
   'variant_count',
 ].join(',')

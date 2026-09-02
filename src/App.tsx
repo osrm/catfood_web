@@ -112,6 +112,17 @@ function unknownLabel(value: string): string {
   return value
 }
 
+function switchBaselineSearch(product: CatalogProduct): SearchState {
+  return {
+    feedType: product.feed_type ?? '',
+    lifeStage: product.life_stage ?? '',
+    officialTargets: [],
+    features: [],
+    recipeFamilies: [],
+    grainFree: false,
+  }
+}
+
 function FilterButtons({
   options,
   selected,
@@ -326,17 +337,23 @@ export default function App() {
 
   const resultProducts = useMemo(() => {
     if (mode === 'lookup') return lookupResults
-    if (mode === 'switch') return switchResults
+    if (mode === 'switch') {
+      if (!currentProductId) return switchResults
+      if (editingConditions) return []
+      return evaluated
+        .filter((item) => item.product.product_id !== currentProductId)
+        .map((item) => item.product)
+    }
     if (editingConditions) return []
     return evaluated.map((item) => item.product)
-  }, [mode, lookupResults, switchResults, editingConditions, evaluated])
+  }, [mode, lookupResults, switchResults, currentProductId, editingConditions, evaluated])
 
   const selectedProduct = selectedId
     ? resultProducts.find((product) => product.product_id === selectedId) ?? null
     : null
 
   const selectedEvaluation =
-    mode === 'explore' && selectedProduct
+    selectedProduct && (mode === 'explore' || (mode === 'switch' && currentProductId && !editingConditions))
       ? evaluated.find((item) => item.product.product_id === selectedProduct.product_id) ?? null
       : null
 
@@ -347,7 +364,7 @@ export default function App() {
   useEffect(() => {
     setVisibleCount(120)
     setSelectedId(null)
-  }, [mode, search, refine, lookupQuery, switchQuery, editingConditions])
+  }, [mode, search, refine, lookupQuery, switchQuery, editingConditions, currentProductId])
 
   function setDraftSingle(field: SingleSearchField, value: string) {
     setDraftSearch((current) => ({
@@ -377,7 +394,28 @@ export default function App() {
   }
 
   function resetDraft() {
+    setDraftSearch(mode === 'switch' && currentProduct ? switchBaselineSearch(currentProduct) : INITIAL_SEARCH)
+  }
+
+  function selectCurrentProduct(product: CatalogProduct) {
+    const baseline = switchBaselineSearch(product)
+    setCurrentProductId(product.product_id)
+    setDraftSearch(baseline)
+    setSearch(INITIAL_SEARCH)
+    setRefine(INITIAL_REFINE)
+    setRecipeSearch('')
+    setEditingConditions(true)
+    setSelectedId(null)
+  }
+
+  function clearCurrentProduct() {
+    setCurrentProductId(null)
+    setSearch(INITIAL_SEARCH)
     setDraftSearch(INITIAL_SEARCH)
+    setRefine(INITIAL_REFINE)
+    setRecipeSearch('')
+    setEditingConditions(true)
+    setSelectedId(null)
   }
 
   function changeMode(nextMode: Mode) {
@@ -388,7 +426,14 @@ export default function App() {
 
   function startFromHome(nextMode: Mode, query = '') {
     if (nextMode === 'lookup') setLookupQuery(query)
-    if (nextMode === 'switch') setSwitchQuery(query)
+    if (nextMode === 'switch') {
+      setSwitchQuery(query)
+      setCurrentProductId(null)
+      setSearch(INITIAL_SEARCH)
+      setDraftSearch(INITIAL_SEARCH)
+      setRefine(INITIAL_REFINE)
+      setEditingConditions(true)
+    }
     if (nextMode === 'explore') setEditingConditions(true)
     setMode(nextMode)
     setSelectedId(null)
@@ -411,8 +456,8 @@ export default function App() {
     return (
       <>
         <div className="condition-group-title">
-          <span>기본 조건</span>
-          <small>확인된 충돌은 제외</small>
+          <span>{mode === 'switch' ? '유지할 기본 기준' : '기본 조건'}</span>
+          <small>{mode === 'switch' ? '현재 제품 값으로 시작' : '확인된 충돌은 제외'}</small>
         </div>
 
         <FilterSection title="사료 형태" hint="선택하면 필수">
@@ -433,7 +478,7 @@ export default function App() {
         </FilterSection>
 
         <div className="condition-group-title secondary-group">
-          <span>원하는 방향</span>
+          <span>{mode === 'switch' ? '추가로 원하는 방향' : '원하는 방향'}</span>
           <small>미확인은 후보에 남김</small>
         </div>
 
@@ -475,10 +520,10 @@ export default function App() {
 
         <div className="condition-actions">
           <button className="primary-action" type="button" onClick={applyConditions}>
-            조건 적용하기
+            {mode === 'switch' ? '후보 제품 보기' : '조건 적용하기'}
           </button>
           <button className="secondary-action" type="button" onClick={resetDraft}>
-            초기화
+            {mode === 'switch' ? '현재 제품 기준으로' : '초기화'}
           </button>
         </div>
       </>
@@ -561,6 +606,51 @@ export default function App() {
     )
   }
 
+  function renderSwitchCurrent() {
+    if (!currentProduct) return null
+
+    return (
+      <>
+        <section className="switch-baseline-card">
+          <ProductImage className="switch-baseline-image" product={currentProduct} />
+          <div className="switch-baseline-copy">
+            <span>현재 사료</span>
+            <strong>{currentProduct.brand}</strong>
+            <b>{currentProduct.canonical_name}</b>
+            <small>
+              {currentProduct.feed_type ?? '형태 미확인'} ·{' '}
+              {currentProduct.life_stage ? optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
+              {currentProduct.representative_package_size_text ?? '대표 규격 미확인'}
+            </small>
+          </div>
+          <button type="button" onClick={clearCurrentProduct}>다른 제품 선택</button>
+        </section>
+
+        <section className="switch-known-facts">
+          <span>현재 제품에서 확인된 정보</span>
+          <dl>
+            <Definition label="공식 대상">
+              {compactList(currentProduct.official_targets, TARGET_LABELS)}
+            </Definition>
+            <Definition label="기능">
+              {compactList(currentProduct.features, FEATURE_LABELS)}
+            </Definition>
+            <Definition label="레시피">
+              {compactList(currentProduct.recipe_families, RECIPE_FAMILY_LABELS)}
+            </Definition>
+          </dl>
+          <small>이 정보는 자동으로 유지 조건에 넣지 않습니다. 필요한 기준만 아래에서 선택하세요.</small>
+        </section>
+
+        <div className="mode-intro switch-adjust-intro">
+          <strong>무엇을 유지하고, 무엇을 추가할까요?</strong>
+          <span>형태와 표기 생애주기는 현재 제품 값으로 시작합니다. 원하지 않으면 해제할 수 있습니다.</span>
+        </div>
+        {editingConditions ? renderConditionEditor() : renderConditionSummary()}
+      </>
+    )
+  }
+
   function renderLeftPane() {
     if (mode === 'lookup') {
       return (
@@ -583,11 +673,13 @@ export default function App() {
     }
 
     if (mode === 'switch') {
+      if (currentProduct) return renderSwitchCurrent()
+
       return (
         <>
           <div className="mode-intro">
-            <strong>현재 사료</strong>
-            <span>먼저 현재 먹이는 제품을 확인합니다. 정확한 SKU 선택은 이후 단계에서 연결합니다.</span>
+            <strong>현재 먹이는 사료를 찾으세요</strong>
+            <span>제품을 선택한 뒤, 유지할 기준과 추가로 원하는 방향을 정합니다.</span>
           </div>
           <FilterSection title="현재 제품 찾기">
             <input
@@ -598,16 +690,7 @@ export default function App() {
               onChange={(event) => setSwitchQuery(event.target.value)}
             />
           </FilterSection>
-          {currentProduct ? (
-            <div className="switch-current">
-              <span>현재 제품</span>
-              <strong>{currentProduct.brand}</strong>
-              <b>{currentProduct.canonical_name}</b>
-              <small>{currentProduct.representative_package_size_text ?? '대표 규격 미확인'}</small>
-            </div>
-          ) : (
-            <p className="refine-empty">검색 결과에서 제품을 열어 현재 제품으로 지정할 수 있습니다.</p>
-          )}
+          <p className="switch-scope-note">현재 단계는 제품 기준입니다. 정확한 SKU 선택은 아직 제공하지 않습니다.</p>
         </>
       )
     }
@@ -616,13 +699,15 @@ export default function App() {
   }
 
   function renderCriteriaBar() {
-    if (mode !== 'explore' || editingConditions) return null
+    const switchCandidates = mode === 'switch' && currentProduct && !editingConditions
+    if ((mode !== 'explore' && !switchCandidates) || editingConditions) return null
     const criteria = activeCriteria()
 
     return (
       <div className="criteria-bar">
-        <span className="criteria-label">적용된 조건</span>
+        <span className="criteria-label">{switchCandidates ? '현재 사료 기준' : '적용된 조건'}</span>
         <div className="criteria-chips">
+          {switchCandidates ? <span className="criteria-current-product">{currentProduct.brand} · {currentProduct.canonical_name}</span> : null}
           {criteria.length > 0 ? criteria.map((value) => <span key={value}>{value}</span>) : <span>추가 조건 없음</span>}
         </div>
         <button type="button" onClick={editConditions}>조건 수정</button>
@@ -653,7 +738,25 @@ export default function App() {
       )
     }
 
-    if (mode !== 'explore' && resultProducts.length === 0) {
+    if (mode === 'switch' && currentProduct && editingConditions) {
+      return (
+        <div className="state-message switch-next-step">
+          <strong>현재 사료를 기준으로 후보 조건을 정해 주세요.</strong>
+          <span>형태와 표기 생애주기는 현재 제품 값으로 시작합니다. 유지하지 않을 조건은 해제하고, 원하는 방향을 추가하세요.</span>
+        </div>
+      )
+    }
+
+    if (mode === 'switch' && currentProduct && !editingConditions && resultProducts.length === 0) {
+      return (
+        <div className="state-message">
+          <strong>현재 조건에 맞는 후보가 없습니다.</strong>
+          <span>조건을 자동으로 완화하지 않습니다. 조건을 수정해 다시 확인해 주세요.</span>
+        </div>
+      )
+    }
+
+    if (mode !== 'explore' && !(mode === 'switch' && currentProduct) && resultProducts.length === 0) {
       return (
         <div className="state-message">
           <strong>{mode === 'lookup' ? '제품명을 검색해 주세요.' : '현재 제품을 검색해 주세요.'}</strong>
@@ -671,10 +774,12 @@ export default function App() {
       )
     }
 
+    const showEvaluation = mode === 'explore' || (mode === 'switch' && currentProduct && !editingConditions)
+
     return (
       <div className="research-results-list">
         {visibleProducts.map((product) => {
-          const evaluation = mode === 'explore'
+          const evaluation = showEvaluation
             ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null
             : null
           const isSelected = product.product_id === selectedId
@@ -719,11 +824,12 @@ export default function App() {
 
   function renderQuickView() {
     if (!selectedProduct) return null
+    const choosingCurrentProduct = mode === 'switch' && !currentProduct
 
     return (
       <aside className="research-quick-view">
         <div className="quick-view-topline">
-          <span>제품 정보</span>
+          <span>{choosingCurrentProduct ? '현재 사료 확인' : '제품 정보'}</span>
           <button type="button" onClick={() => setSelectedId(null)}>닫기 ×</button>
         </div>
 
@@ -737,21 +843,29 @@ export default function App() {
                 {selectedProduct.feed_type ?? '형태 미확인'} ·{' '}
                 {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}
               </p>
-              {mode === 'switch' ? (
+              {choosingCurrentProduct ? (
                 <button
                   className="primary-action quick-view-action"
                   type="button"
-                  onClick={() => setCurrentProductId(selectedProduct.product_id)}
+                  onClick={() => selectCurrentProduct(selectedProduct)}
                 >
-                  현재 제품으로 선택
+                  이 제품을 현재 사료로 선택
                 </button>
               ) : null}
             </div>
           </section>
 
+          {mode === 'switch' && currentProduct && selectedProduct.product_id !== currentProduct.product_id ? (
+            <section className="quick-view-switch-context">
+              <span>기준 제품</span>
+              <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong>
+              <small>후보 제품의 확인된 정보와 미확인 상태를 현재 선택 조건 기준으로 봅니다.</small>
+            </section>
+          ) : null}
+
           {selectedEvaluation ? (
             <section className="quick-view-section">
-              <h2>현재 조건과의 관계</h2>
+              <h2>{mode === 'switch' ? '선택한 기준과의 관계' : '현재 조건과의 관계'}</h2>
               <dl className="definition-list">
                 <Definition label="확인됨">
                   {selectedEvaluation.confirmedMatches.length > 0
@@ -825,6 +939,26 @@ export default function App() {
     )
   }
 
+  const switchCandidates = mode === 'switch' && currentProduct
+  const paneTitle = mode === 'explore'
+    ? '검색 조건'
+    : mode === 'lookup'
+      ? '제품 찾기'
+      : switchCandidates
+        ? '바꿀 기준'
+        : '현재 사료'
+  const paneDescription = mode === 'explore'
+    ? '원하는 제품의 기준을 설정합니다.'
+    : mode === 'lookup'
+      ? '제품명을 기준으로 찾습니다.'
+      : switchCandidates
+        ? '현재 제품을 기준으로 유지할 조건과 원하는 방향을 조정합니다.'
+        : '현재 먹이는 제품을 먼저 찾습니다.'
+  const resultTitle = mode === 'switch'
+    ? switchCandidates ? '후보 제품' : '현재 사료 찾기'
+    : '제품 목록'
+  const waitingForConditions = (mode === 'explore' || Boolean(switchCandidates)) && editingConditions
+
   return (
     <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}>
       <header className="research-topbar">
@@ -849,8 +983,8 @@ export default function App() {
           <aside className="research-filters">
             <div className="research-pane-heading">
               <div>
-                <strong>{mode === 'explore' ? '검색 조건' : mode === 'lookup' ? '제품 찾기' : '현재 사료'}</strong>
-                <span>{mode === 'explore' ? '원하는 제품의 기준을 설정합니다.' : '제품명을 기준으로 찾습니다.'}</span>
+                <strong>{paneTitle}</strong>
+                <span>{paneDescription}</span>
               </div>
             </div>
             <div className="research-filter-scroll">{renderLeftPane()}</div>
@@ -860,14 +994,14 @@ export default function App() {
         <section className="research-results">
           <div className="research-results-heading">
             <div>
-              <strong>제품 목록</strong>
+              <strong>{resultTitle}</strong>
               <span>
-                {loading || (mode === 'explore' && editingConditions)
-                  ? '조건을 설정하면 결과가 표시됩니다.'
+                {loading || waitingForConditions
+                  ? switchCandidates ? '기준을 설정하면 후보가 표시됩니다.' : '조건을 설정하면 결과가 표시됩니다.'
                   : `${resultProducts.length}개의 제품`}
               </span>
             </div>
-            {mode === 'explore' && !editingConditions && activeConditions > 0 ? (
+            {(mode === 'explore' || switchCandidates) && !editingConditions && activeConditions > 0 ? (
               <span className="research-results-context">선택한 조건과 확인된 정보의 관계를 표시합니다.</span>
             ) : null}
           </div>

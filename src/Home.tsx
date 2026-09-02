@@ -37,8 +37,8 @@ export default function Home({
       <main className="home-main">
         <section className="home-core">
           <div className="home-intro">
-            <h1>현재 먹이는 사료에서,<br />다음 선택을 시작하세요.</h1>
-            <p>지금 사료를 기준으로 다른 제품을 탐색합니다.</p>
+            <h1>지금 먹이는 사료를 기준으로,<br />다음 사료를 찾아보세요.</h1>
+            <p>현재 제품을 기준점으로 다른 사료의 차이를 탐색합니다.</p>
           </div>
 
           <section className="home-current-start" aria-label="현재 사료에서 시작하기">
@@ -67,9 +67,11 @@ export default function Home({
             <div className="home-alternate-actions" aria-label="다른 탐색 방법">
               <span>현재 사료 없이 탐색</span>
               <div>
-                <button type="button" onClick={openProductLookup} disabled={!trimmedQuery}>
-                  제품 정보만 보기
-                </button>
+                {trimmedQuery ? (
+                  <button type="button" onClick={openProductLookup}>
+                    이 제품 정보만 보기
+                  </button>
+                ) : null}
                 <button type="button" onClick={() => onStart('explore')}>
                   조건으로 찾기 <span aria-hidden="true">→</span>
                 </button>

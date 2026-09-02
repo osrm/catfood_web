@@ -25,6 +25,11 @@ export interface CatalogProduct {
   current_market_country_codes: string[]
   formula_match_market_country_codes: string[]
   ingredient_term_result_count: number
+  confirmed_present_ingredient_terms: string[]
+  direct_evidence_ingredient_terms: string[]
+  flavor_associated_ingredient_terms: string[]
+  reviewed_not_found_ingredient_terms: string[]
+  insufficient_evidence_ingredient_terms: string[]
   official_targets: string[]
   features: string[]
   recipe_families: string[]
@@ -74,6 +79,11 @@ const CATALOG_FIELDS = [
   'current_market_country_codes',
   'formula_match_market_country_codes',
   'ingredient_term_result_count',
+  'confirmed_present_ingredient_terms',
+  'direct_evidence_ingredient_terms',
+  'flavor_associated_ingredient_terms',
+  'reviewed_not_found_ingredient_terms',
+  'insufficient_evidence_ingredient_terms',
   'official_targets',
   'features',
   'recipe_families',
@@ -108,6 +118,11 @@ function normalizeProduct(value: CatalogProduct): CatalogProduct {
     assessed_market_country_codes: asStringArray(value.assessed_market_country_codes),
     current_market_country_codes: asStringArray(value.current_market_country_codes),
     formula_match_market_country_codes: asStringArray(value.formula_match_market_country_codes),
+    confirmed_present_ingredient_terms: asStringArray(value.confirmed_present_ingredient_terms),
+    direct_evidence_ingredient_terms: asStringArray(value.direct_evidence_ingredient_terms),
+    flavor_associated_ingredient_terms: asStringArray(value.flavor_associated_ingredient_terms),
+    reviewed_not_found_ingredient_terms: asStringArray(value.reviewed_not_found_ingredient_terms),
+    insufficient_evidence_ingredient_terms: asStringArray(value.insufficient_evidence_ingredient_terms),
     official_targets: asStringArray(value.official_targets),
     features: asStringArray(value.features),
     recipe_families: asStringArray(value.recipe_families),

@@ -35,68 +35,72 @@ export default function Home({
       </header>
 
       <main className="home-main">
-        <section className="home-core">
-          <div className="home-intro">
-            <h1>지금 먹이는 사료를 기준으로,<br />다음 사료를 찾아보세요.</h1>
-            <p>현재 제품을 기준점으로 다른 사료의 차이를 탐색합니다.</p>
+        <section className="home-hero-wide">
+          <h1>지금 먹이는 사료를 기준으로,<br />다음 사료를 찾아보세요.</h1>
+          <p>현재 제품을 기준점으로 다른 사료의 차이를 탐색합니다.</p>
+        </section>
+
+        <section className="home-primary-band" aria-label="현재 사료에서 시작하기">
+          <div className="home-band-heading">
+            <strong>현재 먹이는 사료</strong>
+            <span>브랜드나 제품명을 알고 있다면 여기서 시작하세요.</span>
           </div>
 
-          <section className="home-current-start" aria-label="현재 사료에서 시작하기">
-            <div className="home-current-heading">
-              <strong>현재 먹이는 사료</strong>
-              <small>브랜드 또는 제품명을 검색하세요.</small>
-            </div>
+          <form className="home-search" onSubmit={submitCurrentFood}>
+            <span className="home-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m16 16 4 4" />
+              </svg>
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="브랜드 또는 제품명 검색"
+              aria-label="현재 먹이는 사료 검색"
+            />
+            <button className="home-primary-submit" type="submit" disabled={!trimmedQuery}>
+              현재 사료로 시작
+            </button>
+            <button className="home-lookup-submit" type="button" disabled={!trimmedQuery} onClick={openProductLookup}>
+              제품 정보 보기
+            </button>
+          </form>
+        </section>
 
-            <form className="home-search" onSubmit={submitCurrentFood}>
-              <span className="home-search-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <circle cx="11" cy="11" r="6.5" />
-                  <path d="m16 16 4 4" />
-                </svg>
-              </span>
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="브랜드 또는 제품명 검색"
-                aria-label="현재 먹이는 사료 검색"
-              />
-              <button type="submit" disabled={!trimmedQuery}>현재 사료로 시작</button>
-            </form>
+        <section className="home-secondary-band" aria-label="현재 사료 없이 탐색">
+          <div>
+            <span>현재 사료 없이 탐색</span>
+            <strong>조건으로 사료 찾기</strong>
+            <small>형태 · 공식 대상 · 기능 · 레시피를 기준으로 전체 제품을 탐색합니다.</small>
+          </div>
+          <button type="button" onClick={() => onStart('explore')}>
+            조건으로 찾기 <span aria-hidden="true">→</span>
+          </button>
+        </section>
 
-            <div className="home-alternate-actions" aria-label="다른 탐색 방법">
-              <span>현재 사료 없이 탐색</span>
-              <div>
-                {trimmedQuery ? (
-                  <button type="button" onClick={openProductLookup}>
-                    이 제품 정보만 보기
-                  </button>
-                ) : null}
-                <button type="button" onClick={() => onStart('explore')}>
-                  조건으로 찾기 <span aria-hidden="true">→</span>
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section className="home-data-signal" aria-label="데이터 기준 요약">
-            <div className="home-catalog-signal">
-              <strong>{catalogCount}</strong>
-              <span>PRODUCTS</span>
-              <small>현재 확인 제품</small>
-            </div>
-
-            <div className="home-data-principles">
-              <div>
-                <strong>한국 현재 판매 기준</strong>
-                <small>현재 유통 제품 범위를 구분합니다.</small>
-              </div>
-              <div>
-                <strong>확인 / 미확인 구분</strong>
-                <small>미확인을 없음으로 처리하지 않습니다.</small>
-              </div>
-            </div>
-          </section>
+        <section className="home-data-strip" aria-label="데이터 기준 요약">
+          <div className="home-data-cell home-data-count">
+            <span>CATALOG</span>
+            <strong>{catalogCount} <small>PRODUCTS</small></strong>
+            <p>현재 확인 제품</p>
+          </div>
+          <div className="home-data-cell">
+            <span>MARKET</span>
+            <strong>한국 현재 판매 기준</strong>
+            <p>현재 유통 제품 범위를 구분합니다.</p>
+          </div>
+          <div className="home-data-cell">
+            <span>DATA STATE</span>
+            <strong>확인 / 미확인 구분</strong>
+            <p>미확인을 없음으로 처리하지 않습니다.</p>
+          </div>
+          <div className="home-data-cell">
+            <span>SEARCH</span>
+            <strong>조건 자동 완화 없음</strong>
+            <p>결과가 없어도 선택 조건을 바꾸지 않습니다.</p>
+          </div>
         </section>
       </main>
     </div>

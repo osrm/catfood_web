@@ -25,7 +25,7 @@ export default function Home({
       <header className="home-header">
         <div className="home-header-inner">
           <div className="home-brand">
-            <strong className="home-logo">CATFOOD</strong>
+            <strong className="home-logo">FELINE ARCHIVE</strong>
             <span>CAT FOOD DATABASE</span>
           </div>
           <span className="home-header-meta">PRODUCT RESEARCH</span>
@@ -100,7 +100,7 @@ export default function Home({
       </main>
 
       <footer className="home-footer">
-        <strong>CATFOOD</strong>
+        <strong>FELINE ARCHIVE</strong>
         <span>제품을 평가하기보다 확인된 사실과 차이를 보여줍니다.</span>
       </footer>
     </div>

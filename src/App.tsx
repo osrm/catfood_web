@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import Home from './Home'
+import SwitchFlow from './SwitchFlow'
 import { fetchCatalog, type CatalogProduct } from './api'
 import {
   INITIAL_REFINE,
@@ -935,6 +936,19 @@ export default function App() {
         productCount={products.length}
         loading={loading}
         onStart={startFromHome}
+      />
+    )
+  }
+
+  if (mode === 'switch') {
+    return (
+      <SwitchFlow
+        products={products}
+        loading={loading}
+        error={error}
+        initialQuery={switchQuery}
+        onHome={() => setScreen('home')}
+        onModeChange={(nextMode) => changeMode(nextMode)}
       />
     )
   }

@@ -7,6 +7,7 @@ import './warm-editorial.css'
 import './home.css'
 import './research-ui.css'
 import './switch-flow.css'
+import './switch-workflow.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,0 +1,149 @@
+.switch-ingredient-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.switch-ingredient-selected button {
+  min-height: 30px;
+  border: 1px solid #78929d;
+  border-radius: 2px;
+  padding: 0 10px;
+  background: var(--research-accent-soft);
+  color: var(--research-accent);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.switch-current-ingredients {
+  margin: 0 0 10px;
+  border: 1px solid var(--research-line-soft);
+  background: #f7f9fa;
+}
+
+.switch-current-ingredients > span {
+  display: block;
+  border-bottom: 1px solid var(--research-line-soft);
+  padding: 8px 10px;
+  color: var(--research-dim);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.switch-current-ingredients > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.switch-current-ingredients button,
+.switch-ingredient-search-results button {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 0;
+  border-bottom: 1px solid var(--research-line-soft);
+  padding: 9px 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.switch-current-ingredients button:nth-child(odd) {
+  border-right: 1px solid var(--research-line-soft);
+}
+
+.switch-current-ingredients button:hover,
+.switch-ingredient-search-results button:hover {
+  background: #eef4f6;
+}
+
+.switch-current-ingredients strong,
+.switch-ingredient-search-results strong {
+  color: var(--research-text);
+  font-size: 10px;
+  font-weight: 780;
+}
+
+.switch-current-ingredients small,
+.switch-ingredient-search-results small {
+  overflow: hidden;
+  color: var(--research-dim);
+  font-size: 8.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switch-ingredient-search {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--research-line);
+  border-radius: 2px;
+  outline: 0;
+  padding: 0 11px;
+  background: #fff;
+  color: var(--research-text);
+  font-size: 11px;
+}
+
+.switch-ingredient-search:focus {
+  border-color: #78929d;
+  box-shadow: inset 0 0 0 1px #78929d;
+}
+
+.switch-ingredient-search-results {
+  margin-top: 6px;
+  border: 1px solid var(--research-line-soft);
+  background: #fff;
+}
+
+.switch-ingredient-search-results > span {
+  display: block;
+  padding: 10px;
+  color: var(--research-dim);
+  font-size: 9.5px;
+}
+
+.switch-ingredient-note,
+.switch-ingredient-inspector > p {
+  margin: 9px 0 0;
+  color: var(--research-dim);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.switch-ingredient-note strong {
+  color: var(--research-text);
+  font-weight: 780;
+}
+
+.switch-relation-line.is-ingredient-reviewed > span {
+  color: #486b60;
+}
+
+.switch-relation-line.is-ingredient-reviewed > strong {
+  color: #4f635d;
+}
+
+.switch-relation-line.is-ingredient-unknown > span,
+.switch-relation-line.is-ingredient-unknown > strong {
+  color: #7a858a;
+}
+
+.switch-ingredient-inspector dd {
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .switch-current-ingredients > div {
+    grid-template-columns: 1fr;
+  }
+
+  .switch-current-ingredients button:nth-child(odd) {
+    border-right: 0;
+  }
+}

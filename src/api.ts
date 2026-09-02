@@ -42,12 +42,10 @@ export interface ProductVariant {
   variant_id: string
   package_size_text: string | null
   package_weight_g: number | null
-  variant_kind: string | null
   units_per_sale: number | null
   sale_total_weight_g: number | null
   sales_bundle_status: string | null
-  availability_status: string | null
-  image_url: string | null
+  formula_resolution_status: string | null
   display_rank: number
   variant_count: number
 }
@@ -96,12 +94,10 @@ const VARIANT_FIELDS = [
   'variant_id',
   'package_size_text',
   'package_weight_g',
-  'variant_kind',
   'units_per_sale',
   'sale_total_weight_g',
   'sales_bundle_status',
-  'availability_status',
-  'image_url',
+  'formula_resolution_status',
   'display_rank',
   'variant_count',
 ].join(',')
@@ -173,7 +169,7 @@ export async function fetchProductVariants(
   signal?: AbortSignal,
 ): Promise<ProductVariant[]> {
   const { baseUrl, publishableKey } = apiConfig()
-  const url = new URL(`${baseUrl}/rest/v1/effective_product_variant_details`)
+  const url = new URL(`${baseUrl}/rest/v1/switch_current_variant_options`)
   url.searchParams.set('select', VARIANT_FIELDS)
   url.searchParams.set('product_id', `eq.${productId}`)
   url.searchParams.set('order', 'display_rank.asc,variant_id.asc')
@@ -187,6 +183,9 @@ export async function fetchProductVariants(
   })
 
   if (!response.ok) {
+    if ([401, 403, 404].includes(response.status)) {
+      throw new Error('현재 사용 규격 선택 API가 아직 공개되지 않았습니다. 규격을 모름으로 두고 계속할 수 있습니다.')
+    }
     const detail = (await response.text()).slice(0, 240)
     throw new Error(`Variant API ${response.status}: ${detail || response.statusText}`)
   }

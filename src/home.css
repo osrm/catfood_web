@@ -45,7 +45,7 @@
   color: #635d5b;
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 680;
 }
 
@@ -62,7 +62,7 @@
 }
 
 .home-main {
-  padding: 32px 0 34px;
+  padding: 30px 0 30px;
 }
 
 .home-intro {
@@ -74,31 +74,31 @@
 .home-intro h1 {
   margin: 0;
   color: #1c1b1b;
-  font-size: clamp(36px, 3vw, 40px);
+  font-size: clamp(38px, 3.1vw, 42px);
   font-weight: 860;
   letter-spacing: -0.04em;
-  line-height: 1.2;
+  line-height: 1.18;
 }
 
 .home-intro p {
-  margin: 7px 0 0;
+  margin: 8px 0 0;
   color: #54433e;
   font-size: 17px;
-  font-weight: 500;
+  font-weight: 520;
   line-height: 1.55;
 }
 
 .home-tool {
   width: min(1024px, 100%);
-  margin: 28px auto 0;
+  margin: 24px auto 0;
 }
 
 .home-search {
   width: min(896px, 100%);
-  min-height: 58px;
+  min-height: 60px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 78px;
+  grid-template-columns: 44px minmax(0, 1fr) 82px;
   align-items: center;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -125,8 +125,8 @@
 }
 
 .home-search-icon svg {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -136,7 +136,7 @@
 
 .home-search input {
   min-width: 0;
-  height: 56px;
+  height: 58px;
   border: 0;
   outline: 0;
   padding: 0 8px;
@@ -148,11 +148,11 @@
 
 .home-search input::placeholder {
   color: #87736d;
-  opacity: 0.78;
+  opacity: 0.84;
 }
 
 .home-search button {
-  height: 36px;
+  height: 38px;
   margin-right: 8px;
   border: 0;
   border-left: 1px solid rgba(218, 193, 187, 0.9);
@@ -160,7 +160,7 @@
   color: #783421;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -170,23 +170,23 @@
 
 .home-workflows {
   width: 100%;
-  margin: 32px auto 0;
-  padding-top: 28px;
+  margin: 28px auto 0;
+  padding-top: 24px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 64px;
+  gap: 56px;
   border-top: 1px solid #dac1bb;
 }
 
 .home-workflow {
-  min-height: 116px;
+  min-height: 108px;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   border: 0;
   background: transparent;
-  padding: 2px 0 16px;
+  padding: 2px 0 12px;
   color: inherit;
   cursor: pointer;
   text-align: left;
@@ -199,15 +199,15 @@
 
 .home-workflow + .home-workflow {
   position: relative;
-  padding-left: 32px;
+  padding-left: 28px;
 }
 
 .home-workflow + .home-workflow::before {
   content: '';
   position: absolute;
-  left: -32px;
+  left: -28px;
   top: 0;
-  bottom: 16px;
+  bottom: 12px;
   width: 1px;
   background: #dac1bb;
 }
@@ -222,8 +222,8 @@
 }
 
 .home-workflow-symbol svg {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -239,7 +239,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .home-workflow-copy strong {
@@ -259,14 +259,15 @@
 .home-workflow-copy small {
   max-width: 430px;
   color: #54433e;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 16px;
+  font-weight: 480;
+  line-height: 1.55;
 }
 
 .home-condition-row {
   width: min(896px, 100%);
-  min-height: 58px;
-  margin: 18px auto 0;
+  min-height: 56px;
+  margin: 14px auto 0;
   padding-top: 10px;
   display: flex;
   align-items: center;
@@ -278,8 +279,8 @@
 .home-condition-label {
   flex: 0 0 auto;
   color: #635d5b;
-  font-size: 13px;
-  font-weight: 680;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .home-condition-list {
@@ -292,11 +293,11 @@
   border: 1px solid #dac1bb;
   border-radius: 4px;
   background: #f6f3f2;
-  padding: 7px 14px;
+  padding: 8px 15px;
   color: #1c1b1b;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
   transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
@@ -309,16 +310,16 @@
 
 .home-trust {
   width: min(896px, 100%);
-  margin: 42px auto 0;
-  padding-top: 24px;
+  margin: 30px auto 0;
+  padding-top: 20px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 32px;
+  gap: 28px;
   border-top: 1px solid #dac1bb;
 }
 
 .home-trust > div {
-  min-height: 48px;
+  min-height: 44px;
   display: flex;
   align-items: center;
 }
@@ -335,13 +336,13 @@
 
 .home-trust strong {
   color: #635d5b;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 620;
   line-height: 1.5;
 }
 
 .home-footer {
-  min-height: 82px;
+  min-height: 78px;
   display: flex;
   align-items: center;
   border-top: 1px solid #dac1bb;
@@ -362,19 +363,24 @@
 
 .home-footer-brand strong {
   color: #783421;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 850;
 }
 
 .home-footer-brand span {
   color: #87736d;
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 520;
 }
 
 .home-footer > div:last-child {
   margin-left: auto;
   display: flex;
   gap: 22px;
+}
+
+.home-footer button {
+  font-size: 13.5px;
 }
 
 .workspace-brand {
@@ -414,7 +420,7 @@
   }
 
   .home-intro p {
-    font-size: 15px;
+    font-size: 15.5px;
   }
 
   .home-workflows,

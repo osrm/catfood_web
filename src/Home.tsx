@@ -15,13 +15,8 @@ export default function Home({
   const trimmedQuery = query.trim()
   const catalogCount = loading ? '—' : productCount ? productCount.toLocaleString('ko-KR') : '—'
 
-  function submitCurrentFood(event: FormEvent<HTMLFormElement>) {
+  function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!trimmedQuery) return
-    onStart('switch', trimmedQuery)
-  }
-
-  function openProductLookup() {
     if (!trimmedQuery) return
     onStart('lookup', trimmedQuery)
   }
@@ -40,43 +35,47 @@ export default function Home({
           <p>현재 제품을 기준점으로 다른 사료의 차이를 탐색합니다.</p>
         </section>
 
-        <section className="home-primary-band" aria-label="현재 사료에서 시작하기">
-          <div className="home-band-heading">
-            <strong>현재 먹이는 사료</strong>
-            <span>브랜드나 제품명을 알고 있다면 여기서 시작하세요.</span>
+        <section className="home-primary-entry" aria-label="현재 사료에서 시작하기">
+          <div className="home-primary-copy">
+            <strong>현재 사료에서 시작하기</strong>
+            <p>지금 먹이는 제품을 기준점으로 다른 사료를 탐색합니다.</p>
           </div>
-
-          <form className="home-search" onSubmit={submitCurrentFood}>
-            <span className="home-search-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <circle cx="11" cy="11" r="6.5" />
-                <path d="m16 16 4 4" />
-              </svg>
-            </span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="브랜드 또는 제품명 검색"
-              aria-label="현재 먹이는 사료 검색"
-            />
-            <button className="home-primary-submit" type="submit" disabled={!trimmedQuery}>
-              현재 사료로 시작
-            </button>
-            <button className="home-lookup-submit" type="button" disabled={!trimmedQuery} onClick={openProductLookup}>
-              제품 정보 보기
-            </button>
-          </form>
+          <button type="button" onClick={() => onStart('switch')}>
+            현재 사료로 시작하기 <span aria-hidden="true">→</span>
+          </button>
         </section>
 
-        <section className="home-secondary-band" aria-label="현재 사료 없이 탐색">
-          <div>
-            <span>현재 사료 없이 탐색</span>
-            <strong>조건으로 사료 찾기</strong>
-            <small>형태 · 공식 대상 · 기능 · 레시피를 기준으로 전체 제품을 탐색합니다.</small>
+        <section className="home-secondary-grid" aria-label="다른 탐색 방법">
+          <div className="home-lookup-entry">
+            <div className="home-secondary-copy">
+              <strong>제품 정보 찾기</strong>
+              <p>브랜드 또는 제품명을 알고 있다면 바로 확인합니다.</p>
+            </div>
+
+            <form className="home-search" onSubmit={submitLookup}>
+              <span className="home-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="m16 16 4 4" />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="브랜드 또는 제품명 검색"
+                aria-label="브랜드 또는 제품명 검색"
+              />
+              <button type="submit" disabled={!trimmedQuery}>검색</button>
+            </form>
           </div>
-          <button type="button" onClick={() => onStart('explore')}>
-            조건으로 찾기 <span aria-hidden="true">→</span>
+
+          <button className="home-explore-entry" type="button" onClick={() => onStart('explore')}>
+            <span className="home-secondary-copy">
+              <strong>조건으로 사료 찾기</strong>
+              <p>형태 · 공식 대상 · 기능 · 레시피로 전체 제품을 탐색합니다.</p>
+            </span>
+            <span className="home-explore-arrow" aria-hidden="true">→</span>
           </button>
         </section>
 

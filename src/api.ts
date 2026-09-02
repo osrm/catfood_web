@@ -32,6 +32,21 @@ export interface CatalogProduct {
   official_recipe_traits: string[]
 }
 
+export interface ProductVariant {
+  product_id: string
+  variant_id: string
+  package_size_text: string | null
+  package_weight_g: number | null
+  variant_kind: string | null
+  units_per_sale: number | null
+  sale_total_weight_g: number | null
+  sales_bundle_status: string | null
+  availability_status: string | null
+  image_url: string | null
+  display_rank: number
+  variant_count: number
+}
+
 const CATALOG_FIELDS = [
   'product_id',
   'brand',
@@ -66,6 +81,21 @@ const CATALOG_FIELDS = [
   'official_recipe_traits',
 ].join(',')
 
+const VARIANT_FIELDS = [
+  'product_id',
+  'variant_id',
+  'package_size_text',
+  'package_weight_g',
+  'variant_kind',
+  'units_per_sale',
+  'sale_total_weight_g',
+  'sales_bundle_status',
+  'availability_status',
+  'image_url',
+  'display_rank',
+  'variant_count',
+].join(',')
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === 'string')
@@ -86,7 +116,7 @@ function normalizeProduct(value: CatalogProduct): CatalogProduct {
   }
 }
 
-export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
+function apiConfig() {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
   const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
 
@@ -96,9 +126,12 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
     )
   }
 
-  const url = new URL(
-    `${baseUrl.replace(/\/$/, '')}/rest/v1/effective_product_catalog_summary`,
-  )
+  return { baseUrl: baseUrl.replace(/\/$/, ''), publishableKey }
+}
+
+export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/effective_product_catalog_summary`)
   url.searchParams.set('select', CATALOG_FIELDS)
   url.searchParams.set('order', 'brand.asc,canonical_name.asc')
   url.searchParams.set('limit', '1000')
@@ -118,4 +151,30 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
 
   const data = (await response.json()) as CatalogProduct[]
   return data.map(normalizeProduct)
+}
+
+export async function fetchProductVariants(
+  productId: string,
+  signal?: AbortSignal,
+): Promise<ProductVariant[]> {
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/effective_product_variant_details`)
+  url.searchParams.set('select', VARIANT_FIELDS)
+  url.searchParams.set('product_id', `eq.${productId}`)
+  url.searchParams.set('order', 'display_rank.asc,variant_id.asc')
+
+  const response = await fetch(url, {
+    signal,
+    headers: {
+      apikey: publishableKey,
+      'Accept-Profile': 'api',
+    },
+  })
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 240)
+    throw new Error(`Variant API ${response.status}: ${detail || response.statusText}`)
+  }
+
+  return (await response.json()) as ProductVariant[]
 }

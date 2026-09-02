@@ -8,6 +8,7 @@ import './home.css'
 import './research-ui.css'
 import './switch-flow.css'
 import './switch-workflow.css'
+import './ingredient-avoidance.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

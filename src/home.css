@@ -159,7 +159,7 @@
   font-family: inherit;
   font-size: 13px;
   font-weight: 800;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .home-search button:hover:not(:disabled) {
@@ -168,9 +168,9 @@
 }
 
 .home-search button:disabled {
-  border-color: #cbd0d3;
-  background: #e7eaec;
-  color: #91999d;
+  border-color: #aeb8bd;
+  background: #f0f2f3;
+  color: #667177;
   cursor: default;
 }
 
@@ -206,14 +206,9 @@
   font-weight: 750;
 }
 
-.home-alternate-actions button:hover:not(:disabled) {
+.home-alternate-actions button:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
-}
-
-.home-alternate-actions button:disabled {
-  color: #a2aaae;
-  cursor: default;
 }
 
 .home-data-signal {

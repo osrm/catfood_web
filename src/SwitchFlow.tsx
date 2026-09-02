@@ -64,6 +64,16 @@ const RECIPE_DETAIL_LABELS: Record<string, string> = {
   venison: '사슴',
 }
 
+const INGREDIENT_LABELS: Record<string, string> = {
+  ...RECIPE_DETAIL_LABELS,
+  poultry: '가금류',
+  fish: '생선',
+  sardine: '정어리',
+  anchovy: '멸치',
+  shrimp: '새우',
+  egg: '계란',
+}
+
 const EMPTY_CRITERIA: SearchState = {
   feedType: '',
   lifeStage: '',
@@ -77,7 +87,15 @@ type SwitchStep = 'current' | 'sku' | 'change' | 'keep' | 'results'
 type SecondaryMode = 'explore' | 'lookup'
 type Option = readonly [string, string]
 type ConditionSource = 'change' | 'keep'
-type ConditionKind = 'brand' | 'feedType' | 'lifeStage' | 'officialTarget' | 'feature' | 'recipeFamily' | 'grainFree'
+type ConditionKind =
+  | 'brand'
+  | 'feedType'
+  | 'lifeStage'
+  | 'officialTarget'
+  | 'feature'
+  | 'recipeFamily'
+  | 'grainFree'
+  | 'ingredientAvoid'
 
 type SwitchCondition = {
   source: ConditionSource
@@ -92,10 +110,16 @@ type SwitchEvaluation = {
   keepMatches: string[]
   changeMatches: string[]
   unknowns: string[]
+  ingredientReviewedNotFound: string[]
+  ingredientInsufficient: string[]
 }
 
 function optionLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value.replaceAll('_', ' ')
+}
+
+function ingredientLabel(value: string): string {
+  return optionLabel(value, INGREDIENT_LABELS)
 }
 
 function compactList(values: string[], labels: Record<string, string>, max = 3): string {
@@ -181,6 +205,21 @@ function currentStepIndex(step: SwitchStep): number {
   if (step === 'change') return 2
   if (step === 'keep') return 3
   return 4
+}
+
+function ingredientEvidenceLabel(product: CatalogProduct, term: string): string {
+  const direct = product.direct_evidence_ingredient_terms.includes(term)
+  const flavor = product.flavor_associated_ingredient_terms.includes(term)
+  if (direct && flavor) return '직접 · 향미 관련 근거'
+  if (direct) return '직접 근거'
+  if (flavor) return '향미 관련 근거'
+  return '확인 근거'
+}
+
+function ingredientAvoidanceStatus(product: CatalogProduct, term: string): string {
+  if (product.confirmed_present_ingredient_terms.includes(term)) return '확인됨 — 회피 조건과 충돌'
+  if (product.reviewed_not_found_ingredient_terms.includes(term)) return '검토 근거에서 찾지 못함'
+  return '판단 근거 부족'
 }
 
 function SwitchTopbar({
@@ -283,12 +322,14 @@ function buildConditions({
   keep,
   changeBrand,
   keepBrand,
+  ingredientAvoidTerms,
   currentProduct,
 }: {
   change: SearchState
   keep: SearchState
   changeBrand: boolean
   keepBrand: boolean
+  ingredientAvoidTerms: string[]
   currentProduct: CatalogProduct
 }): SwitchCondition[] {
   const conditions: SwitchCondition[] = []
@@ -323,6 +364,17 @@ function buildConditions({
 
   pushSearch('change', change)
   pushSearch('keep', keep)
+
+  for (const term of ingredientAvoidTerms) {
+    conditions.push({
+      source: 'change',
+      kind: 'ingredientAvoid',
+      value: term,
+      label: ingredientLabel(term),
+      hard: true,
+    })
+  }
+
   return conditions
 }
 
@@ -330,8 +382,20 @@ function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCond
   const keepMatches: string[] = []
   const changeMatches: string[] = []
   const unknowns: string[] = []
+  const ingredientReviewedNotFound: string[] = []
+  const ingredientInsufficient: string[] = []
 
   for (const condition of conditions) {
+    if (condition.kind === 'ingredientAvoid') {
+      if (product.confirmed_present_ingredient_terms.includes(condition.value)) return null
+      if (product.reviewed_not_found_ingredient_terms.includes(condition.value)) {
+        ingredientReviewedNotFound.push(condition.label)
+      } else {
+        ingredientInsufficient.push(condition.label)
+      }
+      continue
+    }
+
     let status: 'match' | 'conflict' | 'unknown' = 'unknown'
 
     if (condition.kind === 'brand') {
@@ -361,11 +425,23 @@ function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCond
     }
   }
 
-  return { product, keepMatches, changeMatches, unknowns }
+  return {
+    product,
+    keepMatches,
+    changeMatches,
+    unknowns,
+    ingredientReviewedNotFound,
+    ingredientInsufficient,
+  }
 }
 
 function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
-  const hasAny = evaluation.keepMatches.length > 0 || evaluation.changeMatches.length > 0 || evaluation.unknowns.length > 0
+  const hasAny = evaluation.keepMatches.length > 0
+    || evaluation.changeMatches.length > 0
+    || evaluation.unknowns.length > 0
+    || evaluation.ingredientReviewedNotFound.length > 0
+    || evaluation.ingredientInsufficient.length > 0
+
   if (!hasAny) return <p className="switch-relation-empty">추가 조건 없이 탐색</p>
 
   return (
@@ -380,6 +456,18 @@ function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
         <div className="switch-relation-line is-change">
           <span>변경 확인</span>
           <strong>{evaluation.changeMatches.slice(0, 2).join(' · ')}</strong>
+        </div>
+      ) : null}
+      {evaluation.ingredientReviewedNotFound.length > 0 ? (
+        <div className="switch-relation-line is-ingredient-reviewed">
+          <span>원료 검토</span>
+          <strong>{evaluation.ingredientReviewedNotFound.slice(0, 2).join(' · ')} · 검토 근거에서 찾지 못함</strong>
+        </div>
+      ) : null}
+      {evaluation.ingredientInsufficient.length > 0 ? (
+        <div className="switch-relation-line is-ingredient-unknown">
+          <span>원료 미확인</span>
+          <strong>{evaluation.ingredientInsufficient.slice(0, 2).join(' · ')} · 판단 근거 부족</strong>
         </div>
       ) : null}
       {evaluation.unknowns.length > 0 ? (
@@ -419,6 +507,8 @@ export default function SwitchFlow({
   const [keep, setKeep] = useState<SearchState>(EMPTY_CRITERIA)
   const [changeBrand, setChangeBrand] = useState(false)
   const [keepBrand, setKeepBrand] = useState(false)
+  const [ingredientAvoidTerms, setIngredientAvoidTerms] = useState<string[]>([])
+  const [ingredientSearch, setIngredientSearch] = useState('')
   const [noChangeIntent, setNoChangeIntent] = useState(false)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
 
@@ -427,6 +517,29 @@ export default function SwitchFlow({
   const selectedVariant = variants.find((variant) => variant.variant_id === currentVariantId) ?? null
 
   const searchResults = useMemo(() => lookupCatalog(products, query).slice(0, 80), [products, query])
+
+  const ingredientTerms = useMemo(() => {
+    const values = new Set<string>()
+    for (const product of products) {
+      product.confirmed_present_ingredient_terms.forEach((value) => values.add(value))
+      product.reviewed_not_found_ingredient_terms.forEach((value) => values.add(value))
+      product.insufficient_evidence_ingredient_terms.forEach((value) => values.add(value))
+    }
+    return [...values].sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
+  }, [products])
+
+  const ingredientSearchResults = useMemo(() => {
+    const normalized = ingredientSearch.trim().toLocaleLowerCase('ko-KR')
+    if (!normalized) return []
+    return ingredientTerms
+      .filter((term) => !ingredientAvoidTerms.includes(term))
+      .filter((term) => {
+        const raw = term.toLocaleLowerCase('en')
+        const label = ingredientLabel(term).toLocaleLowerCase('ko-KR')
+        return raw.includes(normalized) || label.includes(normalized)
+      })
+      .slice(0, 8)
+  }, [ingredientTerms, ingredientSearch, ingredientAvoidTerms])
 
   useEffect(() => {
     if (!currentProductId) return
@@ -457,8 +570,9 @@ export default function SwitchFlow({
     keep,
     changeBrand,
     keepBrand,
+    ingredientAvoidTerms,
     currentProduct,
-  }) : [], [change, keep, changeBrand, keepBrand, currentProduct])
+  }) : [], [change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct])
 
   const candidates = useMemo(() => {
     if (!currentProduct) return []
@@ -479,7 +593,17 @@ export default function SwitchFlow({
   }, [products, currentProduct, conditions])
 
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
-  const hasChange = changeBrand || criteriaCount(change) > 0
+  const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
+
+  function addIngredientAvoid(term: string) {
+    setNoChangeIntent(false)
+    setIngredientAvoidTerms((current) => current.includes(term) ? current : [...current, term])
+    setIngredientSearch('')
+  }
+
+  function removeIngredientAvoid(term: string) {
+    setIngredientAvoidTerms((current) => current.filter((value) => value !== term))
+  }
 
   function confirmCurrentProduct(product: CatalogProduct) {
     setCurrentProductId(product.product_id)
@@ -489,6 +613,8 @@ export default function SwitchFlow({
     setKeep(EMPTY_CRITERIA)
     setChangeBrand(false)
     setKeepBrand(false)
+    setIngredientAvoidTerms([])
+    setIngredientSearch('')
     setNoChangeIntent(false)
     setSelectedCandidateId(null)
     setStep('sku')
@@ -501,6 +627,8 @@ export default function SwitchFlow({
     setVariants([])
     setVariantError(null)
     setPreviewProductId(null)
+    setIngredientAvoidTerms([])
+    setIngredientSearch('')
     setSelectedCandidateId(null)
   }
 
@@ -623,6 +751,7 @@ export default function SwitchFlow({
 
   function renderSkuStep() {
     if (!currentProduct) return null
+
     return (
       <div className="switch-step-layout">
         <ReferenceRail product={currentProduct} variant={selectedVariant} step="sku" onChangeProduct={resetCurrentProduct} />
@@ -647,9 +776,7 @@ export default function SwitchFlow({
               >
                 <span>
                   <strong>{variant.package_size_text || '규격 표기 미확인'}</strong>
-                  <small>
-                    {variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'}
-                  </small>
+                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'}</small>
                 </span>
                 <b>{currentVariantId === variant.variant_id ? '선택됨' : '선택'}</b>
               </button>
@@ -668,6 +795,64 @@ export default function SwitchFlow({
           </div>
         </main>
       </div>
+    )
+  }
+
+  function renderIngredientAvoidance() {
+    if (!currentProduct) return null
+    const currentConfirmed = currentProduct.confirmed_present_ingredient_terms
+      .filter((term) => !ingredientAvoidTerms.includes(term))
+      .sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
+
+    return (
+      <CriterionSection title="피하고 싶은 원료" hint="검토된 원료 근거 기준">
+        {ingredientAvoidTerms.length > 0 ? (
+          <div className="switch-ingredient-selected">
+            {ingredientAvoidTerms.map((term) => (
+              <button key={term} type="button" onClick={() => removeIngredientAvoid(term)}>
+                {ingredientLabel(term)} ×
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {currentConfirmed.length > 0 ? (
+          <div className="switch-current-ingredients">
+            <span>현재 제품에서 확인됨</span>
+            <div>
+              {currentConfirmed.slice(0, 12).map((term) => (
+                <button key={term} type="button" onClick={() => addIngredientAvoid(term)}>
+                  <strong>{ingredientLabel(term)}</strong>
+                  <small>{ingredientEvidenceLabel(currentProduct, term)}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <input
+          className="switch-ingredient-search"
+          type="search"
+          value={ingredientSearch}
+          placeholder="원료 검색 · 예: 닭, 연어"
+          onChange={(event) => setIngredientSearch(event.target.value)}
+        />
+
+        {ingredientSearch.trim() ? (
+          <div className="switch-ingredient-search-results">
+            {ingredientSearchResults.length > 0 ? ingredientSearchResults.map((term) => (
+              <button key={term} type="button" onClick={() => addIngredientAvoid(term)}>
+                <strong>{ingredientLabel(term)}</strong>
+                <small>{term}</small>
+              </button>
+            )) : <span>검토 대상 원료에서 찾지 못했습니다.</span>}
+          </div>
+        ) : null}
+
+        <p className="switch-ingredient-note">
+          후보에서 해당 원료가 <strong>확인됨</strong>이면 제외합니다. “검토 근거에서 찾지 못함”은 원료 부재나 알레르기 안전을 뜻하지 않습니다.
+        </p>
+      </CriterionSection>
     )
   }
 
@@ -696,6 +881,8 @@ export default function SwitchFlow({
             onClick={() => {
               setChange(EMPTY_CRITERIA)
               setChangeBrand(false)
+              setIngredientAvoidTerms([])
+              setIngredientSearch('')
               setNoChangeIntent((value) => !value)
             }}
           >
@@ -724,6 +911,7 @@ export default function SwitchFlow({
               <CriterionSection title="표기 생애주기" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
                 <ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
               </CriterionSection>
+              {renderIngredientAvoidance()}
             </div>
             <div>
               <CriterionSection title="공식 대상" hint="현재 제품에 없는 방향">
@@ -864,6 +1052,7 @@ export default function SwitchFlow({
     if (!currentProduct) return null
     const changeLabels = criteriaLabels(change)
     if (changeBrand) changeLabels.unshift('다른 브랜드')
+    changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
     if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
     const keepLabels = criteriaLabels(keep)
     if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`)
@@ -953,6 +1142,21 @@ export default function SwitchFlow({
                     <div><dt>미확인</dt><dd>{selectedCandidate.unknowns.join(' · ') || '—'}</dd></div>
                   </dl>
                 </section>
+
+                {ingredientAvoidTerms.length > 0 ? (
+                  <section className="switch-inspector-section switch-ingredient-inspector">
+                    <h2>피하고 싶은 원료</h2>
+                    <dl>
+                      {ingredientAvoidTerms.map((term) => (
+                        <div key={term}>
+                          <dt>{ingredientLabel(term)}</dt>
+                          <dd>{ingredientAvoidanceStatus(selectedCandidate.product, term)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <p>“검토 근거에서 찾지 못함”은 해당 원료의 절대적 부재나 알레르기 안전을 보장하지 않습니다.</p>
+                  </section>
+                ) : null}
 
                 <section className="switch-inspector-section">
                   <h2>제품 정보 요약</h2>

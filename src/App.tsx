@@ -191,7 +191,7 @@ function Definition({ label, children }: { label: string; children: ReactNode })
 
 function ProductImage({ product, className }: { product: CatalogProduct; className: string }) {
   if (!product.display_image_url) {
-    return <div className={`${className} image-placeholder`}>NO IMAGE</div>
+    return <div className={`${className} image-placeholder`}>이미지 없음</div>
   }
 
   return (
@@ -323,7 +323,7 @@ export default function App() {
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const activeConditions = countActiveConditions(search, refine)
   const visibleProducts = resultProducts.slice(0, visibleCount)
-  const catalogState = loading ? 'LOADING' : error ? 'DATA ERROR' : 'CATALOG'
+  const catalogState = loading ? '불러오는 중' : error ? '연결 오류' : '데이터 연결됨'
 
   useEffect(() => {
     setVisibleCount(120)
@@ -376,14 +376,14 @@ export default function App() {
   }
 
   function exploreResultNote(): string {
-    if (editingConditions) return 'SET CONDITIONS'
-    if (activeConditions === 0) return 'CATALOG ORDER'
-    return 'CONFIRMED OVERLAP'
+    if (editingConditions) return '조건 설정 중'
+    if (activeConditions === 0) return '전체 제품'
+    return '확인된 조건 관계순'
   }
 
   function resultNote(): string {
-    if (mode === 'lookup') return 'DIRECT LOOKUP'
-    if (mode === 'switch') return 'CURRENT PRODUCT SEARCH'
+    if (mode === 'lookup') return '제품명 검색 결과'
+    if (mode === 'switch') return '현재 제품 찾기'
     return exploreResultNote()
   }
 
@@ -397,11 +397,11 @@ export default function App() {
     return (
       <>
         <div className="condition-group-title">
-          <span>DIRECT CONSTRAINTS</span>
-          <small>충돌 시 제외</small>
+          <span>필수 조건</span>
+          <small>확인된 충돌은 제외</small>
         </div>
 
-        <FilterSection title="사료 형태" hint="선택 시 필수">
+        <FilterSection title="사료 형태" hint="선택하면 필수 조건">
           <FilterButtons
             options={FEED_TYPES}
             selected={draftSearch.feedType ? [draftSearch.feedType] : []}
@@ -409,21 +409,21 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="제품 표기 생애주기" hint="label 자체를 요구할 때">
+        <FilterSection title="제품 표기 생애주기" hint="제품 라벨 기준">
           <FilterButtons
             options={LIFE_STAGES}
             selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []}
             onToggle={(value) => setDraftSingle('lifeStage', value)}
           />
-          <p className="field-note">고양이 실제 나이를 이 값으로 자동 변환하지 않습니다.</p>
+          <p className="field-note">고양이의 실제 나이를 이 값으로 자동 변환하지 않습니다.</p>
         </FilterSection>
 
         <div className="condition-group-title secondary-group">
-          <span>POSITIVE SIGNALS</span>
-          <small>확인된 겹침 우선 · 미확인 유지</small>
+          <span>원하는 방향</span>
+          <small>미확인은 후보에 남김</small>
         </div>
 
-        <FilterSection title="공식 대상" hint="선택 사항">
+        <FilterSection title="공식 대상" hint="복수 선택 가능">
           <FilterButtons
             options={TARGETS}
             selected={draftSearch.officialTargets}
@@ -431,7 +431,7 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="부가 기능" hint="각 항목 독립 확인">
+        <FilterSection title="부가 기능" hint="확인된 표기와 비교">
           <FilterButtons
             options={FEATURES}
             selected={draftSearch.features}
@@ -447,7 +447,7 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="공식 레시피 특성" hint="확인된 표방 우선">
+        <FilterSection title="공식 레시피 특성" hint="명시된 표방만 확인">
           <button
             className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'}
             type="button"
@@ -456,12 +456,12 @@ export default function App() {
           >
             Grain-Free 공식 표방
           </button>
-          <p className="field-note">표방이 없다는 이유로 곡물 포함으로 판정하지 않습니다.</p>
+          <p className="field-note">공식 표방이 없다는 이유로 곡물 포함으로 판정하지 않습니다.</p>
         </FilterSection>
 
         <div className="condition-actions">
           <button className="primary-action" type="button" onClick={applyConditions}>
-            결과 보기
+            제품 보기
           </button>
           <button className="secondary-action" type="button" onClick={resetDraft}>
             입력 초기화
@@ -491,7 +491,7 @@ export default function App() {
             <SummaryRow label="레시피 계열" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS, 3)} />
           ) : null}
           {search.grainFree ? <SummaryRow label="레시피 특성" value="Grain-Free 공식 표방" /> : null}
-          {!hasPrimary ? <p className="summary-empty">1차 조건 없음 · 전체 catalog 탐색</p> : null}
+          {!hasPrimary ? <p className="summary-empty">선택한 1차 조건 없음 · 전체 제품 탐색</p> : null}
         </div>
 
         <div className="summary-actions">
@@ -500,8 +500,8 @@ export default function App() {
           </button>
         </div>
 
-        <div className="refine-title">REFINE</div>
-        <FilterSection title="세부 레시피" hint="확인된 제품만 좁히기">
+        <div className="refine-title">추가로 좁히기</div>
+        <FilterSection title="세부 레시피" hint="확인된 제품만 남김">
           {refine.recipeDetails.length > 0 ? (
             <div className="selected-refinements">
               {refine.recipeDetails.map((value) => (
@@ -542,7 +542,7 @@ export default function App() {
               </button>
             ))}
           </div>
-          <p className="field-note">여기서는 선택한 세부 레시피가 공식적으로 확인된 제품만 남깁니다.</p>
+          <p className="field-note">선택한 세부 레시피가 확인된 제품만 결과에 남깁니다.</p>
         </FilterSection>
       </>
     )
@@ -553,7 +553,7 @@ export default function App() {
       return (
         <>
           <div className="mode-intro">
-            <strong>제품 직접 조회</strong>
+            <strong>제품 직접 찾기</strong>
             <span>이미 알고 있는 브랜드 또는 제품명을 검색합니다.</span>
           </div>
           <FilterSection title="브랜드 / 제품명">
@@ -573,8 +573,8 @@ export default function App() {
       return (
         <>
           <div className="mode-intro">
-            <strong>현재 사료에서 바꾸기</strong>
-            <span>먼저 현재 먹이는 제품을 찾습니다. exact SKU 선택은 다음 단계에서 연결합니다.</span>
+            <strong>현재 먹이는 사료 찾기</strong>
+            <span>현재는 제품 단위로 확인할 수 있습니다. 정확한 판매 규격 선택은 후속 데이터 연결 뒤 제공합니다.</span>
           </div>
           <FilterSection title="현재 제품 찾기">
             <input
@@ -587,14 +587,14 @@ export default function App() {
           </FilterSection>
           {currentProduct ? (
             <div className="switch-current">
-              <span>CURRENT PRODUCT</span>
+              <span>현재 제품</span>
               <strong>{currentProduct.brand}</strong>
               <b>{currentProduct.canonical_name}</b>
               <small>{currentProduct.representative_package_size_text ?? '대표 규격 미확인'}</small>
-              <div className="switch-next-state">NEXT · EXACT SKU → CHANGE → KEEP</div>
+              <div className="switch-next-state">현재는 제품 확인 단계까지 지원합니다.</div>
             </div>
           ) : (
-            <p className="refine-empty">검색 결과에서 제품을 확인한 뒤 Inspector에서 현재 제품으로 지정합니다.</p>
+            <p className="refine-empty">검색 결과에서 제품을 선택한 뒤 오른쪽 제품 정보에서 현재 제품으로 지정할 수 있습니다.</p>
           )}
         </>
       )
@@ -608,25 +608,25 @@ export default function App() {
       return (
         <>
           <SignalLine
-            label="MATCH"
+            label="확인"
             value={evaluation.confirmedMatches.length > 0
               ? evaluation.confirmedMatches.slice(0, 3).map(relationLabel).join(' · ')
               : '확인된 겹침 없음'}
           />
           <SignalLine
-            label="UNKNOWN"
+            label="미확인"
             value={evaluation.unknowns.length > 0 ? evaluation.unknowns.slice(0, 2).join(' · ') : '—'}
           />
-          <SignalLine label="RECIPE" value={compactList(product.recipe_details, RECIPE_DETAIL_LABELS)} />
+          <SignalLine label="레시피" value={compactList(product.recipe_details, RECIPE_DETAIL_LABELS)} />
         </>
       )
     }
 
     return (
       <>
-        <SignalLine label="TARGET" value={compactList(product.official_targets, TARGET_LABELS)} />
-        <SignalLine label="FEATURE" value={compactList(product.features, FEATURE_LABELS)} />
-        <SignalLine label="RECIPE" value={compactList(product.recipe_details, RECIPE_DETAIL_LABELS)} />
+        <SignalLine label="대상" value={compactList(product.official_targets, TARGET_LABELS)} />
+        <SignalLine label="기능" value={compactList(product.features, FEATURE_LABELS)} />
+        <SignalLine label="레시피" value={compactList(product.recipe_details, RECIPE_DETAIL_LABELS)} />
       </>
     )
   }
@@ -646,16 +646,16 @@ export default function App() {
       <header className="topbar">
         <button className="brand-mark workspace-brand" type="button" onClick={() => setScreen('home')}>
           <strong>CATFOOD</strong>
-          <span>/ PRODUCT EXPLORER</span>
+          <span>고양이 사료 데이터베이스</span>
         </button>
         <nav className="mode-nav" aria-label="탐색 모드">
-          <ModeButton mode="switch" active={mode} label="SWITCH" onClick={changeMode} />
-          <ModeButton mode="explore" active={mode} label="EXPLORE" onClick={changeMode} />
-          <ModeButton mode="lookup" active={mode} label="LOOKUP" onClick={changeMode} />
+          <ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} />
+          <ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} />
+          <ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} />
         </nav>
         <div className="topbar-status">
-          <span>{products.length || '—'} PRODUCTS</span>
-          <span>{mode === 'explore' ? `${activeConditions} CONDITIONS` : mode.toUpperCase()}</span>
+          <span>{products.length || '—'}개 제품</span>
+          <span>{mode === 'explore' ? `${activeConditions}개 조건` : mode === 'lookup' ? '제품 검색' : '현재 제품'}</span>
           <span className={error ? 'status-dot is-error' : 'status-dot'}>{catalogState}</span>
         </div>
       </header>
@@ -663,7 +663,7 @@ export default function App() {
       <main className="workspace">
         <aside className="conditions-pane pane">
           <div className="pane-title">
-            <span>{mode === 'explore' ? 'SEARCH CONDITIONS' : mode === 'lookup' ? 'LOOKUP' : 'SWITCH'}</span>
+            <span>{mode === 'explore' ? '조건' : mode === 'lookup' ? '제품 검색' : '현재 사료'}</span>
             {mode === 'explore' && editingConditions ? (
               <button className="text-button" type="button" onClick={resetDraft}>초기화</button>
             ) : null}
@@ -674,7 +674,7 @@ export default function App() {
         <section className="results-pane pane">
           <div className="results-header">
             <div>
-              <span className="pane-kicker">RESULTS</span>
+              <span className="pane-kicker">제품</span>
               <strong>{resultCount()}</strong>
             </div>
             <span className="results-note">{resultNote()}</span>
@@ -693,15 +693,15 @@ export default function App() {
 
           {!loading && !error && mode === 'explore' && editingConditions ? (
             <div className="state-message session-message">
-              <strong>검색 조건을 설정하십시오.</strong>
-              <span>직접 충돌 조건과 원하는 방향을 구분해 입력한 뒤 결과를 생성합니다.</span>
-              <span>positive signal이 미확인인 제품은 자동으로 제외하지 않습니다.</span>
+              <strong>찾고 싶은 조건을 선택해 주세요.</strong>
+              <span>필수 조건과 원하는 방향을 구분해 선택한 뒤 제품을 확인할 수 있습니다.</span>
+              <span>확인되지 않은 정보 때문에 제품을 임의로 제외하지 않습니다.</span>
             </div>
           ) : null}
 
           {!loading && !error && mode !== 'explore' && resultProducts.length === 0 ? (
             <div className="state-message">
-              <strong>{mode === 'lookup' ? '제품명을 검색하십시오.' : '현재 제품을 검색하십시오.'}</strong>
+              <strong>{mode === 'lookup' ? '제품명을 검색해 주세요.' : '현재 제품을 검색해 주세요.'}</strong>
               <span>브랜드 또는 제품명의 일부를 입력할 수 있습니다.</span>
             </div>
           ) : null}
@@ -709,7 +709,7 @@ export default function App() {
           {!loading && !error && mode === 'explore' && !editingConditions && resultProducts.length === 0 ? (
             <div className="state-message">
               <strong>검색 결과가 없습니다.</strong>
-              <span>조건을 자동으로 완화하지 않습니다. SEARCH CONDITIONS 또는 REFINE을 수정하십시오.</span>
+              <span>조건을 자동으로 완화하지 않습니다. 조건을 수정하거나 추가 조건을 해제해 주세요.</span>
             </div>
           ) : null}
 
@@ -728,7 +728,7 @@ export default function App() {
                     type="button"
                     onClick={() => setSelectedId(product.product_id)}
                   >
-                    <span className="result-index">{evaluation?.matchCount ? '+' : '·'}</span>
+                    <span className="result-index" aria-hidden="true">{evaluation?.matchCount ? '·' : ''}</span>
                     <ProductImage className="result-image" product={product} />
                     <span className="result-main">
                       <span className="result-brand">{product.brand}</span>
@@ -745,7 +745,7 @@ export default function App() {
               })}
               {visibleCount < resultProducts.length ? (
                 <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + 120)}>
-                  + 120 MORE / {resultProducts.length - visibleCount} REMAIN
+                  120개 더 보기 · {resultProducts.length - visibleCount}개 남음
                 </button>
               ) : null}
             </div>
@@ -754,8 +754,8 @@ export default function App() {
 
         <aside className="inspector-pane pane">
           <div className="pane-title">
-            <span>INSPECTOR</span>
-            <span className="inspector-pane-state">SELECTED PRODUCT</span>
+            <span>제품 정보</span>
+            <span className="inspector-pane-state">선택한 제품</span>
           </div>
 
           <div className="inspector-scroll">
@@ -775,10 +775,10 @@ export default function App() {
 
                 {mode === 'explore' && selectedEvaluation ? (
                   <>
-                    <div className="subsection-title inspector-section-title">SEARCH RELATION</div>
+                    <div className="subsection-title inspector-section-title">조건과의 관계</div>
                     <dl className="definition-list">
-                      <Definition label="확인된 겹침">
-                        <RelationList values={selectedEvaluation.confirmedMatches} empty="확인된 겹침 없음" />
+                      <Definition label="확인된 일치">
+                        <RelationList values={selectedEvaluation.confirmedMatches} empty="확인된 일치 없음" />
                       </Definition>
                       <Definition label="미확인">
                         <ValueList values={selectedEvaluation.unknowns} />
@@ -796,11 +796,11 @@ export default function App() {
                     >
                       현재 제품으로 선택
                     </button>
-                    <p>대표 규격을 exact SKU로 간주하지 않습니다. SKU 선택은 variant 공개 계약 연결 후 진행합니다.</p>
+                    <p>현재는 제품 단위로 선택합니다. 정확한 판매 규격 선택은 SKU 데이터가 공개 화면에 연결된 뒤 제공합니다.</p>
                   </div>
                 ) : null}
 
-                <div className="subsection-title inspector-section-title">PRODUCT FACTS</div>
+                <div className="subsection-title inspector-section-title">제품 정보</div>
                 <dl className="definition-list">
                   <Definition label="대표 규격">
                     {selectedProduct.representative_package_size_text ?? <span className="unknown-value">미확인</span>}
@@ -808,7 +808,7 @@ export default function App() {
                   <Definition label="판매 SKU">
                     {selectedProduct.has_variants
                       ? `${selectedProduct.variant_count}개 확인`
-                      : <span className="unknown-value">current SKU 미확인</span>}
+                      : <span className="unknown-value">현재 SKU 미확인</span>}
                   </Definition>
                   <Definition label="공식 대상">
                     <ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} />
@@ -827,7 +827,7 @@ export default function App() {
                   </Definition>
                 </dl>
 
-                <div className="subsection-title inspector-section-title">MANUFACTURING / MARKET</div>
+                <div className="subsection-title inspector-section-title">제조 / 시장</div>
                 <dl className="definition-list">
                   <Definition label="제조국"><ValueList values={selectedProduct.manufacturing_country_codes} /></Definition>
                   <Definition label="현재 확인 시장"><ValueList values={selectedProduct.current_market_country_codes} /></Definition>
@@ -844,9 +844,7 @@ export default function App() {
       </main>
 
       <footer className="footerbar">
-        <span>MODE {mode.toUpperCase()}</span>
-        <span>UNKNOWN ≠ NONE</span>
-        <span>CONFIRMED OVERLAP ≠ RECOMMENDATION</span>
+        <span>확인된 사실과 미확인 상태를 구분해서 표시합니다.</span>
       </footer>
     </div>
   )

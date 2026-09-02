@@ -28,7 +28,6 @@ export default function Home({
             <strong className="home-logo">FELINE ARCHIVE</strong>
             <span>CAT FOOD DATABASE</span>
           </div>
-          <span className="home-header-meta">PRODUCT RESEARCH</span>
         </div>
       </header>
 
@@ -81,27 +80,26 @@ export default function Home({
         </section>
 
         <section className="home-data-summary" aria-label="데이터 기준 요약">
-          <div className="home-data-item home-data-count">
+          <div className="home-data-item">
             <span>CATALOG</span>
-            <strong>{loading ? '—' : productCount || '—'}</strong>
+            <strong>{loading ? '—' : productCount ? `${productCount}개` : '—'}</strong>
             <small>현재 확인 제품</small>
           </div>
           <div className="home-data-item">
             <span>MARKET</span>
-            <strong>한국 판매 기준</strong>
-            <small>현재 유통 제품 범위를 구분</small>
+            <strong>한국 판매</strong>
+            <small>현재 유통 제품 기준</small>
           </div>
           <div className="home-data-item">
             <span>DATA STATE</span>
-            <strong>확인 / 미확인 구분</strong>
+            <strong>확인 / 미확인</strong>
             <small>미확인을 없음으로 처리하지 않음</small>
           </div>
         </section>
       </main>
 
       <footer className="home-footer">
-        <strong>FELINE ARCHIVE</strong>
-        <span>제품을 평가하기보다 확인된 사실과 차이를 보여줍니다.</span>
+        <span>확인된 제품 정보와 차이를 보여줍니다.</span>
       </footer>
     </div>
   )

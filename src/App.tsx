@@ -48,6 +48,7 @@ const RECIPE_FAMILIES = [
   ['fish', '생선'],
 ] as const
 
+const FEED_TYPE_LABELS = Object.fromEntries(FEED_TYPES)
 const LIFE_STAGE_LABELS = Object.fromEntries(LIFE_STAGES)
 const TARGET_LABELS = Object.fromEntries(TARGETS)
 const FEATURE_LABELS = Object.fromEntries(FEATURES)
@@ -80,7 +81,7 @@ function optionLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value.replaceAll('_', ' ')
 }
 
-function compactList(values: string[], labels: Record<string, string>, max = 2): string {
+function compactList(values: string[], labels: Record<string, string>, max = 3): string {
   if (values.length === 0) return '—'
   const shown = values.slice(0, max).map((value) => optionLabel(value, labels))
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
@@ -93,15 +94,22 @@ function relationLabel(value: string): string {
   const group = value.slice(0, separator)
   const rawValue = value.slice(separator + 1)
 
-  if (group === '형태') return optionLabel(rawValue, Object.fromEntries(FEED_TYPES))
+  if (group === '형태') return optionLabel(rawValue, FEED_TYPE_LABELS)
   if (group === '생애주기') return optionLabel(rawValue, LIFE_STAGE_LABELS)
   if (group === '대상') return optionLabel(rawValue, TARGET_LABELS)
   if (group === '기능') return optionLabel(rawValue, FEATURE_LABELS)
   if (group === '계열') return optionLabel(rawValue, RECIPE_FAMILY_LABELS)
   if (group === '세부') return optionLabel(rawValue, RECIPE_DETAIL_LABELS)
-  if (group === '특성' && rawValue === 'grain_free') return 'Grain-Free'
+  if (group === '특성' && rawValue === 'grain_free') return 'Grain-Free 공식 표방'
 
   return rawValue.replaceAll('_', ' ')
+}
+
+function unknownLabel(value: string): string {
+  if (value.startsWith('기능:')) {
+    return optionLabel(value.slice('기능:'.length), FEATURE_LABELS)
+  }
+  return value
 }
 
 function FilterButtons({
@@ -151,9 +159,7 @@ function FilterSection({
 }
 
 function ValueList({ values, labels = {} }: { values: string[]; labels?: Record<string, string> }) {
-  if (values.length === 0) {
-    return <span className="unknown-value">확인된 값 없음</span>
-  }
+  if (values.length === 0) return <span className="unknown-value">확인된 값 없음</span>
 
   return (
     <div className="inspector-tags">
@@ -166,25 +172,20 @@ function ValueList({ values, labels = {} }: { values: string[]; labels?: Record<
   )
 }
 
-function RelationList({ values, empty }: { values: string[]; empty: string }) {
-  if (values.length === 0) return <span className="unknown-value">{empty}</span>
-
-  return (
-    <div className="inspector-tags">
-      {values.map((value) => (
-        <span className="data-tag relation-tag" key={value}>
-          {relationLabel(value)}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 function Definition({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="definition">
       <dt>{label}</dt>
       <dd>{children}</dd>
+    </div>
+  )
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="condition-summary-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   )
 }
@@ -207,25 +208,17 @@ function ProductImage({ product, className }: { product: CatalogProduct; classNa
   )
 }
 
-function SignalLine({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="signal-line">
-      <b>{label}</b>
-      <span>{value}</span>
-    </span>
-  )
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="condition-summary-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  )
-}
-
-function ModeButton({ mode, active, label, onClick }: { mode: Mode; active: Mode; label: string; onClick: (mode: Mode) => void }) {
+function ModeButton({
+  mode,
+  active,
+  label,
+  onClick,
+}: {
+  mode: Mode
+  active: Mode
+  label: string
+  onClick: (mode: Mode) => void
+}) {
   return (
     <button
       className={mode === active ? 'mode-button is-active' : 'mode-button'}
@@ -234,6 +227,32 @@ function ModeButton({ mode, active, label, onClick }: { mode: Mode; active: Mode
     >
       {label}
     </button>
+  )
+}
+
+function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
+  const confirmed = evaluation.confirmedMatches.map(relationLabel)
+  const unknown = evaluation.unknowns.map(unknownLabel)
+
+  if (confirmed.length === 0 && unknown.length === 0) {
+    return <p className="result-relation-empty">선택한 추가 조건 없음</p>
+  }
+
+  return (
+    <div className="result-relations">
+      {confirmed.length > 0 ? (
+        <div className="relation-line is-confirmed">
+          <span>확인됨</span>
+          <strong>{confirmed.slice(0, 3).join(' · ')}</strong>
+        </div>
+      ) : null}
+      {unknown.length > 0 ? (
+        <div className="relation-line is-unknown">
+          <span>미확인</span>
+          <strong>{unknown.slice(0, 2).join(' · ')}</strong>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -312,8 +331,9 @@ export default function App() {
     return evaluated.map((item) => item.product)
   }, [mode, lookupResults, switchResults, editingConditions, evaluated])
 
-  const selectedProduct =
-    resultProducts.find((product) => product.product_id === selectedId) ?? resultProducts[0] ?? null
+  const selectedProduct = selectedId
+    ? resultProducts.find((product) => product.product_id === selectedId) ?? null
+    : null
 
   const selectedEvaluation =
     mode === 'explore' && selectedProduct
@@ -323,7 +343,6 @@ export default function App() {
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const activeConditions = countActiveConditions(search, refine)
   const visibleProducts = resultProducts.slice(0, visibleCount)
-  const catalogState = loading ? '불러오는 중' : error ? '연결 오류' : '데이터 연결됨'
 
   useEffect(() => {
     setVisibleCount(120)
@@ -353,6 +372,7 @@ export default function App() {
 
   function editConditions() {
     setDraftSearch(search)
+    setSelectedId(null)
     setEditingConditions(true)
   }
 
@@ -375,33 +395,27 @@ export default function App() {
     setScreen('workspace')
   }
 
-  function exploreResultNote(): string {
-    if (editingConditions) return '조건 설정 중'
-    if (activeConditions === 0) return '전체 제품'
-    return '확인된 조건 관계순'
-  }
-
-  function resultNote(): string {
-    if (mode === 'lookup') return '제품명 검색 결과'
-    if (mode === 'switch') return '현재 제품 찾기'
-    return exploreResultNote()
-  }
-
-  function resultCount(): string | number {
-    if (loading) return '—'
-    if (mode === 'explore' && editingConditions) return '—'
-    return resultProducts.length
+  function activeCriteria(): string[] {
+    const values: string[] = []
+    if (search.feedType) values.push(optionLabel(search.feedType, FEED_TYPE_LABELS))
+    if (search.lifeStage) values.push(optionLabel(search.lifeStage, LIFE_STAGE_LABELS))
+    values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)))
+    values.push(...search.features.map((value) => optionLabel(value, FEATURE_LABELS)))
+    values.push(...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
+    if (search.grainFree) values.push('Grain-Free 공식 표방')
+    values.push(...refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)))
+    return values
   }
 
   function renderConditionEditor() {
     return (
       <>
         <div className="condition-group-title">
-          <span>필수 조건</span>
+          <span>기본 조건</span>
           <small>확인된 충돌은 제외</small>
         </div>
 
-        <FilterSection title="사료 형태" hint="선택하면 필수 조건">
+        <FilterSection title="사료 형태" hint="선택하면 필수">
           <FilterButtons
             options={FEED_TYPES}
             selected={draftSearch.feedType ? [draftSearch.feedType] : []}
@@ -409,13 +423,13 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="제품 표기 생애주기" hint="제품 라벨 기준">
+        <FilterSection title="표기 생애주기" hint="제품 라벨 기준">
           <FilterButtons
             options={LIFE_STAGES}
             selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []}
             onToggle={(value) => setDraftSingle('lifeStage', value)}
           />
-          <p className="field-note">고양이의 실제 나이를 이 값으로 자동 변환하지 않습니다.</p>
+          <p className="field-note">고양이 실제 나이를 이 값으로 자동 변환하지 않습니다.</p>
         </FilterSection>
 
         <div className="condition-group-title secondary-group">
@@ -447,7 +461,7 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="공식 레시피 특성" hint="명시된 표방만 확인">
+        <FilterSection title="공식 레시피 특성" hint="표방 여부만 확인">
           <button
             className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'}
             type="button"
@@ -456,15 +470,15 @@ export default function App() {
           >
             Grain-Free 공식 표방
           </button>
-          <p className="field-note">공식 표방이 없다는 이유로 곡물 포함으로 판정하지 않습니다.</p>
+          <p className="field-note">표방이 없다는 이유로 곡물 포함으로 판정하지 않습니다.</p>
         </FilterSection>
 
         <div className="condition-actions">
           <button className="primary-action" type="button" onClick={applyConditions}>
-            제품 보기
+            조건 적용하기
           </button>
           <button className="secondary-action" type="button" onClick={resetDraft}>
-            입력 초기화
+            초기화
           </button>
         </div>
       </>
@@ -479,19 +493,19 @@ export default function App() {
         <div className="condition-summary">
           {search.feedType ? <SummaryRow label="형태" value={search.feedType} /> : null}
           {search.lifeStage ? (
-            <SummaryRow label="표기 생애주기" value={optionLabel(search.lifeStage, LIFE_STAGE_LABELS)} />
+            <SummaryRow label="생애주기" value={optionLabel(search.lifeStage, LIFE_STAGE_LABELS)} />
           ) : null}
           {search.officialTargets.length > 0 ? (
-            <SummaryRow label="공식 대상" value={compactList(search.officialTargets, TARGET_LABELS, 4)} />
+            <SummaryRow label="공식 대상" value={compactList(search.officialTargets, TARGET_LABELS)} />
           ) : null}
           {search.features.length > 0 ? (
-            <SummaryRow label="부가 기능" value={compactList(search.features, FEATURE_LABELS, 4)} />
+            <SummaryRow label="기능" value={compactList(search.features, FEATURE_LABELS)} />
           ) : null}
           {search.recipeFamilies.length > 0 ? (
-            <SummaryRow label="레시피 계열" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS, 3)} />
+            <SummaryRow label="레시피" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS)} />
           ) : null}
-          {search.grainFree ? <SummaryRow label="레시피 특성" value="Grain-Free 공식 표방" /> : null}
-          {!hasPrimary ? <p className="summary-empty">선택한 1차 조건 없음 · 전체 제품 탐색</p> : null}
+          {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 공식 표방" /> : null}
+          {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 catalog를 봅니다.</p> : null}
         </div>
 
         <div className="summary-actions">
@@ -500,8 +514,8 @@ export default function App() {
           </button>
         </div>
 
-        <div className="refine-title">추가로 좁히기</div>
-        <FilterSection title="세부 레시피" hint="확인된 제품만 남김">
+        <div className="refine-title">관련 조건</div>
+        <FilterSection title="세부 레시피" hint="확인된 제품만 좁히기">
           {refine.recipeDetails.length > 0 ? (
             <div className="selected-refinements">
               {refine.recipeDetails.map((value) => (
@@ -542,7 +556,6 @@ export default function App() {
               </button>
             ))}
           </div>
-          <p className="field-note">선택한 세부 레시피가 확인된 제품만 결과에 남깁니다.</p>
         </FilterSection>
       </>
     )
@@ -553,7 +566,7 @@ export default function App() {
       return (
         <>
           <div className="mode-intro">
-            <strong>제품 직접 찾기</strong>
+            <strong>제품 찾기</strong>
             <span>이미 알고 있는 브랜드 또는 제품명을 검색합니다.</span>
           </div>
           <FilterSection title="브랜드 / 제품명">
@@ -573,8 +586,8 @@ export default function App() {
       return (
         <>
           <div className="mode-intro">
-            <strong>현재 먹이는 사료 찾기</strong>
-            <span>현재는 제품 단위로 확인할 수 있습니다. 정확한 판매 규격 선택은 후속 데이터 연결 뒤 제공합니다.</span>
+            <strong>현재 사료</strong>
+            <span>먼저 현재 먹이는 제품을 확인합니다. 정확한 SKU 선택은 이후 단계에서 연결합니다.</span>
           </div>
           <FilterSection title="현재 제품 찾기">
             <input
@@ -591,10 +604,9 @@ export default function App() {
               <strong>{currentProduct.brand}</strong>
               <b>{currentProduct.canonical_name}</b>
               <small>{currentProduct.representative_package_size_text ?? '대표 규격 미확인'}</small>
-              <div className="switch-next-state">현재는 제품 확인 단계까지 지원합니다.</div>
             </div>
           ) : (
-            <p className="refine-empty">검색 결과에서 제품을 선택한 뒤 오른쪽 제품 정보에서 현재 제품으로 지정할 수 있습니다.</p>
+            <p className="refine-empty">검색 결과에서 제품을 열어 현재 제품으로 지정할 수 있습니다.</p>
           )}
         </>
       )
@@ -603,31 +615,203 @@ export default function App() {
     return editingConditions ? renderConditionEditor() : renderConditionSummary()
   }
 
-  function renderResultSignals(product: CatalogProduct, evaluation: CandidateEvaluation | null) {
-    if (mode === 'explore' && evaluation) {
+  function renderCriteriaBar() {
+    if (mode !== 'explore' || editingConditions) return null
+    const criteria = activeCriteria()
+
+    return (
+      <div className="criteria-bar">
+        <span className="criteria-label">적용된 조건</span>
+        <div className="criteria-chips">
+          {criteria.length > 0 ? criteria.map((value) => <span key={value}>{value}</span>) : <span>추가 조건 없음</span>}
+        </div>
+        <button type="button" onClick={editConditions}>조건 수정</button>
+      </div>
+    )
+  }
+
+  function renderResultList() {
+    if (error) {
       return (
-        <>
-          <SignalLine
-            label="확인"
-            value={evaluation.confirmedMatches.length > 0
-              ? evaluation.confirmedMatches.slice(0, 3).map(relationLabel).join(' · ')
-              : '확인된 겹침 없음'}
-          />
-          <SignalLine
-            label="미확인"
-            value={evaluation.unknowns.length > 0 ? evaluation.unknowns.slice(0, 2).join(' · ') : '—'}
-          />
-          <SignalLine label="레시피" value={compactList(product.recipe_details, RECIPE_DETAIL_LABELS)} />
-        </>
+        <div className="state-message error-message">
+          <strong>제품 데이터를 불러오지 못했습니다.</strong>
+          <span>{error}</span>
+        </div>
+      )
+    }
+
+    if (loading) {
+      return <div className="state-message"><strong>제품 데이터를 불러오는 중입니다.</strong></div>
+    }
+
+    if (mode === 'explore' && editingConditions) {
+      return (
+        <div className="state-message">
+          <strong>검색 조건을 설정해 주세요.</strong>
+          <span>필수 조건과 원하는 방향을 구분해 설정합니다. 미확인 정보는 자동으로 제외하지 않습니다.</span>
+        </div>
+      )
+    }
+
+    if (mode !== 'explore' && resultProducts.length === 0) {
+      return (
+        <div className="state-message">
+          <strong>{mode === 'lookup' ? '제품명을 검색해 주세요.' : '현재 제품을 검색해 주세요.'}</strong>
+          <span>브랜드 또는 제품명의 일부를 입력할 수 있습니다.</span>
+        </div>
+      )
+    }
+
+    if (mode === 'explore' && resultProducts.length === 0) {
+      return (
+        <div className="state-message">
+          <strong>검색 결과가 없습니다.</strong>
+          <span>조건을 자동으로 완화하지 않습니다. 조건을 수정해 다시 확인해 주세요.</span>
+        </div>
       )
     }
 
     return (
-      <>
-        <SignalLine label="대상" value={compactList(product.official_targets, TARGET_LABELS)} />
-        <SignalLine label="기능" value={compactList(product.features, FEATURE_LABELS)} />
-        <SignalLine label="레시피" value={compactList(product.recipe_details, RECIPE_DETAIL_LABELS)} />
-      </>
+      <div className="research-results-list">
+        {visibleProducts.map((product) => {
+          const evaluation = mode === 'explore'
+            ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null
+            : null
+          const isSelected = product.product_id === selectedId
+
+          return (
+            <button
+              className={isSelected ? 'research-result-card is-selected' : 'research-result-card'}
+              key={product.product_id}
+              type="button"
+              onClick={() => setSelectedId(product.product_id)}
+            >
+              <ProductImage className="research-result-image" product={product} />
+              <span className="research-result-identity">
+                <span className="research-result-brand">{product.brand}</span>
+                <strong>{product.canonical_name}</strong>
+                <span className="research-result-meta">
+                  {product.feed_type ?? '형태 미확인'} ·{' '}
+                  {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
+                  {product.representative_package_size_text ?? '대표 규격 미확인'}
+                </span>
+              </span>
+              {evaluation ? <RelationSummary evaluation={evaluation} /> : (
+                <span className="research-result-facts">
+                  <span>공식 대상</span>
+                  <strong>{compactList(product.official_targets, TARGET_LABELS)}</strong>
+                  <span>레시피</span>
+                  <strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong>
+                </span>
+              )}
+              <span className="research-result-open">제품 보기 →</span>
+            </button>
+          )
+        })}
+        {visibleCount < resultProducts.length ? (
+          <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + 120)}>
+            제품 더 보기 · {resultProducts.length - visibleCount}개 남음
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
+  function renderQuickView() {
+    if (!selectedProduct) return null
+
+    return (
+      <aside className="research-quick-view">
+        <div className="quick-view-topline">
+          <span>제품 정보</span>
+          <button type="button" onClick={() => setSelectedId(null)}>닫기 ×</button>
+        </div>
+
+        <div className="quick-view-scroll">
+          <section className="quick-view-identity">
+            <ProductImage className="quick-view-image" product={selectedProduct} />
+            <div>
+              <span>{selectedProduct.brand}</span>
+              <h1>{selectedProduct.canonical_name}</h1>
+              <p>
+                {selectedProduct.feed_type ?? '형태 미확인'} ·{' '}
+                {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}
+              </p>
+              {mode === 'switch' ? (
+                <button
+                  className="primary-action quick-view-action"
+                  type="button"
+                  onClick={() => setCurrentProductId(selectedProduct.product_id)}
+                >
+                  현재 제품으로 선택
+                </button>
+              ) : null}
+            </div>
+          </section>
+
+          {selectedEvaluation ? (
+            <section className="quick-view-section">
+              <h2>현재 조건과의 관계</h2>
+              <dl className="definition-list">
+                <Definition label="확인됨">
+                  {selectedEvaluation.confirmedMatches.length > 0
+                    ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ')
+                    : <span className="unknown-value">확인된 겹침 없음</span>}
+                </Definition>
+                <Definition label="미확인">
+                  {selectedEvaluation.unknowns.length > 0
+                    ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ')
+                    : <span className="unknown-value">—</span>}
+                </Definition>
+              </dl>
+            </section>
+          ) : null}
+
+          <section className="quick-view-section">
+            <h2>제품 정보 요약</h2>
+            <dl className="definition-list">
+              <Definition label="대표 규격">
+                {selectedProduct.representative_package_size_text ?? <span className="unknown-value">미확인</span>}
+              </Definition>
+              <Definition label="확인된 규격">
+                {selectedProduct.has_variants
+                  ? `${selectedProduct.variant_count}개`
+                  : <span className="unknown-value">확인된 규격 없음</span>}
+              </Definition>
+              <Definition label="공식 대상">
+                <ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} />
+              </Definition>
+              <Definition label="부가 기능">
+                <ValueList values={selectedProduct.features} labels={FEATURE_LABELS} />
+              </Definition>
+              <Definition label="레시피 계열">
+                <ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} />
+              </Definition>
+              <Definition label="세부 레시피">
+                <ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} />
+              </Definition>
+              <Definition label="레시피 특성">
+                <ValueList values={selectedProduct.official_recipe_traits} />
+              </Definition>
+            </dl>
+          </section>
+
+          <section className="quick-view-section">
+            <h2>제조 / 시장</h2>
+            <dl className="definition-list">
+              <Definition label="제조국">
+                <ValueList values={selectedProduct.manufacturing_country_codes} />
+              </Definition>
+              <Definition label="현재 확인 시장">
+                <ValueList values={selectedProduct.current_market_country_codes} />
+              </Definition>
+              <Definition label="동일 Formula 시장">
+                <ValueList values={selectedProduct.formula_match_market_country_codes} />
+              </Definition>
+            </dl>
+          </section>
+        </div>
+      </aside>
     )
   }
 
@@ -642,210 +826,56 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <button className="brand-mark workspace-brand" type="button" onClick={() => setScreen('home')}>
-          <strong>CATFOOD</strong>
-          <span>고양이 사료 데이터베이스</span>
+    <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}>
+      <header className="research-topbar">
+        <button className="research-brand" type="button" onClick={() => setScreen('home')}>
+          FELINE ARCHIVE
         </button>
         <nav className="mode-nav" aria-label="탐색 모드">
           <ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} />
           <ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} />
           <ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} />
         </nav>
-        <div className="topbar-status">
-          <span>{products.length || '—'}개 제품</span>
-          <span>{mode === 'explore' ? `${activeConditions}개 조건` : mode === 'lookup' ? '제품 검색' : '현재 제품'}</span>
-          <span className={error ? 'status-dot is-error' : 'status-dot'}>{catalogState}</span>
+        <div className="research-status">
+          <span>{products.length || '—'} PRODUCTS</span>
+          <span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span>
         </div>
       </header>
 
-      <main className="workspace">
-        <aside className="conditions-pane pane">
-          <div className="pane-title">
-            <span>{mode === 'explore' ? '조건' : mode === 'lookup' ? '제품 검색' : '현재 사료'}</span>
-            {mode === 'explore' && editingConditions ? (
-              <button className="text-button" type="button" onClick={resetDraft}>초기화</button>
+      {renderCriteriaBar()}
+
+      <main className="research-workspace">
+        {!selectedProduct ? (
+          <aside className="research-filters">
+            <div className="research-pane-heading">
+              <div>
+                <strong>{mode === 'explore' ? '검색 조건' : mode === 'lookup' ? '제품 찾기' : '현재 사료'}</strong>
+                <span>{mode === 'explore' ? '원하는 제품의 기준을 설정합니다.' : '제품명을 기준으로 찾습니다.'}</span>
+              </div>
+            </div>
+            <div className="research-filter-scroll">{renderLeftPane()}</div>
+          </aside>
+        ) : null}
+
+        <section className="research-results">
+          <div className="research-results-heading">
+            <div>
+              <strong>제품 목록</strong>
+              <span>
+                {loading || (mode === 'explore' && editingConditions)
+                  ? '조건을 설정하면 결과가 표시됩니다.'
+                  : `${resultProducts.length}개의 제품`}
+              </span>
+            </div>
+            {mode === 'explore' && !editingConditions && activeConditions > 0 ? (
+              <span className="research-results-context">선택한 조건과 확인된 정보의 관계를 표시합니다.</span>
             ) : null}
           </div>
-          <div className="pane-scroll">{renderLeftPane()}</div>
-        </aside>
-
-        <section className="results-pane pane">
-          <div className="results-header">
-            <div>
-              <span className="pane-kicker">제품</span>
-              <strong>{resultCount()}</strong>
-            </div>
-            <span className="results-note">{resultNote()}</span>
-          </div>
-
-          {error ? (
-            <div className="state-message error-message">
-              <strong>제품 데이터를 불러오지 못했습니다.</strong>
-              <span>{error}</span>
-            </div>
-          ) : null}
-
-          {loading ? (
-            <div className="state-message"><strong>제품 데이터를 불러오는 중입니다.</strong></div>
-          ) : null}
-
-          {!loading && !error && mode === 'explore' && editingConditions ? (
-            <div className="state-message session-message">
-              <strong>찾고 싶은 조건을 선택해 주세요.</strong>
-              <span>필수 조건과 원하는 방향을 구분해 선택한 뒤 제품을 확인할 수 있습니다.</span>
-              <span>확인되지 않은 정보 때문에 제품을 임의로 제외하지 않습니다.</span>
-            </div>
-          ) : null}
-
-          {!loading && !error && mode !== 'explore' && resultProducts.length === 0 ? (
-            <div className="state-message">
-              <strong>{mode === 'lookup' ? '제품명을 검색해 주세요.' : '현재 제품을 검색해 주세요.'}</strong>
-              <span>브랜드 또는 제품명의 일부를 입력할 수 있습니다.</span>
-            </div>
-          ) : null}
-
-          {!loading && !error && mode === 'explore' && !editingConditions && resultProducts.length === 0 ? (
-            <div className="state-message">
-              <strong>검색 결과가 없습니다.</strong>
-              <span>조건을 자동으로 완화하지 않습니다. 조건을 수정하거나 추가 조건을 해제해 주세요.</span>
-            </div>
-          ) : null}
-
-          {!error && resultProducts.length > 0 ? (
-            <div className="result-list">
-              {visibleProducts.map((product) => {
-                const evaluation = mode === 'explore'
-                  ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null
-                  : null
-                const isSelected = product.product_id === selectedProduct?.product_id
-
-                return (
-                  <button
-                    className={isSelected ? 'result-row is-selected' : 'result-row'}
-                    key={product.product_id}
-                    type="button"
-                    onClick={() => setSelectedId(product.product_id)}
-                  >
-                    <span className="result-index" aria-hidden="true">{evaluation?.matchCount ? '·' : ''}</span>
-                    <ProductImage className="result-image" product={product} />
-                    <span className="result-main">
-                      <span className="result-brand">{product.brand}</span>
-                      <strong>{product.canonical_name}</strong>
-                      <span className="result-meta">
-                        {product.feed_type ?? '형태 미확인'} ·{' '}
-                        {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
-                        {product.representative_package_size_text ?? '대표 규격 미확인'}
-                      </span>
-                    </span>
-                    <span className="result-signals">{renderResultSignals(product, evaluation)}</span>
-                  </button>
-                )
-              })}
-              {visibleCount < resultProducts.length ? (
-                <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + 120)}>
-                  120개 더 보기 · {resultProducts.length - visibleCount}개 남음
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="research-results-scroll">{renderResultList()}</div>
         </section>
 
-        <aside className="inspector-pane pane">
-          <div className="pane-title">
-            <span>제품 정보</span>
-            <span className="inspector-pane-state">선택한 제품</span>
-          </div>
-
-          <div className="inspector-scroll">
-            {selectedProduct ? (
-              <>
-                <section className="inspector-identity inspector-identity-compact">
-                  <ProductImage className="inspector-image" product={selectedProduct} />
-                  <div className="inspector-name-block">
-                    <span>{selectedProduct.brand}</span>
-                    <h1>{selectedProduct.canonical_name}</h1>
-                    <p>
-                      {selectedProduct.feed_type ?? '형태 미확인'} ·{' '}
-                      {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}
-                    </p>
-                  </div>
-                </section>
-
-                {mode === 'explore' && selectedEvaluation ? (
-                  <>
-                    <div className="subsection-title inspector-section-title">조건과의 관계</div>
-                    <dl className="definition-list">
-                      <Definition label="확인된 일치">
-                        <RelationList values={selectedEvaluation.confirmedMatches} empty="확인된 일치 없음" />
-                      </Definition>
-                      <Definition label="미확인">
-                        <ValueList values={selectedEvaluation.unknowns} />
-                      </Definition>
-                    </dl>
-                  </>
-                ) : null}
-
-                {mode === 'switch' ? (
-                  <div className="inspector-action-block">
-                    <button
-                      className="primary-action"
-                      type="button"
-                      onClick={() => setCurrentProductId(selectedProduct.product_id)}
-                    >
-                      현재 제품으로 선택
-                    </button>
-                    <p>현재는 제품 단위로 선택합니다. 정확한 판매 규격 선택은 SKU 데이터가 공개 화면에 연결된 뒤 제공합니다.</p>
-                  </div>
-                ) : null}
-
-                <div className="subsection-title inspector-section-title">제품 정보</div>
-                <dl className="definition-list">
-                  <Definition label="대표 규격">
-                    {selectedProduct.representative_package_size_text ?? <span className="unknown-value">미확인</span>}
-                  </Definition>
-                  <Definition label="판매 SKU">
-                    {selectedProduct.has_variants
-                      ? `${selectedProduct.variant_count}개 확인`
-                      : <span className="unknown-value">현재 SKU 미확인</span>}
-                  </Definition>
-                  <Definition label="공식 대상">
-                    <ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} />
-                  </Definition>
-                  <Definition label="부가 기능">
-                    <ValueList values={selectedProduct.features} labels={FEATURE_LABELS} />
-                  </Definition>
-                  <Definition label="레시피 계열">
-                    <ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} />
-                  </Definition>
-                  <Definition label="세부 레시피">
-                    <ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} />
-                  </Definition>
-                  <Definition label="레시피 특성">
-                    <ValueList values={selectedProduct.official_recipe_traits} />
-                  </Definition>
-                </dl>
-
-                <div className="subsection-title inspector-section-title">제조 / 시장</div>
-                <dl className="definition-list">
-                  <Definition label="제조국"><ValueList values={selectedProduct.manufacturing_country_codes} /></Definition>
-                  <Definition label="현재 확인 시장"><ValueList values={selectedProduct.current_market_country_codes} /></Definition>
-                  <Definition label="동일 Formula 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} /></Definition>
-                </dl>
-
-                <div className="inspector-record-id">{selectedProduct.product_id}</div>
-              </>
-            ) : (
-              <div className="state-message compact"><strong>선택된 제품이 없습니다.</strong></div>
-            )}
-          </div>
-        </aside>
+        {renderQuickView()}
       </main>
-
-      <footer className="footerbar">
-        <span>확인된 사실과 미확인 상태를 구분해서 표시합니다.</span>
-      </footer>
     </div>
   )
 }

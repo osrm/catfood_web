@@ -208,11 +208,11 @@ function variantLabel(variant: ProductVariant | null): string {
 }
 
 function formulaEvidenceLabel(variant: ProductVariant | null): string {
-  if (!variant) return '규격을 몰라 배합 기준 미확인'
+  if (!variant) return '규격을 몰라 배합 근거 미확인'
   if (variant.formula_evidence_status === 'confirmed') return '현재 규격 배합 근거 확인됨'
   if (variant.formula_evidence_status === 'conflicting') return '현재 규격 배합 근거 충돌'
-  if (variant.formula_evidence_status === 'unresolved') return '현재 규격 배합 대응 미확정'
-  return '현재 규격 배합 관측 미확인'
+  if (variant.formula_evidence_status === 'unresolved') return '현재 규격 배합 근거 미확정'
+  return '현재 규격 배합 근거 미확인'
 }
 
 function currentStepIndex(step: SwitchStep): number {
@@ -298,7 +298,7 @@ function ReferenceRail({
       <div className="switch-reference-sku">
         <span>현재 규격</span>
         <strong>{variantLabel(variant)}</strong>
-        <span>배합 기준</span>
+        <span>배합 근거</span>
         <strong>{formulaEvidenceLabel(variant)}</strong>
       </div>
       <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 제품 다시 선택</button>
@@ -767,9 +767,9 @@ export default function SwitchFlow({
         <ReferenceRail product={currentProduct} variant={selectedVariant} step="sku" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
-            <span>SKU</span>
+            <span>사용 규격</span>
             <h1>현재 사용하는 규격을 확인하세요.</h1>
-            <p>같은 제품이라도 규격·시기별 배합 대응이 다를 수 있습니다. 선택한 규격의 근거만 다음 단계의 현재 기준으로 사용합니다.</p>
+            <p>같은 제품이라도 규격·시기에 따라 확인되는 배합 정보가 다를 수 있습니다. 선택한 규격에서 확인된 근거만 다음 단계의 현재 기준으로 사용합니다.</p>
           </div>
           <section className="switch-sku-list">
             {variantLoading ? <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div> : null}
@@ -827,7 +827,7 @@ export default function SwitchFlow({
             </div>
           </div>
         ) : selectedVariant ? (
-          <p className="switch-option-empty">선택한 규격에서 현재 확인된 원료 term이 없습니다. 직접 검색해 회피 조건을 추가할 수 있습니다.</p>
+          <p className="switch-option-empty">선택한 규격에서 회피 후보로 바로 제시할 확인 원료가 없습니다. 원료를 직접 검색해 조건을 추가할 수 있습니다.</p>
         ) : (
           <p className="switch-option-empty">사용 규격을 모르므로 현재 제품 전체의 원료 정보를 이 규격의 사실처럼 사용하지 않습니다.</p>
         )}
@@ -907,7 +907,7 @@ export default function SwitchFlow({
                 <ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} />
               </CriterionSection>
               {!currentFormulaConfirmed || !currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint={currentFormulaConfirmed ? '선택 규격의 공식 claim 기준' : '현재 규격 claim 미확인'}>
+                <CriterionSection title="레시피 특성" hint={currentFormulaConfirmed ? '선택 규격의 공식 표방 기준' : '현재 규격의 공식 표방 미확인'}>
                   <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 공식 표방</button>
                 </CriterionSection>
               ) : null}
@@ -933,7 +933,7 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>KEEP</span>
             <h1>무엇은 그대로 유지할까요?</h1>
-            <p>현재 제품에서 확인된 속성 중 다음 제품에서도 꼭 유지하고 싶은 것만 선택합니다. 선택 규격의 배합이 확인되지 않았다면 Formula-dependent 항목은 유지 조건으로 제시하지 않습니다.</p>
+            <p>현재 제품에서 확인된 속성 중 다음 제품에서도 꼭 유지하고 싶은 것만 선택합니다. 선택 규격의 배합 근거가 확인되지 않았다면 배합에 따라 달라지는 항목은 유지 조건으로 제시하지 않습니다.</p>
           </div>
 
           <section className="switch-current-facts-strip">
@@ -971,11 +971,11 @@ export default function SwitchFlow({
                 </CriterionSection>
               ) : null}
               {!change.grainFree && currentFormulaConfirmed && currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint="선택 규격의 공식 claim">
+                <CriterionSection title="레시피 특성" hint="선택 규격의 공식 표방">
                   <button className={keep.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keep.grainFree} onClick={() => setKeep((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 공식 표방 유지</button>
                 </CriterionSection>
               ) : null}
-              {!currentFormulaConfirmed ? <p className="switch-option-empty">선택 규격의 Formula 대응이 확인되지 않아 레시피·Grain-Free를 현재 사실로 가정하지 않습니다.</p> : null}
+              {!currentFormulaConfirmed ? <p className="switch-option-empty">선택 규격의 배합 근거가 확인되지 않아 레시피·Grain-Free를 현재 사실로 가정하지 않습니다.</p> : null}
             </div>
           </div>
 
@@ -1008,7 +1008,7 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 품질/추천 점수 없이 확인된 관계만 표시</span></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 선택한 조건과 확인된 관계를 표시합니다.</span></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message">현재 조건에 맞는 후보가 없습니다. 조건을 자동으로 완화하지 않습니다.</div> : null}
               {candidates.map((evaluation) => {
@@ -1067,7 +1067,7 @@ export default function SwitchFlow({
                     <div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div>
                     <div><dt>제조국</dt><dd>{selectedCandidate.product.manufacturing_country_codes.join(' · ') || '미확인'}</dd></div>
                     <div><dt>현재 확인 시장</dt><dd>{selectedCandidate.product.current_market_country_codes.join(' · ') || '미확인'}</dd></div>
-                    <div><dt>동일 Formula 시장</dt><dd>{selectedCandidate.product.formula_match_market_country_codes.join(' · ') || '미확인'}</dd></div>
+                    <div><dt>동일 배합 확인 시장</dt><dd>{selectedCandidate.product.formula_match_market_country_codes.join(' · ') || '미확인'}</dd></div>
                   </dl>
                 </section>
               </div>

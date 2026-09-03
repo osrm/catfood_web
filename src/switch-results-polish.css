@@ -1,0 +1,384 @@
+/* Stage 6 SWITCH readability pass.
+   Keep the existing research/editorial shell, but make decision information
+   readable at normal desktop distance and give Results / Inspector a clearer
+   hierarchy. */
+
+.switch-find-result-copy > span,
+.switch-candidate-identity > span,
+.switch-preview-identity > div > span,
+.switch-inspector-identity > div > span {
+  font-size: 10px;
+}
+
+.switch-find-result-copy > strong,
+.switch-candidate-identity > strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.switch-find-result-copy > small,
+.switch-candidate-identity > small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.switch-find-result-open,
+.switch-candidate-open,
+.switch-preview-topline,
+.switch-preview-topline button {
+  font-size: 11px;
+}
+
+.switch-preview-facts dt,
+.switch-inspector-section dt {
+  font-size: 11px;
+}
+
+.switch-preview-facts dd,
+.switch-inspector-section dd {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.switch-preview-facts > p,
+.switch-state-message {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.switch-reference-product > div > span,
+.switch-reference-sku span {
+  font-size: 10px;
+}
+
+.switch-reference-product > div > strong {
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.switch-reference-product > div > small,
+.switch-reference-sku strong {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.switch-change-current,
+.switch-progress li strong {
+  font-size: 11px;
+}
+
+.switch-sku-option {
+  min-height: 74px;
+  padding: 14px 16px;
+}
+
+.switch-sku-option strong {
+  font-size: 14px;
+}
+
+.switch-sku-option small,
+.switch-sku-option b {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.switch-criterion-heading strong {
+  font-size: 13px;
+}
+
+.switch-criterion-heading span,
+.switch-option-empty {
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.switch-choice {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
+.switch-current-facts-strip span {
+  font-size: 10px;
+}
+
+.switch-current-facts-strip strong {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Search-session summary stays compact but is no longer microcopy. */
+.switch-session-bar {
+  min-height: 70px;
+  grid-template-columns: minmax(300px, 1.25fr) minmax(220px, 1fr) minmax(220px, 1fr) auto;
+}
+
+.switch-session-bar > div {
+  gap: 4px;
+  padding: 11px 18px;
+}
+
+.switch-session-bar span {
+  font-size: 9.5px;
+}
+
+.switch-session-bar strong {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.switch-session-bar small {
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.switch-session-bar > button {
+  padding: 0 20px;
+  font-size: 11px;
+}
+
+/* Keep enough list width after Inspector opens so relation text remains useful. */
+.switch-results-workspace.is-inspecting {
+  grid-template-columns: minmax(500px, 44%) minmax(0, 56%);
+}
+
+.switch-candidate-heading,
+.switch-preview-topline {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(6px);
+}
+
+.switch-candidate-heading {
+  min-height: 64px;
+  padding: 12px 18px;
+}
+
+.switch-candidate-heading strong {
+  font-size: 16px;
+}
+
+.switch-candidate-heading span {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.switch-candidate-list {
+  height: calc(100% - 64px);
+}
+
+.switch-candidate-row {
+  min-height: 112px;
+  grid-template-columns: 54px minmax(190px, 1fr) minmax(220px, 1.25fr) 48px;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.switch-candidate-image,
+.switch-candidate-row .switch-image-placeholder {
+  width: 52px;
+  height: 66px;
+}
+
+.switch-candidate-identity {
+  gap: 4px;
+}
+
+.switch-candidate-relations {
+  gap: 6px;
+}
+
+.switch-relation-line {
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 9px;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.switch-relation-line > strong {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.switch-relation-empty {
+  font-size: 10.5px;
+}
+
+/* When the Inspector is open, let the candidate relationship occupy a second
+   line instead of squeezing four columns into the narrower list pane. */
+.switch-results-workspace.is-inspecting .switch-candidate-row {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: start;
+  min-height: 128px;
+}
+
+.switch-results-workspace.is-inspecting .switch-candidate-image,
+.switch-results-workspace.is-inspecting .switch-candidate-row .switch-image-placeholder {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+.switch-results-workspace.is-inspecting .switch-candidate-identity {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.switch-results-workspace.is-inspecting .switch-candidate-open {
+  grid-column: 3;
+  grid-row: 1;
+  padding-top: 2px;
+}
+
+.switch-results-workspace.is-inspecting .switch-candidate-relations,
+.switch-results-workspace.is-inspecting .switch-relation-empty {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  margin-top: 5px;
+}
+
+/* Inspector: identity first, current baseline second, search relation as the
+   primary decision block, then supporting product facts. */
+.switch-inspector-scroll {
+  padding: 28px 34px 48px;
+}
+
+.switch-inspector-identity {
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 26px;
+  padding-bottom: 26px;
+}
+
+.switch-inspector-image,
+.switch-inspector-identity .switch-image-placeholder {
+  width: 110px;
+  height: 136px;
+}
+
+.switch-inspector-identity h1 {
+  margin: 6px 0 9px;
+  font-size: 27px;
+  line-height: 1.16;
+}
+
+.switch-inspector-identity p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.switch-inspector-baseline {
+  gap: 5px;
+  margin-top: 22px;
+  border-left-width: 4px;
+  padding: 14px 16px;
+}
+
+.switch-inspector-baseline span {
+  font-size: 10px;
+}
+
+.switch-inspector-baseline strong {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.switch-inspector-baseline small {
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+/* First section after baseline = the search relationship. Make it the main
+   decision surface rather than another low-priority definition list. */
+.switch-inspector-baseline + .switch-inspector-section {
+  margin-top: 22px;
+  border: 1px solid var(--research-line);
+  padding: 18px 20px 8px;
+  background: #f8fafb;
+}
+
+.switch-inspector-baseline + .switch-inspector-section h2 {
+  border-bottom: 1px solid var(--research-line);
+  padding-bottom: 11px;
+  font-size: 16px;
+}
+
+.switch-inspector-baseline + .switch-inspector-section dl > div {
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 18px;
+  padding: 12px 0;
+}
+
+.switch-inspector-baseline + .switch-inspector-section dt {
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.switch-inspector-baseline + .switch-inspector-section dd {
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.switch-inspector-section {
+  margin-top: 30px;
+}
+
+.switch-inspector-section h2 {
+  padding-bottom: 10px;
+  font-size: 15px;
+}
+
+.switch-inspector-section dl > div {
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 18px;
+  padding: 11px 0;
+}
+
+.switch-ingredient-inspector {
+  border: 1px solid #dedbd1;
+  padding: 18px 20px;
+  background: #fbfaf6;
+}
+
+.switch-ingredient-inspector h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 1180px) {
+  .switch-results-workspace.is-inspecting {
+    grid-template-columns: minmax(440px, 46%) minmax(0, 54%);
+  }
+
+  .switch-session-bar {
+    grid-template-columns: minmax(250px, 1.15fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .switch-session-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .switch-session-bar > button {
+    min-height: 44px;
+    border-top: 1px solid var(--research-line);
+  }
+
+  .switch-results-workspace.is-inspecting {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .switch-results-workspace.is-inspecting .switch-candidate-pane {
+    min-height: 460px;
+    border-right: 0;
+    border-bottom: 1px solid var(--research-line);
+  }
+
+  .switch-candidate-inspector {
+    min-height: 620px;
+  }
+}

@@ -12,6 +12,7 @@ import './ingredient-avoidance.css'
 import './switch-results-polish.css'
 import './compare.css'
 import './product-detail.css'
+import './final-polish.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

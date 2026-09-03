@@ -1,0 +1,35 @@
+/* Keep a single deliberate focus treatment on search controls.
+   Some browsers can render an additional native focus outline on search inputs,
+   which makes the control look like nested boxes. */
+.home-shell input[type='search'],
+.research-shell input[type='search'],
+.research-shell input[type='text'],
+.switch-workflow-shell input[type='search'],
+.switch-workflow-shell input[type='text'] {
+  outline: none !important;
+}
+
+.home-shell input[type='search']:focus,
+.home-shell input[type='search']:focus-visible,
+.switch-find-search input:focus,
+.switch-find-search input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.home-search:focus-within {
+  border-color: var(--consumer-primary-2);
+  box-shadow: 0 0 0 3px rgba(36, 76, 67, 0.08);
+}
+
+.switch-find-search:focus-within {
+  border-bottom-color: var(--research-accent);
+  box-shadow: none;
+}
+
+.lookup-input:focus,
+.lookup-input:focus-visible,
+.recipe-search:focus,
+.recipe-search:focus-visible {
+  outline: none !important;
+}

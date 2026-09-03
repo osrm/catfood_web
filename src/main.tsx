@@ -14,6 +14,7 @@ import './compare.css'
 import './product-detail.css'
 import './final-polish.css'
 import './consumer-visual.css'
+import './home-visual-anchor.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -11,6 +11,7 @@ import './switch-workflow.css'
 import './ingredient-avoidance.css'
 import './switch-results-polish.css'
 import './compare.css'
+import './product-detail.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

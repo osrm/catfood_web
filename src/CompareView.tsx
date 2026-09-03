@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import ProductDetail from './ProductDetail'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -69,7 +70,8 @@ function labels(values: string[], map: Record<string, string>): string {
 
 function formatNumber(value: number | null, suffix: string, qualifier?: string | null): string {
   if (value == null) return '미확인'
-  return `${qualifier ?? ''}${Number(value).toLocaleString('ko-KR')}${suffix}`
+  const qualifierLabel = qualifier === 'min' ? ' 이상' : qualifier === 'max' ? ' 이하' : qualifier ? ` ${qualifier}` : ''
+  return `${Number(value).toLocaleString('ko-KR')}${suffix}${qualifierLabel}`
 }
 
 function detailContext(detail: CompareNutrition | CompareIngredients | undefined): string {
@@ -83,7 +85,15 @@ function detailContext(detail: CompareNutrition | CompareIngredients | undefined
   return `${market} · ${scope}`
 }
 
-function ProductHead({ item, onRemove }: { item: CompareItem; onRemove: () => void }) {
+function ProductHead({
+  item,
+  onRemove,
+  onDetail,
+}: {
+  item: CompareItem
+  onRemove: () => void
+  onDetail: () => void
+}) {
   const product = item.product
   return (
     <div className="compare-product-head">
@@ -92,6 +102,7 @@ function ProductHead({ item, onRemove }: { item: CompareItem; onRemove: () => vo
       <span>{product.brand}</span>
       <strong>{product.canonical_name}</strong>
       <small>{product.representative_package_size_text ?? '대표 규격 미확인'}</small>
+      <button className="compare-detail-link" type="button" onClick={onDetail}>제품 상세 →</button>
     </div>
   )
 }
@@ -147,10 +158,12 @@ export default function CompareView({
   const [ingredients, setIngredients] = useState<CompareIngredients[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [detailProductId, setDetailProductId] = useState<string | null>(null)
 
   const productIds = useMemo(() => items.map((item) => item.product.product_id), [items])
   const nutritionByProduct = useMemo(() => new Map(nutrition.map((row) => [row.product_id, row])), [nutrition])
   const ingredientsByProduct = useMemo(() => new Map(ingredients.map((row) => [row.product_id, row])), [ingredients])
+  const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
 
   useEffect(() => {
     const controller = new AbortController()
@@ -173,6 +186,10 @@ export default function CompareView({
 
     return () => controller.abort()
   }, [productIds.join('|')])
+
+  if (detailItem) {
+    return <ProductDetail product={detailItem.product} onClose={() => setDetailProductId(null)} />
+  }
 
   return (
     <main className="compare-stage">
@@ -206,7 +223,14 @@ export default function CompareView({
         <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
           <div className="compare-head-row">
             <div className="compare-corner">비교 항목</div>
-            {items.map((item) => <ProductHead key={item.product.product_id} item={item} onRemove={() => onRemove(item.product.product_id)} />)}
+            {items.map((item) => (
+              <ProductHead
+                key={item.product.product_id}
+                item={item}
+                onRemove={() => onRemove(item.product.product_id)}
+                onDetail={() => setDetailProductId(item.product.product_id)}
+              />
+            ))}
           </div>
 
           {tab === 'overview' ? (

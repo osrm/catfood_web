@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import CompareView, { type CompareItem } from './CompareView'
 import {
   fetchProductVariants,
   type CatalogProduct,
@@ -514,6 +515,8 @@ export default function SwitchFlow({
   const [ingredientSearch, setIngredientSearch] = useState('')
   const [noChangeIntent, setNoChangeIntent] = useState(false)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
@@ -598,6 +601,17 @@ export default function SwitchFlow({
 
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
+  const compareItems = useMemo<CompareItem[]>(() => compareIds
+    .map((productId) => candidates.find((item) => item.product.product_id === productId))
+    .filter((item): item is SwitchEvaluation => Boolean(item))
+    .map((item) => ({
+      product: item.product,
+      keepMatches: item.keepMatches,
+      changeMatches: item.changeMatches,
+      unknowns: item.unknowns,
+      ingredientReviewedNotFound: item.ingredientReviewedNotFound,
+      ingredientInsufficient: item.ingredientInsufficient,
+    })), [compareIds, candidates])
 
   function clearFormulaDependentSelections() {
     setChange((current) => ({ ...current, recipeFamilies: [], grainFree: false }))
@@ -621,6 +635,14 @@ export default function SwitchFlow({
     setIngredientAvoidTerms((current) => current.filter((value) => value !== term))
   }
 
+  function toggleCompare(productId: string) {
+    setCompareIds((current) => {
+      if (current.includes(productId)) return current.filter((value) => value !== productId)
+      if (current.length >= 5) return current
+      return [...current, productId]
+    })
+  }
+
   function confirmCurrentProduct(product: CatalogProduct) {
     setCurrentProductId(product.product_id)
     setPreviewProductId(null)
@@ -633,6 +655,8 @@ export default function SwitchFlow({
     setIngredientSearch('')
     setNoChangeIntent(false)
     setSelectedCandidateId(null)
+    setCompareIds([])
+    setCompareOpen(false)
     setStep('sku')
   }
 
@@ -651,6 +675,8 @@ export default function SwitchFlow({
     setIngredientSearch('')
     setNoChangeIntent(false)
     setSelectedCandidateId(null)
+    setCompareIds([])
+    setCompareOpen(false)
   }
 
   function toggleChangeArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) {
@@ -981,7 +1007,7 @@ export default function SwitchFlow({
 
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => setStep('change')}>← CHANGE 수정</button>
-            <button className="switch-primary-action" type="button" onClick={() => { setSelectedCandidateId(null); setStep('results') }}>후보 제품 보기 →</button>
+            <button className="switch-primary-action" type="button" onClick={() => { setSelectedCandidateId(null); setCompareIds([]); setCompareOpen(false); setStep('results') }}>후보 제품 보기 →</button>
           </div>
         </main>
       </div>
@@ -990,12 +1016,29 @@ export default function SwitchFlow({
 
   function renderResults() {
     if (!currentProduct) return null
+
+    if (compareOpen && compareItems.length > 0) {
+      return (
+        <CompareView
+          items={compareItems}
+          currentProduct={currentProduct}
+          currentVariantText={`${variantLabel(selectedVariant)} · ${formulaEvidenceLabel(selectedVariant)}`}
+          onClose={() => setCompareOpen(false)}
+          onRemove={(productId) => {
+            setCompareIds((current) => current.filter((value) => value !== productId))
+            if (compareIds.length <= 1) setCompareOpen(false)
+          }}
+        />
+      )
+    }
+
     const changeLabels = criteriaLabels(change)
     if (changeBrand) changeLabels.unshift('다른 브랜드')
     changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
     if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
     const keepLabels = criteriaLabels(keep)
     if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`)
+    const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
     return (
       <main className="switch-results-stage">
@@ -1003,7 +1046,7 @@ export default function SwitchFlow({
           <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)} · {formulaEvidenceLabel(selectedVariant)}</small></div>
           <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
           <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '제약 없음'}</strong></div>
-          <button type="button" onClick={() => setStep('change')}>조건 수정</button>
+          <button type="button" onClick={() => { setCompareOpen(false); setStep('change') }}>조건 수정</button>
         </div>
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
@@ -1038,6 +1081,19 @@ export default function SwitchFlow({
                 </section>
 
                 <section className="switch-inspector-baseline"><span>기준 제품</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)} · {formulaEvidenceLabel(selectedVariant)}</small></section>
+
+                <button
+                  className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'}
+                  type="button"
+                  disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)}
+                  onClick={() => toggleCompare(selectedCandidate.product.product_id)}
+                >
+                  {compareIds.includes(selectedCandidate.product.product_id)
+                    ? '비교에서 제거'
+                    : compareIds.length >= 5
+                      ? '비교는 최대 5개까지 가능합니다'
+                      : `비교에 추가 · ${compareIds.length}/5`}
+                </button>
 
                 <section className="switch-inspector-section">
                   <h2>선택한 기준과의 관계</h2>
@@ -1074,6 +1130,14 @@ export default function SwitchFlow({
             </aside>
           ) : null}
         </section>
+
+        {compareIds.length > 0 ? (
+          <div className="switch-compare-dock" role="status">
+            <strong>비교 {compareIds.length}/5</strong>
+            <div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div>
+            <button type="button" onClick={() => setCompareOpen(true)}>비교 보기 →</button>
+          </div>
+        ) : null}
       </main>
     )
   }

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { installDemoPreviewFetch } from './demo-preview'
 import './styles.css'
 import './refinements.css'
 import './warm-editorial.css'
@@ -18,6 +19,9 @@ import './home-visual-anchor.css'
 import './home-scroll-fix.css'
 import './input-focus-fix.css'
 import './switch-consumer-refresh.css'
+import './demo-preview.css'
+
+installDemoPreviewFetch()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

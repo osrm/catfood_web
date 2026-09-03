@@ -10,6 +10,7 @@ import './switch-flow.css'
 import './switch-workflow.css'
 import './ingredient-avoidance.css'
 import './switch-results-polish.css'
+import './compare.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

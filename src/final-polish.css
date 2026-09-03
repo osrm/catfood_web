@@ -1,0 +1,250 @@
+:root {
+  --cat-bg: #f6f8f9;
+  --cat-surface: #ffffff;
+  --cat-line: #cfd7dc;
+  --cat-line-soft: #e3e8eb;
+  --cat-text: #182226;
+  --cat-muted: #657278;
+  --cat-accent: #173f4c;
+  --cat-accent-soft: #dbe9ee;
+}
+
+/* Final Stage 6 pass: keep the existing structures, only align density and hierarchy. */
+.home-shell {
+  background: var(--cat-bg);
+  color: var(--cat-text);
+}
+
+.home-header {
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom-color: var(--cat-line);
+}
+
+.home-header-inner,
+.home-main {
+  width: min(1320px, calc(100% - 56px));
+}
+
+.home-main {
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.home-hero-wide {
+  min-height: 188px;
+  border-bottom-color: var(--cat-line);
+}
+
+.home-hero-wide h1 {
+  max-width: 820px;
+  font-size: clamp(40px, 3.6vw, 54px);
+}
+
+.home-hero-wide p {
+  margin-top: 15px;
+  color: var(--cat-muted);
+  font-size: 16px;
+}
+
+.home-primary-entry {
+  min-height: 136px;
+  border-bottom-color: var(--cat-line);
+  border-left-color: #436370;
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
+
+.home-secondary-grid {
+  min-height: 132px;
+  border-bottom-color: var(--cat-line);
+}
+
+.home-lookup-entry,
+.home-explore-entry {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.home-primary-entry > button,
+.switch-primary-action,
+.compare-header > button,
+.compare-tabs button,
+.detail-topbar > button,
+.detail-tabs button,
+.quick-view-actions button,
+.switch-compare-action,
+.switch-compare-dock > button {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.home-shell button:focus-visible,
+.home-shell input:focus-visible,
+.research-shell button:focus-visible,
+.research-shell input:focus-visible,
+.compare-stage button:focus-visible,
+.detail-stage button:focus-visible {
+  outline: 2px solid #557985;
+  outline-offset: 2px;
+}
+
+.research-shell,
+.detail-stage,
+.compare-stage {
+  background: var(--cat-bg);
+  color: var(--cat-text);
+}
+
+.research-topbar,
+.detail-topbar,
+.compare-header,
+.compare-tabs {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.research-status,
+.criteria-label,
+.compare-header p,
+.compare-current-baseline small,
+.detail-identity-copy p,
+.detail-section-heading p {
+  color: var(--cat-muted);
+}
+
+/* Keep compact data-workstation density without dropping below a comfortable label size. */
+.research-status,
+.criteria-label,
+.criteria-chips span,
+.criteria-bar > button,
+.research-results-context,
+.result-relation-empty,
+.switch-candidate-identity small,
+.switch-relation-line span,
+.switch-relation-line strong,
+.switch-inspector-section dt,
+.switch-inspector-section dd,
+.compare-header span,
+.compare-current-baseline > span,
+.compare-product-head > span,
+.compare-product-head > small,
+.compare-detail-link,
+.compare-row-label,
+.compare-cell,
+.compare-relations span,
+.compare-relations strong,
+.compare-footnote,
+.detail-topbar > span,
+.detail-fact > span,
+.detail-section-heading p,
+.detail-variant-row span,
+.detail-market-row span,
+.detail-evidence-context,
+.detail-ingredient-list span,
+.detail-note,
+.detail-empty {
+  font-size: max(10.5px, 0.68rem);
+}
+
+.compare-product-head > strong {
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.compare-row-label {
+  font-weight: 800;
+}
+
+.compare-cell {
+  font-size: 12px;
+}
+
+.compare-relations strong {
+  font-size: 11.5px;
+}
+
+.compare-table-wrap {
+  padding-top: 18px;
+}
+
+.detail-topbar {
+  height: 60px;
+  border-bottom-color: var(--cat-line);
+}
+
+.detail-tabs {
+  top: 60px;
+}
+
+.detail-identity {
+  padding-top: 26px;
+  padding-bottom: 26px;
+}
+
+.detail-fact > strong,
+.detail-variant-row strong,
+.detail-market-row strong {
+  font-size: 12px;
+}
+
+.detail-section-heading p {
+  line-height: 1.55;
+}
+
+.detail-ingredient-copy {
+  font-size: 12.5px;
+  line-height: 1.72;
+}
+
+.detail-empty {
+  line-height: 1.55;
+}
+
+/* Make action hierarchy consistent across inspector, comparison and detail entry points. */
+.quick-view-actions,
+.switch-inspector-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-view-actions button,
+.switch-compare-action {
+  min-height: 42px;
+}
+
+.compare-detail-link:hover,
+.detail-topbar > button:hover,
+.criteria-bar > button:hover {
+  color: #0f3542;
+}
+
+@media (max-width: 900px) {
+  .home-header-inner,
+  .home-main {
+    width: min(100% - 32px, 1320px);
+  }
+
+  .home-main {
+    padding-top: 26px;
+  }
+
+  .home-hero-wide {
+    min-height: 160px;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-hero-wide h1 {
+    font-size: clamp(34px, 10vw, 44px);
+  }
+
+  .home-hero-wide p {
+    font-size: 14px;
+  }
+
+  .detail-topbar {
+    height: 56px;
+  }
+
+  .detail-tabs {
+    top: 56px;
+  }
+}

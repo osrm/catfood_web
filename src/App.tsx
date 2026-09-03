@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
+import ProductDetail from './ProductDetail'
 import SwitchFlow from './SwitchFlow'
 import { fetchCatalog, type CatalogProduct } from './api'
 import {
@@ -273,6 +274,7 @@ export default function App() {
   const [recipeSearch, setRecipeSearch] = useState('')
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
+  const [detailProductId, setDetailProductId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -350,6 +352,10 @@ export default function App() {
       }
     }), [compareIds, products, mode, evaluated])
 
+  const detailProduct = detailProductId
+    ? products.find((product) => product.product_id === detailProductId) ?? null
+    : null
+
   const activeConditions = countActiveConditions(search, refine)
   const visibleProducts = resultProducts.slice(0, visibleCount)
 
@@ -361,6 +367,7 @@ export default function App() {
   useEffect(() => {
     setCompareIds([])
     setCompareOpen(false)
+    setDetailProductId(null)
   }, [mode, search, refine, editingConditions])
 
   function setDraftSingle(field: SingleSearchField, value: string) {
@@ -413,6 +420,7 @@ export default function App() {
     setSelectedId(null)
     setCompareIds([])
     setCompareOpen(false)
+    setDetailProductId(null)
     setScreen('workspace')
   }
 
@@ -424,6 +432,7 @@ export default function App() {
     setSelectedId(null)
     setCompareIds([])
     setCompareOpen(false)
+    setDetailProductId(null)
     setScreen('workspace')
   }
 
@@ -739,18 +748,21 @@ export default function App() {
             </div>
           </section>
 
-          <button
-            className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'}
-            type="button"
-            disabled={compareIds.length >= 5 && !isCompared}
-            onClick={() => toggleCompare(selectedProduct.product_id)}
-          >
-            {isCompared
-              ? '비교에서 제거'
-              : compareIds.length >= 5
-                ? '비교는 최대 5개까지 가능합니다'
-                : `비교에 추가 · ${compareIds.length}/5`}
-          </button>
+          <div className="quick-view-actions">
+            <button
+              className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'}
+              type="button"
+              disabled={compareIds.length >= 5 && !isCompared}
+              onClick={() => toggleCompare(selectedProduct.product_id)}
+            >
+              {isCompared
+                ? '비교에서 제거'
+                : compareIds.length >= 5
+                  ? '비교는 최대 5개까지 가능합니다'
+                  : `비교에 추가 · ${compareIds.length}/5`}
+            </button>
+            <button className="switch-compare-action" type="button" onClick={() => setDetailProductId(selectedProduct.product_id)}>제품 상세 보기 →</button>
+          </div>
 
           {selectedEvaluation ? (
             <section className="quick-view-section">
@@ -794,12 +806,16 @@ export default function App() {
             <dl className="definition-list">
               <Definition label="제조국"><ValueList values={selectedProduct.manufacturing_country_codes} /></Definition>
               <Definition label="현재 확인 시장"><ValueList values={selectedProduct.current_market_country_codes} /></Definition>
-              <Definition label="동일 Formula 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} /></Definition>
+              <Definition label="동일 배합 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} /></Definition>
             </dl>
           </section>
         </div>
       </aside>
     )
+  }
+
+  if (detailProduct) {
+    return <ProductDetail product={detailProduct} onClose={() => setDetailProductId(null)} />
   }
 
   if (screen === 'home') {

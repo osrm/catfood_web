@@ -16,6 +16,7 @@ import './final-polish.css'
 import './consumer-visual.css'
 import './home-visual-anchor.css'
 import './home-scroll-fix.css'
+import './input-focus-fix.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

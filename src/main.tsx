@@ -22,6 +22,7 @@ import './input-focus-fix.css'
 import './switch-consumer-refresh.css'
 import './demo-preview.css'
 import './detail-consumer-refresh.css'
+import './document-scroll-fix.css'
 
 installDemoPreviewFetch()
 

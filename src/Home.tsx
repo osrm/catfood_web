@@ -25,10 +25,10 @@ export default function Home({
     <div className="home-shell">
       <header className="home-header">
         <div className="home-header-inner">
-          <button className="home-brand" type="button" onClick={() => onStart('lookup')}>
+          <div className="home-brand">
             <strong className="home-logo">FELINE ARCHIVE</strong>
             <span>사료 리서치 아카이브</span>
-          </button>
+          </div>
           <nav className="home-nav" aria-label="탐색 방법">
             <button type="button" onClick={() => onStart('lookup')}>제품 직접 찾기</button>
             <button type="button" onClick={() => onStart('switch')}>현재 사료에서 바꾸기</button>

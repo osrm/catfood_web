@@ -216,6 +216,145 @@
   color: #0f3542;
 }
 
+/* Inspectors should read like decision panels: identity, actions/relationship,
+   then supporting facts. Keep the existing data and interactions unchanged. */
+.quick-view-identity {
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 18px;
+  padding: 20px 24px;
+}
+
+.quick-view-image,
+.quick-view-identity .image-placeholder {
+  width: 94px;
+  height: 118px;
+}
+
+.quick-view-identity > div > span {
+  margin-bottom: 5px;
+}
+
+.quick-view-identity h1 {
+  margin-bottom: 7px;
+  font-size: clamp(21px, 1.8vw, 28px);
+  line-height: 1.16;
+}
+
+.quick-view-actions {
+  width: min(820px, calc(100% - 48px));
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin: 16px auto 0;
+}
+
+.quick-view-actions .switch-compare-action {
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+}
+
+.quick-view-actions .switch-compare-action:last-child {
+  border-color: var(--cat-accent);
+  background: var(--cat-accent);
+  color: #fff;
+}
+
+.quick-view-section {
+  padding-top: 20px;
+}
+
+.switch-inspector-scroll {
+  padding: 22px 28px 42px;
+}
+
+.switch-inspector-identity {
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+.switch-inspector-image,
+.switch-inspector-identity .switch-image-placeholder {
+  width: 94px;
+  height: 116px;
+}
+
+.switch-inspector-identity h1 {
+  margin: 5px 0 7px;
+  font-size: clamp(21px, 1.8vw, 24px);
+  line-height: 1.18;
+}
+
+.switch-inspector-baseline {
+  margin-top: 16px;
+  padding: 11px 13px;
+}
+
+.switch-inspector-scroll > .switch-compare-action {
+  width: auto;
+  min-width: 184px;
+  min-height: 38px;
+  margin: 14px 0 0;
+  padding: 0 14px;
+}
+
+/* The compare button sits between the baseline and relationship section in
+   the DOM, so target the actual adjacency instead of the older direct sibling. */
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section {
+  margin-top: 18px;
+  border: 1px solid var(--research-line);
+  padding: 16px 18px 18px;
+  background: #f8fafb;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section h2 {
+  border-bottom: 1px solid var(--research-line);
+  padding-bottom: 10px;
+  font-size: 15px;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dl > div {
+  min-width: 0;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid var(--research-line-soft);
+  border-left: 3px solid #9db2ba;
+  padding: 11px 12px;
+  background: #fff;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dl > div:nth-child(3) {
+  border-left-color: #c8ced1;
+  background: #f5f6f6;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dt {
+  color: var(--research-accent);
+  font-weight: 850;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dl > div:nth-child(3) dt {
+  color: #6f797e;
+}
+
+.switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dd {
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.5;
+}
+
+.switch-inspector-section {
+  margin-top: 24px;
+}
+
 /* Keep the three SWITCH setup steps compact and continuous. The product rail
    stays visible as context while the active choices use the main workspace. */
 @media (min-width: 981px) {
@@ -332,6 +471,16 @@
   }
 }
 
+@media (max-width: 1180px) {
+  .switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dl {
+    grid-template-columns: 1fr;
+  }
+
+  .switch-inspector-scroll > .switch-compare-action + .switch-inspector-section dl > div {
+    min-height: 0;
+  }
+}
+
 @media (min-width: 761px) and (max-width: 980px) {
   .switch-step-main {
     padding: 28px 24px 30px;
@@ -398,6 +547,29 @@
 
   .home-hero-wide p {
     font-size: 14px;
+  }
+
+  .quick-view-identity,
+  .switch-inspector-identity {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .quick-view-image,
+  .quick-view-identity .image-placeholder,
+  .switch-inspector-image,
+  .switch-inspector-identity .switch-image-placeholder {
+    width: 76px;
+    height: 94px;
+  }
+
+  .quick-view-actions {
+    width: calc(100% - 36px);
+    grid-template-columns: 1fr;
+  }
+
+  .switch-inspector-scroll > .switch-compare-action {
+    width: 100%;
   }
 
   .detail-topbar {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -9,6 +9,7 @@ import {
 
 export type CompareItem = {
   product: CatalogProduct
+  confirmedMatches?: string[]
   keepMatches?: string[]
   changeMatches?: string[]
   unknowns?: string[]
@@ -96,18 +97,20 @@ function ProductHead({ item, onRemove }: { item: CompareItem; onRemove: () => vo
 }
 
 function RelationSummary({ item }: { item: CompareItem }) {
+  const confirmed = item.confirmedMatches ?? []
   const keep = item.keepMatches ?? []
   const change = item.changeMatches ?? []
   const unknown = item.unknowns ?? []
   const reviewed = item.ingredientReviewedNotFound ?? []
   const insufficient = item.ingredientInsufficient ?? []
 
-  if (![keep, change, unknown, reviewed, insufficient].some((values) => values.length > 0)) {
+  if (![confirmed, keep, change, unknown, reviewed, insufficient].some((values) => values.length > 0)) {
     return <span className="compare-muted">별도 검색 관계 없음</span>
   }
 
   return (
     <div className="compare-relations">
+      {confirmed.length ? <p className="is-confirmed"><span>조건 확인</span><strong>{confirmed.join(' · ')}</strong></p> : null}
       {keep.length ? <p className="is-keep"><span>유지 확인</span><strong>{keep.join(' · ')}</strong></p> : null}
       {change.length ? <p className="is-change"><span>변경 확인</span><strong>{change.join(' · ')}</strong></p> : null}
       {reviewed.length ? <p className="is-reviewed"><span>원료 검토</span><strong>{reviewed.join(' · ')} · 검토 근거에서 찾지 못함</strong></p> : null}
@@ -117,9 +120,9 @@ function RelationSummary({ item }: { item: CompareItem }) {
   )
 }
 
-function CompareRow({ label, items, render }: { label: string; items: CompareItem[]; render: (item: CompareItem) => React.ReactNode }) {
+function CompareRow({ label, items, render }: { label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode }) {
   return (
-    <div className="compare-row" style={{ '--compare-count': items.length } as React.CSSProperties}>
+    <div className="compare-row" style={{ '--compare-count': items.length } as CSSProperties}>
       <div className="compare-row-label">{label}</div>
       {items.map((item) => <div className="compare-cell" key={item.product.product_id}>{render(item)}</div>)}
     </div>
@@ -200,7 +203,7 @@ export default function CompareView({
       {loading ? <div className="compare-state">비교 상세 정보를 불러오는 중입니다.</div> : null}
 
       <section className="compare-table-wrap">
-        <div className="compare-table" style={{ '--compare-count': items.length } as React.CSSProperties}>
+        <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
           <div className="compare-head-row">
             <div className="compare-corner">비교 항목</div>
             {items.map((item) => <ProductHead key={item.product.product_id} item={item} onRemove={() => onRemove(item.product.product_id)} />)}
@@ -208,7 +211,7 @@ export default function CompareView({
 
           {tab === 'overview' ? (
             <>
-              <CompareRow label="현재 기준과의 관계" items={items} render={(item) => <RelationSummary item={item} />} />
+              <CompareRow label={currentProduct ? '현재 기준과의 관계' : '검색 조건과의 관계'} items={items} render={(item) => <RelationSummary item={item} />} />
               <CompareRow label="사료 형태" items={items} render={(item) => item.product.feed_type ?? '미확인'} />
               <CompareRow label="표기 생애주기" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
               <CompareRow label="공식 대상" items={items} render={(item) => labels(item.product.official_targets, TARGET_LABELS)} />

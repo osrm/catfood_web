@@ -1,0 +1,18 @@
+html[data-demo-preview='true'] body::after {
+  content: 'DEMO · 가상 데이터';
+  position: fixed;
+  right: 18px;
+  bottom: 16px;
+  z-index: 10000;
+  border: 1px solid rgba(11, 44, 37, 0.16);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0b2c25;
+  box-shadow: 0 6px 20px rgba(11, 44, 37, 0.1);
+  font-family: Pretendard, 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
 import SwitchFlow from './SwitchFlow'
 import { fetchCatalog, type CatalogProduct } from './api'
@@ -270,6 +271,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(120)
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [compareIds, setCompareIds] = useState<string[]>([])
+  const [compareOpen, setCompareOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -333,6 +336,20 @@ export default function App() {
     ? evaluated.find((item) => item.product.product_id === selectedProduct.product_id) ?? null
     : null
 
+  const compareItems = useMemo<CompareItem[]>(() => compareIds
+    .map((productId) => products.find((product) => product.product_id === productId))
+    .filter((product): product is CatalogProduct => Boolean(product))
+    .map((product) => {
+      const evaluation = mode === 'explore'
+        ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null
+        : null
+      return {
+        product,
+        confirmedMatches: evaluation?.confirmedMatches.map(relationLabel) ?? [],
+        unknowns: evaluation?.unknowns.map(unknownLabel) ?? [],
+      }
+    }), [compareIds, products, mode, evaluated])
+
   const activeConditions = countActiveConditions(search, refine)
   const visibleProducts = resultProducts.slice(0, visibleCount)
 
@@ -340,6 +357,11 @@ export default function App() {
     setVisibleCount(120)
     setSelectedId(null)
   }, [mode, search, refine, lookupQuery, editingConditions])
+
+  useEffect(() => {
+    setCompareIds([])
+    setCompareOpen(false)
+  }, [mode, search, refine, editingConditions])
 
   function setDraftSingle(field: SingleSearchField, value: string) {
     setDraftSearch((current) => ({
@@ -353,6 +375,20 @@ export default function App() {
       ...current,
       [field]: toggleValue(current[field], value),
     }))
+  }
+
+  function toggleCompare(productId: string) {
+    setCompareIds((current) => {
+      if (current.includes(productId)) return current.filter((value) => value !== productId)
+      if (current.length >= 5) return current
+      return [...current, productId]
+    })
+  }
+
+  function removeCompare(productId: string) {
+    const next = compareIds.filter((value) => value !== productId)
+    setCompareIds(next)
+    if (next.length === 0) setCompareOpen(false)
   }
 
   function applyConditions() {
@@ -375,6 +411,8 @@ export default function App() {
   function changeMode(nextMode: Mode) {
     setMode(nextMode)
     setSelectedId(null)
+    setCompareIds([])
+    setCompareOpen(false)
     setScreen('workspace')
   }
 
@@ -384,6 +422,8 @@ export default function App() {
     if (nextMode === 'explore') setEditingConditions(true)
     setMode(nextMode)
     setSelectedId(null)
+    setCompareIds([])
+    setCompareOpen(false)
     setScreen('workspace')
   }
 
@@ -677,6 +717,7 @@ export default function App() {
 
   function renderQuickView() {
     if (!selectedProduct) return null
+    const isCompared = compareIds.includes(selectedProduct.product_id)
 
     return (
       <aside className="research-quick-view">
@@ -697,6 +738,19 @@ export default function App() {
               </p>
             </div>
           </section>
+
+          <button
+            className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'}
+            type="button"
+            disabled={compareIds.length >= 5 && !isCompared}
+            onClick={() => toggleCompare(selectedProduct.product_id)}
+          >
+            {isCompared
+              ? '비교에서 제거'
+              : compareIds.length >= 5
+                ? '비교는 최대 5개까지 가능합니다'
+                : `비교에 추가 · ${compareIds.length}/5`}
+          </button>
 
           {selectedEvaluation ? (
             <section className="quick-view-section">
@@ -776,9 +830,10 @@ export default function App() {
     ? '원하는 제품의 기준을 설정합니다.'
     : '제품명을 기준으로 찾습니다.'
   const waitingForConditions = mode === 'explore' && editingConditions
+  const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
   return (
-    <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}>
+    <div className={compareOpen ? 'research-shell is-browsing' : selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}>
       <header className="research-topbar">
         <button className="research-brand" type="button" onClick={() => setScreen('home')}>FELINE ARCHIVE</button>
         <nav className="mode-nav" aria-label="탐색 모드">
@@ -792,36 +847,54 @@ export default function App() {
         </div>
       </header>
 
-      {renderCriteriaBar()}
+      {compareOpen && compareItems.length > 0 ? (
+        <CompareView
+          items={compareItems}
+          onClose={() => setCompareOpen(false)}
+          onRemove={removeCompare}
+        />
+      ) : (
+        <>
+          {renderCriteriaBar()}
 
-      <main className="research-workspace">
-        {!selectedProduct ? (
-          <aside className="research-filters">
-            <div className="research-pane-heading">
-              <div>
-                <strong>{paneTitle}</strong>
-                <span>{paneDescription}</span>
-              </div>
-            </div>
-            <div className="research-filter-scroll">{renderLeftPane()}</div>
-          </aside>
-        ) : null}
-
-        <section className="research-results">
-          <div className="research-results-heading">
-            <div>
-              <strong>제품 목록</strong>
-              <span>{loading || waitingForConditions ? '조건을 설정하면 결과가 표시됩니다.' : `${resultProducts.length}개의 제품`}</span>
-            </div>
-            {mode === 'explore' && !editingConditions && activeConditions > 0 ? (
-              <span className="research-results-context">선택한 조건과 확인된 정보의 관계를 표시합니다.</span>
+          <main className="research-workspace">
+            {!selectedProduct ? (
+              <aside className="research-filters">
+                <div className="research-pane-heading">
+                  <div>
+                    <strong>{paneTitle}</strong>
+                    <span>{paneDescription}</span>
+                  </div>
+                </div>
+                <div className="research-filter-scroll">{renderLeftPane()}</div>
+              </aside>
             ) : null}
-          </div>
-          <div className="research-results-scroll">{renderResultList()}</div>
-        </section>
 
-        {renderQuickView()}
-      </main>
+            <section className="research-results">
+              <div className="research-results-heading">
+                <div>
+                  <strong>제품 목록</strong>
+                  <span>{loading || waitingForConditions ? '조건을 설정하면 결과가 표시됩니다.' : `${resultProducts.length}개의 제품`}</span>
+                </div>
+                {mode === 'explore' && !editingConditions && activeConditions > 0 ? (
+                  <span className="research-results-context">선택한 조건과 확인된 정보의 관계를 표시합니다.</span>
+                ) : null}
+              </div>
+              <div className="research-results-scroll">{renderResultList()}</div>
+            </section>
+
+            {renderQuickView()}
+          </main>
+
+          {compareIds.length > 0 ? (
+            <div className="switch-compare-dock" role="status">
+              <strong>비교 {compareIds.length}/5</strong>
+              <div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div>
+              <button type="button" onClick={() => setCompareOpen(true)}>비교 보기 →</button>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   )
 }

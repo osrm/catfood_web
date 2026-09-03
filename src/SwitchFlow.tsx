@@ -554,22 +554,29 @@ export default function SwitchFlow({
   useEffect(() => {
     if (!currentProductId) return
     const controller = new AbortController()
+    let active = true
     setVariantLoading(true)
     setVariantError(null)
     setVariants([])
 
     fetchProductVariants(currentProductId, controller.signal)
       .then((data) => {
+        if (!active) return
         setVariants(data)
         if (data.length === 1) setCurrentVariantId(data[0].variant_id)
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setVariantError(reason instanceof Error ? reason.message : '판매 규격을 불러오지 못했습니다.')
+        if (active) setVariantError(reason instanceof Error ? reason.message : '판매 규격을 불러오지 못했습니다.')
       })
-      .finally(() => setVariantLoading(false))
+      .finally(() => {
+        if (active) setVariantLoading(false)
+      })
 
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [currentProductId])
 
   const conditions = useMemo(() => currentProduct ? buildConditions({
@@ -1051,7 +1058,7 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 선택한 조건과 확인된 관계를 표시합니다.</span></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 배합 정보를 제품 단위로 집계한 기준입니다. 규격별 배합은 제품 상세에서 확인하세요.</p></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message">현재 조건에 맞는 후보가 없습니다. 조건을 자동으로 완화하지 않습니다.</div> : null}
               {candidates.map((evaluation) => {

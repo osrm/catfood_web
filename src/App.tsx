@@ -280,19 +280,26 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController()
+    let active = true
 
     fetchCatalog(controller.signal)
       .then((data) => {
+        if (!active) return
         setProducts(data)
         setError(null)
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setError(reason instanceof Error ? reason.message : '제품 데이터를 불러오지 못했습니다.')
+        if (active) setError(reason instanceof Error ? reason.message : '제품 데이터를 불러오지 못했습니다.')
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
 
-    return () => controller.abort()
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [])
 
   const evaluated = useMemo(
@@ -784,6 +791,7 @@ export default function App() {
 
           <section className="quick-view-section">
             <h2>제품 정보 요약</h2>
+            <p className="quick-view-scope-note">레시피 계열·세부 레시피·특성은 현재 확인된 판매 규격의 배합 정보를 제품 단위로 집계한 값입니다.</p>
             <dl className="definition-list">
               <Definition label="대표 규격">
                 {selectedProduct.representative_package_size_text ?? <span className="unknown-value">미확인</span>}

@@ -3,9 +3,11 @@ import ProductDetail from './ProductDetail'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
+  fetchProductVariants,
   type CatalogProduct,
   type CompareIngredients,
   type CompareNutrition,
+  type ProductVariant,
 } from './api'
 
 export type CompareItem = {
@@ -74,14 +76,41 @@ function formatNumber(value: number | null, suffix: string, qualifier?: string |
   return `${Number(value).toLocaleString('ko-KR')}${suffix}${qualifierLabel}`
 }
 
-function detailContext(detail: CompareNutrition | CompareIngredients | undefined): string {
+function variantSizeLabel(variant: ProductVariant | null): string | null {
+  if (!variant) return null
+  if (variant.package_size_text?.trim()) return variant.package_size_text.trim()
+  if (variant.package_weight_g != null) return `${Number(variant.package_weight_g).toLocaleString('ko-KR')}g`
+  return null
+}
+
+function detailContext(
+  detail: CompareNutrition | CompareIngredients | undefined,
+  variants: ProductVariant[] = [],
+  variantLookupFailed = false,
+  variantLookupLoading = false,
+): string {
   if (!detail) return '대표 확인값 없음'
   const market = detail.market_code === 'KR' ? '한국 확인' : detail.market_code ? `${detail.market_code} 확인` : '시장 미지정'
-  const scope = detail.observation_scope === 'variant'
-    ? '규격 기준'
-    : detail.observation_scope === 'formula'
-      ? '배합 기준'
-      : '제품 기준'
+  let scope = '제품 기준'
+
+  if (detail.observation_scope === 'variant') {
+    const variant = detail.variant_id
+      ? variants.find((item) => item.variant_id === detail.variant_id) ?? null
+      : null
+    const size = variantSizeLabel(variant)
+    scope = size
+      ? `${size} 규격 기준`
+      : variantLookupLoading
+        ? '규격 기준 · 실제 규격 확인 중'
+        : variantLookupFailed
+          ? '규격 기준 · 실제 규격 조회 실패'
+          : '규격 기준 · 실제 규격 표기 미확인'
+  } else if (detail.observation_scope === 'formula') {
+    scope = detail.is_current_resolved_formula
+      ? '현재 확인 배합 기준'
+      : '배합 기준 · 현재 한국 배합 대응 미확정'
+  }
+
   return `${market} · ${scope}`
 }
 
@@ -101,7 +130,7 @@ function ProductHead({
       {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
       <span>{product.brand}</span>
       <strong>{product.canonical_name}</strong>
-      <small>{product.representative_package_size_text ?? '대표 규격 미확인'}</small>
+      <small>대표 규격 · {product.representative_package_size_text ?? '미확인'}</small>
       <button className="compare-detail-link" type="button" onClick={onDetail}>제품 상세 →</button>
     </div>
   )
@@ -156,8 +185,13 @@ export default function CompareView({
   const [tab, setTab] = useState<CompareTab>('overview')
   const [nutrition, setNutrition] = useState<CompareNutrition[]>([])
   const [ingredients, setIngredients] = useState<CompareIngredients[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [variantsByProduct, setVariantsByProduct] = useState<Record<string, ProductVariant[]>>({})
+  const [variantLookupFailures, setVariantLookupFailures] = useState<string[]>([])
+  const [variantsLoading, setVariantsLoading] = useState(false)
+  const [nutritionLoading, setNutritionLoading] = useState(false)
+  const [ingredientsLoading, setIngredientsLoading] = useState(false)
+  const [nutritionError, setNutritionError] = useState<string | null>(null)
+  const [ingredientsError, setIngredientsError] = useState<string | null>(null)
   const [detailProductId, setDetailProductId] = useState<string | null>(null)
 
   const productIds = useMemo(() => items.map((item) => item.product.product_id), [items])
@@ -167,24 +201,60 @@ export default function CompareView({
 
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true)
-    setError(null)
+    let active = true
+    setNutrition([])
+    setIngredients([])
+    setVariantsByProduct({})
+    setVariantLookupFailures([])
+    setVariantsLoading(true)
+    setNutritionLoading(true)
+    setIngredientsLoading(true)
+    setNutritionError(null)
+    setIngredientsError(null)
 
-    Promise.all([
-      fetchCompareNutrition(productIds, controller.signal),
-      fetchCompareIngredients(productIds, controller.signal),
-    ])
-      .then(([nutritionRows, ingredientRows]) => {
-        setNutrition(nutritionRows)
-        setIngredients(ingredientRows)
+    fetchCompareNutrition(productIds, controller.signal)
+      .then((rows) => {
+        if (active) setNutrition(rows)
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setError(reason instanceof Error ? reason.message : '비교 상세 정보를 불러오지 못했습니다.')
+        if (active) setNutritionError(reason instanceof Error ? reason.message : '영양 정보를 불러오지 못했습니다.')
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (active) setNutritionLoading(false)
+      })
 
-    return () => controller.abort()
+    fetchCompareIngredients(productIds, controller.signal)
+      .then((rows) => {
+        if (active) setIngredients(rows)
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (active) setIngredientsError(reason instanceof Error ? reason.message : '원재료 정보를 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (active) setIngredientsLoading(false)
+      })
+
+    Promise.allSettled(productIds.map((productId) => fetchProductVariants(productId, controller.signal)))
+      .then((results) => {
+        if (!active) return
+        const nextVariants: Record<string, ProductVariant[]> = {}
+        const failures: string[] = []
+        results.forEach((result, index) => {
+          const productId = productIds[index]
+          if (result.status === 'fulfilled') nextVariants[productId] = result.value
+          else if (!(result.reason instanceof DOMException && result.reason.name === 'AbortError')) failures.push(productId)
+        })
+        setVariantsByProduct(nextVariants)
+        setVariantLookupFailures(failures)
+        setVariantsLoading(false)
+      })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [productIds.join('|')])
 
   if (detailItem) {
@@ -216,8 +286,10 @@ export default function CompareView({
         <button className={tab === 'ingredients' ? 'is-active' : ''} type="button" onClick={() => setTab('ingredients')}>원재료</button>
       </nav>
 
-      {error ? <div className="compare-state is-error">{error}</div> : null}
-      {loading ? <div className="compare-state">비교 상세 정보를 불러오는 중입니다.</div> : null}
+      {tab === 'nutrition' && nutritionError ? <div className="compare-state is-error">영양 정보를 불러오지 못했습니다. {nutritionError}</div> : null}
+      {tab === 'ingredients' && ingredientsError ? <div className="compare-state is-error">원재료 정보를 불러오지 못했습니다. {ingredientsError}</div> : null}
+      {tab === 'nutrition' && nutritionLoading ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
+      {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
       <section className="compare-table-wrap">
         <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
@@ -248,9 +320,14 @@ export default function CompareView({
             </>
           ) : null}
 
-          {tab === 'nutrition' ? (
+          {tab === 'nutrition' && !nutritionLoading && !nutritionError ? (
             <>
-              <CompareRow label="표시 기준" items={items} render={(item) => <span className="compare-muted">{detailContext(nutritionByProduct.get(item.product.product_id))}</span>} />
+              <CompareRow label="표시 기준" items={items} render={(item) => <span className="compare-muted">{detailContext(
+                nutritionByProduct.get(item.product.product_id),
+                variantsByProduct[item.product.product_id],
+                variantLookupFailures.includes(item.product.product_id),
+                variantsLoading,
+              )}</span>} />
               <CompareRow label="열량" items={items} render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
@@ -280,9 +357,14 @@ export default function CompareView({
             </>
           ) : null}
 
-          {tab === 'ingredients' ? (
+          {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareRow label="표시 기준" items={items} render={(item) => <span className="compare-muted">{detailContext(ingredientsByProduct.get(item.product.product_id))}</span>} />
+              <CompareRow label="표시 기준" items={items} render={(item) => <span className="compare-muted">{detailContext(
+                ingredientsByProduct.get(item.product.product_id),
+                variantsByProduct[item.product.product_id],
+                variantLookupFailures.includes(item.product.product_id),
+                variantsLoading,
+              )}</span>} />
               <CompareRow label="원재료 목록 상태" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return '미확인'

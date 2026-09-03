@@ -828,6 +828,12 @@
   border-right: 1px solid var(--research-line);
 }
 
+.switch-candidate-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .switch-candidate-heading {
   min-height: 58px;
 }

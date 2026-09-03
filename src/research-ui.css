@@ -808,6 +808,13 @@
   font-weight: 820;
 }
 
+.quick-view-scope-note {
+  margin: -4px 0 12px;
+  color: var(--research-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .research-shell .definition-list {
   margin: 0;
   border-top: 1px solid var(--research-line-soft);

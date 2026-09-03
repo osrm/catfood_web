@@ -1,0 +1,14 @@
+/* Home is a document-length consumer page; keep workspace pages on the fixed app shell. */
+.home-shell {
+  height: 100vh;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+}
+
+@supports (height: 100dvh) {
+  .home-shell {
+    height: 100dvh;
+  }
+}

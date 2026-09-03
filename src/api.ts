@@ -61,6 +61,43 @@ export interface ProductVariant {
   insufficient_evidence_ingredient_terms: string[]
 }
 
+export interface CompareNutrition {
+  product_id: string
+  variant_id: string | null
+  observation_scope: string
+  market_code: string | null
+  panel_type: string | null
+  protein_pct: number | null
+  protein_qualifier: string | null
+  fat_pct: number | null
+  fat_qualifier: string | null
+  fiber_pct: number | null
+  fiber_qualifier: string | null
+  moisture_pct: number | null
+  moisture_qualifier: string | null
+  ash_pct: number | null
+  ash_qualifier: string | null
+  kcal_per_kg: number | null
+  kcal_per_100g: number | null
+  energy_basis: string | null
+  is_korea_market_observation: boolean
+  is_current_resolved_formula: boolean
+}
+
+export interface CompareIngredients {
+  product_id: string
+  variant_id: string | null
+  observation_scope: string
+  market_code: string | null
+  declaration_scope: string | null
+  completeness_status: string | null
+  raw_text: string | null
+  ingredient_names: string[]
+  ingredient_count: number
+  is_korea_market_observation: boolean
+  is_current_resolved_formula: boolean
+}
+
 const CATALOG_FIELDS = [
   'product_id',
   'brand',
@@ -122,6 +159,43 @@ const VARIANT_FIELDS = [
   'insufficient_evidence_ingredient_terms',
 ].join(',')
 
+const COMPARE_NUTRITION_FIELDS = [
+  'product_id',
+  'variant_id',
+  'observation_scope',
+  'market_code',
+  'panel_type',
+  'protein_pct',
+  'protein_qualifier',
+  'fat_pct',
+  'fat_qualifier',
+  'fiber_pct',
+  'fiber_qualifier',
+  'moisture_pct',
+  'moisture_qualifier',
+  'ash_pct',
+  'ash_qualifier',
+  'kcal_per_kg',
+  'kcal_per_100g',
+  'energy_basis',
+  'is_korea_market_observation',
+  'is_current_resolved_formula',
+].join(',')
+
+const COMPARE_INGREDIENT_FIELDS = [
+  'product_id',
+  'variant_id',
+  'observation_scope',
+  'market_code',
+  'declaration_scope',
+  'completeness_status',
+  'raw_text',
+  'ingredient_names',
+  'ingredient_count',
+  'is_korea_market_observation',
+  'is_current_resolved_formula',
+].join(',')
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === 'string')
@@ -161,6 +235,13 @@ function normalizeVariant(value: ProductVariant): ProductVariant {
   }
 }
 
+function normalizeCompareIngredients(value: CompareIngredients): CompareIngredients {
+  return {
+    ...value,
+    ingredient_names: asStringArray(value.ingredient_names),
+  }
+}
+
 function apiConfig() {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
   const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
@@ -172,6 +253,36 @@ function apiConfig() {
   }
 
   return { baseUrl: baseUrl.replace(/\/$/, ''), publishableKey }
+}
+
+async function fetchCompareRows<T>(
+  view: 'compare_product_nutrition' | 'compare_product_ingredients',
+  fields: string,
+  productIds: string[],
+  signal?: AbortSignal,
+): Promise<T[]> {
+  if (productIds.length === 0) return []
+
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/${view}`)
+  url.searchParams.set('select', fields)
+  url.searchParams.set('product_id', `in.(${productIds.join(',')})`)
+  url.searchParams.set('limit', '5')
+
+  const response = await fetch(url, {
+    signal,
+    headers: {
+      apikey: publishableKey,
+      'Accept-Profile': 'api',
+    },
+  })
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 240)
+    throw new Error(`Compare API ${response.status}: ${detail || response.statusText}`)
+  }
+
+  return (await response.json()) as T[]
 }
 
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
@@ -226,4 +337,29 @@ export async function fetchProductVariants(
 
   const data = (await response.json()) as ProductVariant[]
   return data.map(normalizeVariant)
+}
+
+export async function fetchCompareNutrition(
+  productIds: string[],
+  signal?: AbortSignal,
+): Promise<CompareNutrition[]> {
+  return fetchCompareRows<CompareNutrition>(
+    'compare_product_nutrition',
+    COMPARE_NUTRITION_FIELDS,
+    productIds,
+    signal,
+  )
+}
+
+export async function fetchCompareIngredients(
+  productIds: string[],
+  signal?: AbortSignal,
+): Promise<CompareIngredients[]> {
+  const data = await fetchCompareRows<CompareIngredients>(
+    'compare_product_ingredients',
+    COMPARE_INGREDIENT_FIELDS,
+    productIds,
+    signal,
+  )
+  return data.map(normalizeCompareIngredients)
 }

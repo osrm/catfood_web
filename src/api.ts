@@ -37,6 +37,8 @@ export interface CatalogProduct {
   official_recipe_traits: string[]
 }
 
+export type FormulaEvidenceStatus = 'confirmed' | 'conflicting' | 'unresolved' | 'not_observed'
+
 export interface ProductVariant {
   product_id: string
   variant_id: string
@@ -47,6 +49,16 @@ export interface ProductVariant {
   sales_bundle_status: string | null
   display_rank: number
   variant_count: number
+  formula_evidence_status: FormulaEvidenceStatus
+  recipe_families: string[]
+  recipe_details: string[]
+  official_recipe_traits: string[]
+  ingredient_term_result_count: number
+  confirmed_present_ingredient_terms: string[]
+  direct_evidence_ingredient_terms: string[]
+  flavor_associated_ingredient_terms: string[]
+  reviewed_not_found_ingredient_terms: string[]
+  insufficient_evidence_ingredient_terms: string[]
 }
 
 const CATALOG_FIELDS = [
@@ -98,6 +110,16 @@ const VARIANT_FIELDS = [
   'sales_bundle_status',
   'display_rank',
   'variant_count',
+  'formula_evidence_status',
+  'recipe_families',
+  'recipe_details',
+  'official_recipe_traits',
+  'ingredient_term_result_count',
+  'confirmed_present_ingredient_terms',
+  'direct_evidence_ingredient_terms',
+  'flavor_associated_ingredient_terms',
+  'reviewed_not_found_ingredient_terms',
+  'insufficient_evidence_ingredient_terms',
 ].join(',')
 
 function asStringArray(value: unknown): string[] {
@@ -122,6 +144,20 @@ function normalizeProduct(value: CatalogProduct): CatalogProduct {
     recipe_families: asStringArray(value.recipe_families),
     recipe_details: asStringArray(value.recipe_details),
     official_recipe_traits: asStringArray(value.official_recipe_traits),
+  }
+}
+
+function normalizeVariant(value: ProductVariant): ProductVariant {
+  return {
+    ...value,
+    recipe_families: asStringArray(value.recipe_families),
+    recipe_details: asStringArray(value.recipe_details),
+    official_recipe_traits: asStringArray(value.official_recipe_traits),
+    confirmed_present_ingredient_terms: asStringArray(value.confirmed_present_ingredient_terms),
+    direct_evidence_ingredient_terms: asStringArray(value.direct_evidence_ingredient_terms),
+    flavor_associated_ingredient_terms: asStringArray(value.flavor_associated_ingredient_terms),
+    reviewed_not_found_ingredient_terms: asStringArray(value.reviewed_not_found_ingredient_terms),
+    insufficient_evidence_ingredient_terms: asStringArray(value.insufficient_evidence_ingredient_terms),
   }
 }
 
@@ -182,11 +218,12 @@ export async function fetchProductVariants(
 
   if (!response.ok) {
     if ([401, 403, 404].includes(response.status)) {
-      throw new Error('현재 사용 규격 선택 API가 아직 공개되지 않았습니다. 규격을 모름으로 두고 계속할 수 있습니다.')
+      throw new Error('현재 사용 규격 선택 API를 불러오지 못했습니다. 규격을 모름으로 두고 계속할 수 있습니다.')
     }
     const detail = (await response.text()).slice(0, 240)
     throw new Error(`Variant API ${response.status}: ${detail || response.statusText}`)
   }
 
-  return (await response.json()) as ProductVariant[]
+  const data = (await response.json()) as ProductVariant[]
+  return data.map(normalizeVariant)
 }

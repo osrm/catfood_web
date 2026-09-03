@@ -216,6 +216,166 @@
   color: #0f3542;
 }
 
+/* Keep the three SWITCH setup steps compact and continuous. The product rail
+   stays visible as context while the active choices use the main workspace. */
+@media (min-width: 981px) {
+  .switch-step-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .switch-reference-rail {
+    padding: 22px 18px;
+  }
+
+  .switch-reference-product {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 10px;
+    padding-bottom: 13px;
+  }
+
+  .switch-reference-image,
+  .switch-reference-product .switch-image-placeholder {
+    width: 48px;
+    height: 60px;
+  }
+
+  .switch-reference-sku {
+    padding: 11px 0;
+  }
+
+  .switch-progress {
+    margin-top: 20px;
+  }
+
+  .switch-progress li {
+    min-height: 32px;
+  }
+
+  .switch-step-main {
+    padding: 30px clamp(28px, 4vw, 56px) 30px;
+  }
+
+  .switch-step-header {
+    max-width: 980px;
+    padding-bottom: 18px;
+  }
+
+  .switch-step-header > span {
+    margin-bottom: 6px;
+  }
+
+  .switch-step-header h1 {
+    font-size: clamp(28px, 2.5vw, 36px);
+    line-height: 1.12;
+  }
+
+  .switch-step-header > p {
+    max-width: 820px;
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .switch-sku-list {
+    max-width: 820px;
+    margin-top: 14px;
+  }
+
+  .switch-sku-option {
+    min-height: 58px;
+    padding: 10px 12px;
+  }
+
+  .switch-step-actions {
+    max-width: 980px;
+    margin-top: 22px;
+    padding-top: 16px;
+  }
+
+  .switch-no-change {
+    width: min(980px, 100%);
+    margin-top: 14px;
+    padding: 11px 14px;
+  }
+
+  .switch-criteria-columns {
+    max-width: 980px;
+    gap: 24px;
+    margin-top: 18px;
+  }
+
+  .switch-criterion-section {
+    margin-bottom: 16px;
+    padding-top: 8px;
+  }
+
+  .switch-criterion-heading {
+    margin-bottom: 8px;
+  }
+
+  .switch-choice-grid {
+    gap: 6px;
+  }
+
+  .switch-choice {
+    min-height: 32px;
+    padding: 0 10px;
+  }
+
+  .switch-current-facts-strip {
+    margin-top: 14px;
+  }
+
+  .switch-current-facts-strip > div {
+    min-height: 60px;
+    padding: 10px 14px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 980px) {
+  .switch-step-main {
+    padding: 28px 24px 30px;
+  }
+
+  .switch-step-header {
+    padding-bottom: 16px;
+  }
+
+  .switch-step-header h1 {
+    font-size: 30px;
+  }
+
+  .switch-step-header > p {
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .switch-sku-list,
+  .switch-no-change,
+  .switch-current-facts-strip {
+    margin-top: 14px;
+  }
+
+  .switch-step-actions {
+    margin-top: 20px;
+    padding-top: 14px;
+  }
+
+  .switch-criteria-columns {
+    gap: 0;
+    margin-top: 16px;
+  }
+
+  .switch-criterion-section {
+    margin-bottom: 16px;
+  }
+
+  .switch-current-facts-strip > div {
+    min-height: 60px;
+    padding: 10px 12px;
+  }
+}
+
 @media (max-width: 900px) {
   .home-header-inner,
   .home-main {

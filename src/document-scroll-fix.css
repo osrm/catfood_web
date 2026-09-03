@@ -1,0 +1,28 @@
+/* Full-screen document views need their own vertical scroller because the desktop workspace keeps body overflow locked. */
+.detail-stage {
+  height: 100vh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/* Compare lives inside the fixed research shell. Let it occupy the remaining rows and scroll as one document. */
+.research-shell > .compare-stage,
+.research-shell > .detail-stage {
+  grid-row: 2 / -1;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@supports (height: 100dvh) {
+  .detail-stage {
+    height: 100dvh;
+  }
+
+  .research-shell > .detail-stage {
+    height: 100%;
+  }
+}

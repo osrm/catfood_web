@@ -98,6 +98,28 @@ export interface CompareIngredients {
   is_current_resolved_formula: boolean
 }
 
+export interface ProductManufacturingDetail {
+  product_id: string
+  observation_scope: string
+  country_code: string | null
+  manufacturer: string | null
+  plant: string | null
+  is_current_resolved_formula: boolean
+}
+
+export interface ProductMarketDetail {
+  product_id: string
+  country_code: string
+  distribution_status: string
+  formula_correspondence_status: string
+  counterpart_name: string | null
+  assessed_at: string | null
+  is_current_product_confirmed: boolean
+  is_formula_match_confirmed: boolean
+  display_rank: number
+  country_observation_count: number
+}
+
 const CATALOG_FIELDS = [
   'product_id',
   'brand',
@@ -196,6 +218,28 @@ const COMPARE_INGREDIENT_FIELDS = [
   'is_current_resolved_formula',
 ].join(',')
 
+const PRODUCT_MANUFACTURING_FIELDS = [
+  'product_id',
+  'observation_scope',
+  'country_code',
+  'manufacturer',
+  'plant',
+  'is_current_resolved_formula',
+].join(',')
+
+const PRODUCT_MARKET_FIELDS = [
+  'product_id',
+  'country_code',
+  'distribution_status',
+  'formula_correspondence_status',
+  'counterpart_name',
+  'assessed_at',
+  'is_current_product_confirmed',
+  'is_formula_match_confirmed',
+  'display_rank',
+  'country_observation_count',
+].join(',')
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === 'string')
@@ -255,19 +299,20 @@ function apiConfig() {
   return { baseUrl: baseUrl.replace(/\/$/, ''), publishableKey }
 }
 
-async function fetchCompareRows<T>(
-  view: 'compare_product_nutrition' | 'compare_product_ingredients',
+async function fetchRows<T>(
+  view: string,
   fields: string,
-  productIds: string[],
+  productFilter: string,
   signal?: AbortSignal,
+  order?: string,
+  limit = '20',
 ): Promise<T[]> {
-  if (productIds.length === 0) return []
-
   const { baseUrl, publishableKey } = apiConfig()
   const url = new URL(`${baseUrl}/rest/v1/${view}`)
   url.searchParams.set('select', fields)
-  url.searchParams.set('product_id', `in.(${productIds.join(',')})`)
-  url.searchParams.set('limit', '5')
+  url.searchParams.set('product_id', productFilter)
+  if (order) url.searchParams.set('order', order)
+  url.searchParams.set('limit', limit)
 
   const response = await fetch(url, {
     signal,
@@ -279,10 +324,20 @@ async function fetchCompareRows<T>(
 
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 240)
-    throw new Error(`Compare API ${response.status}: ${detail || response.statusText}`)
+    throw new Error(`Data API ${response.status}: ${detail || response.statusText}`)
   }
 
   return (await response.json()) as T[]
+}
+
+async function fetchCompareRows<T>(
+  view: 'compare_product_nutrition' | 'compare_product_ingredients',
+  fields: string,
+  productIds: string[],
+  signal?: AbortSignal,
+): Promise<T[]> {
+  if (productIds.length === 0) return []
+  return fetchRows<T>(view, fields, `in.(${productIds.join(',')})`, signal, undefined, '5')
 }
 
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
@@ -313,29 +368,14 @@ export async function fetchProductVariants(
   productId: string,
   signal?: AbortSignal,
 ): Promise<ProductVariant[]> {
-  const { baseUrl, publishableKey } = apiConfig()
-  const url = new URL(`${baseUrl}/rest/v1/switch_current_variant_options`)
-  url.searchParams.set('select', VARIANT_FIELDS)
-  url.searchParams.set('product_id', `eq.${productId}`)
-  url.searchParams.set('order', 'display_rank.asc,variant_id.asc')
-
-  const response = await fetch(url, {
+  const data = await fetchRows<ProductVariant>(
+    'switch_current_variant_options',
+    VARIANT_FIELDS,
+    `eq.${productId}`,
     signal,
-    headers: {
-      apikey: publishableKey,
-      'Accept-Profile': 'api',
-    },
-  })
-
-  if (!response.ok) {
-    if ([401, 403, 404].includes(response.status)) {
-      throw new Error('현재 사용 규격 선택 API를 불러오지 못했습니다. 규격을 모름으로 두고 계속할 수 있습니다.')
-    }
-    const detail = (await response.text()).slice(0, 240)
-    throw new Error(`Variant API ${response.status}: ${detail || response.statusText}`)
-  }
-
-  const data = (await response.json()) as ProductVariant[]
+    'display_rank.asc,variant_id.asc',
+    '100',
+  )
   return data.map(normalizeVariant)
 }
 
@@ -362,4 +402,33 @@ export async function fetchCompareIngredients(
     signal,
   )
   return data.map(normalizeCompareIngredients)
+}
+
+export async function fetchProductManufacturing(
+  productId: string,
+  signal?: AbortSignal,
+): Promise<ProductManufacturingDetail | null> {
+  const rows = await fetchRows<ProductManufacturingDetail>(
+    'product_detail_manufacturing',
+    PRODUCT_MANUFACTURING_FIELDS,
+    `eq.${productId}`,
+    signal,
+    undefined,
+    '1',
+  )
+  return rows[0] ?? null
+}
+
+export async function fetchProductMarkets(
+  productId: string,
+  signal?: AbortSignal,
+): Promise<ProductMarketDetail[]> {
+  return fetchRows<ProductMarketDetail>(
+    'product_detail_markets',
+    PRODUCT_MARKET_FIELDS,
+    `eq.${productId}`,
+    signal,
+    'display_rank.asc,country_code.asc',
+    '50',
+  )
 }

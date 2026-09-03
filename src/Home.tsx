@@ -1,115 +1,86 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { fetchCatalog, type CatalogProduct } from './api'
+import { useState, type FormEvent } from 'react'
+import { isDemoPreview } from './demo-preview'
 
 type HomeMode = 'switch' | 'explore' | 'lookup'
 
-const LIFE_STAGE_LABELS: Record<string, string> = {
-  kitten: '키튼',
-  adult: '성묘',
-  senior: '시니어',
-  all_life_stages: '전연령',
-  gestation_lactation_and_kitten: '임신·수유·키튼',
+type DemoRecall = {
+  date: string
+  source: string
+  title: string
+  scope: string
+  detail: string
 }
 
-const TARGET_LABELS: Record<string, string> = {
-  indoor: '실내묘',
-  sterilized: '중성화묘',
-}
+const DEMO_RECALLS: DemoRecall[] = [
+  {
+    date: '2026.08.28',
+    source: 'DEMO · 공식 기관 공지 예시',
+    title: '가상 브랜드 A · 치킨 레시피 일부 lot 자발적 리콜',
+    scope: '대상: 1.8kg · LOT A2607 · 미국 일부 유통',
+    detail: '공식 공지의 제품명·규격·lot·유통 범위를 기준으로 해당 여부를 식별합니다.',
+  },
+  {
+    date: '2026.08.12',
+    source: 'DEMO · 제조사 공지 예시',
+    title: '가상 브랜드 B · 습식 제품 특정 생산분 안전 공지',
+    scope: '대상: 85g × 12 · BEST BY 2027-04 · 한국 유통 여부 미확인',
+    detail: '해외 공지가 있어도 국내 유통과 동일 제품인지 확인되지 않으면 그대로 구분해 표시합니다.',
+  },
+]
 
-const RECIPE_FAMILY_LABELS: Record<string, string> = {
-  poultry: '가금류',
-  meat: '육류',
-  fish: '생선',
-}
+const GUIDES = [
+  {
+    number: '01',
+    title: '제품 · 배합 · 규격은 왜 나눠 보나요?',
+    text: '같은 제품명이라도 포장 규격이나 판매 시점에 따라 확인되는 배합 정보가 다를 수 있습니다.',
+    tag: 'Catfood 사용법',
+  },
+  {
+    number: '02',
+    title: '‘미확인’은 ‘없음’과 어떻게 다른가요?',
+    text: '근거에서 확인하지 못한 것과 실제로 존재하지 않는 것은 같은 의미가 아닙니다.',
+    tag: '데이터 읽기',
+  },
+  {
+    number: '03',
+    title: '원재료 포함 여부는 어떻게 읽나요?',
+    text: '직접 확인된 원료, 검토 근거에서 찾지 못한 원료, 판단 근거가 부족한 원료를 구분합니다.',
+    tag: '원재료',
+  },
+  {
+    number: '04',
+    title: '건식과 습식 영양 정보는 무엇부터 봐야 하나요?',
+    text: '표기 방식과 수분 함량이 다르기 때문에 숫자 하나만으로 단순 비교하지 않는 것이 중요합니다.',
+    tag: '영양 정보',
+  },
+]
 
-const INGREDIENT_LABELS: Record<string, string> = {
-  chicken: '닭',
-  duck: '오리',
-  turkey: '칠면조',
-  beef: '소',
-  lamb: '양',
-  rabbit: '토끼',
-  salmon: '연어',
-  tuna: '참치',
-  herring: '청어',
-  mackerel: '고등어',
-  trout: '송어',
-  cod: '대구',
-  pork: '돼지',
-  venison: '사슴',
-  sardine: '정어리',
-  anchovy: '멸치',
-  shrimp: '새우',
-  egg: '계란',
-}
-
-function label(value: string, labels: Record<string, string>): string {
-  return labels[value] ?? value.replaceAll('_', ' ')
-}
-
-function compact(values: string[], labels: Record<string, string>, max = 2): string {
-  if (values.length === 0) return '확인된 값 없음'
-  const shown = values.slice(0, max).map((value) => label(value, labels))
-  return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
-}
-
-function productRichness(product: CatalogProduct): number {
-  return Number(Boolean(product.display_image_url)) * 12
-    + Number(Boolean(product.representative_package_size_text)) * 4
-    + Number(Boolean(product.feed_type)) * 2
-    + Number(Boolean(product.life_stage)) * 2
-    + Number(product.has_ingredient_details) * 4
-    + Number(product.has_nutrition_details) * 4
-    + Number(product.has_manufacturing_details) * 3
-    + Number(product.has_market_details) * 3
-    + Math.min(product.recipe_families.length, 2)
-    + Math.min(product.confirmed_present_ingredient_terms.length, 2)
-}
-
-function pickVisualProducts(products: CatalogProduct[]): CatalogProduct[] {
-  const brands = new Set<string>()
-  const selected: CatalogProduct[] = []
-
-  for (const product of [...products].sort((a, b) => productRichness(b) - productRichness(a))) {
-    if (!product.display_image_url || brands.has(product.brand)) continue
-    selected.push(product)
-    brands.add(product.brand)
-    if (selected.length === 3) break
-  }
-
-  return selected
-}
-
-function ProductImage({ product, className }: { product: CatalogProduct; className: string }) {
-  const fallback = product.brand.trim().slice(0, 2).toUpperCase() || 'CF'
-
-  return (
-    <div className={`${className} home-product-image-shell`}>
-      <span className="home-product-image-fallback" aria-hidden="true">{fallback}</span>
-      {product.display_image_url ? (
-        <img
-          src={product.display_image_url}
-          alt={`${product.brand} ${product.canonical_name} 제품 이미지`}
-          onError={(event) => {
-            event.currentTarget.style.display = 'none'
-          }}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-function EvidenceRow({ state, labelText, value }: { state: 'confirmed' | 'unknown' | 'reviewed'; labelText: string; value: string }) {
-  return (
-    <div className={`home-specimen-evidence-row is-${state}`}>
-      <span className="home-specimen-state-dot" aria-hidden="true" />
-      <div>
-        <span>{labelText}</span>
-        <strong>{value}</strong>
-      </div>
-    </div>
-  )
-}
+const GLOSSARY = [
+  {
+    term: 'Product · 제품',
+    definition: '브랜드와 제품명으로 식별되는 판매 제품의 기본 단위입니다.',
+  },
+  {
+    term: 'Formula · 배합',
+    definition: '원재료와 영양 정보가 연결되는 실제 레시피·배합 단위입니다. 같은 제품 안에서도 세대나 시장에 따라 달라질 수 있습니다.',
+  },
+  {
+    term: 'SKU · 규격',
+    definition: '중량, 포장 묶음처럼 실제 판매되는 규격 단위입니다. Catfood는 제품과 규격을 같은 것으로 취급하지 않습니다.',
+  },
+  {
+    term: '확인됨',
+    definition: '현재 검토한 근거에서 해당 사실을 직접 확인한 상태입니다.',
+  },
+  {
+    term: '검토 근거에서 찾지 못함',
+    definition: '확인한 원재료 표기 등에서 해당 항목을 찾지 못한 상태입니다. 모든 가능성을 부정한다는 뜻은 아닙니다.',
+  },
+  {
+    term: '미확인 · 근거 부족',
+    definition: '현재 공개된 근거만으로는 존재 여부나 상태를 판단하기 어려운 경우입니다.',
+  },
+]
 
 export default function Home({
   productCount,
@@ -121,64 +92,9 @@ export default function Home({
   onStart: (mode: HomeMode, query?: string) => void
 }) {
   const [query, setQuery] = useState('')
-  const [visualProducts, setVisualProducts] = useState<CatalogProduct[]>([])
   const trimmedQuery = query.trim()
   const catalogCount = loading ? '—' : productCount ? productCount.toLocaleString('ko-KR') : '—'
-
-  useEffect(() => {
-    const controller = new AbortController()
-    let active = true
-
-    fetchCatalog(controller.signal)
-      .then((products) => {
-        if (active) setVisualProducts(pickVisualProducts(products))
-      })
-      .catch(() => {
-        // The Home remains usable even if the optional specimen preview cannot load.
-      })
-
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [])
-
-  const specimen = visualProducts[0] ?? null
-
-  const specimenEvidence = useMemo(() => {
-    if (!specimen) return []
-
-    const rows: Array<{ state: 'confirmed' | 'unknown' | 'reviewed'; labelText: string; value: string }> = []
-    if (specimen.confirmed_present_ingredient_terms.length > 0) {
-      rows.push({
-        state: 'confirmed',
-        labelText: '확인된 원료',
-        value: compact(specimen.confirmed_present_ingredient_terms, INGREDIENT_LABELS),
-      })
-    }
-    if (specimen.reviewed_not_found_ingredient_terms.length > 0) {
-      rows.push({
-        state: 'reviewed',
-        labelText: '검토 근거에서 찾지 못함',
-        value: compact(specimen.reviewed_not_found_ingredient_terms, INGREDIENT_LABELS, 1),
-      })
-    }
-    if (specimen.insufficient_evidence_ingredient_terms.length > 0) {
-      rows.push({
-        state: 'unknown',
-        labelText: '판단 근거 부족',
-        value: compact(specimen.insufficient_evidence_ingredient_terms, INGREDIENT_LABELS, 1),
-      })
-    }
-    if (rows.length < 3) {
-      rows.push({
-        state: specimen.has_nutrition_details ? 'confirmed' : 'unknown',
-        labelText: '영양 정보',
-        value: specimen.has_nutrition_details ? '영양성분 패널 확인' : '현재 공개 정보에서 미확인',
-      })
-    }
-    return rows.slice(0, 3)
-  }, [specimen])
+  const demo = isDemoPreview()
 
   function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -187,7 +103,7 @@ export default function Home({
   }
 
   return (
-    <div className="home-shell home-tool-shell">
+    <div className="home-shell home-knowledge-shell">
       <header className="home-header">
         <div className="home-header-inner">
           <div className="home-brand">
@@ -202,148 +118,142 @@ export default function Home({
         </div>
       </header>
 
-      <main className="home-main home-tool-main">
-        <section className="home-tool-grid">
-          <div className="home-tool-entry">
-            <div className="home-tool-heading">
-              <span className="home-tool-kicker"><i aria-hidden="true" /> 제품 데이터 직접 탐색</span>
-              <h1>사료를 직접 확인하고 비교해보세요.</h1>
-              <p>추천 점수나 순위 대신, 확인된 정보와 미확인 상태를 구분해 보여드립니다.</p>
-            </div>
-
-            <section className="home-tool-search-panel" aria-label="제품 직접 찾기">
-              <div className="home-tool-search-heading">
-                <span>제품 직접 찾기</span>
-                <strong>알고 있는 제품이나 브랜드부터 시작하세요.</strong>
-              </div>
-              <form className="home-tool-search" onSubmit={submitLookup}>
-                <span className="home-tool-search-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" focusable="false">
-                    <circle cx="11" cy="11" r="6.5" />
-                    <path d="m16 16 4 4" />
-                  </svg>
-                </span>
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="브랜드 또는 제품명 검색"
-                  aria-label="브랜드 또는 제품명 검색"
-                />
-                <button type="submit" disabled={!trimmedQuery}>제품 보기 →</button>
-              </form>
-              <div className="home-tool-search-meta">
-                <span>현재 확인된 제품 {catalogCount}개</span>
-                <span>제품 · 배합 · 규격을 구분해 표시</span>
-              </div>
-            </section>
-
-            <div className="home-tool-paths" aria-label="다른 탐색 방법">
-              <article className="home-tool-path">
-                <div className="home-tool-path-visual" aria-hidden="true">
-                  {visualProducts[1] ? <ProductImage product={visualProducts[1]} className="home-tool-mini-product" /> : <span className="home-tool-mini-empty">01</span>}
-                  <span className="home-tool-path-arrow">→</span>
-                  {visualProducts[2] ? <ProductImage product={visualProducts[2]} className="home-tool-mini-product" /> : <span className="home-tool-mini-empty">02</span>}
-                </div>
-                <div>
-                  <span>현재 제품을 기준점으로</span>
-                  <h2>현재 사료에서 바꾸기</h2>
-                  <p>지금 먹이는 제품과 규격을 정하고, 바꿀 것과 유지할 것을 직접 선택합니다.</p>
-                </div>
-                <button type="button" onClick={() => onStart('switch')}>현재 사료로 시작하기 →</button>
-              </article>
-
-              <article className="home-tool-path">
-                <div className="home-tool-filter-preview" aria-hidden="true">
-                  <span>형태</span><span>대상</span><span>기능</span><span>레시피</span>
-                </div>
-                <div>
-                  <span>원하는 조건에서 시작</span>
-                  <h2>조건으로 찾아보기</h2>
-                  <p>확인 가능한 조건을 직접 조합하고, 후보와 미확인 정보를 함께 살펴봅니다.</p>
-                </div>
-                <button type="button" onClick={() => onStart('explore')}>조건 설정하기 →</button>
-              </article>
-            </div>
+      <main className="home-main home-knowledge-main">
+        <section className="home-start">
+          <div className="home-start-copy">
+            <span className="home-start-kicker"><i aria-hidden="true" /> 제품을 찾고 · 비교하고 · 직접 판단</span>
+            <h1>사료를 직접 확인하고 비교해보세요.</h1>
+            <p>
+              추천 점수나 순위 대신, 확인된 사실과 아직 확인되지 않은 정보를 구분해서 보여드립니다.
+            </p>
           </div>
 
-          <aside className="home-specimen" aria-label="제품 분석 예시">
-            <div className="home-specimen-topline">
-              <div>
-                <span>제품 분석 예시</span>
-                <strong>실제 제품을 이런 단위로 살펴봅니다.</strong>
-              </div>
-              <small>추천 · 순위 아님</small>
+          <section className="home-search-console" aria-label="제품 직접 찾기">
+            <div className="home-search-console-copy">
+              <span>제품 직접 찾기</span>
+              <strong>알고 있는 브랜드나 제품명부터 시작하세요.</strong>
+              <small>현재 확인된 제품 {catalogCount}개</small>
             </div>
+            <form className="home-search-console-form" onSubmit={submitLookup}>
+              <span className="home-search-console-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="m16 16 4 4" />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="브랜드 또는 제품명 검색"
+                aria-label="브랜드 또는 제품명 검색"
+              />
+              <button type="submit" disabled={!trimmedQuery}>제품 보기 →</button>
+            </form>
+          </section>
 
-            {specimen ? (
-              <>
-                <section className="home-specimen-identity">
-                  <ProductImage product={specimen} className="home-specimen-image" />
-                  <div>
-                    <span>{specimen.brand}</span>
-                    <h2>{specimen.canonical_name}</h2>
-                    <p>
-                      {specimen.feed_type ?? '형태 미확인'} ·{' '}
-                      {specimen.life_stage ? label(specimen.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
-                      {specimen.representative_package_size_text ?? '대표 규격 미확인'}
-                    </p>
-                  </div>
-                </section>
-
-                <section className="home-specimen-facts">
-                  <div><span>공식 대상</span><strong>{compact(specimen.official_targets, TARGET_LABELS)}</strong></div>
-                  <div><span>레시피 계열</span><strong>{compact(specimen.recipe_families, RECIPE_FAMILY_LABELS)}</strong></div>
-                  <div><span>제조국</span><strong>{specimen.manufacturing_country_codes.join(' · ') || '미확인'}</strong></div>
-                  <div><span>현재 확인 시장</span><strong>{specimen.current_market_country_codes.join(' · ') || '미확인'}</strong></div>
-                </section>
-
-                <section className="home-specimen-evidence">
-                  <div className="home-specimen-section-title">
-                    <span>확인 범위</span>
-                    <small>없음과 미확인을 구분합니다.</small>
-                  </div>
-                  <div className="home-specimen-evidence-list">
-                    {specimenEvidence.map((row) => (
-                      <EvidenceRow key={`${row.labelText}-${row.value}`} {...row} />
-                    ))}
-                  </div>
-                </section>
-
-                <section className="home-specimen-coverage">
-                  <div>
-                    <span>원재료</span>
-                    <strong>{specimen.has_full_ingredient_declaration ? '전체 표기 확인' : specimen.has_ingredient_details ? '일부 정보 확인' : '미확인'}</strong>
-                  </div>
-                  <div>
-                    <span>영양</span>
-                    <strong>{specimen.has_nutrition_details ? '패널 확인' : '미확인'}</strong>
-                  </div>
-                  <div>
-                    <span>판매 규격</span>
-                    <strong>{specimen.variant_count ? `${specimen.variant_count}개 확인` : '미확인'}</strong>
-                  </div>
-                </section>
-
-                <button
-                  className="home-specimen-action"
-                  type="button"
-                  onClick={() => onStart('lookup', specimen.canonical_name)}
-                >
-                  이 제품 정보 살펴보기 →
-                </button>
-              </>
-            ) : (
-              <div className="home-specimen-empty">
-                <span>제품 분석 예시를 불러오는 중입니다.</span>
+          <div className="home-start-paths" aria-label="다른 탐색 방법">
+            <article className="home-start-path">
+              <div className="home-start-path-index">01</div>
+              <div className="home-start-path-copy">
+                <span>현재 제품을 기준점으로</span>
+                <h2>현재 사료에서 바꾸기</h2>
+                <p>지금 먹이는 제품과 규격을 정하고, 무엇을 바꾸고 무엇을 유지할지 직접 선택합니다.</p>
               </div>
-            )}
-          </aside>
+              <div className="home-start-path-flow" aria-hidden="true">
+                <span>현재 사료</span><b>→</b><span>바꿀 것</span><b>+</b><span>유지할 것</span>
+              </div>
+              <button type="button" onClick={() => onStart('switch')}>현재 사료로 시작하기 →</button>
+            </article>
+
+            <article className="home-start-path">
+              <div className="home-start-path-index">02</div>
+              <div className="home-start-path-copy">
+                <span>원하는 조건에서 시작</span>
+                <h2>조건으로 찾아보기</h2>
+                <p>사료 형태, 공식 대상, 부가 기능, 레시피처럼 확인 가능한 조건으로 후보를 좁혀봅니다.</p>
+              </div>
+              <div className="home-start-path-flow is-filters" aria-hidden="true">
+                <span>형태</span><span>생애주기</span><span>대상</span><span>레시피</span>
+              </div>
+              <button type="button" onClick={() => onStart('explore')}>조건 설정하기 →</button>
+            </article>
+          </div>
         </section>
 
-        <section className="home-tool-principles" aria-label="Catfood 데이터 원칙">
+        <section className="home-section home-safety" aria-labelledby="home-safety-title">
+          <div className="home-section-heading">
+            <div>
+              <span>SAFETY NOTICE</span>
+              <h2 id="home-safety-title">확인된 리콜·안전 공지</h2>
+            </div>
+            <p>공식 기관·제조사 공지에서 제품명, 규격, lot, 유통 범위를 확인해 해당 여부를 구분하는 영역입니다.</p>
+          </div>
+
+          {demo ? (
+            <div className="home-safety-list">
+              {DEMO_RECALLS.map((notice) => (
+                <article className="home-safety-item" key={`${notice.date}-${notice.title}`}>
+                  <div className="home-safety-meta"><time>{notice.date}</time><span>{notice.source}</span></div>
+                  <h3>{notice.title}</h3>
+                  <strong>{notice.scope}</strong>
+                  <p>{notice.detail}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="home-safety-empty">
+              <div>
+                <span>공식 리콜 데이터 연결 전</span>
+                <strong>현재는 공지 형식과 데이터 기준을 설계 중입니다.</strong>
+              </div>
+              <p>연결 후에는 특정 브랜드의 위험도를 판단하지 않고, 공식 공지 사실과 식별 정보를 그대로 구분해 제공합니다.</p>
+            </div>
+          )}
+        </section>
+
+        <section className="home-section home-guides" aria-labelledby="home-guides-title">
+          <div className="home-section-heading">
+            <div>
+              <span>READ THE LABEL</span>
+              <h2 id="home-guides-title">사료 읽는 법</h2>
+            </div>
+            <p>Catfood의 데이터를 더 잘 읽고, 제품을 스스로 비교하기 위한 짧은 가이드입니다.</p>
+          </div>
+
+          <div className="home-guide-grid">
+            {GUIDES.map((guide) => (
+              <article className="home-guide" key={guide.number}>
+                <div className="home-guide-top"><span>{guide.number}</span><small>{guide.tag}</small></div>
+                <h3>{guide.title}</h3>
+                <p>{guide.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="home-section home-glossary" aria-labelledby="home-glossary-title">
+          <div className="home-section-heading">
+            <div>
+              <span>GLOSSARY</span>
+              <h2 id="home-glossary-title">용어집</h2>
+            </div>
+            <p>제품 상세와 비교 화면에서 반복해서 만나게 되는 핵심 용어부터 정리합니다.</p>
+          </div>
+
+          <div className="home-glossary-grid">
+            {GLOSSARY.map((item) => (
+              <details className="home-glossary-item" key={item.term}>
+                <summary><span>{item.term}</span><b aria-hidden="true">+</b></summary>
+                <p>{item.definition}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <section className="home-home-principles" aria-label="Catfood 데이터 원칙">
           <div><span>01</span><strong>확인과 미확인을 구분</strong><p>확인되지 않은 값을 없음으로 바꾸지 않습니다.</p></div>
-          <div><span>02</span><strong>조건을 몰래 완화하지 않음</strong><p>결과를 늘리기 위해 사용자가 정한 조건을 바꾸지 않습니다.</p></div>
+          <div><span>02</span><strong>조건을 몰래 완화하지 않음</strong><p>결과를 늘리기 위해 사용자가 정한 조건을 임의로 바꾸지 않습니다.</p></div>
           <div><span>03</span><strong>점수로 대신 결정하지 않음</strong><p>제품의 우열보다 확인된 사실과 차이를 보여줍니다.</p></div>
         </section>
       </main>

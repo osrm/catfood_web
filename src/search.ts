@@ -33,6 +33,17 @@ export const INITIAL_REFINE: RefineState = {
   recipeDetails: [],
 }
 
+const OFFICIAL_TARGET_LABELS: Record<string, string> = {
+  indoor: '실내묘',
+  sterilized: '중성화묘',
+}
+
+const RECIPE_FAMILY_LABELS: Record<string, string> = {
+  poultry: '가금류',
+  meat: '육류',
+  fish: '생선',
+}
+
 export function toggleValue(values: string[], value: string): string[] {
   return values.includes(value)
     ? values.filter((item) => item !== value)
@@ -41,6 +52,10 @@ export function toggleValue(values: string[], value: string): string[] {
 
 function normalizedText(value: string): string {
   return value.trim().toLocaleLowerCase('ko-KR')
+}
+
+function conditionLabel(value: string, labels: Record<string, string>): string {
+  return labels[value] ?? value.replaceAll('_', ' ')
 }
 
 export function lookupCatalog(products: CatalogProduct[], query: string): CatalogProduct[] {
@@ -87,12 +102,11 @@ export function evaluateCatalog(
 
     if (hasHardConflict) continue
 
-    if (search.officialTargets.length > 0) {
-      const matches = search.officialTargets.filter((value) => product.official_targets.includes(value))
-      if (matches.length > 0) {
-        confirmedMatches.push(...matches.map((value) => `대상:${value}`))
+    for (const target of search.officialTargets) {
+      if (product.official_targets.includes(target)) {
+        confirmedMatches.push(`대상:${target}`)
       } else {
-        unknowns.push('선택한 공식 대상')
+        unknowns.push(`공식 대상 · ${conditionLabel(target, OFFICIAL_TARGET_LABELS)}`)
       }
     }
 
@@ -104,12 +118,11 @@ export function evaluateCatalog(
       }
     }
 
-    if (search.recipeFamilies.length > 0) {
-      const matches = search.recipeFamilies.filter((value) => product.recipe_families.includes(value))
-      if (matches.length > 0) {
-        confirmedMatches.push(...matches.map((value) => `계열:${value}`))
+    for (const family of search.recipeFamilies) {
+      if (product.recipe_families.includes(family)) {
+        confirmedMatches.push(`계열:${family}`)
       } else {
-        unknowns.push('선택한 레시피 계열')
+        unknowns.push(`레시피 계열 · ${conditionLabel(family, RECIPE_FAMILY_LABELS)}`)
       }
     }
 

@@ -17,6 +17,14 @@
   overflow-y: auto;
 }
 
+/* The later SWITCH consumer layer reintroduces a two-column inspector after the base <=900px collapse.
+   Keep tablet widths on the intended single-column flow so the inspector has a readable measure. */
+@media (max-width: 900px) {
+  .switch-workflow-shell .switch-results-workspace.is-inspecting {
+    grid-template-columns: 1fr;
+  }
+}
+
 @supports (height: 100dvh) {
   .detail-stage {
     height: 100dvh;

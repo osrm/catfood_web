@@ -109,7 +109,7 @@
 }
 
 .compare-table {
-  min-width: max(920px, calc(190px + (var(--compare-count) * 240px)));
+  min-width: max(920px, calc(176px + (var(--compare-count) * 218px)));
   border-top: 1px solid var(--research-line-strong);
   border-left: 1px solid var(--research-line);
   background: #fff;
@@ -118,7 +118,7 @@
 .compare-head-row,
 .compare-row {
   display: grid;
-  grid-template-columns: 190px repeat(var(--compare-count), minmax(220px, 1fr));
+  grid-template-columns: 176px repeat(var(--compare-count), minmax(204px, 1fr));
 }
 
 .compare-head-row > *,
@@ -373,12 +373,16 @@
   letter-spacing: -0.025em;
 }
 
+.compare-stage .compare-corner,
 .compare-stage .compare-product-head {
-  min-height: 184px;
+  min-height: 160px;
+}
+
+.compare-stage .compare-product-head {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 18px 18px 15px;
+  gap: 10px;
+  padding: 16px 16px 13px;
 }
 
 .compare-product-identity {

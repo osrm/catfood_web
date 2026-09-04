@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
+import ProductDetail from './ProductDetail'
 import {
   fetchProductVariants,
   type CatalogProduct,
@@ -75,6 +76,23 @@ const INGREDIENT_LABELS: Record<string, string> = {
   egg: '계란',
 }
 
+const COUNTRY_LABELS: Record<string, string> = {
+  KR: '한국',
+  US: '미국',
+  CA: '캐나다',
+  GB: '영국',
+  AU: '호주',
+  NZ: '뉴질랜드',
+  NL: '네덜란드',
+  TH: '태국',
+  DE: '독일',
+  FR: '프랑스',
+  IT: '이탈리아',
+  CZ: '체코',
+  AT: '오스트리아',
+  JP: '일본',
+}
+
 const EMPTY_CRITERIA: SearchState = {
   feedType: '',
   lifeStage: '',
@@ -135,6 +153,13 @@ function compactList(values: string[], labels: Record<string, string>, max = 3):
   if (values.length === 0) return '확인된 값 없음'
   const shown = values.slice(0, max).map((value) => optionLabel(value, labels))
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
+}
+
+function countryListLabel(values: string[]): string {
+  if (values.length === 0) return '미확인'
+  return values
+    .map((value) => COUNTRY_LABELS[value] ? `${COUNTRY_LABELS[value]} (${value})` : value)
+    .join(' · ')
 }
 
 function ProductImage({ product, className }: { product: CatalogProduct; className: string }) {
@@ -517,9 +542,11 @@ export default function SwitchFlow({
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
+  const [detailProductId, setDetailProductId] = useState<string | null>(null)
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
+  const detailProduct = products.find((product) => product.product_id === detailProductId) ?? null
   const selectedVariant = variants.find((variant) => variant.variant_id === currentVariantId) ?? null
   const currentFormulaConfirmed = selectedVariant?.formula_evidence_status === 'confirmed'
   const currentRecipeFamilies = currentFormulaConfirmed ? selectedVariant.recipe_families : []
@@ -664,6 +691,7 @@ export default function SwitchFlow({
     setSelectedCandidateId(null)
     setCompareIds([])
     setCompareOpen(false)
+    setDetailProductId(null)
     setStep('sku')
   }
 
@@ -684,6 +712,7 @@ export default function SwitchFlow({
     setSelectedCandidateId(null)
     setCompareIds([])
     setCompareOpen(false)
+    setDetailProductId(null)
   }
 
   function toggleChangeArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) {
@@ -1014,7 +1043,7 @@ export default function SwitchFlow({
 
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => setStep('change')}>← CHANGE 수정</button>
-            <button className="switch-primary-action" type="button" onClick={() => { setSelectedCandidateId(null); setCompareIds([]); setCompareOpen(false); setStep('results') }}>후보 제품 보기 →</button>
+            <button className="switch-primary-action" type="button" onClick={() => { setSelectedCandidateId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setStep('results') }}>후보 제품 보기 →</button>
           </div>
         </main>
       </div>
@@ -1089,18 +1118,21 @@ export default function SwitchFlow({
 
                 <section className="switch-inspector-baseline"><span>기준 제품</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)} · {formulaEvidenceLabel(selectedVariant)}</small></section>
 
-                <button
-                  className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'}
-                  type="button"
-                  disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)}
-                  onClick={() => toggleCompare(selectedCandidate.product.product_id)}
-                >
-                  {compareIds.includes(selectedCandidate.product.product_id)
-                    ? '비교에서 제거'
-                    : compareIds.length >= 5
-                      ? '비교는 최대 5개까지 가능합니다'
-                      : `비교에 추가 · ${compareIds.length}/5`}
-                </button>
+                <div className="quick-view-actions switch-inspector-actions">
+                  <button
+                    className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'}
+                    type="button"
+                    disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)}
+                    onClick={() => toggleCompare(selectedCandidate.product.product_id)}
+                  >
+                    {compareIds.includes(selectedCandidate.product.product_id)
+                      ? '비교에서 제거'
+                      : compareIds.length >= 5
+                        ? '비교는 최대 5개까지 가능합니다'
+                        : `비교에 추가 · ${compareIds.length}/5`}
+                  </button>
+                  <button className="switch-compare-action" type="button" onClick={() => setDetailProductId(selectedCandidate.product.product_id)}>제품 상세 보기 →</button>
+                </div>
 
                 <section className="switch-inspector-section">
                   <h2>선택한 기준과의 관계</h2>
@@ -1128,9 +1160,9 @@ export default function SwitchFlow({
                     <div><dt>부가 기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>레시피 계열</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div>
                     <div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div>
-                    <div><dt>제조국</dt><dd>{selectedCandidate.product.manufacturing_country_codes.join(' · ') || '미확인'}</dd></div>
-                    <div><dt>현재 확인 시장</dt><dd>{selectedCandidate.product.current_market_country_codes.join(' · ') || '미확인'}</dd></div>
-                    <div><dt>동일 배합 확인 시장</dt><dd>{selectedCandidate.product.formula_match_market_country_codes.join(' · ') || '미확인'}</dd></div>
+                    <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}</dd></div>
+                    <div><dt>현재 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div>
+                    <div><dt>동일 배합 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.formula_match_market_country_codes)}</dd></div>
                   </dl>
                 </section>
               </div>
@@ -1147,6 +1179,10 @@ export default function SwitchFlow({
         ) : null}
       </main>
     )
+  }
+
+  if (detailProduct) {
+    return <ProductDetail product={detailProduct} onClose={() => setDetailProductId(null)} />
   }
 
   return (

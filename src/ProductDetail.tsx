@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -106,13 +106,6 @@ function countryLabel(value: string | null): string {
   return COUNTRY_LABELS[value] ? `${COUNTRY_LABELS[value]} (${value})` : value
 }
 
-function formulaEvidenceLabel(variant: ProductVariant): string {
-  if (variant.formula_evidence_status === 'confirmed') return '배합 근거 확인됨'
-  if (variant.formula_evidence_status === 'conflicting') return '배합 근거 충돌'
-  if (variant.formula_evidence_status === 'unresolved') return '배합 대응 미확정'
-  return '배합 근거 미확인'
-}
-
 function scopeLabel(scope: string): string {
   if (scope === 'variant') return '규격 기준'
   if (scope === 'formula') return '배합 기준'
@@ -166,6 +159,13 @@ function variantSizeLabel(variant: ProductVariant | null): string | null {
   if (variant.package_size_text?.trim()) return variant.package_size_text.trim()
   if (variant.package_weight_g != null) return `${Number(variant.package_weight_g).toLocaleString('ko-KR')}g`
   return null
+}
+
+function weightLabel(value: number | null): string {
+  if (value == null) return '미확인'
+  const numeric = Number(value)
+  if (numeric >= 1000) return `${Number((numeric / 1000).toFixed(3)).toLocaleString('ko-KR')} kg`
+  return `${numeric.toLocaleString('ko-KR')} g`
 }
 
 function evidenceContext(
@@ -277,35 +277,19 @@ export default function ProductDetail({
     }
   }, [product.product_id])
 
-  const formulaSummary = useMemo(() => {
-    if (variants.length === 0) return '판매 규격 근거 미확인'
-    const confirmed = variants.filter((variant) => variant.formula_evidence_status === 'confirmed').length
-    const conflicting = variants.filter((variant) => variant.formula_evidence_status === 'conflicting').length
-    const uncertain = variants.length - confirmed - conflicting
-    return [
-      confirmed ? `확인 ${confirmed}` : '',
-      conflicting ? `충돌 ${conflicting}` : '',
-      uncertain ? `미확정 ${uncertain}` : '',
-    ].filter(Boolean).join(' · ')
-  }, [variants])
+  const currentFormulaSummary = {
+    recipeFamilies: product.recipe_families,
+    recipeDetails: product.recipe_details,
+    recipeTraits: product.official_recipe_traits,
+  }
 
-  const currentFormulaSummary = useMemo(() => {
-    const recipeFamilies = new Set<string>()
-    const recipeDetails = new Set<string>()
-    const recipeTraits = new Set<string>()
-    variants
-      .filter((variant) => variant.formula_evidence_status === 'confirmed')
-      .forEach((variant) => {
-        variant.recipe_families.forEach((value) => recipeFamilies.add(value))
-        variant.recipe_details.forEach((value) => recipeDetails.add(value))
-        variant.official_recipe_traits.forEach((value) => recipeTraits.add(value))
-      })
-    return {
-      recipeFamilies: [...recipeFamilies].sort(),
-      recipeDetails: [...recipeDetails].sort(),
-      recipeTraits: [...recipeTraits].sort(),
-    }
-  }, [variants])
+  const contextStatus = loading.manufacturing || loading.markets
+    ? '불러오는 중'
+    : errors.manufacturing && errors.markets
+      ? '조회 실패'
+      : manufacturing || markets.length
+        ? '확인 정보 있음'
+        : '확인 정보 없음'
 
   return (
     <main className="detail-stage">
@@ -326,9 +310,9 @@ export default function ProductDetail({
         </div>
         <div className="detail-status-grid">
           <Fact label="판매 규격" value={loading.variants ? '불러오는 중' : errors.variants ? '조회 실패' : variants.length ? `${variants.length}개 확인` : '미확인'} />
-          <Fact label="배합 근거" value={loading.variants ? '불러오는 중' : errors.variants ? '조회 실패' : formulaSummary} />
           <Fact label="영양" value={loading.nutrition ? '불러오는 중' : errors.nutrition ? '조회 실패' : nutrition ? '대표 확인값 있음' : '확인값 없음'} />
           <Fact label="원재료" value={loading.ingredients ? '불러오는 중' : errors.ingredients ? '조회 실패' : ingredients ? completenessLabel(ingredients.completeness_status) : '확인값 없음'} />
+          <Fact label="제조 · 시장" value={contextStatus} />
         </div>
       </section>
 
@@ -358,23 +342,19 @@ export default function ProductDetail({
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>02</span>
-                <div><h2>현재 확인 배합 요약</h2><p>현재 한국 판매 규격에서 배합 근거가 확인된 값의 집계입니다. 규격별 배합은 아래 판매 규격에서 확인하세요.</p></div>
+                <div><h2>현재 확인 배합 요약</h2><p>현재 공개 데이터에서 제품·배합 수준으로 확인된 레시피 정보입니다. 용량 차이만으로 다른 배합으로 해석하지 않습니다.</p></div>
               </div>
-              {loading.variants ? <div className="detail-state">배합 정보를 불러오는 중입니다.</div> : null}
-              {errors.variants ? <div className="detail-state is-error">배합 정보를 불러오지 못했습니다. {errors.variants}</div> : null}
-              {!loading.variants && !errors.variants ? (
-                <div className="detail-fact-table">
-                  <Fact label="레시피 계열" value={listLabel(currentFormulaSummary.recipeFamilies, RECIPE_LABELS)} />
-                  <Fact label="세부 레시피" value={listLabel(currentFormulaSummary.recipeDetails, RECIPE_LABELS)} />
-                  <Fact label="Grain-Free 공식 표방" value={currentFormulaSummary.recipeTraits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
-                </div>
-              ) : null}
+              <div className="detail-fact-table">
+                <Fact label="레시피 계열" value={listLabel(currentFormulaSummary.recipeFamilies, RECIPE_LABELS)} />
+                <Fact label="세부 레시피" value={listLabel(currentFormulaSummary.recipeDetails, RECIPE_LABELS)} />
+                <Fact label="Grain-Free 공식 표방" value={currentFormulaSummary.recipeTraits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
+              </div>
             </section>
 
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>03</span>
-                <div><h2>현재 한국 판매 규격</h2><p>같은 제품의 규격마다 배합 대응 상태가 다를 수 있어 각각 따로 표시합니다.</p></div>
+                <div><h2>현재 한국 판매 규격</h2><p>판매 규격은 용량·포장 단위를 구분합니다. 실제 배합 차이가 확인된 경우가 아니면 규격마다 별도 배합 상태를 붙이지 않습니다.</p></div>
               </div>
               {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
               {errors.variants ? <div className="detail-state is-error">판매 규격을 불러오지 못했습니다. {errors.variants}</div> : null}
@@ -387,16 +367,12 @@ export default function ProductDetail({
                         <span>{variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'}</span>
                       </div>
                       <div>
-                        <span>배합 근거</span>
-                        <strong>{formulaEvidenceLabel(variant)}</strong>
+                        <span>판매 단위</span>
+                        <strong>{variant.units_per_sale != null ? `${variant.units_per_sale}개` : '미확인'}</strong>
                       </div>
                       <div>
-                        <span>레시피</span>
-                        <strong>
-                          {variant.formula_evidence_status === 'confirmed'
-                            ? listLabel(variant.recipe_families, RECIPE_LABELS)
-                            : '배합 미확정 · 추정하지 않음'}
-                        </strong>
+                        <span>총 판매 중량</span>
+                        <strong>{weightLabel(variant.sale_total_weight_g)}</strong>
                       </div>
                     </div>
                   ))}

@@ -11,7 +11,7 @@
 /* The workspace still carries the old temporary visual label in JSX.
    Keep the underlying button/behavior intact while presenting the actual product name. */
 .research-brand {
-  font-size: 0;
+  font-size: 0 !important;
 }
 
 .research-brand::after {

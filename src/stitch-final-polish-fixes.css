@@ -8,6 +8,178 @@
   word-break: keep-all;
 }
 
+/* Action-first Home: keep Direction C's restraint, but make the three entry points the visual protagonist. */
+.home-start {
+  padding-top: 48px;
+}
+
+.home-start-copy {
+  max-width: 760px;
+}
+
+.home-start-kicker {
+  color: var(--stitch-accent, #163d35);
+  font-size: 11.5px;
+  letter-spacing: 0.025em;
+}
+
+.home-start-kicker i {
+  background: var(--stitch-accent, #163d35);
+}
+
+.home-start-copy h1 {
+  max-width: 720px;
+  margin-top: 14px;
+  font-size: clamp(34px, 3.3vw, 44px);
+  line-height: 1.14;
+}
+
+.home-start-copy p {
+  max-width: 760px;
+  margin-top: 14px;
+  color: #56565d;
+  font-size: 14.5px;
+  line-height: 1.62;
+}
+
+.home-search-console {
+  grid-template-columns: minmax(210px, 0.65fr) minmax(0, 1.35fr);
+  align-items: center;
+  gap: 26px;
+  margin-top: 34px;
+  border: 1px solid #244a42;
+  padding: 20px 22px;
+  background: #173a33;
+}
+
+.home-search-console-copy {
+  gap: 5px;
+}
+
+.home-search-console-copy > span {
+  color: #dce9e5;
+  font-size: 11.5px;
+}
+
+.home-search-console-copy > strong {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.home-search-console-copy > small {
+  color: #b9cbc6;
+  font-size: 11.5px;
+}
+
+.home-search-console-form {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0 8px 0 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home-search-console-icon {
+  color: #dbe8e4;
+}
+
+.home-search-console-form input {
+  height: 46px;
+  color: #ffffff;
+  font-size: 14.5px;
+}
+
+.home-search-console-form input::placeholder {
+  color: #c2d0cc;
+}
+
+.home-search-console-form button {
+  min-width: 76px;
+  min-height: 32px;
+  margin: 0 0 0 10px;
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #16352f;
+}
+
+.home-search-console-form button:disabled {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
+  color: #99aea8;
+}
+
+.home-start-paths {
+  gap: 14px;
+  margin-top: 14px;
+  border: 0;
+}
+
+.home-start-path {
+  min-height: 202px;
+  gap: 14px 20px;
+  border: 1px solid var(--stitch-line, #e4e4e7);
+  padding: 26px 28px;
+  background: #ffffff;
+}
+
+.home-start-path + .home-start-path {
+  border-left: 1px solid var(--stitch-line, #e4e4e7);
+}
+
+.home-start-path-index {
+  color: #7c7c83;
+  font-size: 10.5px;
+}
+
+.home-start-path-copy > span {
+  color: #66666d;
+  font-size: 11px;
+}
+
+.home-start-path-copy h2 {
+  margin-top: 5px;
+  font-size: 20px;
+}
+
+.home-start-path-copy p {
+  max-width: 460px;
+  margin-top: 8px;
+  color: #55555c;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.home-start-path-flow {
+  gap: 5px;
+  border: 1px solid #ececee;
+  padding: 7px 9px;
+  background: #f7f7f8;
+}
+
+.home-start-path-flow span {
+  color: #626269;
+  font-size: 10.5px;
+}
+
+.home-start-path button {
+  border: 1px solid var(--stitch-ink, #18181b);
+  padding: 8px 10px;
+  background: var(--stitch-ink, #18181b);
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.home-start-path button:hover {
+  border-color: var(--stitch-accent, #163d35);
+  background: var(--stitch-accent, #163d35);
+  color: #ffffff;
+}
+
+.home-section.home-safety {
+  padding-top: 50px;
+}
+
 /* The workspace still carries the old temporary visual label in JSX.
    Keep the underlying button/behavior intact while presenting the actual product name. */
 .research-brand {
@@ -119,6 +291,50 @@
 }
 
 @media (max-width: 760px) {
+  .home-start {
+    padding-top: 34px;
+  }
+
+  .home-start-copy h1 {
+    font-size: 31px;
+  }
+
+  .home-start-copy p {
+    font-size: 13.5px;
+  }
+
+  .home-search-console {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 26px;
+    padding: 18px;
+  }
+
+  .home-search-console-form {
+    grid-template-columns: 28px minmax(0, 1fr);
+    padding: 8px 10px 10px;
+  }
+
+  .home-search-console-form button {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 6px 0 0;
+  }
+
+  .home-start-paths {
+    grid-template-columns: 1fr;
+  }
+
+  .home-start-path {
+    min-height: 0;
+    padding: 24px 20px;
+  }
+
+  .home-start-path + .home-start-path {
+    border-top: 1px solid var(--stitch-line, #e4e4e7);
+    border-left: 1px solid var(--stitch-line, #e4e4e7);
+  }
+
   /* In an active mobile inspector, keep only the product context and a clear close/back path. */
   .research-shell.is-inspecting .research-topbar {
     min-height: 48px;

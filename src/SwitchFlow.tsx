@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
+import {
+  createDecisionSearchRun,
+  recordProductConsideration,
+  type DecisionCriterion,
+} from './analytics'
 import {
   fetchProductVariants,
   type CatalogProduct,
@@ -427,6 +432,58 @@ function buildConditions({
   return conditions
 }
 
+function switchCriteriaSnapshot({
+  change,
+  keep,
+  changeBrand,
+  keepBrand,
+  ingredientAvoidTerms,
+  currentProduct,
+}: {
+  change: SearchState
+  keep: SearchState
+  changeBrand: boolean
+  keepBrand: boolean
+  ingredientAvoidTerms: string[]
+  currentProduct: CatalogProduct
+}): DecisionCriterion[] {
+  const criteria: DecisionCriterion[] = []
+  const pushSearch = (
+    values: SearchState,
+    role: 'desired_change' | 'keep',
+    source: 'user_selected' | 'current_baseline_derived',
+  ) => {
+    if (values.feedType) criteria.push({ axis: 'feed_type', value: values.feedType, role, source })
+    if (values.lifeStage) criteria.push({ axis: 'life_stage', value: values.lifeStage, role, source })
+    values.officialTargets.forEach((value) => criteria.push({ axis: 'official_target', value, role, source }))
+    values.features.forEach((value) => criteria.push({ axis: 'feature', value, role, source }))
+    values.recipeFamilies.forEach((value) => criteria.push({ axis: 'recipe_family', value, role, source }))
+    if (values.grainFree) criteria.push({
+      axis: 'official_recipe_trait', value: 'grain_free', role, source,
+    })
+  }
+
+  if (changeBrand) criteria.push({
+    axis: 'brand', value: currentProduct.brand,
+    role: 'desired_change', source: 'current_baseline_derived',
+  })
+  if (keepBrand) criteria.push({
+    axis: 'brand', value: currentProduct.brand,
+    role: 'keep', source: 'current_baseline_derived',
+  })
+  pushSearch(change, 'desired_change', 'user_selected')
+  pushSearch(keep, 'keep', 'current_baseline_derived')
+  ingredientAvoidTerms.forEach((value) => criteria.push({
+    axis: 'ingredient',
+    value,
+    role: 'ingredient_avoid',
+    source: currentProduct.confirmed_present_ingredient_terms.includes(value)
+      ? 'current_baseline_derived'
+      : 'user_selected',
+  }))
+  return criteria
+}
+
 function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCondition[]): SwitchEvaluation | null {
   const keepMatches: string[] = []
   const changeMatches: string[] = []
@@ -548,6 +605,9 @@ export default function SwitchFlow({
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
   const [detailProductId, setDetailProductId] = useState<string | null>(null)
+  const switchRunId = useRef<string | null>(null)
+  const switchRunGeneration = useRef(0)
+  const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
@@ -638,10 +698,11 @@ export default function SwitchFlow({
     })
   }, [products, currentProduct, conditions])
 
-  const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
+  const presentedCandidates = candidates.slice(0, 40)
+  const selectedCandidate = presentedCandidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
   const compareItems = useMemo<CompareItem[]>(() => compareIds
-    .map((productId) => candidates.find((item) => item.product.product_id === productId))
+    .map((productId) => presentedCandidates.find((item) => item.product.product_id === productId))
     .filter((item): item is SwitchEvaluation => Boolean(item))
     .map((item) => ({
       product: item.product,
@@ -650,7 +711,7 @@ export default function SwitchFlow({
       unknowns: item.unknowns,
       ingredientReviewedNotFound: item.ingredientReviewedNotFound,
       ingredientInsufficient: item.ingredientInsufficient,
-    })), [compareIds, candidates])
+    })), [compareIds, presentedCandidates])
 
   function selectCurrentVariant(variantId: string | null) {
     setCurrentVariantId(variantId)
@@ -666,7 +727,55 @@ export default function SwitchFlow({
     setIngredientAvoidTerms((current) => current.filter((value) => value !== term))
   }
 
+  function beginSwitchRun() {
+    if (!currentProduct) return
+    const generation = switchRunGeneration.current
+    const previous = switchRunTail.current
+    const next = previous.then((previousRunId) => {
+      if (switchRunGeneration.current !== generation) return null
+      return createDecisionSearchRun({
+        parentSearchRunId: previousRunId ?? switchRunId.current,
+        mode: 'switch',
+        currentProductId: currentProduct.product_id,
+        currentVariantId: currentVariantId,
+        criteriaSnapshot: switchCriteriaSnapshot({
+          change,
+          keep,
+          changeBrand,
+          keepBrand,
+          ingredientAvoidTerms,
+          currentProduct,
+        }),
+        candidateCount: candidates.length,
+        initialPresentedProductIds: presentedCandidates.map((item) => item.product.product_id),
+      })
+    })
+    switchRunTail.current = next
+    void next.then((searchRunId) => {
+      if (searchRunId && switchRunGeneration.current === generation) {
+        switchRunId.current = searchRunId
+      }
+    })
+  }
+
+  function openCandidate(productId: string) {
+    setSelectedCandidateId(productId)
+    recordSwitchConsideration(productId, 'detail_open')
+  }
+
+  function recordSwitchConsideration(
+    productId: string,
+    signal: 'detail_open' | 'compare_add',
+  ) {
+    void switchRunTail.current.then((searchRunId) =>
+      recordProductConsideration(searchRunId, productId, signal))
+  }
+
   function toggleCompare(productId: string) {
+    const adding = !compareIds.includes(productId) && compareIds.length < 5
+    if (adding) {
+      recordSwitchConsideration(productId, 'compare_add')
+    }
     setCompareIds((current) => {
       if (current.includes(productId)) return current.filter((value) => value !== productId)
       if (current.length >= 5) return current
@@ -675,6 +784,9 @@ export default function SwitchFlow({
   }
 
   function confirmCurrentProduct(product: CatalogProduct) {
+    switchRunGeneration.current += 1
+    switchRunTail.current = Promise.resolve(null)
+    switchRunId.current = null
     setCurrentProductId(product.product_id)
     setPreviewProductId(null)
     setCurrentVariantId(null)
@@ -693,6 +805,9 @@ export default function SwitchFlow({
   }
 
   function resetCurrentProduct() {
+    switchRunGeneration.current += 1
+    switchRunTail.current = Promise.resolve(null)
+    switchRunId.current = null
     setStep('current')
     setCurrentProductId(null)
     setCurrentVariantId(null)
@@ -1037,7 +1152,18 @@ export default function SwitchFlow({
 
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => setStep('change')}>← CHANGE 수정</button>
-            <button className="switch-primary-action" type="button" onClick={() => { setSelectedCandidateId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setStep('results') }}>후보 제품 보기 →</button>
+            <button
+              className="switch-primary-action"
+              type="button"
+              onClick={() => {
+                setSelectedCandidateId(null)
+                setCompareIds([])
+                setCompareOpen(false)
+                setDetailProductId(null)
+                beginSwitchRun()
+                setStep('results')
+              }}
+            >후보 제품 보기 →</button>
           </div>
         </main>
       </div>
@@ -1081,13 +1207,13 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 제품·배합 정보를 기준으로 표시합니다. 상세 근거는 제품 상세에서 확인하세요.</p></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length > 40 ? `${candidates.length}개 중 최초 40개` : `${candidates.length}개의 제품`} · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 제품·배합 정보를 기준으로 표시합니다. 상세 근거는 제품 상세에서 확인하세요.</p></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message">현재 조건에 맞는 후보가 없습니다. 조건을 자동으로 완화하지 않습니다.</div> : null}
-              {candidates.map((evaluation) => {
+              {presentedCandidates.map((evaluation) => {
                 const product = evaluation.product
                 return (
-                  <button className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'} key={product.product_id} type="button" onClick={() => setSelectedCandidateId(product.product_id)}>
+                  <button className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'} key={product.product_id} type="button" onClick={() => openCandidate(product.product_id)}>
                     <ProductImage className="switch-candidate-image" product={product} />
                     <span className="switch-candidate-identity">
                       <span>{product.brand}</span><strong>{product.canonical_name}</strong>
@@ -1125,7 +1251,16 @@ export default function SwitchFlow({
                         ? '비교는 최대 5개까지 가능합니다'
                         : `비교에 추가 · ${compareIds.length}/5`}
                   </button>
-                  <button className="switch-compare-action" type="button" onClick={() => setDetailProductId(selectedCandidate.product.product_id)}>제품 상세 보기 →</button>
+                  <button
+                    className="switch-compare-action"
+                    type="button"
+                    onClick={() => {
+                      recordSwitchConsideration(selectedCandidate.product.product_id, 'detail_open')
+                      setDetailProductId(selectedCandidate.product.product_id)
+                    }}
+                  >
+                    제품 상세 보기 →
+                  </button>
                 </div>
 
                 <section className="switch-inspector-section">

@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
 import ProductDetail from './ProductDetail'
 import SwitchFlow from './SwitchFlow'
+import {
+  createDecisionSearchRun,
+  recordProductConsideration,
+  type DecisionCriterion,
+} from './analytics'
 import { fetchCatalog, type CatalogProduct } from './api'
 import {
   INITIAL_REFINE,
@@ -93,6 +98,39 @@ const COUNTRY_LABELS: Record<string, string> = {
   CZ: '체코 (CZ)',
   AT: '오스트리아 (AT)',
   JP: '일본 (JP)',
+}
+
+function exploreCriteriaSnapshot(
+  search: SearchState,
+  refine: RefineState,
+): DecisionCriterion[] {
+  const criteria: DecisionCriterion[] = []
+  if (search.feedType) criteria.push({
+    axis: 'feed_type', value: search.feedType,
+    role: 'hard_constraint', source: 'user_selected',
+  })
+  if (search.lifeStage) criteria.push({
+    axis: 'life_stage', value: search.lifeStage,
+    role: 'hard_constraint', source: 'user_selected',
+  })
+  search.officialTargets.forEach((value) => criteria.push({
+    axis: 'official_target', value, role: 'desired', source: 'user_selected',
+  }))
+  search.features.forEach((value) => criteria.push({
+    axis: 'feature', value, role: 'desired', source: 'user_selected',
+  }))
+  search.recipeFamilies.forEach((value) => criteria.push({
+    axis: 'recipe_family', value, role: 'desired', source: 'user_selected',
+  }))
+  if (search.grainFree) criteria.push({
+    axis: 'official_recipe_trait', value: 'grain_free',
+    role: 'desired', source: 'user_selected',
+  })
+  refine.recipeDetails.forEach((value) => criteria.push({
+    axis: 'recipe_detail', value,
+    role: 'evidence_required', source: 'user_selected',
+  }))
+  return criteria
 }
 
 type Mode = 'switch' | 'explore' | 'lookup'
@@ -312,6 +350,9 @@ export default function App() {
   const [detailProductId, setDetailProductId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const exploreRunId = useRef<string | null>(null)
+  const exploreRunGeneration = useRef(0)
+  const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
 
   useEffect(() => {
     const controller = new AbortController()
@@ -399,7 +440,9 @@ export default function App() {
     : null
 
   const activeConditions = countActiveConditions(search, refine)
-  const visibleProducts = resultProducts.slice(0, visibleCount)
+  const visibleProducts = mode === 'explore'
+    ? resultProducts.slice(0, 40)
+    : resultProducts.slice(0, visibleCount)
 
   useEffect(() => {
     setVisibleCount(120)
@@ -426,7 +469,60 @@ export default function App() {
     }))
   }
 
+  function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
+    if (products.length === 0) return
+    const candidates = evaluateCatalog(products, nextSearch, nextRefine)
+    const generation = exploreRunGeneration.current
+    const previous = exploreRunTail.current
+    const next = previous.then((previousRunId) => {
+      if (exploreRunGeneration.current !== generation) return null
+      return createDecisionSearchRun({
+        parentSearchRunId: previousRunId ?? exploreRunId.current,
+        mode: 'explore',
+        currentProductId: null,
+        currentVariantId: null,
+        criteriaSnapshot: exploreCriteriaSnapshot(nextSearch, nextRefine),
+        candidateCount: candidates.length,
+        initialPresentedProductIds: candidates.slice(0, 40).map((item) => item.product.product_id),
+      })
+    })
+    exploreRunTail.current = next
+    void next.then((searchRunId) => {
+      if (searchRunId && exploreRunGeneration.current === generation) {
+        exploreRunId.current = searchRunId
+      }
+    })
+  }
+
+  function toggleRefineRecipe(value: string) {
+    const nextRefine = {
+      ...refine,
+      recipeDetails: toggleValue(refine.recipeDetails, value),
+    }
+    setRefine(nextRefine)
+    beginExploreRun(search, nextRefine)
+  }
+
+  function recordExploreConsideration(
+    productId: string,
+    signal: 'detail_open' | 'compare_add',
+  ) {
+    void exploreRunTail.current.then((searchRunId) =>
+      recordProductConsideration(searchRunId, productId, signal))
+  }
+
+  function openExploreProduct(productId: string) {
+    setSelectedId(productId)
+    if (mode === 'explore') {
+      recordExploreConsideration(productId, 'detail_open')
+    }
+  }
+
   function toggleCompare(productId: string) {
+    const adding = !compareIds.includes(productId) && compareIds.length < 5
+    if (adding && mode === 'explore') {
+      recordExploreConsideration(productId, 'compare_add')
+    }
     setCompareIds((current) => {
       if (current.includes(productId)) return current.filter((value) => value !== productId)
       if (current.length >= 5) return current
@@ -445,6 +541,7 @@ export default function App() {
     setRefine(INITIAL_REFINE)
     setRecipeSearch('')
     setEditingConditions(false)
+    beginExploreRun(draftSearch, INITIAL_REFINE)
   }
 
   function editConditions() {
@@ -458,6 +555,11 @@ export default function App() {
   }
 
   function changeMode(nextMode: Mode) {
+    if (nextMode !== 'explore') {
+      exploreRunGeneration.current += 1
+      exploreRunTail.current = Promise.resolve(null)
+      exploreRunId.current = null
+    }
     setMode(nextMode)
     setSelectedId(null)
     setCompareIds([])
@@ -470,6 +572,9 @@ export default function App() {
     if (nextMode === 'lookup') setLookupQuery(query)
     if (nextMode === 'switch') setSwitchQuery(query)
     if (nextMode === 'explore') setEditingConditions(true)
+    exploreRunGeneration.current += 1
+    exploreRunTail.current = Promise.resolve(null)
+    exploreRunId.current = null
     setMode(nextMode)
     setSelectedId(null)
     setCompareIds([])
@@ -600,10 +705,7 @@ export default function App() {
                   className="selected-refinement"
                   key={value}
                   type="button"
-                  onClick={() => setRefine((current) => ({
-                    ...current,
-                    recipeDetails: toggleValue(current.recipeDetails, value),
-                  }))}
+                  onClick={() => toggleRefineRecipe(value)}
                 >
                   {optionLabel(value, RECIPE_DETAIL_LABELS)} ×
                 </button>
@@ -624,10 +726,7 @@ export default function App() {
                 key={value}
                 type="button"
                 aria-pressed={refine.recipeDetails.includes(value)}
-                onClick={() => setRefine((current) => ({
-                  ...current,
-                  recipeDetails: toggleValue(current.recipeDetails, value),
-                }))}
+                onClick={() => toggleRefineRecipe(value)}
               >
                 {optionLabel(value, RECIPE_DETAIL_LABELS)}
               </button>
@@ -733,7 +832,7 @@ export default function App() {
               className={isSelected ? 'research-result-card is-selected' : 'research-result-card'}
               key={product.product_id}
               type="button"
-              onClick={() => setSelectedId(product.product_id)}
+              onClick={() => openExploreProduct(product.product_id)}
             >
               <ProductImage className="research-result-image" product={product} />
               <span className="research-result-identity">
@@ -757,7 +856,7 @@ export default function App() {
             </button>
           )
         })}
-        {visibleCount < resultProducts.length ? (
+        {mode === 'lookup' && visibleCount < resultProducts.length ? (
           <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + 120)}>
             제품 더 보기 · {resultProducts.length - visibleCount}개 남음
           </button>
@@ -803,7 +902,16 @@ export default function App() {
                   ? '비교는 최대 5개까지 가능합니다'
                   : `비교에 추가 · ${compareIds.length}/5`}
             </button>
-            <button className="switch-compare-action" type="button" onClick={() => setDetailProductId(selectedProduct.product_id)}>제품 상세 보기 →</button>
+            <button
+              className="switch-compare-action"
+              type="button"
+              onClick={() => {
+                if (mode === 'explore') {
+                  recordExploreConsideration(selectedProduct.product_id, 'detail_open')
+                }
+                setDetailProductId(selectedProduct.product_id)
+              }}
+            >제품 상세 보기 →</button>
           </div>
 
           {selectedEvaluation ? (
@@ -933,7 +1041,11 @@ export default function App() {
               <div className="research-results-heading">
                 <div>
                   <strong>제품 목록</strong>
-                  <span>{loading || waitingForConditions ? '조건을 설정하면 결과가 표시됩니다.' : `${resultProducts.length}개의 제품`}</span>
+                  <span>{loading || waitingForConditions
+                    ? '조건을 설정하면 결과가 표시됩니다.'
+                    : mode === 'explore' && resultProducts.length > 40
+                      ? `${resultProducts.length}개 중 최초 40개 표시`
+                      : `${resultProducts.length}개의 제품`}</span>
                 </div>
                 {mode === 'explore' && !editingConditions && activeConditions > 0 ? (
                   <span className="research-results-context">선택한 조건과 확인된 정보의 관계를 표시합니다.</span>

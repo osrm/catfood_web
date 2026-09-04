@@ -23,10 +23,12 @@ npm run dev
 
 `.env.example`에는 브라우저 공개용 Supabase URL과 `sb_publishable_...` key가 들어 있다. 이 publishable key는 공개 client용이며 `service_role`/secret key와 다르다. `.env.local`에는 필요할 때 로컬 override만 두고 commit하지 않는다.
 
+`VITE_DECISION_INTAKE_ENABLED`의 기본값은 `false`다. 사용자 안내, 보존기간과 production endpoint가 승인·배포되기 전에는 이 값을 켜지 않는다.
+
 ## Current API contract
 
 - read model: `api.effective_product_catalog_summary`
-- read-only 요청만 수행한다.
+- catalog database에는 read-only 요청만 수행하며 browser direct INSERT/RPC는 하지 않는다.
 - 최대 1000행을 읽고 브라우저에서 현재 검색 조건을 적용한다.
 - 빈 normalized array나 미확인 상태를 `없음`으로 추론하지 않는다.
 - `official_target`: 복수 선택 OR
@@ -36,7 +38,9 @@ npm run dev
 - Grain-Free: 명시적 positive claim만 충족
 - 결과 0건이어도 조건을 자동 완화하지 않는다.
 
-현재 V0는 제품에 저장된 canonical `life_stage`를 그대로 사용하며 사용자 나이에서 생애주기를 추론하지 않는다. Switching, 비교, 제품 상세와 추가 contextual refine은 후속 Stage 6 작업이다.
+선택적으로 활성화되는 decision intake는 범용 clickstream이 아니다. SWITCH/EXPLORE 결과 생성 시 최초 40개 presentation과 명시적인 상세 열기·비교 추가만 Edge Function으로 보고한다. LOOKUP은 수집하지 않으며 intake 실패가 제품 탐색 UI를 막지 않는다.
+
+현재 UI는 제품에 저장된 canonical `life_stage`를 그대로 사용하며 사용자 나이에서 생애주기를 추론하지 않는다.
 
 ## Build and preview
 

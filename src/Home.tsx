@@ -121,17 +121,17 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <span className="home-start-kicker"><i aria-hidden="true" /> 사료 데이터 아카이브</span>
-            <h1>마케팅 문구 대신 제조사 공시 사실과 배합 근거를 기록합니다.</h1>
+            <span className="home-start-kicker"><i aria-hidden="true" /> 사료 탐색과 비교</span>
+            <h1>고양이 사료를 찾고, 비교하고, 바꿔보세요.</h1>
             <p>
-              특정 사료를 추천하거나 순위를 매기지 않습니다. 보호자가 확인된 사실과 아직 확인되지 않은 정보를 구분해 스스로 비교하고 선택할 수 있도록 돕습니다.
+              제품명을 직접 찾거나, 지금 먹는 사료를 기준으로 바꾸거나, 원하는 조건으로 후보를 좁혀볼 수 있습니다.
             </p>
           </div>
 
           <section className="home-search-console" aria-label="제품 직접 찾기">
             <div className="home-search-console-copy">
-              <span>직접 검색</span>
-              <strong>알고 있는 브랜드나 제품명부터 시작하세요.</strong>
+              <span>제품 직접 검색</span>
+              <strong>알고 있는 브랜드나 제품명부터 바로 찾아보세요.</strong>
               <small>현재 확인된 제품 {catalogCount}개</small>
             </div>
             <form className="home-search-console-form" onSubmit={submitLookup}>
@@ -158,7 +158,7 @@ export default function Home({
               <div className="home-start-path-copy">
                 <span>현재 제품을 기준점으로</span>
                 <h2>현재 사료에서 바꾸기</h2>
-                <p>지금 먹이는 제품과 규격을 정하고, 무엇을 바꾸고 무엇을 유지할지 직접 선택합니다.</p>
+                <p>지금 먹이는 제품과 규격을 기준으로, 바꿀 것과 유지할 것을 고릅니다.</p>
               </div>
               <div className="home-start-path-flow" aria-hidden="true">
                 <span>현재 사료</span><b>→</b><span>바꿀 것</span><b>+</b><span>유지할 것</span>
@@ -171,7 +171,7 @@ export default function Home({
               <div className="home-start-path-copy">
                 <span>원하는 조건에서 시작</span>
                 <h2>조건으로 찾아보기</h2>
-                <p>사료 형태, 공식 대상, 부가 기능, 레시피처럼 확인 가능한 조건으로 후보를 좁혀봅니다.</p>
+                <p>형태·생애주기·공식 대상·기능·레시피 조건으로 후보를 좁힙니다.</p>
               </div>
               <div className="home-start-path-flow is-filters" aria-hidden="true">
                 <span>형태</span><span>생애주기</span><span>대상</span><span>레시피</span>

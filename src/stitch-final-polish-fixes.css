@@ -1,0 +1,39 @@
+/* Final fixes observed from the deployed Stitch-direction artifact. */
+
+.home-start-copy h1,
+.home-start-copy p,
+.home-start-path-copy h2,
+.home-start-path-copy p,
+.home-section-heading h2 {
+  word-break: keep-all;
+}
+
+/* The workspace still carries the old temporary visual label in JSX.
+   Keep the underlying button/behavior intact while presenting the actual product name. */
+.research-brand {
+  font-size: 0;
+}
+
+.research-brand::after {
+  content: "CATFOOD";
+  color: var(--stitch-ink, #18181b);
+  font-size: 16px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+/* On narrow/tablet layouts the inspector stacks below the whole result list.
+   Once a product is selected, show the inspector as the active view; closing it returns to results. */
+@media (max-width: 900px) {
+  .research-shell.is-inspecting .research-results {
+    display: none;
+  }
+
+  .research-shell.is-inspecting .research-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .research-shell.is-inspecting .research-quick-view {
+    border-left: 1px solid var(--stitch-line, #e4e4e7);
+  }
+}

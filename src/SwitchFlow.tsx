@@ -233,14 +233,6 @@ function variantLabel(variant: ProductVariant | null): string {
   return size
 }
 
-function formulaEvidenceLabel(variant: ProductVariant | null): string {
-  if (!variant) return '규격을 몰라 배합 근거 미확인'
-  if (variant.formula_evidence_status === 'confirmed') return '현재 규격 배합 근거 확인됨'
-  if (variant.formula_evidence_status === 'conflicting') return '현재 규격 배합 근거 충돌'
-  if (variant.formula_evidence_status === 'unresolved') return '현재 규격 배합 근거 미확정'
-  return '현재 규격 배합 근거 미확인'
-}
-
 function currentStepIndex(step: SwitchStep): number {
   if (step === 'current') return 0
   if (step === 'sku') return 1
@@ -324,8 +316,6 @@ function ReferenceRail({
       <div className="switch-reference-sku">
         <span>현재 규격</span>
         <strong>{variantLabel(variant)}</strong>
-        <span>배합 근거</span>
-        <strong>{formulaEvidenceLabel(variant)}</strong>
       </div>
       <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 제품 다시 선택</button>
 
@@ -548,10 +538,10 @@ export default function SwitchFlow({
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
   const detailProduct = products.find((product) => product.product_id === detailProductId) ?? null
   const selectedVariant = variants.find((variant) => variant.variant_id === currentVariantId) ?? null
-  const currentFormulaConfirmed = selectedVariant?.formula_evidence_status === 'confirmed'
-  const currentRecipeFamilies = currentFormulaConfirmed ? selectedVariant.recipe_families : []
-  const currentRecipeTraits = currentFormulaConfirmed ? selectedVariant.official_recipe_traits : []
+  const currentRecipeFamilies = currentProduct?.recipe_families ?? []
+  const currentRecipeTraits = currentProduct?.official_recipe_traits ?? []
   const currentIsGrainFree = currentRecipeTraits.includes('grain_free')
+  const currentRecipeKnown = currentRecipeFamilies.length > 0 || currentRecipeTraits.length > 0
 
   const searchResults = useMemo(() => lookupCatalog(products, query).slice(0, 80), [products, query])
 
@@ -647,16 +637,8 @@ export default function SwitchFlow({
       ingredientInsufficient: item.ingredientInsufficient,
     })), [compareIds, candidates])
 
-  function clearFormulaDependentSelections() {
-    setChange((current) => ({ ...current, recipeFamilies: [], grainFree: false }))
-    setKeep((current) => ({ ...current, recipeFamilies: [], grainFree: false }))
-    setIngredientAvoidTerms([])
-    setIngredientSearch('')
-  }
-
   function selectCurrentVariant(variantId: string | null) {
     setCurrentVariantId(variantId)
-    clearFormulaDependentSelections()
   }
 
   function addIngredientAvoid(term: string) {
@@ -810,7 +792,7 @@ export default function SwitchFlow({
                     <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>확인된 판매 규격</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
                   </dl>
-                  <p>제품을 확정한 뒤 실제 사용하는 규격의 배합·원료 근거를 별도로 확인합니다.</p>
+                  <p>제품을 확정한 뒤 현재 사용하는 용량·포장 규격을 확인합니다. 레시피와 원재료는 제품·배합 수준의 확인 근거로 다룹니다.</p>
                 </section>
                 <button className="switch-primary-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
               </div>
@@ -831,7 +813,7 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>사용 규격</span>
             <h1>현재 사용하는 규격을 확인하세요.</h1>
-            <p>같은 제품이라도 규격·시기에 따라 확인되는 배합 정보가 다를 수 있습니다. 선택한 규격에서 확인된 근거만 다음 단계의 현재 기준으로 사용합니다.</p>
+            <p>규격은 현재 먹이는 용량·포장 단위를 기록하기 위한 값입니다. 용량이 다르다는 이유만으로 다른 배합으로 보지 않습니다.</p>
           </div>
           <section className="switch-sku-list">
             {variantLoading ? <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div> : null}
@@ -846,9 +828,7 @@ export default function SwitchFlow({
               >
                 <span>
                   <strong>{variant.package_size_text || '규격 표기 미확인'}</strong>
-                  <small>
-                    {variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'} · {formulaEvidenceLabel(variant)}
-                  </small>
+                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'}</small>
                 </span>
                 <b>{currentVariantId === variant.variant_id ? '선택됨' : '선택'}</b>
               </button>
@@ -864,34 +844,33 @@ export default function SwitchFlow({
   }
 
   function renderIngredientAvoidance() {
-    const currentConfirmed = (selectedVariant?.confirmed_present_ingredient_terms ?? [])
+    if (!currentProduct) return null
+    const currentConfirmed = currentProduct.confirmed_present_ingredient_terms
       .filter((term) => !ingredientAvoidTerms.includes(term))
       .sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
 
     return (
-      <CriterionSection title="피하고 싶은 원료" hint={selectedVariant ? '선택한 규격의 검토 근거 기준' : '현재 규격 미확인'}>
+      <CriterionSection title="피하고 싶은 원료" hint="현재 제품의 검토 근거 기준">
         {ingredientAvoidTerms.length > 0 ? (
           <div className="switch-ingredient-selected">
             {ingredientAvoidTerms.map((term) => <button key={term} type="button" onClick={() => removeIngredientAvoid(term)}>{ingredientLabel(term)} ×</button>)}
           </div>
         ) : null}
 
-        {currentConfirmed.length > 0 && selectedVariant ? (
+        {currentConfirmed.length > 0 ? (
           <div className="switch-current-ingredients">
-            <span>선택한 현재 규격에서 확인됨</span>
+            <span>현재 제품에서 확인됨</span>
             <div>
               {currentConfirmed.slice(0, 12).map((term) => (
                 <button key={term} type="button" onClick={() => addIngredientAvoid(term)}>
                   <strong>{ingredientLabel(term)}</strong>
-                  <small>{ingredientEvidenceLabel(selectedVariant, term)}</small>
+                  <small>{ingredientEvidenceLabel(currentProduct, term)}</small>
                 </button>
               ))}
             </div>
           </div>
-        ) : selectedVariant ? (
-          <p className="switch-option-empty">선택한 규격에서 회피 후보로 바로 제시할 확인 원료가 없습니다. 원료를 직접 검색해 조건을 추가할 수 있습니다.</p>
         ) : (
-          <p className="switch-option-empty">사용 규격을 모르므로 현재 제품 전체의 원료 정보를 이 규격의 사실처럼 사용하지 않습니다.</p>
+          <p className="switch-option-empty">현재 제품에서 회피 후보로 바로 제시할 확인 원료가 없습니다. 원료를 직접 검색해 조건을 추가할 수 있습니다.</p>
         )}
 
         <input className="switch-ingredient-search" type="search" value={ingredientSearch} placeholder="원료 검색 · 예: 닭, 연어" onChange={(event) => setIngredientSearch(event.target.value)} />
@@ -913,12 +892,12 @@ export default function SwitchFlow({
     const lifeOptions = LIFE_STAGES.filter(([value]) => value !== currentProduct.life_stage)
     const targetOptions = TARGETS.filter(([value]) => !currentProduct.official_targets.includes(value))
     const featureOptions = FEATURES.filter(([value]) => !currentProduct.features.includes(value))
-    const recipeOptions = currentFormulaConfirmed
+    const recipeOptions = currentRecipeFamilies.length > 0
       ? RECIPE_FAMILIES.filter(([value]) => !currentRecipeFamilies.includes(value))
       : RECIPE_FAMILIES
-    const recipeHint = currentFormulaConfirmed
-      ? `현재 규격 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
-      : '현재 규격 배합 미확인 · 다음 제품에서 원하는 방향 선택'
+    const recipeHint = currentRecipeFamilies.length > 0
+      ? `현재 제품 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
+      : '현재 제품 레시피 미확인 · 다음 제품에서 원하는 방향 선택'
 
     return (
       <div className="switch-step-layout">
@@ -927,7 +906,7 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>CHANGE</span>
             <h1>무엇이 달라졌으면 하나요?</h1>
-            <p>현재 사료에서 벗어나고 싶은 기준이나 새로 원하는 기준만 선택합니다. 규격별 배합이 확인되지 않은 값은 현재 사실로 추정하지 않습니다.</p>
+            <p>현재 사료에서 벗어나고 싶은 기준이나 새로 원하는 기준만 선택합니다. 레시피와 원재료는 현재 제품·배합 수준에서 확인된 근거만 사용합니다.</p>
           </div>
 
           <button
@@ -968,8 +947,8 @@ export default function SwitchFlow({
               <CriterionSection title="레시피 계열" hint={recipeHint}>
                 <ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} />
               </CriterionSection>
-              {!currentFormulaConfirmed || !currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint={currentFormulaConfirmed ? '선택 규격의 공식 표방 기준' : '현재 규격의 공식 표방 미확인'}>
+              {!currentIsGrainFree ? (
+                <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length > 0 ? '현재 제품의 공식 표방 기준' : '현재 제품의 공식 표방 미확인'}>
                   <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 공식 표방</button>
                 </CriterionSection>
               ) : null}
@@ -995,13 +974,13 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>KEEP</span>
             <h1>무엇은 그대로 유지할까요?</h1>
-            <p>현재 제품에서 확인된 속성 중 다음 제품에서도 꼭 유지하고 싶은 것만 선택합니다. 선택 규격의 배합 근거가 확인되지 않았다면 배합에 따라 달라지는 항목은 유지 조건으로 제시하지 않습니다.</p>
+            <p>현재 제품에서 확인된 속성 중 다음 제품에서도 꼭 유지하고 싶은 것만 선택합니다. 용량 규격과 배합 정보를 같은 의미로 취급하지 않습니다.</p>
           </div>
 
           <section className="switch-current-facts-strip">
             <div><span>공식 대상 · 제품 기준</span><strong>{compactList(currentProduct.official_targets, TARGET_LABELS)}</strong></div>
             <div><span>기능 · 제품 기준</span><strong>{compactList(currentProduct.features, FEATURE_LABELS)}</strong></div>
-            <div><span>레시피 · 선택 규격 기준</span><strong>{currentFormulaConfirmed ? compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS) : '규격 배합 미확인'}</strong></div>
+            <div><span>레시피 · 제품/배합 기준</span><strong>{currentRecipeFamilies.length > 0 ? compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS) : '확인된 레시피 정보 없음'}</strong></div>
           </section>
 
           <div className="switch-criteria-columns">
@@ -1027,17 +1006,17 @@ export default function SwitchFlow({
                   <ChoiceButtons options={currentProduct.features.map((value) => [value, optionLabel(value, FEATURE_LABELS)] as const)} selected={keep.features} onToggle={(value) => toggleKeepArray('features', value)} />
                 </CriterionSection>
               ) : null}
-              {!change.recipeFamilies.length && currentFormulaConfirmed && currentRecipeFamilies.length > 0 ? (
-                <CriterionSection title="레시피 계열" hint="선택한 현재 규격에서 확인됨">
+              {!change.recipeFamilies.length && currentRecipeFamilies.length > 0 ? (
+                <CriterionSection title="레시피 계열" hint="현재 제품의 확인된 배합 정보">
                   <ChoiceButtons options={currentRecipeFamilies.map((value) => [value, optionLabel(value, RECIPE_FAMILY_LABELS)] as const)} selected={keep.recipeFamilies} onToggle={(value) => toggleKeepArray('recipeFamilies', value)} />
                 </CriterionSection>
               ) : null}
-              {!change.grainFree && currentFormulaConfirmed && currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint="선택 규격의 공식 표방">
+              {!change.grainFree && currentIsGrainFree ? (
+                <CriterionSection title="레시피 특성" hint="현재 제품의 공식 표방">
                   <button className={keep.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keep.grainFree} onClick={() => setKeep((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 공식 표방 유지</button>
                 </CriterionSection>
               ) : null}
-              {!currentFormulaConfirmed ? <p className="switch-option-empty">선택 규격의 배합 근거가 확인되지 않아 레시피·Grain-Free를 현재 사실로 가정하지 않습니다.</p> : null}
+              {!currentRecipeKnown ? <p className="switch-option-empty">현재 제품에서 확인된 레시피·Grain-Free 정보가 없어 유지 조건으로 자동 제시하지 않습니다.</p> : null}
             </div>
           </div>
 
@@ -1058,7 +1037,7 @@ export default function SwitchFlow({
         <CompareView
           items={compareItems}
           currentProduct={currentProduct}
-          currentVariantText={`${variantLabel(selectedVariant)} · ${formulaEvidenceLabel(selectedVariant)}`}
+          currentVariantText={variantLabel(selectedVariant)}
           onClose={() => setCompareOpen(false)}
           onRemove={(productId) => {
             setCompareIds((current) => current.filter((value) => value !== productId))
@@ -1079,7 +1058,7 @@ export default function SwitchFlow({
     return (
       <main className="switch-results-stage">
         <div className="switch-session-bar">
-          <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)} · {formulaEvidenceLabel(selectedVariant)}</small></div>
+          <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></div>
           <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
           <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '제약 없음'}</strong></div>
           <button type="button" onClick={() => { setCompareOpen(false); setStep('change') }}>조건 수정</button>
@@ -1087,7 +1066,7 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 배합 정보를 제품 단위로 집계한 기준입니다. 규격별 배합은 제품 상세에서 확인하세요.</p></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length}개의 제품 · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 제품·배합 정보를 기준으로 표시합니다. 상세 근거는 제품 상세에서 확인하세요.</p></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message">현재 조건에 맞는 후보가 없습니다. 조건을 자동으로 완화하지 않습니다.</div> : null}
               {candidates.map((evaluation) => {
@@ -1116,7 +1095,7 @@ export default function SwitchFlow({
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}</p></div>
                 </section>
 
-                <section className="switch-inspector-baseline"><span>기준 제품</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)} · {formulaEvidenceLabel(selectedVariant)}</small></section>
+                <section className="switch-inspector-baseline"><span>기준 제품</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></section>
 
                 <div className="quick-view-actions switch-inspector-actions">
                   <button

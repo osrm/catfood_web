@@ -111,6 +111,20 @@ function compactList(values: string[], labels: Record<string, string>, max = 3):
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
 }
 
+function formatWeight(value: number | null | undefined): string | null {
+  if (value == null) return null
+  if (value >= 1000) return `${Number((value / 1000).toFixed(3)).toLocaleString('ko-KR')} kg`
+  return `${Number(value).toLocaleString('ko-KR')} g`
+}
+
+function representativePackageLabel(product: CatalogProduct): string {
+  const size = product.representative_package_size_text ?? '대표 규격 미확인'
+  const units = product.representative_units_per_sale ?? null
+  if (!units || units <= 1) return size
+  const total = formatWeight(product.representative_sale_total_weight_g)
+  return `${size} × ${units}${total ? ` · 총 ${total}` : ''}`
+}
+
 function relationLabel(value: string): string {
   const separator = value.indexOf(':')
   if (separator < 0) return value
@@ -728,7 +742,7 @@ export default function App() {
                 <span className="research-result-meta">
                   {product.feed_type ?? '형태 미확인'} ·{' '}
                   {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
-                  {product.representative_package_size_text ?? '대표 규격 미확인'}
+                  {representativePackageLabel(product)}
                 </span>
               </span>
               {evaluation ? <RelationSummary evaluation={evaluation} /> : (
@@ -815,7 +829,7 @@ export default function App() {
             <p className="quick-view-scope-note">레시피 계열·세부 레시피·특성은 현재 확인된 판매 규격의 배합 정보를 제품 단위로 집계한 값입니다.</p>
             <dl className="definition-list">
               <Definition label="대표 규격">
-                {selectedProduct.representative_package_size_text ?? <span className="unknown-value">미확인</span>}
+                {representativePackageLabel(selectedProduct)}
               </Definition>
               <Definition label="확인된 규격">
                 {selectedProduct.has_variants

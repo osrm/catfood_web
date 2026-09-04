@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { installDemoPreviewFetch } from './demo-preview'
+import { installRealVisualPreviewFetch } from './real-visual-preview'
 import './styles.css'
 import './refinements.css'
 import './warm-editorial.css'
@@ -27,6 +28,7 @@ import './stitch-final-polish.css'
 import './stitch-final-polish-fixes.css'
 
 installDemoPreviewFetch()
+installRealVisualPreviewFetch()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

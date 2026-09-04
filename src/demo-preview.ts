@@ -31,6 +31,11 @@ const DEMO_PREVIEW_PRODUCTS = DEMO_PRODUCTS.map((product) => ({
   display_image_url: repairSvgDataUrl(product.display_image_url),
 }))
 
+const DEMO_PREVIEW_INGREDIENTS = DEMO_INGREDIENTS.map((row) => ({
+  ...row,
+  completeness_status: row.completeness_status === 'complete' ? 'full' : row.completeness_status,
+}))
+
 function productIdsFromFilter(value: string | null): string[] | null {
   if (!value) return null
   if (value.startsWith('eq.')) return [value.slice(3)]
@@ -59,7 +64,7 @@ export function installDemoPreviewFetch(): void {
     if (view === 'effective_product_catalog_summary') rows = DEMO_PREVIEW_PRODUCTS
     if (view === 'switch_current_variant_options') rows = DEMO_VARIANTS
     if (view === 'compare_product_nutrition') rows = DEMO_NUTRITION
-    if (view === 'compare_product_ingredients') rows = DEMO_INGREDIENTS
+    if (view === 'compare_product_ingredients') rows = DEMO_PREVIEW_INGREDIENTS
     if (view === 'product_detail_manufacturing') rows = DEMO_MANUFACTURING
     if (view === 'product_detail_markets') rows = DEMO_MARKETS
 

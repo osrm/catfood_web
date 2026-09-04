@@ -74,6 +74,27 @@ const RECIPE_DETAIL_LABELS: Record<string, string> = {
   venison: '사슴',
 }
 
+const RECIPE_TRAIT_LABELS: Record<string, string> = {
+  grain_free: 'Grain-Free 공식 표방',
+}
+
+const COUNTRY_LABELS: Record<string, string> = {
+  KR: '한국 (KR)',
+  US: '미국 (US)',
+  CA: '캐나다 (CA)',
+  GB: '영국 (GB)',
+  AU: '호주 (AU)',
+  NZ: '뉴질랜드 (NZ)',
+  NL: '네덜란드 (NL)',
+  TH: '태국 (TH)',
+  DE: '독일 (DE)',
+  FR: '프랑스 (FR)',
+  IT: '이탈리아 (IT)',
+  CZ: '체코 (CZ)',
+  AT: '오스트리아 (AT)',
+  JP: '일본 (JP)',
+}
+
 type Mode = 'switch' | 'explore' | 'lookup'
 type Screen = 'home' | 'workspace'
 type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies'
@@ -805,16 +826,16 @@ export default function App() {
               <Definition label="부가 기능"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition>
               <Definition label="레시피 계열"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition>
               <Definition label="세부 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition>
-              <Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} /></Definition>
+              <Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition>
             </dl>
           </section>
 
           <section className="quick-view-section">
             <h2>제조 / 시장</h2>
             <dl className="definition-list">
-              <Definition label="제조국"><ValueList values={selectedProduct.manufacturing_country_codes} /></Definition>
-              <Definition label="현재 확인 시장"><ValueList values={selectedProduct.current_market_country_codes} /></Definition>
-              <Definition label="동일 배합 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} /></Definition>
+              <Definition label="제조국"><ValueList values={selectedProduct.manufacturing_country_codes} labels={COUNTRY_LABELS} /></Definition>
+              <Definition label="현재 확인 시장"><ValueList values={selectedProduct.current_market_country_codes} labels={COUNTRY_LABELS} /></Definition>
+              <Definition label="동일 배합 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} labels={COUNTRY_LABELS} /></Definition>
             </dl>
           </section>
         </div>

@@ -107,13 +107,13 @@ export default function Home({
       <header className="home-header">
         <div className="home-header-inner">
           <div className="home-brand">
-            <strong className="home-logo">FELINE ARCHIVE</strong>
-            <span>사료 리서치 아카이브</span>
+            <strong className="home-logo">CATFOOD</strong>
+            <span>사료 사실 검증 및 비교 아카이브</span>
           </div>
           <nav className="home-nav" aria-label="탐색 방법">
-            <button type="button" onClick={() => onStart('lookup')}>제품 직접 찾기</button>
-            <button type="button" onClick={() => onStart('switch')}>현재 사료에서 바꾸기</button>
-            <button type="button" onClick={() => onStart('explore')}>조건으로 찾아보기</button>
+            <button type="button" onClick={() => onStart('lookup')}>제품 검색</button>
+            <button type="button" onClick={() => onStart('switch')}>사료 전환</button>
+            <button type="button" onClick={() => onStart('explore')}>조건 탐색</button>
           </nav>
         </div>
       </header>
@@ -121,16 +121,16 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <span className="home-start-kicker"><i aria-hidden="true" /> 제품을 찾고 · 비교하고 · 직접 판단</span>
-            <h1>사료를 직접 확인하고 비교해보세요.</h1>
+            <span className="home-start-kicker"><i aria-hidden="true" /> 사료 데이터 아카이브</span>
+            <h1>마케팅 문구 대신 제조사 공시 사실과 배합 근거를 기록합니다.</h1>
             <p>
-              추천 점수나 순위 대신, 확인된 사실과 아직 확인되지 않은 정보를 구분해서 보여드립니다.
+              특정 사료를 추천하거나 순위를 매기지 않습니다. 보호자가 확인된 사실과 아직 확인되지 않은 정보를 구분해 스스로 비교하고 선택할 수 있도록 돕습니다.
             </p>
           </div>
 
           <section className="home-search-console" aria-label="제품 직접 찾기">
             <div className="home-search-console-copy">
-              <span>제품 직접 찾기</span>
+              <span>직접 검색</span>
               <strong>알고 있는 브랜드나 제품명부터 시작하세요.</strong>
               <small>현재 확인된 제품 {catalogCount}개</small>
             </div>
@@ -148,13 +148,13 @@ export default function Home({
                 placeholder="브랜드 또는 제품명 검색"
                 aria-label="브랜드 또는 제품명 검색"
               />
-              <button type="submit" disabled={!trimmedQuery}>제품 보기 →</button>
+              <button type="submit" disabled={!trimmedQuery}>검색</button>
             </form>
           </section>
 
           <div className="home-start-paths" aria-label="다른 탐색 방법">
             <article className="home-start-path">
-              <div className="home-start-path-index">01</div>
+              <div className="home-start-path-index">01 / SWITCH</div>
               <div className="home-start-path-copy">
                 <span>현재 제품을 기준점으로</span>
                 <h2>현재 사료에서 바꾸기</h2>
@@ -167,7 +167,7 @@ export default function Home({
             </article>
 
             <article className="home-start-path">
-              <div className="home-start-path-index">02</div>
+              <div className="home-start-path-index">02 / EXPLORE</div>
               <div className="home-start-path-copy">
                 <span>원하는 조건에서 시작</span>
                 <h2>조건으로 찾아보기</h2>
@@ -184,8 +184,8 @@ export default function Home({
         <section className="home-section home-safety" aria-labelledby="home-safety-title">
           <div className="home-section-heading">
             <div>
-              <span>SAFETY NOTICE</span>
-              <h2 id="home-safety-title">확인된 리콜·안전 공지</h2>
+              <span>SAFETY &amp; NOTICES</span>
+              <h2 id="home-safety-title">공식 리콜 및 생산분 안전 공지</h2>
             </div>
             <p>공식 기관·제조사 공지에서 제품명, 규격, lot, 유통 범위를 확인해 해당 여부를 구분하는 영역입니다.</p>
           </div>
@@ -215,8 +215,8 @@ export default function Home({
         <section className="home-section home-guides" aria-labelledby="home-guides-title">
           <div className="home-section-heading">
             <div>
-              <span>READ THE LABEL</span>
-              <h2 id="home-guides-title">사료 읽는 법</h2>
+              <span>DATA READING PRINCIPLES</span>
+              <h2 id="home-guides-title">사료 데이터를 읽는 4가지 기준</h2>
             </div>
             <p>Catfood의 데이터를 더 잘 읽고, 제품을 스스로 비교하기 위한 짧은 가이드입니다.</p>
           </div>

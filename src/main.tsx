@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { installDemoPreviewFetch } from './demo-preview'
 import { installRealVisualPreviewFetch } from './real-visual-preview'
+import { installStressPreviewFetch } from './stress-preview'
 import './styles.css'
 import './refinements.css'
 import './warm-editorial.css'
@@ -29,6 +30,7 @@ import './stitch-final-polish-fixes.css'
 
 installDemoPreviewFetch()
 installRealVisualPreviewFetch()
+installStressPreviewFetch()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

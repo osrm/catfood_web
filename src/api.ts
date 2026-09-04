@@ -8,6 +8,8 @@ export interface CatalogProduct {
   representative_variant_id: string | null
   representative_package_size_text: string | null
   representative_package_weight_g: number | null
+  representative_units_per_sale?: number | null
+  representative_sale_total_weight_g?: number | null
   variant_count: number
   has_variants: boolean
   ingredient_declaration_count: number
@@ -61,6 +63,14 @@ export interface ProductVariant {
   insufficient_evidence_ingredient_terms: string[]
 }
 
+export interface AdditionalNutrient {
+  nutrient_key: string
+  raw_name: string | null
+  amount: number | null
+  unit: string | null
+  qualifier: string | null
+}
+
 export interface CompareNutrition {
   product_id: string
   variant_id: string | null
@@ -82,6 +92,8 @@ export interface CompareNutrition {
   energy_basis: string | null
   is_korea_market_observation: boolean
   is_current_resolved_formula: boolean
+  additional_nutrients?: AdditionalNutrient[]
+  additional_nutrient_count?: number
 }
 
 export interface CompareIngredients {
@@ -130,6 +142,8 @@ const CATALOG_FIELDS = [
   'representative_variant_id',
   'representative_package_size_text',
   'representative_package_weight_g',
+  'representative_units_per_sale',
+  'representative_sale_total_weight_g',
   'variant_count',
   'has_variants',
   'ingredient_declaration_count',
@@ -202,6 +216,8 @@ const COMPARE_NUTRITION_FIELDS = [
   'energy_basis',
   'is_korea_market_observation',
   'is_current_resolved_formula',
+  'additional_nutrients',
+  'additional_nutrient_count',
 ].join(',')
 
 const COMPARE_INGREDIENT_FIELDS = [

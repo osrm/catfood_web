@@ -21,6 +21,7 @@ export type CompareItem = {
 }
 
 type CompareTab = 'overview' | 'nutrition' | 'ingredients'
+type CompareRowTone = 'metric' | 'context'
 
 const LIFE_STAGE_LABELS: Record<string, string> = {
   kitten: '키튼',
@@ -127,10 +128,14 @@ function ProductHead({
   return (
     <div className="compare-product-head">
       <button className="compare-remove" type="button" onClick={onRemove} aria-label={`${product.canonical_name} 비교에서 제거`}>×</button>
-      {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
-      <span>{product.brand}</span>
-      <strong>{product.canonical_name}</strong>
-      <small>대표 규격 · {product.representative_package_size_text ?? '미확인'}</small>
+      <div className="compare-product-identity">
+        {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+        <div className="compare-product-copy">
+          <span>{product.brand}</span>
+          <strong>{product.canonical_name}</strong>
+          <small>대표 규격 · {product.representative_package_size_text ?? '미확인'}</small>
+        </div>
+      </div>
       <button className="compare-detail-link" type="button" onClick={onDetail}>제품 상세 →</button>
     </div>
   )
@@ -160,11 +165,30 @@ function RelationSummary({ item }: { item: CompareItem }) {
   )
 }
 
-function CompareRow({ label, items, render }: { label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode }) {
+function CompareRow({
+  label,
+  items,
+  render,
+  tone,
+}: {
+  label: string
+  items: CompareItem[]
+  render: (item: CompareItem) => ReactNode
+  tone?: CompareRowTone
+}) {
   return (
-    <div className="compare-row" style={{ '--compare-count': items.length } as CSSProperties}>
+    <div className={`compare-row${tone ? ` is-${tone}` : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
       <div className="compare-row-label">{label}</div>
       {items.map((item) => <div className="compare-cell" key={item.product.product_id}>{render(item)}</div>)}
+    </div>
+  )
+}
+
+function CompareSection({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="compare-section-row">
+      <strong>{title}</strong>
+      {note ? <span>{note}</span> : null}
     </div>
   )
 }
@@ -294,7 +318,7 @@ export default function CompareView({
       <section className="compare-table-wrap">
         <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
           <div className="compare-head-row">
-            <div className="compare-corner">비교 항목</div>
+            <div className="compare-corner">비교 기준</div>
             {items.map((item) => (
               <ProductHead
                 key={item.product.product_id}
@@ -307,11 +331,17 @@ export default function CompareView({
 
           {tab === 'overview' ? (
             <>
+              <CompareSection
+                title={currentProduct ? '현재 사료와의 관계' : '검색 조건과의 관계'}
+                note={currentProduct ? '현재 기준과 각 후보의 확인·미확인 관계를 나란히 봅니다.' : '선택한 검색 조건과 각 제품의 확인·미확인 관계를 나란히 봅니다.'}
+              />
               <CompareRow label={currentProduct ? '현재 기준과의 관계' : '검색 조건과의 관계'} items={items} render={(item) => <RelationSummary item={item} />} />
+              <CompareSection title="제품 기본 정보" note="공식 표기와 현재 확인된 제품 단위 정보를 비교합니다." />
               <CompareRow label="사료 형태" items={items} render={(item) => item.product.feed_type ?? '미확인'} />
               <CompareRow label="표기 생애주기" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
               <CompareRow label="공식 대상" items={items} render={(item) => labels(item.product.official_targets, TARGET_LABELS)} />
               <CompareRow label="부가 기능" items={items} render={(item) => labels(item.product.features, FEATURE_LABELS)} />
+              <CompareSection title="레시피·판매 정보" note="레시피 계열과 공식 표방, 대표 판매 정보를 구분해 확인합니다." />
               <CompareRow label="레시피 계열" items={items} render={(item) => labels(item.product.recipe_families, RECIPE_LABELS)} />
               <CompareRow label="세부 레시피" items={items} render={(item) => labels(item.product.recipe_details, RECIPE_LABELS)} />
               <CompareRow label="Grain-Free 공식 표방" items={items} render={(item) => item.product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
@@ -322,35 +352,42 @@ export default function CompareView({
 
           {tab === 'nutrition' && !nutritionLoading && !nutritionError ? (
             <>
-              <CompareRow label="표시 기준" items={items} render={(item) => <span className="compare-muted">{detailContext(
-                nutritionByProduct.get(item.product.product_id),
-                variantsByProduct[item.product.product_id],
-                variantLookupFailures.includes(item.product.product_id),
-                variantsLoading,
-              )}</span>} />
-              <CompareRow label="열량" items={items} render={(item) => {
+              <CompareSection title="표시 기준" note="대표 영양 패널이 어떤 시장·SKU·배합 범위를 가리키는지 먼저 확인합니다." />
+              <CompareRow
+                label="표시 기준"
+                items={items}
+                tone="context"
+                render={(item) => <span className="compare-muted">{detailContext(
+                  nutritionByProduct.get(item.product.product_id),
+                  variantsByProduct[item.product.product_id],
+                  variantLookupFailures.includes(item.product.product_id),
+                  variantsLoading,
+                )}</span>}
+              />
+              <CompareSection title="영양 성분" note="공식 표시값을 같은 위치에서 읽습니다. 숫자만으로 우열을 판정하지 않습니다." />
+              <CompareRow label="열량" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
                 if (row.kcal_per_kg != null) return formatNumber(row.kcal_per_kg, ' kcal/kg')
                 return formatNumber(row.kcal_per_100g, ' kcal/100g')
               }} />
-              <CompareRow label="조단백질" items={items} render={(item) => {
+              <CompareRow label="조단백질" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 return row ? formatNumber(row.protein_pct, '%', row.protein_qualifier) : '미확인'
               }} />
-              <CompareRow label="조지방" items={items} render={(item) => {
+              <CompareRow label="조지방" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 return row ? formatNumber(row.fat_pct, '%', row.fat_qualifier) : '미확인'
               }} />
-              <CompareRow label="조섬유" items={items} render={(item) => {
+              <CompareRow label="조섬유" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 return row ? formatNumber(row.fiber_pct, '%', row.fiber_qualifier) : '미확인'
               }} />
-              <CompareRow label="수분" items={items} render={(item) => {
+              <CompareRow label="수분" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 return row ? formatNumber(row.moisture_pct, '%', row.moisture_qualifier) : '미확인'
               }} />
-              <CompareRow label="조회분" items={items} render={(item) => {
+              <CompareRow label="조회분" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 return row ? formatNumber(row.ash_pct, '%', row.ash_qualifier) : '미확인'
               }} />
@@ -359,12 +396,19 @@ export default function CompareView({
 
           {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareRow label="표시 기준" items={items} render={(item) => <span className="compare-muted">{detailContext(
-                ingredientsByProduct.get(item.product.product_id),
-                variantsByProduct[item.product.product_id],
-                variantLookupFailures.includes(item.product.product_id),
-                variantsLoading,
-              )}</span>} />
+              <CompareSection title="표시 기준" note="대표 원재료 근거가 어떤 시장·SKU·배합 범위를 가리키는지 먼저 확인합니다." />
+              <CompareRow
+                label="표시 기준"
+                items={items}
+                tone="context"
+                render={(item) => <span className="compare-muted">{detailContext(
+                  ingredientsByProduct.get(item.product.product_id),
+                  variantsByProduct[item.product.product_id],
+                  variantLookupFailures.includes(item.product.product_id),
+                  variantsLoading,
+                )}</span>}
+              />
+              <CompareSection title="원재료 정보" note="목록의 완전성 상태와 실제 확인 문구를 함께 봅니다." />
               <CompareRow label="원재료 목록 상태" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return '미확인'

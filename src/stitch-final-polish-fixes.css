@@ -22,6 +22,86 @@
   letter-spacing: -0.03em;
 }
 
+/* EXPLORE: strengthen product identity without turning evidence into a score. */
+.research-result-card {
+  min-height: 124px;
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.research-result-card.is-selected {
+  background: #f7f7f5;
+  box-shadow: inset 3px 0 0 var(--stitch-ink, #18181b);
+}
+
+.research-result-image,
+.research-result-card .image-placeholder {
+  width: 76px;
+  height: 96px;
+}
+
+.research-result-brand {
+  color: #5d5d63;
+  font-weight: 760;
+}
+
+.research-result-identity strong {
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+}
+
+.research-result-meta {
+  color: #5f5f66;
+}
+
+.relation-line > span {
+  color: #717178;
+  font-weight: 650;
+}
+
+/* A confirmed relationship is evidence, not a pass state. */
+.relation-line.is-confirmed > strong {
+  color: #414147;
+  font-weight: 620;
+}
+
+.relation-line.is-unknown > strong {
+  color: #7b7b82;
+  font-weight: 540;
+}
+
+.research-shell.is-inspecting .research-result-card {
+  min-height: 122px;
+}
+
+.research-shell.is-inspecting .research-result-image,
+.research-shell.is-inspecting .research-result-card .image-placeholder {
+  width: 70px;
+  height: 88px;
+}
+
+.research-shell.is-inspecting .research-result-identity strong {
+  font-size: 15px;
+}
+
+.quick-view-identity {
+  grid-template-columns: 124px minmax(0, 1fr);
+  gap: 24px;
+  border-bottom: 1px solid var(--stitch-line, #e4e4e7);
+  background: #fbfbfa;
+}
+
+.quick-view-image,
+.quick-view-identity .image-placeholder {
+  width: 120px;
+  height: 146px;
+}
+
+.quick-view-identity h1 {
+  font-size: clamp(23px, 2.1vw, 29px);
+}
+
 /* On narrow/tablet layouts the inspector stacks below the whole result list.
    Once a product is selected, show the inspector as the active view; closing it returns to results. */
 @media (max-width: 900px) {
@@ -35,5 +115,61 @@
 
   .research-shell.is-inspecting .research-quick-view {
     border-left: 1px solid var(--stitch-line, #e4e4e7);
+  }
+}
+
+@media (max-width: 760px) {
+  /* In an active mobile inspector, keep only the product context and a clear close/back path. */
+  .research-shell.is-inspecting .research-topbar {
+    min-height: 48px;
+    grid-template-columns: 1fr;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .research-shell.is-inspecting .mode-nav,
+  .research-shell.is-inspecting .research-status,
+  .research-shell.is-inspecting .criteria-bar {
+    display: none;
+  }
+
+  .research-shell.is-inspecting .research-workspace {
+    width: 100%;
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+
+  .research-shell.is-inspecting .research-quick-view {
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 0;
+  }
+
+  .quick-view-identity {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 18px 18px;
+  }
+
+  .quick-view-image,
+  .quick-view-identity .image-placeholder {
+    width: 92px;
+    height: 112px;
+  }
+
+  .quick-view-identity h1 {
+    font-size: 22px;
+  }
+
+  html[data-demo-preview='true'] body::after {
+    content: 'DEMO';
+    top: 11px;
+    right: 12px;
+    bottom: auto;
+    border-radius: 2px;
+    padding: 4px 6px;
+    box-shadow: none;
+    font-size: 9px;
+    opacity: 0.78;
   }
 }

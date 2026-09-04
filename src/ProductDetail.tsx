@@ -5,6 +5,7 @@ import {
   fetchProductManufacturing,
   fetchProductMarkets,
   fetchProductVariants,
+  type AdditionalNutrient,
   type CatalogProduct,
   type CompareIngredients,
   type CompareNutrition,
@@ -92,6 +93,13 @@ const COUNTRY_LABELS: Record<string, string> = {
   JP: '일본',
 }
 
+const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
+  calcium: '칼슘',
+  phosphorus: '인',
+  magnesium: '마그네슘',
+  taurine: '타우린',
+}
+
 function valueLabel(value: string, map: Record<string, string>): string {
   return map[value] ?? value.replaceAll('_', ' ')
 }
@@ -145,6 +153,16 @@ function qualifierLabel(value: string | null): string {
 function nutrientValue(value: number | null, qualifier: string | null, unit = '%'): string {
   if (value == null) return '미확인'
   return `${Number(value).toLocaleString('ko-KR')}${unit} ${qualifierLabel(qualifier)}`.trim()
+}
+
+function additionalNutrientLabel(value: AdditionalNutrient): string {
+  return ADDITIONAL_NUTRIENT_LABELS[value.nutrient_key] ?? value.raw_name ?? value.nutrient_key.replaceAll('_', ' ')
+}
+
+function additionalNutrientValue(value: AdditionalNutrient): string {
+  const unit = value.unit ?? ''
+  const suffix = unit === '%' ? '%' : unit ? ` ${unit}` : ''
+  return nutrientValue(value.amount, value.qualifier, suffix)
 }
 
 function energyValue(row: CompareNutrition | null): string {
@@ -401,8 +419,15 @@ export default function ProductDetail({
                   <Fact label="조섬유" value={nutrientValue(nutrition.fiber_pct, nutrition.fiber_qualifier)} />
                   <Fact label="수분" value={nutrientValue(nutrition.moisture_pct, nutrition.moisture_qualifier)} />
                   <Fact label="조회분" value={nutrientValue(nutrition.ash_pct, nutrition.ash_qualifier)} />
+                  {(nutrition.additional_nutrients ?? []).map((value, index) => (
+                    <Fact
+                      key={`${value.nutrient_key}-${index}`}
+                      label={additionalNutrientLabel(value)}
+                      value={additionalNutrientValue(value)}
+                    />
+                  ))}
                 </div>
-                <p className="detail-note">표시값이 없으면 빈 값을 다른 자료에서 추정해 채우지 않습니다. 사료 형태가 다른 제품과 열량을 자동으로 좋음/나쁨으로 판정하지 않습니다.</p>
+                <p className="detail-note">추가 영양성분도 같은 대표 패널에서 구조화된 값만 함께 표시합니다. 표시값이 없으면 다른 자료에서 추정해 채우지 않고, 사료 형태가 다른 제품과 열량을 자동으로 좋음/나쁨으로 판정하지 않습니다.</p>
               </>
             ) : null}
             {!loading.nutrition && !errors.nutrition && !nutrition ? <div className="detail-empty">현재 공개 가능한 대표 영양 패널을 확인하지 못했습니다.</div> : null}

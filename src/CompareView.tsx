@@ -4,6 +4,7 @@ import {
   fetchCompareIngredients,
   fetchCompareNutrition,
   fetchProductVariants,
+  type AdditionalNutrient,
   type CatalogProduct,
   type CompareIngredients,
   type CompareNutrition,
@@ -66,6 +67,15 @@ const RECIPE_LABELS: Record<string, string> = {
   venison: '사슴',
 }
 
+const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
+  calcium: '칼슘',
+  phosphorus: '인',
+  magnesium: '마그네슘',
+  taurine: '타우린',
+}
+
+const ADDITIONAL_NUTRIENT_ORDER = ['calcium', 'phosphorus', 'magnesium', 'taurine']
+
 function labels(values: string[], map: Record<string, string>): string {
   if (values.length === 0) return '확인된 값 없음'
   return values.map((value) => map[value] ?? value.replaceAll('_', ' ')).join(' · ')
@@ -75,6 +85,38 @@ function formatNumber(value: number | null, suffix: string, qualifier?: string |
   if (value == null) return '미확인'
   const qualifierLabel = qualifier === 'min' ? ' 이상' : qualifier === 'max' ? ' 이하' : qualifier ? ` ${qualifier}` : ''
   return `${Number(value).toLocaleString('ko-KR')}${suffix}${qualifierLabel}`
+}
+
+function formatWeight(value: number | null | undefined): string | null {
+  if (value == null) return null
+  if (value >= 1000) return `${Number((value / 1000).toFixed(3)).toLocaleString('ko-KR')} kg`
+  return `${Number(value).toLocaleString('ko-KR')} g`
+}
+
+function representativePackageLabel(product: CatalogProduct): string {
+  const size = product.representative_package_size_text ?? '미확인'
+  const units = product.representative_units_per_sale ?? null
+  if (!units || units <= 1) return size
+  const total = formatWeight(product.representative_sale_total_weight_g)
+  return `${size} × ${units}${total ? ` · 총 ${total}` : ''}`
+}
+
+function additionalNutrient(row: CompareNutrition | undefined, key: string): AdditionalNutrient | undefined {
+  return (row?.additional_nutrients ?? []).find((item) => item.nutrient_key === key)
+}
+
+function additionalNutrientLabel(key: string, rows: CompareNutrition[]): string {
+  const rawName = rows
+    .flatMap((row) => row.additional_nutrients ?? [])
+    .find((item) => item.nutrient_key === key)?.raw_name
+  return ADDITIONAL_NUTRIENT_LABELS[key] ?? rawName ?? key.replaceAll('_', ' ')
+}
+
+function formatAdditionalNutrient(value: AdditionalNutrient | undefined): string {
+  if (!value || value.amount == null) return '미확인'
+  const unit = value.unit ?? ''
+  const suffix = unit === '%' ? '%' : unit ? ` ${unit}` : ''
+  return formatNumber(value.amount, suffix, value.qualifier)
 }
 
 function variantSizeLabel(variant: ProductVariant | null): string | null {
@@ -133,7 +175,7 @@ function ProductHead({
         <div className="compare-product-copy">
           <span>{product.brand}</span>
           <strong>{product.canonical_name}</strong>
-          <small>대표 규격 · {product.representative_package_size_text ?? '미확인'}</small>
+          <small>대표 규격 · {representativePackageLabel(product)}</small>
         </div>
       </div>
       <button className="compare-detail-link" type="button" onClick={onDetail}>제품 상세 →</button>
@@ -221,6 +263,22 @@ export default function CompareView({
   const productIds = useMemo(() => items.map((item) => item.product.product_id), [items])
   const nutritionByProduct = useMemo(() => new Map(nutrition.map((row) => [row.product_id, row])), [nutrition])
   const ingredientsByProduct = useMemo(() => new Map(ingredients.map((row) => [row.product_id, row])), [ingredients])
+  const additionalNutrientKeys = useMemo(() => {
+    const keys = new Set<string>()
+    nutrition.forEach((row) => (row.additional_nutrients ?? []).forEach((value) => {
+      if (value.amount != null) keys.add(value.nutrient_key)
+    }))
+    return [...keys].sort((a, b) => {
+      const ai = ADDITIONAL_NUTRIENT_ORDER.indexOf(a)
+      const bi = ADDITIONAL_NUTRIENT_ORDER.indexOf(b)
+      if (ai >= 0 || bi >= 0) {
+        if (ai < 0) return 1
+        if (bi < 0) return -1
+        return ai - bi
+      }
+      return a.localeCompare(b, 'ko-KR')
+    })
+  }, [nutrition])
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
 
   useEffect(() => {
@@ -345,14 +403,14 @@ export default function CompareView({
               <CompareRow label="레시피 계열" items={items} render={(item) => labels(item.product.recipe_families, RECIPE_LABELS)} />
               <CompareRow label="세부 레시피" items={items} render={(item) => labels(item.product.recipe_details, RECIPE_LABELS)} />
               <CompareRow label="Grain-Free 공식 표방" items={items} render={(item) => item.product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
-              <CompareRow label="대표 규격" items={items} render={(item) => item.product.representative_package_size_text ?? '미확인'} />
+              <CompareRow label="대표 규격" items={items} render={(item) => representativePackageLabel(item.product)} />
               <CompareRow label="제조국" items={items} render={(item) => item.product.manufacturing_country_codes.join(' · ') || '미확인'} />
             </>
           ) : null}
 
           {tab === 'nutrition' && !nutritionLoading && !nutritionError ? (
             <>
-              <CompareSection title="표시 기준" note="대표 영양 패널이 어떤 시장·SKU·배합 범위를 가리키는지 먼저 확인합니다." />
+              <CompareSection title="표시 기준" note="대표 영양 패널이 어떤 시장·규격·배합 범위를 가리키는지 먼저 확인합니다." />
               <CompareRow
                 label="표시 기준"
                 items={items}
@@ -364,7 +422,7 @@ export default function CompareView({
                   variantsLoading,
                 )}</span>}
               />
-              <CompareSection title="영양 성분" note="공식 표시값을 같은 위치에서 읽습니다. 숫자만으로 우열을 판정하지 않습니다." />
+              <CompareSection title="영양 성분" note="같은 대표 패널에서 확인된 공식 표시값을 비교합니다. 숫자만으로 우열을 판정하지 않습니다." />
               <CompareRow label="열량" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
@@ -391,12 +449,21 @@ export default function CompareView({
                 const row = nutritionByProduct.get(item.product.product_id)
                 return row ? formatNumber(row.ash_pct, '%', row.ash_qualifier) : '미확인'
               }} />
+              {additionalNutrientKeys.map((key) => (
+                <CompareRow
+                  key={key}
+                  label={additionalNutrientLabel(key, nutrition)}
+                  items={items}
+                  tone="metric"
+                  render={(item) => formatAdditionalNutrient(additionalNutrient(nutritionByProduct.get(item.product.product_id), key))}
+                />
+              ))}
             </>
           ) : null}
 
           {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareSection title="표시 기준" note="대표 원재료 근거가 어떤 시장·SKU·배합 범위를 가리키는지 먼저 확인합니다." />
+              <CompareSection title="표시 기준" note="대표 원재료 근거가 어떤 시장·규격·배합 범위를 가리키는지 먼저 확인합니다." />
               <CompareRow
                 label="표시 기준"
                 items={items}

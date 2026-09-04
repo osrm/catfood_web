@@ -162,6 +162,20 @@ function countryListLabel(values: string[]): string {
     .join(' · ')
 }
 
+function formatWeight(value: number | null | undefined): string | null {
+  if (value == null) return null
+  if (value >= 1000) return `${Number((value / 1000).toFixed(3)).toLocaleString('ko-KR')} kg`
+  return `${Number(value).toLocaleString('ko-KR')} g`
+}
+
+function representativePackageLabel(product: CatalogProduct): string {
+  const size = product.representative_package_size_text ?? '대표 규격 미확인'
+  const units = product.representative_units_per_sale ?? null
+  if (!units || units <= 1) return size
+  const total = formatWeight(product.representative_sale_total_weight_g)
+  return `${size} × ${units}${total ? ` · 총 ${total}` : ''}`
+}
+
 function ProductImage({ product, className }: { product: CatalogProduct; className: string }) {
   if (!product.display_image_url) {
     return <div className={`${className} switch-image-placeholder`}>이미지 없음</div>
@@ -228,7 +242,8 @@ function variantLabel(variant: ProductVariant | null): string {
   if (!variant) return '사용 규격 모름'
   const size = variant.package_size_text || '규격 표기 미확인'
   if (variant.units_per_sale && variant.units_per_sale > 1) {
-    return `${size} · ${variant.units_per_sale}개 구성`
+    const total = formatWeight(variant.sale_total_weight_g)
+    return `${size} × ${variant.units_per_sale}${total ? ` · 총 ${total}` : ''}`
   }
   return size
 }
@@ -761,7 +776,7 @@ export default function SwitchFlow({
                     <small>
                       {product.feed_type ?? '형태 미확인'} ·{' '}
                       {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
-                      {product.representative_package_size_text ?? '대표 규격 미확인'}
+                      {representativePackageLabel(product)}
                     </small>
                   </span>
                   <span className="switch-find-result-open">확인 →</span>
@@ -782,7 +797,7 @@ export default function SwitchFlow({
                     <p>
                       {previewProduct.feed_type ?? '형태 미확인'} ·{' '}
                       {previewProduct.life_stage ? optionLabel(previewProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
-                      {previewProduct.representative_package_size_text ?? '대표 규격 미확인'}
+                      {representativePackageLabel(previewProduct)}
                     </p>
                   </div>
                 </section>
@@ -827,8 +842,8 @@ export default function SwitchFlow({
                 onClick={() => selectCurrentVariant(variant.variant_id)}
               >
                 <span>
-                  <strong>{variant.package_size_text || '규격 표기 미확인'}</strong>
-                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'}</small>
+                  <strong>{variantLabel(variant)}</strong>
+                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? '멀티팩 판매 규격' : '단일 판매 규격'}</small>
                 </span>
                 <b>{currentVariantId === variant.variant_id ? '선택됨' : '선택'}</b>
               </button>
@@ -1076,7 +1091,7 @@ export default function SwitchFlow({
                     <ProductImage className="switch-candidate-image" product={product} />
                     <span className="switch-candidate-identity">
                       <span>{product.brand}</span><strong>{product.canonical_name}</strong>
-                      <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} · {product.representative_package_size_text ?? '대표 규격 미확인'}</small>
+                      <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} · {representativePackageLabel(product)}</small>
                     </span>
                     <RelationBlock evaluation={evaluation} />
                     <span className="switch-candidate-open">보기 →</span>
@@ -1133,7 +1148,7 @@ export default function SwitchFlow({
                 <section className="switch-inspector-section">
                   <h2>제품 정보 요약</h2>
                   <dl>
-                    <div><dt>대표 규격</dt><dd>{selectedCandidate.product.representative_package_size_text ?? '미확인'}</dd></div>
+                    <div><dt>대표 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div>
                     <div><dt>확인된 판매 규격</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div>
                     <div><dt>공식 대상</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div>
                     <div><dt>부가 기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>

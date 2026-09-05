@@ -602,6 +602,7 @@ export default function SwitchFlow({
   const [ingredientSearch, setIngredientSearch] = useState('')
   const [noChangeIntent, setNoChangeIntent] = useState(false)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
+  const [visibleCandidateCount, setVisibleCandidateCount] = useState(40)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
   const [detailProductId, setDetailProductId] = useState<string | null>(null)
@@ -698,11 +699,12 @@ export default function SwitchFlow({
     })
   }, [products, currentProduct, conditions])
 
-  const presentedCandidates = candidates.slice(0, 40)
-  const selectedCandidate = presentedCandidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
+  const trackedCandidates = candidates.slice(0, 40)
+  const visibleCandidates = candidates.slice(0, visibleCandidateCount)
+  const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
   const compareItems = useMemo<CompareItem[]>(() => compareIds
-    .map((productId) => presentedCandidates.find((item) => item.product.product_id === productId))
+    .map((productId) => candidates.find((item) => item.product.product_id === productId))
     .filter((item): item is SwitchEvaluation => Boolean(item))
     .map((item) => ({
       product: item.product,
@@ -711,7 +713,7 @@ export default function SwitchFlow({
       unknowns: item.unknowns,
       ingredientReviewedNotFound: item.ingredientReviewedNotFound,
       ingredientInsufficient: item.ingredientInsufficient,
-    })), [compareIds, presentedCandidates])
+    })), [compareIds, candidates])
 
   function selectCurrentVariant(variantId: string | null) {
     setCurrentVariantId(variantId)
@@ -747,7 +749,7 @@ export default function SwitchFlow({
           currentProduct,
         }),
         candidateCount: candidates.length,
-        initialPresentedProductIds: presentedCandidates.map((item) => item.product.product_id),
+        initialPresentedProductIds: trackedCandidates.map((item) => item.product.product_id),
       })
     })
     switchRunTail.current = next
@@ -767,6 +769,7 @@ export default function SwitchFlow({
     productId: string,
     signal: 'detail_open' | 'compare_add',
   ) {
+    if (!trackedCandidates.some((item) => item.product.product_id === productId)) return
     void switchRunTail.current.then((searchRunId) =>
       recordProductConsideration(searchRunId, productId, signal))
   }
@@ -798,6 +801,7 @@ export default function SwitchFlow({
     setIngredientSearch('')
     setNoChangeIntent(false)
     setSelectedCandidateId(null)
+    setVisibleCandidateCount(40)
     setCompareIds([])
     setCompareOpen(false)
     setDetailProductId(null)
@@ -822,6 +826,7 @@ export default function SwitchFlow({
     setIngredientSearch('')
     setNoChangeIntent(false)
     setSelectedCandidateId(null)
+    setVisibleCandidateCount(40)
     setCompareIds([])
     setCompareOpen(false)
     setDetailProductId(null)
@@ -1157,6 +1162,7 @@ export default function SwitchFlow({
               type="button"
               onClick={() => {
                 setSelectedCandidateId(null)
+                setVisibleCandidateCount(40)
                 setCompareIds([])
                 setCompareOpen(false)
                 setDetailProductId(null)
@@ -1207,10 +1213,10 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidates.length > 40 ? `${candidates.length}개 중 최초 40개` : `${candidates.length}개의 제품`} · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 제품·배합 정보를 기준으로 표시합니다. 상세 근거는 제품 상세에서 확인하세요.</p></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 제품·배합 정보를 기준으로 표시합니다. 상세 근거는 제품 상세에서 확인하세요.</p></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message">현재 조건에 맞는 후보가 없습니다. 조건을 자동으로 완화하지 않습니다.</div> : null}
-              {presentedCandidates.map((evaluation) => {
+              {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 return (
                   <button className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'} key={product.product_id} type="button" onClick={() => openCandidate(product.product_id)}>
@@ -1224,6 +1230,11 @@ export default function SwitchFlow({
                   </button>
                 )
               })}
+              {visibleCandidateCount < candidates.length ? (
+                <button className="load-more" type="button" onClick={() => setVisibleCandidateCount((count) => count + 40)}>
+                  제품 더 보기 · {candidates.length - visibleCandidates.length}개 남음
+                </button>
+              ) : null}
             </div>
           </div>
 

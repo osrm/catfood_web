@@ -343,7 +343,7 @@ export default function App() {
   const [lookupQuery, setLookupQuery] = useState('')
   const [switchQuery, setSwitchQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [visibleCount, setVisibleCount] = useState(120)
+  const [visibleCount, setVisibleCount] = useState(40)
   const [recipeSearch, setRecipeSearch] = useState('')
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareOpen, setCompareOpen] = useState(false)
@@ -440,12 +440,10 @@ export default function App() {
     : null
 
   const activeConditions = countActiveConditions(search, refine)
-  const visibleProducts = mode === 'explore'
-    ? resultProducts.slice(0, 40)
-    : resultProducts.slice(0, visibleCount)
+  const visibleProducts = resultProducts.slice(0, visibleCount)
 
   useEffect(() => {
-    setVisibleCount(120)
+    setVisibleCount(mode === 'explore' ? 40 : 120)
     setSelectedId(null)
   }, [mode, search, refine, lookupQuery, editingConditions])
 
@@ -499,6 +497,7 @@ export default function App() {
       ...refine,
       recipeDetails: toggleValue(refine.recipeDetails, value),
     }
+    setVisibleCount(40)
     setRefine(nextRefine)
     beginExploreRun(search, nextRefine)
   }
@@ -507,6 +506,7 @@ export default function App() {
     productId: string,
     signal: 'detail_open' | 'compare_add',
   ) {
+    if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return
     void exploreRunTail.current.then((searchRunId) =>
       recordProductConsideration(searchRunId, productId, signal))
   }
@@ -537,6 +537,7 @@ export default function App() {
   }
 
   function applyConditions() {
+    setVisibleCount(40)
     setSearch(draftSearch)
     setRefine(INITIAL_REFINE)
     setRecipeSearch('')
@@ -560,6 +561,7 @@ export default function App() {
       exploreRunTail.current = Promise.resolve(null)
       exploreRunId.current = null
     }
+    setVisibleCount(nextMode === 'explore' ? 40 : 120)
     setMode(nextMode)
     setSelectedId(null)
     setCompareIds([])
@@ -575,6 +577,7 @@ export default function App() {
     exploreRunGeneration.current += 1
     exploreRunTail.current = Promise.resolve(null)
     exploreRunId.current = null
+    setVisibleCount(nextMode === 'explore' ? 40 : 120)
     setMode(nextMode)
     setSelectedId(null)
     setCompareIds([])
@@ -856,9 +859,13 @@ export default function App() {
             </button>
           )
         })}
-        {mode === 'lookup' && visibleCount < resultProducts.length ? (
-          <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + 120)}>
-            제품 더 보기 · {resultProducts.length - visibleCount}개 남음
+        {visibleCount < resultProducts.length ? (
+          <button
+            className="load-more"
+            type="button"
+            onClick={() => setVisibleCount((count) => count + (mode === 'explore' ? 40 : 120))}
+          >
+            제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음
           </button>
         ) : null}
       </div>
@@ -1043,8 +1050,8 @@ export default function App() {
                   <strong>제품 목록</strong>
                   <span>{loading || waitingForConditions
                     ? '조건을 설정하면 결과가 표시됩니다.'
-                    : mode === 'explore' && resultProducts.length > 40
-                      ? `${resultProducts.length}개 중 최초 40개 표시`
+                    : visibleProducts.length < resultProducts.length
+                      ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시`
                       : `${resultProducts.length}개의 제품`}</span>
                 </div>
                 {mode === 'explore' && !editingConditions && activeConditions > 0 ? (

@@ -10,6 +10,7 @@ export interface CatalogProduct {
   representative_package_weight_g: number | null
   representative_units_per_sale?: number | null
   representative_sale_total_weight_g?: number | null
+  available_package_labels: string[]
   variant_count: number
   has_variants: boolean
   ingredient_declaration_count: number
@@ -61,6 +62,16 @@ export interface ProductVariant {
   flavor_associated_ingredient_terms: string[]
   reviewed_not_found_ingredient_terms: string[]
   insufficient_evidence_ingredient_terms: string[]
+}
+
+interface CatalogPackageOption {
+  product_id: string
+  variant_id: string
+  package_size_text: string | null
+  package_weight_g: number | null
+  units_per_sale: number | null
+  sale_total_weight_g: number | null
+  display_rank: number
 }
 
 export interface AdditionalNutrient {
@@ -195,6 +206,16 @@ const VARIANT_FIELDS = [
   'insufficient_evidence_ingredient_terms',
 ].join(',')
 
+const CATALOG_PACKAGE_FIELDS = [
+  'product_id',
+  'variant_id',
+  'package_size_text',
+  'package_weight_g',
+  'units_per_sale',
+  'sale_total_weight_g',
+  'display_rank',
+].join(',')
+
 const COMPARE_NUTRITION_FIELDS = [
   'product_id',
   'variant_id',
@@ -261,9 +282,10 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string')
 }
 
-function normalizeProduct(value: CatalogProduct): CatalogProduct {
+function normalizeProduct(value: Omit<CatalogProduct, 'available_package_labels'> & { available_package_labels?: unknown }): CatalogProduct {
   return {
     ...value,
+    available_package_labels: asStringArray(value.available_package_labels),
     manufacturing_country_codes: asStringArray(value.manufacturing_country_codes),
     assessed_market_country_codes: asStringArray(value.assessed_market_country_codes),
     current_market_country_codes: asStringArray(value.current_market_country_codes),
@@ -315,6 +337,13 @@ function apiConfig() {
   return { baseUrl: baseUrl.replace(/\/$/, ''), publishableKey }
 }
 
+function requestHeaders(publishableKey: string) {
+  return {
+    apikey: publishableKey,
+    'Accept-Profile': 'api',
+  }
+}
+
 async function fetchRows<T>(
   view: string,
   fields: string,
@@ -332,10 +361,7 @@ async function fetchRows<T>(
 
   const response = await fetch(url, {
     signal,
-    headers: {
-      apikey: publishableKey,
-      'Accept-Profile': 'api',
-    },
+    headers: requestHeaders(publishableKey),
   })
 
   if (!response.ok) {
@@ -356,6 +382,60 @@ async function fetchCompareRows<T>(
   return fetchRows<T>(view, fields, `in.(${productIds.join(',')})`, signal, undefined, '5')
 }
 
+function fallbackPackageLabel(product: CatalogProduct): string {
+  const size = product.representative_package_size_text?.trim()
+  if (!size) return '판매 규격 미확인'
+  const units = product.representative_units_per_sale ?? null
+  return units && units > 1 ? `${size} × ${units}` : size
+}
+
+function packageOptionLabel(option: CatalogPackageOption): string | null {
+  const size = option.package_size_text?.trim()
+    || (option.package_weight_g != null ? `${Number(option.package_weight_g).toLocaleString('ko-KR')} g` : null)
+  if (!size) return null
+  return option.units_per_sale && option.units_per_sale > 1
+    ? `${size} × ${option.units_per_sale}`
+    : size
+}
+
+function packageLabelsByProduct(rows: CatalogPackageOption[]): Map<string, string[]> {
+  const result = new Map<string, string[]>()
+  for (const row of rows) {
+    const label = packageOptionLabel(row)
+    if (!label) continue
+    const current = result.get(row.product_id) ?? []
+    if (!current.includes(label)) current.push(label)
+    result.set(row.product_id, current)
+  }
+  return result
+}
+
+export function productPackageOptionsLabel(product: CatalogProduct): string {
+  return product.available_package_labels.length > 0
+    ? product.available_package_labels.join(' · ')
+    : fallbackPackageLabel(product)
+}
+
+async function fetchCatalogPackageOptions(signal?: AbortSignal): Promise<CatalogPackageOption[]> {
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/switch_current_variant_options`)
+  url.searchParams.set('select', CATALOG_PACKAGE_FIELDS)
+  url.searchParams.set('order', 'product_id.asc,display_rank.asc,variant_id.asc')
+  url.searchParams.set('limit', '2000')
+
+  const response = await fetch(url, {
+    signal,
+    headers: requestHeaders(publishableKey),
+  })
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 240)
+    throw new Error(`Package API ${response.status}: ${detail || response.statusText}`)
+  }
+
+  return (await response.json()) as CatalogPackageOption[]
+}
+
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
   const { baseUrl, publishableKey } = apiConfig()
   const url = new URL(`${baseUrl}/rest/v1/effective_product_catalog_summary`)
@@ -365,10 +445,7 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
 
   const response = await fetch(url, {
     signal,
-    headers: {
-      apikey: publishableKey,
-      'Accept-Profile': 'api',
-    },
+    headers: requestHeaders(publishableKey),
   })
 
   if (!response.ok) {
@@ -376,8 +453,19 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
     throw new Error(`Catalog API ${response.status}: ${detail || response.statusText}`)
   }
 
-  const data = (await response.json()) as CatalogProduct[]
-  return data.map(normalizeProduct)
+  const rawProducts = (await response.json()) as Array<Omit<CatalogProduct, 'available_package_labels'>>
+  let packageRows: CatalogPackageOption[] = []
+  try {
+    packageRows = await fetchCatalogPackageOptions(signal)
+  } catch (reason: unknown) {
+    if (reason instanceof DOMException && reason.name === 'AbortError') throw reason
+  }
+  const packages = packageLabelsByProduct(packageRows)
+
+  return rawProducts.map((value) => normalizeProduct({
+    ...value,
+    available_package_labels: packages.get(value.product_id) ?? [],
+  }))
 }
 
 export async function fetchProductVariants(

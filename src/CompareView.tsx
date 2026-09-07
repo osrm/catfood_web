@@ -134,7 +134,7 @@ function detailContext(
   variantLookupFailed = false,
   variantLookupLoading = false,
 ): string {
-  if (!detail) return '대표 확인값 없음'
+  if (!detail) return '확인값 없음'
   const market = detail.market_code === 'KR' ? '한국 확인' : detail.market_code ? `${detail.market_code} 확인` : '시장 미지정'
   let scope = '제품 기준'
 
@@ -146,14 +146,14 @@ function detailContext(
     scope = size
       ? `${size} 규격 기준`
       : variantLookupLoading
-        ? '규격 기준 · 실제 규격 확인 중'
+        ? '규격 기준 · 규격 확인 중'
         : variantLookupFailed
-          ? '규격 기준 · 실제 규격 조회 실패'
-          : '규격 기준 · 실제 규격 표기 미확인'
+          ? '규격 기준 · 규격 조회 실패'
+          : '규격 기준 · 규격 표기 미확인'
   } else if (detail.observation_scope === 'formula') {
     scope = detail.is_current_resolved_formula
       ? '현재 확인 배합 기준'
-      : '배합 기준 · 현재 한국 배합 대응 미확정'
+      : '배합 기준 · 한국 배합 대응 미확정'
   }
 
   return `${market} · ${scope}`
@@ -180,7 +180,7 @@ function ProductHead({
           <small>판매 규격 · {representativePackageLabel(product)}</small>
         </div>
       </div>
-      <button className="compare-detail-link" type="button" onClick={onDetail}>제품 상세 →</button>
+      <button className="compare-detail-link" type="button" onClick={onDetail}>상세 보기 →</button>
     </div>
   )
 }
@@ -194,15 +194,15 @@ function RelationSummary({ item }: { item: CompareItem }) {
   const insufficient = item.ingredientInsufficient ?? []
 
   if (![confirmed, keep, change, unknown, reviewed, insufficient].some((values) => values.length > 0)) {
-    return <span className="compare-muted">별도 검색 관계 없음</span>
+    return <span className="compare-muted">비교할 검색 조건 없음</span>
   }
 
   return (
     <div className="compare-relations">
-      {confirmed.length ? <p className="is-confirmed"><span>조건 확인</span><strong>{confirmed.join(' · ')}</strong></p> : null}
-      {keep.length ? <p className="is-keep"><span>유지 확인</span><strong>{keep.join(' · ')}</strong></p> : null}
-      {change.length ? <p className="is-change"><span>변경 확인</span><strong>{change.join(' · ')}</strong></p> : null}
-      {reviewed.length ? <p className="is-reviewed"><span>원료 검토</span><strong>{reviewed.join(' · ')} · 검토 근거에서 찾지 못함</strong></p> : null}
+      {confirmed.length ? <p className="is-confirmed"><span>확인됨</span><strong>{confirmed.join(' · ')}</strong></p> : null}
+      {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
+      {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
+      {reviewed.length ? <p className="is-reviewed"><span>원료 확인</span><strong>{reviewed.join(' · ')} · 검토한 자료에서 찾지 못함</strong></p> : null}
       {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 판단 근거 부족</strong></p> : null}
       {unknown.length ? <p className="is-unknown"><span>미확인</span><strong>{unknown.join(' · ')}</strong></p> : null}
     </div>
@@ -351,14 +351,14 @@ export default function CompareView({
         <div>
           <span>COMPARE</span>
           <h1>제품 비교</h1>
-          <p>{items.length}개 제품 · 최대 5개까지 직접 선택해 비교합니다.</p>
+          <p>{items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.</p>
         </div>
-        <button type="button" onClick={onClose}>← 후보로 돌아가기</button>
+        <button type="button" onClick={onClose}>← 제품 목록으로</button>
       </header>
 
       {currentProduct ? (
         <section className="compare-current-baseline">
-          <span>현재 기준</span>
+          <span>현재 사료</span>
           <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong>
           <small>{currentVariantText || '사용 규격 모름'}</small>
         </section>
@@ -378,7 +378,7 @@ export default function CompareView({
       <section className="compare-table-wrap">
         <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
           <div className="compare-head-row">
-            <div className="compare-corner">비교 기준</div>
+            <div className="compare-corner">비교 항목</div>
             {items.map((item) => (
               <ProductHead
                 key={item.product.product_id}
@@ -392,19 +392,19 @@ export default function CompareView({
           {tab === 'overview' ? (
             <>
               <CompareSection
-                title={currentProduct ? '현재 사료와의 관계' : '검색 조건과의 관계'}
-                note={currentProduct ? '현재 기준과 각 후보의 확인·미확인 관계를 나란히 봅니다.' : '선택한 검색 조건과 각 제품의 확인·미확인 관계를 나란히 봅니다.'}
+                title={currentProduct ? '현재 사료와 비교' : '선택한 조건과 비교'}
+                note={currentProduct ? '현재 사료와 각 후보가 어떻게 다른지 확인합니다.' : '선택한 조건과 각 제품이 어떻게 맞는지 확인합니다.'}
               />
-              <CompareRow label={currentProduct ? '현재 기준과의 관계' : '검색 조건과의 관계'} items={items} render={(item) => <RelationSummary item={item} />} />
-              <CompareSection title="제품 기본 정보" note="공식 표기와 현재 확인된 제품 단위 정보를 비교합니다." />
+              <CompareRow label={currentProduct ? '현재 사료와 비교' : '선택한 조건과 비교'} items={items} render={(item) => <RelationSummary item={item} />} />
+              <CompareSection title="제품 기본 정보" note="제품에 표시된 기본 정보를 나란히 봅니다." />
               <CompareRow label="사료 형태" items={items} render={(item) => item.product.feed_type ?? '미확인'} />
-              <CompareRow label="표기 생애주기" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
+              <CompareRow label="생애주기" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
               <CompareRow label="공식 대상" items={items} render={(item) => labels(item.product.official_targets, TARGET_LABELS)} />
-              <CompareRow label="부가 기능" items={items} render={(item) => labels(item.product.features, FEATURE_LABELS)} />
-              <CompareSection title="레시피·판매 정보" note="레시피 계열과 공식 표방, 확인된 판매 규격을 구분해 확인합니다." />
+              <CompareRow label="기능" items={items} render={(item) => labels(item.product.features, FEATURE_LABELS)} />
+              <CompareSection title="레시피 · 판매 정보" note="레시피와 판매 규격을 함께 비교합니다." />
               <CompareRow label="레시피 계열" items={items} render={(item) => labels(item.product.recipe_families, RECIPE_LABELS)} />
               <CompareRow label="세부 레시피" items={items} render={(item) => labels(item.product.recipe_details, RECIPE_LABELS)} />
-              <CompareRow label="Grain-Free 공식 표방" items={items} render={(item) => item.product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
+              <CompareRow label="Grain-Free 표기" items={items} render={(item) => item.product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표기 미확인'} />
               <CompareRow label="판매 규격" items={items} render={(item) => representativePackageLabel(item.product)} />
               <CompareRow label="제조국" items={items} render={(item) => item.product.manufacturing_country_codes.join(' · ') || '미확인'} />
             </>
@@ -412,9 +412,9 @@ export default function CompareView({
 
           {tab === 'nutrition' && !nutritionLoading && !nutritionError ? (
             <>
-              <CompareSection title="표시 기준" note="대표 영양 패널이 어떤 시장·규격·배합 범위를 가리키는지 먼저 확인합니다." />
+              <CompareSection title="확인 기준" note="영양값이 어느 시장·규격·배합에서 확인된 값인지 먼저 확인합니다." />
               <CompareRow
-                label="표시 기준"
+                label="확인 기준"
                 items={items}
                 tone="context"
                 render={(item) => <span className="compare-muted">{detailContext(
@@ -424,7 +424,7 @@ export default function CompareView({
                   variantsLoading,
                 )}</span>}
               />
-              <CompareSection title="영양 성분" note="같은 대표 패널에서 확인된 공식 표시값을 비교합니다. 숫자만으로 우열을 판정하지 않습니다." />
+              <CompareSection title="영양 성분" note="확인된 공식 표시값을 비교합니다. 숫자만으로 우열을 매기지 않습니다." />
               <CompareRow label="열량" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
@@ -465,9 +465,9 @@ export default function CompareView({
 
           {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareSection title="표시 기준" note="대표 원재료 근거가 어떤 시장·규격·배합 범위를 가리키는지 먼저 확인합니다." />
+              <CompareSection title="확인 기준" note="원재료 정보가 어느 시장·규격·배합에서 확인됐는지 먼저 확인합니다." />
               <CompareRow
-                label="표시 기준"
+                label="확인 기준"
                 items={items}
                 tone="context"
                 render={(item) => <span className="compare-muted">{detailContext(
@@ -477,8 +477,8 @@ export default function CompareView({
                   variantsLoading,
                 )}</span>}
               />
-              <CompareSection title="원재료 정보" note="목록의 완전성 상태와 실제 확인 문구를 함께 봅니다." />
-              <CompareRow label="원재료 목록 상태" items={items} render={(item) => {
+              <CompareSection title="원재료" note="목록이 전체인지 일부인지와 실제 확인 내용을 함께 봅니다." />
+              <CompareRow label="목록 상태" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
                 if (row.completeness_status === 'full') return '전체 목록 확인'
@@ -497,8 +497,8 @@ export default function CompareView({
         </div>
       </section>
 
-      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 공개된 대표 확인 패널의 공식 표시값을 그대로 비교합니다. 서로 다른 사료 형태의 열량을 자동으로 우열 판정하지 않습니다.</p> : null}
-      {tab === 'ingredients' ? <p className="compare-footnote">원재료 목록이 부분·요약 상태이면 보이지 않는 원료를 부재로 해석하지 않습니다.</p> : null}
+      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여줍니다. 사료 형태가 다른 제품의 열량을 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p> : null}
+      {tab === 'ingredients' ? <p className="compare-footnote">원재료 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다.</p> : null}
     </main>
   )
 }

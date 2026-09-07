@@ -1,0 +1,222 @@
+/* Stage 6 follow-up: make EXPLORE a focused consumer research flow and keep all known package options readable. */
+
+.research-result-packages {
+  display: block;
+  max-width: 100%;
+  margin-top: 2px;
+  color: #72777a;
+  font-size: 11.5px;
+  font-weight: 560;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.research-result-card:has(.research-result-facts) {
+  min-height: 118px;
+}
+
+.research-result-card:has(.research-result-facts) .research-result-packages {
+  color: #69716e;
+  font-size: 12px;
+}
+
+/* While conditions are being edited, the condition form is the primary task rather than a narrow utility rail. */
+.research-shell.is-browsing .research-workspace:has(.condition-actions) {
+  width: min(1240px, calc(100% - 64px));
+  grid-template-columns: minmax(620px, 1.55fr) minmax(300px, 0.8fr);
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.research-workspace:has(.condition-actions) .research-filters {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.research-workspace:has(.condition-actions) .research-pane-heading {
+  min-height: 72px;
+  padding: 18px 22px;
+}
+
+.research-workspace:has(.condition-actions) .research-pane-heading strong {
+  font-size: 16px;
+}
+
+.research-workspace:has(.condition-actions) .research-pane-heading span {
+  margin-top: 4px;
+  font-size: 12.5px;
+}
+
+.research-workspace:has(.condition-actions) .research-filter-scroll {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 0 18px;
+  padding: 0 22px 22px;
+}
+
+.research-workspace:has(.condition-actions) .condition-group-title,
+.research-workspace:has(.condition-actions) .condition-actions {
+  grid-column: 1 / -1;
+}
+
+.research-workspace:has(.condition-actions) .condition-group-title {
+  min-height: 44px;
+  margin: 0;
+  border-bottom: 1px solid #e7ebe9;
+  padding: 18px 0 10px;
+}
+
+.research-workspace:has(.condition-actions) .condition-group-title.secondary-group {
+  margin-top: 4px;
+}
+
+.research-workspace:has(.condition-actions) .condition-group-title > span {
+  color: #183a32;
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.research-workspace:has(.condition-actions) .condition-group-title small {
+  color: #747b78;
+  font-size: 11px;
+}
+
+.research-workspace:has(.condition-actions) .filter-section {
+  margin: 0;
+  border-top: 0;
+  border-bottom: 1px solid #edf0ee;
+  padding: 15px 0 16px;
+}
+
+.research-workspace:has(.condition-actions) .filter-heading {
+  margin-bottom: 10px;
+}
+
+.research-workspace:has(.condition-actions) .filter-heading > span:first-child {
+  color: #253d37;
+  font-size: 12.5px;
+  font-weight: 720;
+}
+
+.research-workspace:has(.condition-actions) .filter-hint,
+.research-workspace:has(.condition-actions) .field-note {
+  font-size: 10.8px;
+  line-height: 1.5;
+}
+
+.research-workspace:has(.condition-actions) .choice {
+  min-height: 36px;
+  border-radius: 8px;
+  font-size: 11.5px;
+}
+
+.research-workspace:has(.condition-actions) .condition-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 20px;
+  border-top: 0;
+  padding: 0;
+}
+
+.research-workspace:has(.condition-actions) .primary-action,
+.research-workspace:has(.condition-actions) .secondary-action {
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.research-workspace:has(.condition-actions) .research-results {
+  min-width: 0;
+  min-height: 560px;
+  background: #fbfcfb;
+}
+
+.research-workspace:has(.condition-actions) .research-results-heading {
+  min-height: 72px;
+  padding: 18px 20px;
+}
+
+.research-workspace:has(.condition-actions) .research-results-scroll {
+  display: grid;
+  align-items: start;
+  padding: 18px;
+}
+
+.research-workspace:has(.condition-actions) .state-message {
+  min-height: 0;
+  margin: 0;
+  border: 1px solid #e4e9e6;
+  border-radius: 10px;
+  padding: 22px;
+  background: #ffffff;
+}
+
+.research-workspace:has(.condition-actions) .state-message strong {
+  color: #25443c;
+  font-size: 14px;
+}
+
+.research-workspace:has(.condition-actions) .state-message span {
+  margin-top: 8px;
+  color: #68716e;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Applied-condition results keep evidence visible, but package options stay attached to product identity. */
+.research-result-card:not(:has(.research-result-facts)) .research-result-identity {
+  align-self: center;
+}
+
+.research-result-card:not(:has(.research-result-facts)) .research-result-packages {
+  max-width: 420px;
+}
+
+.research-shell.is-inspecting .research-result-packages {
+  margin-top: 1px;
+  font-size: 10.8px;
+  line-height: 1.35;
+}
+
+.research-shell.is-inspecting .research-result-card {
+  min-height: 104px;
+}
+
+@media (max-width: 980px) {
+  .research-shell.is-browsing .research-workspace:has(.condition-actions) {
+    width: calc(100% - 36px);
+    grid-template-columns: 1fr;
+  }
+
+  .research-workspace:has(.condition-actions) .research-results {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .research-shell.is-browsing .research-workspace:has(.condition-actions) {
+    width: calc(100% - 28px);
+    margin-top: 14px;
+  }
+
+  .research-workspace:has(.condition-actions) .research-filter-scroll {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0 18px 18px;
+  }
+
+  .research-workspace:has(.condition-actions) .condition-group-title,
+  .research-workspace:has(.condition-actions) .condition-actions {
+    grid-column: 1;
+  }
+
+  .research-workspace:has(.condition-actions) .condition-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .research-result-packages {
+    font-size: 11px;
+  }
+}

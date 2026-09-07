@@ -150,7 +150,8 @@ function compactList(values: string[], labels: Record<string, string>, max = 3):
 }
 
 function packageOptionsLabel(product: CatalogProduct): string {
-  if (product.available_package_labels.length > 0) return product.available_package_labels.join(' · ')
+  const packageLabels = product.available_package_labels ?? []
+  if (packageLabels.length > 0) return packageLabels.join(' · ')
   const size = product.representative_package_size_text ?? '판매 규격 미확인'
   const units = product.representative_units_per_sale ?? null
   return units && units > 1 ? `${size} × ${units}` : size

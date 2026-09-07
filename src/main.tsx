@@ -27,6 +27,7 @@ import './detail-consumer-refresh.css'
 import './document-scroll-fix.css'
 import './stitch-final-polish.css'
 import './stitch-final-polish-fixes.css'
+import './explore-package-polish.css'
 
 installDemoPreviewFetch()
 installRealVisualPreviewFetch()

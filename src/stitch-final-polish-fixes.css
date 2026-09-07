@@ -740,3 +740,23 @@
     font-size: 12px;
   }
 }
+
+/* Deployed follow-up: outrank the browsing grid and remove an all-unknown market shell. */
+.research-shell.is-browsing .research-workspace:has(.lookup-input) {
+  width: min(1200px, calc(100% - 64px));
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.quick-view-scroll > .quick-view-section:last-of-type:has(.definition:nth-child(1) .unknown-value):has(.definition:nth-child(2) .unknown-value):has(.definition:nth-child(3) .unknown-value) {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .research-shell.is-browsing .research-workspace:has(.lookup-input) {
+    width: calc(100% - 28px);
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 14px;
+  }
+}

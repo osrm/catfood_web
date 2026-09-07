@@ -174,7 +174,9 @@ function formatWeight(value: number | null | undefined): string | null {
 }
 
 function representativePackageLabel(product: CatalogProduct): string {
-  const size = product.representative_package_size_text ?? '대표 규격 미확인'
+  const packageLabels = product.available_package_labels ?? []
+  if (packageLabels.length > 0) return packageLabels.join(' · ')
+  const size = product.representative_package_size_text ?? '판매 규격 미확인'
   const units = product.representative_units_per_sale ?? null
   if (!units || units <= 1) return size
   const total = formatWeight(product.representative_sale_total_weight_g)
@@ -925,7 +927,7 @@ export default function SwitchFlow({
                   <dl>
                     <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div>
                     <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div>
-                    <div><dt>확인된 판매 규격</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
+                    <div><dt>판매 규격 수</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
                   </dl>
                   <p>제품을 확정한 뒤 현재 사용하는 용량·포장 규격을 확인합니다. 레시피와 원재료는 제품·배합 수준의 확인 근거로 다룹니다.</p>
                 </section>
@@ -1294,8 +1296,8 @@ export default function SwitchFlow({
                 <section className="switch-inspector-section">
                   <h2>제품 정보 요약</h2>
                   <dl>
-                    <div><dt>대표 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div>
-                    <div><dt>확인된 판매 규격</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div>
+                    <div><dt>판매 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div>
+                    <div><dt>규격 수</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div>
                     <div><dt>공식 대상</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div>
                     <div><dt>부가 기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>레시피 계열</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div>

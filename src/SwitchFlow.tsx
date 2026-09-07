@@ -273,8 +273,8 @@ function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string)
 }
 
 function ingredientAvoidanceStatus(product: CatalogProduct, term: string): string {
-  if (product.confirmed_present_ingredient_terms.includes(term)) return '확인됨 — 회피 조건과 충돌'
-  if (product.reviewed_not_found_ingredient_terms.includes(term)) return '검토 근거에서 찾지 못함'
+  if (product.confirmed_present_ingredient_terms.includes(term)) return '확인됨 — 피하려는 원료와 일치'
+  if (product.reviewed_not_found_ingredient_terms.includes(term)) return '검토한 자료에서 찾지 못함'
   return '판단 근거 부족'
 }
 
@@ -319,7 +319,7 @@ function ReferenceRail({
   onChangeProduct: () => void
 }) {
   const activeIndex = currentStepIndex(step)
-  const steps = ['현재 제품', '사용 규격', 'CHANGE', 'KEEP', '후보']
+  const steps = ['현재 제품', '사용 규격', '바꿀 것', '유지할 것', '후보']
 
   return (
     <aside className="switch-reference-rail">
@@ -339,7 +339,7 @@ function ReferenceRail({
         <span>현재 규격</span>
         <strong>{variantLabel(variant)}</strong>
       </div>
-      <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 제품 다시 선택</button>
+      <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 사료 다시 선택</button>
 
       <ol className="switch-progress" aria-label="현재 사료 전환 단계">
         {steps.map((label, index) => (
@@ -369,7 +369,7 @@ function criteriaLabels(criteria: SearchState): string[] {
   values.push(...criteria.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)))
   values.push(...criteria.features.map((value) => optionLabel(value, FEATURE_LABELS)))
   values.push(...criteria.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
-  if (criteria.grainFree) values.push('Grain-Free 공식 표방')
+  if (criteria.grainFree) values.push('Grain-Free 표기')
   return values
 }
 
@@ -414,7 +414,7 @@ function buildConditions({
       conditions.push({ source, kind: 'recipeFamily', value, label: `레시피 · ${optionLabel(value, RECIPE_FAMILY_LABELS)}`, hard: false })
     }
     if (criteria.grainFree) {
-      conditions.push({ source, kind: 'grainFree', value: 'grain_free', label: 'Grain-Free 공식 표방', hard: false })
+      conditions.push({ source, kind: 'grainFree', value: 'grain_free', label: 'Grain-Free 표기', hard: false })
     }
   }
 
@@ -550,18 +550,18 @@ function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
     || evaluation.ingredientReviewedNotFound.length > 0
     || evaluation.ingredientInsufficient.length > 0
 
-  if (!hasAny) return <p className="switch-relation-empty">추가 조건 없이 탐색</p>
+  if (!hasAny) return <p className="switch-relation-empty">추가 조건 없음</p>
 
   return (
     <div className="switch-candidate-relations">
       {evaluation.keepMatches.length > 0 ? (
-        <div className="switch-relation-line is-keep"><span>유지 확인</span><strong>{evaluation.keepMatches.slice(0, 2).join(' · ')}</strong></div>
+        <div className="switch-relation-line is-keep"><span>유지 조건</span><strong>{evaluation.keepMatches.slice(0, 2).join(' · ')}</strong></div>
       ) : null}
       {evaluation.changeMatches.length > 0 ? (
-        <div className="switch-relation-line is-change"><span>변경 확인</span><strong>{evaluation.changeMatches.slice(0, 2).join(' · ')}</strong></div>
+        <div className="switch-relation-line is-change"><span>변경 조건</span><strong>{evaluation.changeMatches.slice(0, 2).join(' · ')}</strong></div>
       ) : null}
       {evaluation.ingredientReviewedNotFound.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-reviewed"><span>원료 검토</span><strong>{evaluation.ingredientReviewedNotFound.slice(0, 2).join(' · ')} · 검토 근거에서 찾지 못함</strong></div>
+        <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.slice(0, 2).join(' · ')} · 검토한 자료에서 찾지 못함</strong></div>
       ) : null}
       {evaluation.ingredientInsufficient.length > 0 ? (
         <div className="switch-relation-line is-ingredient-unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.slice(0, 2).join(' · ')} · 판단 근거 부족</strong></div>
@@ -858,7 +858,7 @@ export default function SwitchFlow({
         <section className="switch-find-hero">
           <span className="switch-eyebrow">CURRENT FOOD</span>
           <h1>현재 먹이는 사료를 찾으세요.</h1>
-          <p>선택한 제품과 실제 사용 규격을 기준점으로 다음 사료의 차이를 탐색합니다.</p>
+          <p>지금 먹이는 제품과 규격을 선택하면, 다음 사료와 차이를 비교할 수 있습니다.</p>
           <label className="switch-find-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
             <input
@@ -929,7 +929,7 @@ export default function SwitchFlow({
                     <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>판매 규격 수</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
                   </dl>
-                  <p>제품을 확정한 뒤 현재 사용하는 용량·포장 규격을 확인합니다. 레시피와 원재료는 제품·배합 수준의 확인 근거로 다룹니다.</p>
+                  <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다. 레시피와 원재료는 확인된 정보만 사용합니다.</p>
                 </section>
                 <button className="switch-primary-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
               </div>
@@ -949,13 +949,13 @@ export default function SwitchFlow({
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>사용 규격</span>
-            <h1>현재 사용하는 규격을 확인하세요.</h1>
-            <p>규격은 현재 먹이는 용량·포장 단위를 기록하기 위한 값입니다. 용량이 다르다는 이유만으로 다른 배합으로 보지 않습니다.</p>
+            <h1>현재 먹이는 규격을 골라주세요.</h1>
+            <p>지금 먹이는 용량이나 포장 단위를 선택하세요. 용량이 다르다고 다른 레시피로 보지는 않습니다.</p>
           </div>
           <section className="switch-sku-list">
             {variantLoading ? <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div> : null}
             {variantError ? <div className="switch-state-message is-error">{variantError}</div> : null}
-            {!variantLoading && variants.length === 0 ? <div className="switch-state-message">현재 공개 데이터에서 선택 가능한 판매 규격을 확인하지 못했습니다.</div> : null}
+            {!variantLoading && variants.length === 0 ? <div className="switch-state-message">선택할 수 있는 판매 규격을 확인하지 못했습니다.</div> : null}
             {variants.map((variant) => (
               <button
                 className={currentVariantId === variant.variant_id ? 'switch-sku-option is-selected' : 'switch-sku-option'}
@@ -965,7 +965,7 @@ export default function SwitchFlow({
               >
                 <span>
                   <strong>{variantLabel(variant)}</strong>
-                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? '멀티팩 판매 규격' : '단일 판매 규격'}</small>
+                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? '묶음 판매' : '단일 판매'}</small>
                 </span>
                 <b>{currentVariantId === variant.variant_id ? '선택됨' : '선택'}</b>
               </button>
@@ -973,7 +973,7 @@ export default function SwitchFlow({
           </section>
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => { selectCurrentVariant(null); setStep('change') }}>사용 규격을 모르겠어요</button>
-            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => setStep('change')}>다음 · CHANGE →</button>
+            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => setStep('change')}>다음 →</button>
           </div>
         </main>
       </div>
@@ -987,7 +987,7 @@ export default function SwitchFlow({
       .sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
 
     return (
-      <CriterionSection title="피하고 싶은 원료" hint="현재 제품의 검토 근거 기준">
+      <CriterionSection title="피하고 싶은 원료" hint="현재 확인된 원재료 기준">
         {ingredientAvoidTerms.length > 0 ? (
           <div className="switch-ingredient-selected">
             {ingredientAvoidTerms.map((term) => <button key={term} type="button" onClick={() => removeIngredientAvoid(term)}>{ingredientLabel(term)} ×</button>)}
@@ -1007,7 +1007,7 @@ export default function SwitchFlow({
             </div>
           </div>
         ) : (
-          <p className="switch-option-empty">현재 제품에서 회피 후보로 바로 제시할 확인 원료가 없습니다. 원료를 직접 검색해 조건을 추가할 수 있습니다.</p>
+          <p className="switch-option-empty">현재 제품에서 바로 제안할 원료가 없습니다. 아래에서 직접 검색할 수 있습니다.</p>
         )}
 
         <input className="switch-ingredient-search" type="search" value={ingredientSearch} placeholder="원료 검색 · 예: 닭, 연어" onChange={(event) => setIngredientSearch(event.target.value)} />
@@ -1015,10 +1015,10 @@ export default function SwitchFlow({
           <div className="switch-ingredient-search-results">
             {ingredientSearchResults.length > 0 ? ingredientSearchResults.map((term) => (
               <button key={term} type="button" onClick={() => addIngredientAvoid(term)}><strong>{ingredientLabel(term)}</strong><small>{term}</small></button>
-            )) : <span>검토 대상 원료에서 찾지 못했습니다.</span>}
+            )) : <span>확인 대상 원료에서 찾지 못했습니다.</span>}
           </div>
         ) : null}
-        <p className="switch-ingredient-note">후보에서 해당 원료가 <strong>확인됨</strong>이면 제외합니다. “검토 근거에서 찾지 못함”은 원료 부재나 알레르기 안전을 뜻하지 않습니다.</p>
+        <p className="switch-ingredient-note">해당 원료가 <strong>확인된</strong> 제품은 후보에서 제외합니다. ‘찾지 못함’은 원료가 없다는 보장은 아닙니다.</p>
       </CriterionSection>
     )
   }
@@ -1033,8 +1033,8 @@ export default function SwitchFlow({
       ? RECIPE_FAMILIES.filter(([value]) => !currentRecipeFamilies.includes(value))
       : RECIPE_FAMILIES
     const recipeHint = currentRecipeFamilies.length > 0
-      ? `현재 제품 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
-      : '현재 제품 레시피 미확인 · 다음 제품에서 원하는 방향 선택'
+      ? `현재 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
+      : '현재 레시피 정보 없음 · 원하는 방향 선택'
 
     return (
       <div className="switch-step-layout">
@@ -1042,8 +1042,8 @@ export default function SwitchFlow({
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>CHANGE</span>
-            <h1>무엇이 달라졌으면 하나요?</h1>
-            <p>현재 사료에서 벗어나고 싶은 기준이나 새로 원하는 기준만 선택합니다. 레시피와 원재료는 현재 제품·배합 수준에서 확인된 근거만 사용합니다.</p>
+            <h1>무엇을 바꾸고 싶나요?</h1>
+            <p>지금 사료에서 바꾸고 싶은 점만 골라주세요. 확인되지 않은 정보는 임의로 추정하지 않습니다.</p>
           </div>
 
           <button
@@ -1057,8 +1057,8 @@ export default function SwitchFlow({
               setNoChangeIntent((value) => !value)
             }}
           >
-            <strong>특별히 바꿀 점 없음</strong>
-            <span>전체적으로 유사한 대안을 탐색하고 KEEP에서 유지할 기준만 정합니다.</span>
+            <strong>특별히 바꾸고 싶은 점 없음</strong>
+            <span>지금 사료와 비슷한 후보를 보고, 다음 단계에서 꼭 유지할 조건만 고릅니다.</span>
           </button>
 
           <div className="switch-criteria-columns">
@@ -1069,24 +1069,24 @@ export default function SwitchFlow({
               <CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}>
                 <ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} />
               </CriterionSection>
-              <CriterionSection title="표기 생애주기" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
+              <CriterionSection title="생애주기" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
                 <ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
               </CriterionSection>
               {renderIngredientAvoidance()}
             </div>
             <div>
-              <CriterionSection title="공식 대상" hint="현재 제품에 없는 방향">
-                <ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 선택할 공식 대상이 없습니다." />
+              <CriterionSection title="공식 대상" hint="현재 제품에 없는 조건">
+                <ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 고를 공식 대상이 없습니다." />
               </CriterionSection>
-              <CriterionSection title="부가 기능" hint="확인된 공식 표방 기준">
+              <CriterionSection title="기능" hint="제품의 공식 표기 기준">
                 <ChoiceButtons options={featureOptions} selected={change.features} onToggle={(value) => toggleChangeArray('features', value)} />
               </CriterionSection>
               <CriterionSection title="레시피 계열" hint={recipeHint}>
                 <ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} />
               </CriterionSection>
               {!currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length > 0 ? '현재 제품의 공식 표방 기준' : '현재 제품의 공식 표방 미확인'}>
-                  <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 공식 표방</button>
+                <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length > 0 ? '현재 제품의 공식 표기 기준' : '현재 제품 표기 미확인'}>
+                  <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 표기</button>
                 </CriterionSection>
               ) : null}
             </div>
@@ -1094,7 +1094,7 @@ export default function SwitchFlow({
 
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => setStep('sku')}>← 사용 규격</button>
-            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => setStep('keep')}>다음 · KEEP →</button>
+            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => setStep('keep')}>다음 →</button>
           </div>
         </main>
       </div>
@@ -1110,14 +1110,14 @@ export default function SwitchFlow({
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>KEEP</span>
-            <h1>무엇은 그대로 유지할까요?</h1>
-            <p>현재 제품에서 확인된 속성 중 다음 제품에서도 꼭 유지하고 싶은 것만 선택합니다. 용량 규격과 배합 정보를 같은 의미로 취급하지 않습니다.</p>
+            <h1>무엇을 그대로 유지할까요?</h1>
+            <p>지금 사료에서 다음 사료에도 꼭 남기고 싶은 조건만 골라주세요.</p>
           </div>
 
           <section className="switch-current-facts-strip">
-            <div><span>공식 대상 · 제품 기준</span><strong>{compactList(currentProduct.official_targets, TARGET_LABELS)}</strong></div>
-            <div><span>기능 · 제품 기준</span><strong>{compactList(currentProduct.features, FEATURE_LABELS)}</strong></div>
-            <div><span>레시피 · 제품/배합 기준</span><strong>{currentRecipeFamilies.length > 0 ? compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS) : '확인된 레시피 정보 없음'}</strong></div>
+            <div><span>공식 대상</span><strong>{compactList(currentProduct.official_targets, TARGET_LABELS)}</strong></div>
+            <div><span>기능</span><strong>{compactList(currentProduct.features, FEATURE_LABELS)}</strong></div>
+            <div><span>레시피</span><strong>{currentRecipeFamilies.length > 0 ? compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS) : '확인된 레시피 정보 없음'}</strong></div>
           </section>
 
           <div className="switch-criteria-columns">
@@ -1129,7 +1129,7 @@ export default function SwitchFlow({
                 <CriterionSection title="사료 형태" hint="현재 제품"><button className={keep.feedType ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.feedType)} onClick={() => setKeepSingle('feedType', currentProduct.feed_type!)}>{currentProduct.feed_type} 유지</button></CriterionSection>
               ) : null}
               {!change.lifeStage && currentProduct.life_stage ? (
-                <CriterionSection title="표기 생애주기" hint="현재 제품"><button className={keep.lifeStage ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.lifeStage)} onClick={() => setKeepSingle('lifeStage', currentProduct.life_stage!)}>{optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)} 유지</button></CriterionSection>
+                <CriterionSection title="생애주기" hint="현재 제품"><button className={keep.lifeStage ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.lifeStage)} onClick={() => setKeepSingle('lifeStage', currentProduct.life_stage!)}>{optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)} 유지</button></CriterionSection>
               ) : null}
               {currentProduct.official_targets.length > 0 ? (
                 <CriterionSection title="공식 대상" hint="현재 제품에서 확인됨">
@@ -1139,26 +1139,26 @@ export default function SwitchFlow({
             </div>
             <div>
               {currentProduct.features.length > 0 ? (
-                <CriterionSection title="부가 기능" hint="현재 제품에서 확인됨">
+                <CriterionSection title="기능" hint="현재 제품에서 확인됨">
                   <ChoiceButtons options={currentProduct.features.map((value) => [value, optionLabel(value, FEATURE_LABELS)] as const)} selected={keep.features} onToggle={(value) => toggleKeepArray('features', value)} />
                 </CriterionSection>
               ) : null}
               {!change.recipeFamilies.length && currentRecipeFamilies.length > 0 ? (
-                <CriterionSection title="레시피 계열" hint="현재 제품의 확인된 배합 정보">
+                <CriterionSection title="레시피 계열" hint="현재 확인된 레시피 정보">
                   <ChoiceButtons options={currentRecipeFamilies.map((value) => [value, optionLabel(value, RECIPE_FAMILY_LABELS)] as const)} selected={keep.recipeFamilies} onToggle={(value) => toggleKeepArray('recipeFamilies', value)} />
                 </CriterionSection>
               ) : null}
               {!change.grainFree && currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint="현재 제품의 공식 표방">
-                  <button className={keep.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keep.grainFree} onClick={() => setKeep((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 공식 표방 유지</button>
+                <CriterionSection title="레시피 특성" hint="현재 제품의 공식 표기">
+                  <button className={keep.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keep.grainFree} onClick={() => setKeep((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기 유지</button>
                 </CriterionSection>
               ) : null}
-              {!currentRecipeKnown ? <p className="switch-option-empty">현재 제품에서 확인된 레시피·Grain-Free 정보가 없어 유지 조건으로 자동 제시하지 않습니다.</p> : null}
+              {!currentRecipeKnown ? <p className="switch-option-empty">현재 제품에서 확인된 레시피 정보가 없어 유지 조건으로 제안하지 않습니다.</p> : null}
             </div>
           </div>
 
           <div className="switch-step-actions">
-            <button className="switch-secondary-action" type="button" onClick={() => setStep('change')}>← CHANGE 수정</button>
+            <button className="switch-secondary-action" type="button" onClick={() => setStep('change')}>← 바꿀 것 수정</button>
             <button
               className="switch-primary-action"
               type="button"
@@ -1215,9 +1215,9 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 확인된 관계를 표시합니다.</span><p>후보의 레시피·Grain-Free·원료 관계는 현재 확인된 제품·배합 정보를 기준으로 표시합니다. 상세 근거는 제품 상세에서 확인하세요.</p></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 제품 정보를 비교합니다.</span><p>레시피·Grain-Free·원료는 현재 확인된 정보만 사용합니다. 자세한 근거는 상세 화면에서 확인할 수 있습니다.</p></div></div>
             <div className="switch-candidate-list">
-              {candidates.length === 0 ? <div className="switch-state-message">현재 조건에 맞는 후보가 없습니다. 조건을 자동으로 완화하지 않습니다.</div> : null}
+              {candidates.length === 0 ? <div className="switch-state-message">조건에 맞는 후보가 없습니다. 선택한 조건은 임의로 완화하지 않습니다.</div> : null}
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 return (
@@ -1242,14 +1242,14 @@ export default function SwitchFlow({
 
           {selectedCandidate ? (
             <aside className="switch-candidate-inspector">
-              <div className="switch-preview-topline"><span>후보 제품 확인</span><button type="button" onClick={() => setSelectedCandidateId(null)}>닫기 ×</button></div>
+              <div className="switch-preview-topline"><span>후보 제품</span><button type="button" onClick={() => setSelectedCandidateId(null)}>닫기 ×</button></div>
               <div className="switch-inspector-scroll">
                 <section className="switch-inspector-identity">
                   <ProductImage className="switch-inspector-image" product={selectedCandidate.product} />
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}</p></div>
                 </section>
 
-                <section className="switch-inspector-baseline"><span>기준 제품</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></section>
+                <section className="switch-inspector-baseline"><span>현재 사료</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></section>
 
                 <div className="quick-view-actions switch-inspector-actions">
                   <button
@@ -1272,15 +1272,15 @@ export default function SwitchFlow({
                       setDetailProductId(selectedCandidate.product.product_id)
                     }}
                   >
-                    제품 상세 보기 →
+                    상세 보기 →
                   </button>
                 </div>
 
                 <section className="switch-inspector-section">
-                  <h2>선택한 기준과의 관계</h2>
+                  <h2>선택한 조건과 비교</h2>
                   <dl>
-                    <div><dt>유지 확인</dt><dd>{selectedCandidate.keepMatches.join(' · ') || '확인된 유지 항목 없음'}</dd></div>
-                    <div><dt>변경 확인</dt><dd>{selectedCandidate.changeMatches.join(' · ') || '확인된 변경 항목 없음'}</dd></div>
+                    <div><dt>유지 조건</dt><dd>{selectedCandidate.keepMatches.join(' · ') || '확인된 항목 없음'}</dd></div>
+                    <div><dt>변경 조건</dt><dd>{selectedCandidate.changeMatches.join(' · ') || '확인된 항목 없음'}</dd></div>
                     <div><dt>미확인</dt><dd>{selectedCandidate.unknowns.join(' · ') || '—'}</dd></div>
                   </dl>
                 </section>
@@ -1289,7 +1289,7 @@ export default function SwitchFlow({
                   <section className="switch-inspector-section switch-ingredient-inspector">
                     <h2>피하고 싶은 원료</h2>
                     <dl>{ingredientAvoidTerms.map((term) => <div key={term}><dt>{ingredientLabel(term)}</dt><dd>{ingredientAvoidanceStatus(selectedCandidate.product, term)}</dd></div>)}</dl>
-                    <p>“검토 근거에서 찾지 못함”은 해당 원료의 절대적 부재나 알레르기 안전을 보장하지 않습니다.</p>
+                    <p>‘검토한 자료에서 찾지 못함’은 해당 원료가 없다는 보장이 아닙니다.</p>
                   </section>
                 ) : null}
 
@@ -1299,11 +1299,11 @@ export default function SwitchFlow({
                     <div><dt>판매 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div>
                     <div><dt>규격 수</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div>
                     <div><dt>공식 대상</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div>
-                    <div><dt>부가 기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
+                    <div><dt>기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>레시피 계열</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div>
                     <div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div>
                     <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}</dd></div>
-                    <div><dt>현재 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div>
+                    <div><dt>확인된 유통 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div>
                     <div><dt>동일 배합 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.formula_match_market_country_codes)}</dd></div>
                   </dl>
                 </section>

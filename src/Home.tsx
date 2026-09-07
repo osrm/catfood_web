@@ -181,16 +181,16 @@ export default function Home({
           </div>
         </section>
 
-        <section className="home-section home-safety" aria-labelledby="home-safety-title">
-          <div className="home-section-heading">
-            <div>
-              <span>SAFETY &amp; NOTICES</span>
-              <h2 id="home-safety-title">공식 리콜 및 생산분 안전 공지</h2>
+        {demo ? (
+          <section className="home-section home-safety" aria-labelledby="home-safety-title">
+            <div className="home-section-heading">
+              <div>
+                <span>SAFETY &amp; NOTICES</span>
+                <h2 id="home-safety-title">공식 리콜 및 생산분 안전 공지</h2>
+              </div>
+              <p>공식 기관·제조사 공지에서 제품명, 규격, lot, 유통 범위를 확인해 해당 여부를 구분하는 영역입니다.</p>
             </div>
-            <p>공식 기관·제조사 공지에서 제품명, 규격, lot, 유통 범위를 확인해 해당 여부를 구분하는 영역입니다.</p>
-          </div>
 
-          {demo ? (
             <div className="home-safety-list">
               {DEMO_RECALLS.map((notice) => (
                 <article className="home-safety-item" key={`${notice.date}-${notice.title}`}>
@@ -201,16 +201,8 @@ export default function Home({
                 </article>
               ))}
             </div>
-          ) : (
-            <div className="home-safety-empty">
-              <div>
-                <span>공식 리콜 데이터 연결 전</span>
-                <strong>현재는 공지 형식과 데이터 기준을 설계 중입니다.</strong>
-              </div>
-              <p>연결 후에는 특정 브랜드의 위험도를 판단하지 않고, 공식 공지 사실과 식별 정보를 그대로 구분해 제공합니다.</p>
-            </div>
-          )}
-        </section>
+          </section>
+        ) : null}
 
         <section className="home-section home-guides" aria-labelledby="home-guides-title">
           <div className="home-section-heading">

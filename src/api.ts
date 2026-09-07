@@ -10,7 +10,7 @@ export interface CatalogProduct {
   representative_package_weight_g: number | null
   representative_units_per_sale?: number | null
   representative_sale_total_weight_g?: number | null
-  available_package_labels: string[]
+  available_package_labels?: string[]
   variant_count: number
   has_variants: boolean
   ingredient_declaration_count: number
@@ -282,7 +282,7 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string')
 }
 
-function normalizeProduct(value: Omit<CatalogProduct, 'available_package_labels'> & { available_package_labels?: unknown }): CatalogProduct {
+function normalizeProduct(value: CatalogProduct): CatalogProduct {
   return {
     ...value,
     available_package_labels: asStringArray(value.available_package_labels),
@@ -411,7 +411,7 @@ function packageLabelsByProduct(rows: CatalogPackageOption[]): Map<string, strin
 }
 
 export function productPackageOptionsLabel(product: CatalogProduct): string {
-  return product.available_package_labels.length > 0
+  return product.available_package_labels?.length
     ? product.available_package_labels.join(' · ')
     : fallbackPackageLabel(product)
 }
@@ -453,7 +453,7 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
     throw new Error(`Catalog API ${response.status}: ${detail || response.statusText}`)
   }
 
-  const rawProducts = (await response.json()) as Array<Omit<CatalogProduct, 'available_package_labels'>>
+  const rawProducts = (await response.json()) as CatalogProduct[]
   let packageRows: CatalogPackageOption[] = []
   try {
     packageRows = await fetchCatalogPackageOptions(signal)

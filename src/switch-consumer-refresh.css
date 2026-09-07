@@ -201,7 +201,7 @@
 }
 
 .switch-workflow-shell .switch-reference-label::after {
-  content: "현재 기준";
+  content: "현재 사료";
   font-size: 10px;
   font-weight: 850;
   letter-spacing: 0.05em;

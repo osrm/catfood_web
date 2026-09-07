@@ -80,7 +80,7 @@ const RECIPE_DETAIL_LABELS: Record<string, string> = {
 }
 
 const RECIPE_TRAIT_LABELS: Record<string, string> = {
-  grain_free: 'Grain-Free 공식 표방',
+  grain_free: 'Grain-Free 표기',
 }
 
 const COUNTRY_LABELS: Record<string, string> = {
@@ -170,7 +170,7 @@ function relationLabel(value: string): string {
   if (group === '기능') return optionLabel(rawValue, FEATURE_LABELS)
   if (group === '계열') return optionLabel(rawValue, RECIPE_FAMILY_LABELS)
   if (group === '세부') return optionLabel(rawValue, RECIPE_DETAIL_LABELS)
-  if (group === '특성' && rawValue === 'grain_free') return 'Grain-Free 공식 표방'
+  if (group === '특성' && rawValue === 'grain_free') return 'Grain-Free 표기'
 
   return rawValue.replaceAll('_', ' ')
 }
@@ -305,7 +305,7 @@ function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
   const unknown = evaluation.unknowns.map(unknownLabel)
 
   if (confirmed.length === 0 && unknown.length === 0) {
-    return <p className="result-relation-empty">선택한 추가 조건 없음</p>
+    return <p className="result-relation-empty">추가 조건 없음</p>
   }
 
   return (
@@ -587,7 +587,7 @@ export default function App() {
     values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)))
     values.push(...search.features.map((value) => optionLabel(value, FEATURE_LABELS)))
     values.push(...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
-    if (search.grainFree) values.push('Grain-Free 공식 표방')
+    if (search.grainFree) values.push('Grain-Free 표기')
     values.push(...refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)))
     return values
   }
@@ -597,10 +597,10 @@ export default function App() {
       <>
         <div className="condition-group-title">
           <span>기본 조건</span>
-          <small>확인된 충돌은 제외</small>
+          <small>확인된 불일치만 제외</small>
         </div>
 
-        <FilterSection title="사료 형태" hint="선택하면 필수">
+        <FilterSection title="사료 형태" hint="선택 시 필수 조건">
           <FilterButtons
             options={FEED_TYPES}
             selected={draftSearch.feedType ? [draftSearch.feedType] : []}
@@ -608,21 +608,21 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="표기 생애주기" hint="제품 라벨 기준">
+        <FilterSection title="생애주기" hint="제품 라벨 표기 기준">
           <FilterButtons
             options={LIFE_STAGES}
             selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []}
             onToggle={(value) => setDraftSingle('lifeStage', value)}
           />
-          <p className="field-note">고양이 실제 나이를 이 값으로 자동 변환하지 않습니다.</p>
+          <p className="field-note">제품이 표기한 생애주기를 그대로 사용합니다.</p>
         </FilterSection>
 
         <div className="condition-group-title secondary-group">
-          <span>원하는 방향</span>
-          <small>미확인은 후보에 남김</small>
+          <span>추가 조건</span>
+          <small>미확인은 후보에 유지</small>
         </div>
 
-        <FilterSection title="공식 대상" hint="복수 선택 가능">
+        <FilterSection title="공식 대상" hint="여러 개 선택 가능">
           <FilterButtons
             options={TARGETS}
             selected={draftSearch.officialTargets}
@@ -630,7 +630,7 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="부가 기능" hint="확인된 표기와 비교">
+        <FilterSection title="기능" hint="제품의 공식 표기 기준">
           <FilterButtons
             options={FEATURES}
             selected={draftSearch.features}
@@ -638,7 +638,7 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="레시피 계열" hint="확인된 제품 우선">
+        <FilterSection title="레시피 계열" hint="확인된 정보 기준">
           <FilterButtons
             options={RECIPE_FAMILIES}
             selected={draftSearch.recipeFamilies}
@@ -646,20 +646,20 @@ export default function App() {
           />
         </FilterSection>
 
-        <FilterSection title="공식 레시피 특성" hint="표방 여부만 확인">
+        <FilterSection title="레시피 특성" hint="제품의 공식 표기만 확인">
           <button
             className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'}
             type="button"
             aria-pressed={draftSearch.grainFree}
             onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}
           >
-            Grain-Free 공식 표방
+            Grain-Free 표기
           </button>
-          <p className="field-note">표방이 없다는 이유로 곡물 포함으로 판정하지 않습니다.</p>
+          <p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p>
         </FilterSection>
 
         <div className="condition-actions">
-          <button className="primary-action" type="button" onClick={applyConditions}>조건 적용하기</button>
+          <button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button>
           <button className="secondary-action" type="button" onClick={resetDraft}>초기화</button>
         </div>
       </>
@@ -685,16 +685,16 @@ export default function App() {
           {search.recipeFamilies.length > 0 ? (
             <SummaryRow label="레시피" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS)} />
           ) : null}
-          {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 공식 표방" /> : null}
-          {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 catalog를 봅니다.</p> : null}
+          {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 표기" /> : null}
+          {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 제품을 봅니다.</p> : null}
         </div>
 
         <div className="summary-actions">
           <button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button>
         </div>
 
-        <div className="refine-title">관련 조건</div>
-        <FilterSection title="세부 레시피" hint="확인된 제품만 좁히기">
+        <div className="refine-title">더 좁혀보기</div>
+        <FilterSection title="세부 레시피" hint="확인된 정보로 더 좁히기">
           {refine.recipeDetails.length > 0 ? (
             <div className="selected-refinements">
               {refine.recipeDetails.map((value) => (
@@ -740,7 +740,7 @@ export default function App() {
         <>
           <div className="mode-intro">
             <strong>제품 찾기</strong>
-            <span>이미 알고 있는 브랜드 또는 제품명을 검색합니다.</span>
+            <span>브랜드나 제품명을 검색합니다.</span>
           </div>
           <FilterSection title="브랜드 / 제품명">
             <input
@@ -790,8 +790,8 @@ export default function App() {
     if (mode === 'explore' && editingConditions) {
       return (
         <div className="state-message">
-          <strong>검색 조건을 설정해 주세요.</strong>
-          <span>필수 조건과 원하는 방향을 구분해 설정합니다. 미확인 정보는 자동으로 제외하지 않습니다.</span>
+          <strong>조건을 골라 주세요.</strong>
+          <span>기본 조건은 필수로 적용합니다. 확인되지 않은 정보는 자동으로 제외하지 않습니다.</span>
         </div>
       )
     }
@@ -799,8 +799,8 @@ export default function App() {
     if (mode === 'lookup' && resultProducts.length === 0) {
       return (
         <div className="state-message">
-          <strong>제품명을 검색해 주세요.</strong>
-          <span>브랜드 또는 제품명의 일부를 입력할 수 있습니다.</span>
+          <strong>브랜드 또는 제품명을 입력해 주세요.</strong>
+          <span>일부만 입력해도 검색할 수 있습니다.</span>
         </div>
       )
     }
@@ -808,8 +808,8 @@ export default function App() {
     if (mode === 'explore' && resultProducts.length === 0) {
       return (
         <div className="state-message">
-          <strong>검색 결과가 없습니다.</strong>
-          <span>조건을 자동으로 완화하지 않습니다. 조건을 수정해 다시 확인해 주세요.</span>
+          <strong>조건에 맞는 제품이 없습니다.</strong>
+          <span>선택한 조건은 임의로 완화하지 않습니다.</span>
         </div>
       )
     }
@@ -912,17 +912,17 @@ export default function App() {
                 }
                 setDetailProductId(selectedProduct.product_id)
               }}
-            >제품 상세 보기 →</button>
+            >상세 보기 →</button>
           </div>
 
           {selectedEvaluation ? (
             <section className="quick-view-section">
-              <h2>현재 조건과의 관계</h2>
+              <h2>선택한 조건과 비교</h2>
               <dl className="definition-list">
                 <Definition label="확인됨">
                   {selectedEvaluation.confirmedMatches.length > 0
                     ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ')
-                    : <span className="unknown-value">확인된 겹침 없음</span>}
+                    : <span className="unknown-value">확인된 항목 없음</span>}
                 </Definition>
                 <Definition label="미확인">
                   {selectedEvaluation.unknowns.length > 0
@@ -935,13 +935,13 @@ export default function App() {
 
           <section className="quick-view-section">
             <h2>제품 정보 요약</h2>
-            <p className="quick-view-scope-note">레시피 계열·세부 레시피·특성은 현재 확인된 판매 규격의 배합 정보를 제품 단위로 집계한 값입니다.</p>
+            <p className="quick-view-scope-note">레시피 정보는 현재 확인된 판매 규격의 배합 정보를 모아 보여줍니다.</p>
             <dl className="definition-list">
               <Definition label="판매 규격">
                 {packageOptionsLabel(selectedProduct)}
               </Definition>
               <Definition label="공식 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition>
-              <Definition label="부가 기능"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition>
+              <Definition label="기능"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition>
               <Definition label="레시피 계열"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition>
               <Definition label="세부 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition>
               <Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition>
@@ -949,11 +949,11 @@ export default function App() {
           </section>
 
           <section className="quick-view-section">
-            <h2>제조 / 시장</h2>
+            <h2>제조 · 유통</h2>
             <dl className="definition-list">
               <Definition label="제조국"><ValueList values={selectedProduct.manufacturing_country_codes} labels={COUNTRY_LABELS} /></Definition>
-              <Definition label="현재 확인 시장"><ValueList values={selectedProduct.current_market_country_codes} labels={COUNTRY_LABELS} /></Definition>
-              <Definition label="동일 배합 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} labels={COUNTRY_LABELS} /></Definition>
+              <Definition label="확인된 유통 시장"><ValueList values={selectedProduct.current_market_country_codes} labels={COUNTRY_LABELS} /></Definition>
+              <Definition label="동일 배합 확인 시장"><ValueList values={selectedProduct.formula_match_market_country_codes} labels={COUNTRY_LABELS} /></Definition>
             </dl>
           </section>
         </div>
@@ -988,10 +988,10 @@ export default function App() {
     )
   }
 
-  const paneTitle = mode === 'explore' ? '검색 조건' : '제품 찾기'
+  const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'
   const paneDescription = mode === 'explore'
-    ? '원하는 제품의 기준을 설정합니다.'
-    : '제품명을 기준으로 찾습니다.'
+    ? '원하는 조건을 골라 제품을 좁혀보세요.'
+    : '브랜드나 제품명으로 찾습니다.'
   const waitingForConditions = mode === 'explore' && editingConditions
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
@@ -1038,13 +1038,13 @@ export default function App() {
                 <div>
                   <strong>제품 목록</strong>
                   <span>{loading || waitingForConditions
-                    ? '조건을 설정하면 결과가 표시됩니다.'
+                    ? '조건을 고르면 결과가 표시됩니다.'
                     : visibleProducts.length < resultProducts.length
                       ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시`
                       : `${resultProducts.length}개의 제품`}</span>
                 </div>
                 {mode === 'explore' && !editingConditions && activeConditions > 0 ? (
-                  <span className="research-results-context">선택한 조건과 확인된 정보의 관계를 표시합니다.</span>
+                  <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span>
                 ) : null}
               </div>
               <div className="research-results-scroll">{renderResultList()}</div>

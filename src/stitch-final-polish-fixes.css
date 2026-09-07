@@ -389,3 +389,354 @@
     opacity: 0.78;
   }
 }
+
+/* Results / Inspector consumer pass — keep search semantics intact while reducing scan distance. */
+.research-filters,
+.research-results,
+.research-quick-view {
+  border-color: rgba(16, 45, 39, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(20, 47, 40, 0.04);
+}
+
+.research-pane-heading,
+.research-results-heading,
+.quick-view-topline {
+  background: #ffffff;
+}
+
+.research-pane-heading strong,
+.research-results-heading strong {
+  font-size: 14px;
+}
+
+.research-pane-heading span,
+.research-results-heading span,
+.research-results-context {
+  font-size: 11.5px;
+}
+
+/* LOOKUP uses a search bar above the list instead of spending a whole column on one input. */
+.research-workspace:has(.lookup-input) {
+  width: min(1200px, calc(100% - 64px));
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.research-workspace:has(.lookup-input) .research-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.45fr) minmax(0, 1.55fr);
+  align-items: center;
+  gap: 28px;
+  overflow: visible;
+  padding: 20px 24px;
+}
+
+.research-workspace:has(.lookup-input) .research-pane-heading {
+  min-height: 0;
+  border: 0;
+  padding: 0;
+}
+
+.research-workspace:has(.lookup-input) .research-pane-heading > div {
+  gap: 4px;
+}
+
+.research-workspace:has(.lookup-input) .research-filter-scroll {
+  overflow: visible;
+  padding: 0;
+}
+
+.research-workspace:has(.lookup-input) .mode-intro,
+.research-workspace:has(.lookup-input) .filter-heading {
+  display: none;
+}
+
+.research-workspace:has(.lookup-input) .filter-section {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.research-workspace:has(.lookup-input) .lookup-input {
+  width: 100%;
+  height: 52px;
+  border: 1px solid #c4cfca;
+  border-radius: 10px;
+  padding: 0 16px;
+  background: #ffffff;
+  color: #18352f;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.research-workspace:has(.lookup-input) .lookup-input:focus {
+  border-color: #315f54;
+  outline: 3px solid rgba(49, 95, 84, 0.08);
+}
+
+/* LOOKUP rows: identity first, no repeated empty evidence columns, clear but secondary open affordance. */
+.research-result-card:has(.research-result-facts) {
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 18px;
+  min-height: 112px;
+  padding: 12px 20px;
+}
+
+.research-result-card:has(.research-result-facts) .research-result-facts {
+  display: none;
+}
+
+.research-result-card:has(.research-result-facts) .research-result-image,
+.research-result-card:has(.research-result-facts) .image-placeholder {
+  width: 72px;
+  height: 90px;
+}
+
+.research-result-card:has(.research-result-facts) .research-result-open {
+  align-self: center;
+  min-width: 72px;
+  padding-left: 10px;
+  color: #315f54;
+  font-size: 12px;
+  font-weight: 740;
+  white-space: nowrap;
+}
+
+.research-result-brand {
+  font-size: 11.5px;
+}
+
+.research-result-meta {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.relation-line {
+  font-size: 11.5px;
+}
+
+.relation-line > strong {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* Inspector layout follows SWITCH/Detail: two calm surfaces with a denser candidate list. */
+.research-shell.is-inspecting .research-workspace {
+  width: min(1240px, calc(100% - 64px));
+  grid-template-columns: minmax(380px, 0.86fr) minmax(0, 1.14fr);
+  gap: 14px;
+}
+
+.research-results + .research-quick-view {
+  border-left: 1px solid rgba(16, 45, 39, 0.1);
+}
+
+.research-shell.is-inspecting .research-result-card {
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 98px;
+  padding: 11px 14px;
+}
+
+.research-shell.is-inspecting .research-result-image,
+.research-shell.is-inspecting .research-result-card .image-placeholder {
+  width: 58px;
+  height: 74px;
+}
+
+.research-shell.is-inspecting .research-result-identity strong {
+  font-size: 14.5px;
+  line-height: 1.35;
+}
+
+.research-shell.is-inspecting .research-result-meta {
+  font-size: 11.5px;
+}
+
+.research-shell.is-inspecting .result-relations {
+  grid-column: 2;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.research-shell.is-inspecting .relation-line {
+  grid-template-columns: 46px minmax(0, 1fr);
+  font-size: 11px;
+}
+
+.research-shell.is-inspecting .relation-line > strong {
+  font-size: 11.5px;
+}
+
+.research-shell.is-inspecting .research-result-open {
+  display: none;
+}
+
+.quick-view-topline {
+  min-height: 50px;
+  padding: 0 20px;
+}
+
+.quick-view-topline > span {
+  font-size: 12.5px;
+}
+
+.quick-view-topline button {
+  font-size: 11.5px;
+}
+
+.quick-view-identity {
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 24px;
+  padding: 24px;
+  background: #fbfcfb;
+}
+
+.quick-view-image,
+.quick-view-identity .image-placeholder {
+  width: 124px;
+  height: 150px;
+  border: 0;
+  border-radius: 10px;
+  background: #f4f6f5;
+}
+
+.quick-view-identity > div > span {
+  font-size: 11px;
+}
+
+.quick-view-identity h1 {
+  font-size: clamp(24px, 2vw, 29px);
+}
+
+.quick-view-identity p {
+  font-size: 12.5px;
+}
+
+.quick-view-actions {
+  gap: 10px;
+  margin: 0 24px;
+  padding-top: 18px;
+}
+
+.quick-view-actions .switch-compare-action {
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.quick-view-section,
+.quick-view-section:first-of-type {
+  margin: 0 24px;
+  padding-top: 22px;
+}
+
+.quick-view-section h2,
+.quick-view-section:first-of-type h2 {
+  font-size: 13.5px;
+}
+
+.quick-view-scope-note {
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.research-shell .definition {
+  grid-template-columns: 132px minmax(0, 1fr);
+  padding: 11px 0;
+  font-size: 12.5px;
+}
+
+.research-shell .definition dt {
+  font-weight: 650;
+}
+
+.research-shell .definition dd {
+  line-height: 1.5;
+}
+
+/* Quick view is a decision aid: omit rows whose value is still unconfirmed, while Detail preserves the full status view. */
+.quick-view-scroll > .quick-view-section:nth-last-of-type(2) .definition:has(.unknown-value),
+.quick-view-scroll > .quick-view-section:last-of-type .definition:has(.unknown-value) {
+  display: none;
+}
+
+.quick-view-scroll > .quick-view-section:last-of-type:not(:has(.definition:not(:has(.unknown-value)))) {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .research-shell.is-inspecting .research-results {
+    display: none;
+  }
+
+  .research-shell.is-inspecting .research-workspace {
+    width: calc(100% - 28px);
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .research-workspace:has(.lookup-input) {
+    width: calc(100% - 28px);
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .research-workspace:has(.lookup-input) .research-filters {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .research-result-card:has(.research-result-facts) {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 12px;
+    min-height: 100px;
+    padding: 12px 14px;
+  }
+
+  .research-result-card:has(.research-result-facts) .research-result-image,
+  .research-result-card:has(.research-result-facts) .image-placeholder {
+    width: 62px;
+    height: 78px;
+  }
+
+  .research-result-card:has(.research-result-facts) .research-result-open {
+    display: none;
+  }
+
+  .research-shell.is-inspecting .research-workspace {
+    width: 100%;
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+
+  .quick-view-identity {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 18px 18px;
+  }
+
+  .quick-view-image,
+  .quick-view-identity .image-placeholder {
+    width: 92px;
+    height: 112px;
+  }
+
+  .quick-view-actions,
+  .quick-view-section,
+  .quick-view-section:first-of-type {
+    margin-right: 18px;
+    margin-left: 18px;
+  }
+
+  .research-shell .definition {
+    grid-template-columns: 112px minmax(0, 1fr);
+    font-size: 12px;
+  }
+}

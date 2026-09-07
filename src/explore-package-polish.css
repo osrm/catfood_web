@@ -201,13 +201,51 @@
 }
 
 @media (max-width: 980px) {
+  /* Editing conditions should use the document scroll on narrow screens, not a nested scroll box. */
+  .research-shell.is-browsing:has(.condition-actions) {
+    height: auto;
+    min-height: 100vh;
+  }
+
   .research-shell.is-browsing .research-workspace:has(.condition-actions) {
     width: calc(100% - 36px);
     grid-template-columns: 1fr;
   }
 
+  .research-workspace:has(.condition-actions) .research-filters,
+  .research-workspace:has(.condition-actions) .research-filter-scroll {
+    height: auto;
+    overflow: visible;
+  }
+
   .research-workspace:has(.condition-actions) .research-results {
     display: none;
+  }
+
+  /* After applying conditions, show results immediately. The criteria bar is the compact edit affordance. */
+  .research-shell.is-browsing:has(.criteria-bar) {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .research-workspace {
+    width: calc(100% - 36px);
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin: 14px auto 28px;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .research-filters {
+    display: none;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .research-results {
+    border-right: 0;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .research-results-scroll {
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -230,6 +268,10 @@
 
   .research-workspace:has(.condition-actions) .condition-actions {
     grid-template-columns: 1fr;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .research-workspace {
+    width: calc(100% - 28px);
   }
 
   .research-result-packages {

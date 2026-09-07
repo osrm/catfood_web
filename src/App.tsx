@@ -149,18 +149,11 @@ function compactList(values: string[], labels: Record<string, string>, max = 3):
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
 }
 
-function formatWeight(value: number | null | undefined): string | null {
-  if (value == null) return null
-  if (value >= 1000) return `${Number((value / 1000).toFixed(3)).toLocaleString('ko-KR')} kg`
-  return `${Number(value).toLocaleString('ko-KR')} g`
-}
-
-function representativePackageLabel(product: CatalogProduct): string {
-  const size = product.representative_package_size_text ?? '대표 규격 미확인'
+function packageOptionsLabel(product: CatalogProduct): string {
+  if (product.available_package_labels.length > 0) return product.available_package_labels.join(' · ')
+  const size = product.representative_package_size_text ?? '판매 규격 미확인'
   const units = product.representative_units_per_sale ?? null
-  if (!units || units <= 1) return size
-  const total = formatWeight(product.representative_sale_total_weight_g)
-  return `${size} × ${units}${total ? ` · 총 ${total}` : ''}`
+  return units && units > 1 ? `${size} × ${units}` : size
 }
 
 function relationLabel(value: string): string {
@@ -843,9 +836,9 @@ export default function App() {
                 <strong>{product.canonical_name}</strong>
                 <span className="research-result-meta">
                   {product.feed_type ?? '형태 미확인'} ·{' '}
-                  {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
-                  {representativePackageLabel(product)}
+                  {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}
                 </span>
+                <span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span>
               </span>
               {evaluation ? <RelationSummary evaluation={evaluation} /> : (
                 <span className="research-result-facts">
@@ -943,13 +936,8 @@ export default function App() {
             <h2>제품 정보 요약</h2>
             <p className="quick-view-scope-note">레시피 계열·세부 레시피·특성은 현재 확인된 판매 규격의 배합 정보를 제품 단위로 집계한 값입니다.</p>
             <dl className="definition-list">
-              <Definition label="대표 규격">
-                {representativePackageLabel(selectedProduct)}
-              </Definition>
-              <Definition label="확인된 규격">
-                {selectedProduct.has_variants
-                  ? `${selectedProduct.variant_count}개`
-                  : <span className="unknown-value">확인된 규격 없음</span>}
+              <Definition label="판매 규격">
+                {packageOptionsLabel(selectedProduct)}
               </Definition>
               <Definition label="공식 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition>
               <Definition label="부가 기능"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition>

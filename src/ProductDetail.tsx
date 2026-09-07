@@ -131,7 +131,7 @@ function completenessLabel(status: string | null): string {
 function distributionLabel(status: string): string {
   if (status === 'current_product_confirmed') return '현재 제품 유통 확인'
   if (status === 'gate_confirmed_product_not_found') return '공식 유통 경로 확인 · 해당 제품 미확인'
-  if (status === 'distribution_not_confirmed') return '공식 유통 확인 못함'
+  if (status === 'distribution_not_confirmed') return '공식 유통 미확인'
   return status.replaceAll('_', ' ')
 }
 
@@ -192,7 +192,7 @@ function evidenceContext(
   variantLookupFailed = false,
   variantLookupLoading = false,
 ): string {
-  if (!detail) return '대표 확인 근거 없음'
+  if (!detail) return '확인 근거 없음'
   const market = detail.market_code === 'KR'
     ? '한국 확인'
     : detail.market_code
@@ -207,14 +207,14 @@ function evidenceContext(
     scope = size
       ? `${size} 규격 기준`
       : variantLookupLoading
-        ? '규격 기준 · 실제 규격 확인 중'
+        ? '규격 기준 · 규격 확인 중'
         : variantLookupFailed
-          ? '규격 기준 · 실제 규격 조회 실패'
-          : '규격 기준 · 실제 규격 표기 미확인'
+          ? '규격 기준 · 규격 조회 실패'
+          : '규격 기준 · 규격 표기 미확인'
   } else if (detail.observation_scope === 'formula') {
     scope = detail.is_current_resolved_formula
       ? '현재 확인 배합 기준'
-      : '배합 기준 · 현재 한국 배합 대응 미확정'
+      : '배합 기준 · 한국 배합 대응 미확정'
   }
   return `${market} · ${scope}`
 }
@@ -287,7 +287,7 @@ export default function ProductDetail({
     load('nutrition', fetchCompareNutrition([product.product_id], controller.signal), (rows) => setNutrition(rows[0] ?? null), '영양 정보를 불러오지 못했습니다.')
     load('ingredients', fetchCompareIngredients([product.product_id], controller.signal), (rows) => setIngredients(rows[0] ?? null), '원재료 정보를 불러오지 못했습니다.')
     load('manufacturing', fetchProductManufacturing(product.product_id, controller.signal), setManufacturing, '제조 정보를 불러오지 못했습니다.')
-    load('markets', fetchProductMarkets(product.product_id, controller.signal), setMarkets, '시장 정보를 불러오지 못했습니다.')
+    load('markets', fetchProductMarkets(product.product_id, controller.signal), setMarkets, '유통 정보를 불러오지 못했습니다.')
 
     return () => {
       active = false
@@ -328,9 +328,9 @@ export default function ProductDetail({
         </div>
         <div className="detail-status-grid">
           <Fact label="판매 규격" value={loading.variants ? '불러오는 중' : errors.variants ? '조회 실패' : variants.length ? `${variants.length}개 확인` : '미확인'} />
-          <Fact label="영양" value={loading.nutrition ? '불러오는 중' : errors.nutrition ? '조회 실패' : nutrition ? '대표 확인값 있음' : '확인값 없음'} />
+          <Fact label="영양" value={loading.nutrition ? '불러오는 중' : errors.nutrition ? '조회 실패' : nutrition ? '확인값 있음' : '확인값 없음'} />
           <Fact label="원재료" value={loading.ingredients ? '불러오는 중' : errors.ingredients ? '조회 실패' : ingredients ? completenessLabel(ingredients.completeness_status) : '확인값 없음'} />
-          <Fact label="제조 · 시장" value={contextStatus} />
+          <Fact label="제조 · 유통" value={contextStatus} />
         </div>
       </section>
 
@@ -338,7 +338,7 @@ export default function ProductDetail({
         <button className={tab === 'overview' ? 'is-active' : ''} type="button" onClick={() => setTab('overview')}>개요</button>
         <button className={tab === 'nutrition' ? 'is-active' : ''} type="button" onClick={() => setTab('nutrition')}>영양</button>
         <button className={tab === 'ingredients' ? 'is-active' : ''} type="button" onClick={() => setTab('ingredients')}>원재료</button>
-        <button className={tab === 'context' ? 'is-active' : ''} type="button" onClick={() => setTab('context')}>제조 · 시장</button>
+        <button className={tab === 'context' ? 'is-active' : ''} type="button" onClick={() => setTab('context')}>제조 · 유통</button>
       </nav>
 
       <div className="detail-body">
@@ -347,32 +347,32 @@ export default function ProductDetail({
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>01</span>
-                <div><h2>제품 수준 정보</h2><p>제품 전체에 적용되는 공식 표기와 탐색용 정규화 정보입니다.</p></div>
+                <div><h2>제품 기본 정보</h2><p>제품에 표시된 기본 정보와 탐색에 사용하는 분류입니다.</p></div>
               </div>
               <div className="detail-fact-table">
                 <Fact label="사료 형태" value={product.feed_type ?? '미확인'} />
-                <Fact label="표기 생애주기" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />
+                <Fact label="생애주기" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />
                 <Fact label="공식 대상" value={listLabel(product.official_targets, TARGET_LABELS)} />
-                <Fact label="부가 기능" value={listLabel(product.features, FEATURE_LABELS)} />
+                <Fact label="기능" value={listLabel(product.features, FEATURE_LABELS)} />
               </div>
             </section>
 
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>02</span>
-                <div><h2>현재 확인 배합 요약</h2><p>현재 공개 데이터에서 제품·배합 수준으로 확인된 레시피 정보입니다. 용량 차이만으로 다른 배합으로 해석하지 않습니다.</p></div>
+                <div><h2>레시피 정보</h2><p>현재 확인된 배합과 레시피 정보입니다. 용량이 다르다는 이유만으로 다른 배합으로 보지 않습니다.</p></div>
               </div>
               <div className="detail-fact-table">
                 <Fact label="레시피 계열" value={listLabel(currentFormulaSummary.recipeFamilies, RECIPE_LABELS)} />
                 <Fact label="세부 레시피" value={listLabel(currentFormulaSummary.recipeDetails, RECIPE_LABELS)} />
-                <Fact label="Grain-Free 공식 표방" value={currentFormulaSummary.recipeTraits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
+                <Fact label="Grain-Free 표기" value={currentFormulaSummary.recipeTraits.includes('grain_free') ? '확인됨' : '공식 표기 미확인'} />
               </div>
             </section>
 
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>03</span>
-                <div><h2>현재 한국 판매 규격</h2><p>판매 규격은 용량·포장 단위를 구분합니다. 실제 배합 차이가 확인된 경우가 아니면 규격마다 별도 배합 상태를 붙이지 않습니다.</p></div>
+                <div><h2>한국 판매 규격</h2><p>현재 확인된 용량과 포장 단위입니다. 규격이 다르다고 다른 레시피로 보지는 않습니다.</p></div>
               </div>
               {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
               {errors.variants ? <div className="detail-state is-error">판매 규격을 불러오지 못했습니다. {errors.variants}</div> : null}
@@ -396,7 +396,7 @@ export default function ProductDetail({
                   ))}
                 </div>
               ) : null}
-              {!loading.variants && !errors.variants && variants.length === 0 ? <div className="detail-empty">현재 공개 데이터에서 판매 규격을 확인하지 못했습니다.</div> : null}
+              {!loading.variants && !errors.variants && variants.length === 0 ? <div className="detail-empty">현재 확인된 판매 규격이 없습니다.</div> : null}
             </section>
           </>
         ) : null}
@@ -405,7 +405,7 @@ export default function ProductDetail({
           <section className="detail-section">
             <div className="detail-section-heading">
               <span>N</span>
-              <div><h2>영양 / 열량</h2><p>대표 확인 패널의 공식 표시값입니다. 다른 규격이나 배합에 자동 투영하지 않습니다.</p></div>
+              <div><h2>영양 · 열량</h2><p>현재 확인된 공식 표시값입니다. 다른 규격이나 배합에 그대로 적용하지 않습니다.</p></div>
             </div>
             {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : null}
             {errors.nutrition ? <div className="detail-state is-error">영양 정보를 불러오지 못했습니다. {errors.nutrition}</div> : null}
@@ -427,10 +427,10 @@ export default function ProductDetail({
                     />
                   ))}
                 </div>
-                <p className="detail-note">추가 영양성분도 같은 대표 패널에서 구조화된 값만 함께 표시합니다. 표시값이 없으면 다른 자료에서 추정해 채우지 않고, 사료 형태가 다른 제품과 열량을 자동으로 좋음/나쁨으로 판정하지 않습니다.</p>
+                <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
               </>
             ) : null}
-            {!loading.nutrition && !errors.nutrition && !nutrition ? <div className="detail-empty">현재 공개 가능한 대표 영양 패널을 확인하지 못했습니다.</div> : null}
+            {!loading.nutrition && !errors.nutrition && !nutrition ? <div className="detail-empty">현재 확인된 영양 정보가 없습니다.</div> : null}
           </section>
         ) : null}
 
@@ -438,7 +438,7 @@ export default function ProductDetail({
           <section className="detail-section">
             <div className="detail-section-heading">
               <span>I</span>
-              <div><h2>원재료</h2><p>확인된 원문과 목록 완성도를 함께 표시합니다.</p></div>
+              <div><h2>원재료</h2><p>확인된 원문과 목록이 얼마나 완전한지 함께 보여줍니다.</p></div>
             </div>
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
@@ -453,10 +453,10 @@ export default function ProductDetail({
                     {ingredients.ingredient_names.map((ingredient, index) => <span key={`${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}
                   </div>
                 ) : null}
-                <p className="detail-note">목록이 일부 또는 요약 상태라면 보이지 않는 원료를 부재로 해석하지 않습니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
+                <p className="detail-note">목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
               </>
             ) : null}
-            {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 공개 가능한 대표 원재료 목록을 확인하지 못했습니다.</div> : null}
+            {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 확인된 원재료 목록이 없습니다.</div> : null}
           </section>
         ) : null}
 
@@ -465,7 +465,7 @@ export default function ProductDetail({
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>M</span>
-                <div><h2>제조 정보</h2><p>브랜드 본사와 실제 제조사를 동일하게 취급하지 않습니다.</p></div>
+                <div><h2>제조 정보</h2><p>브랜드 본사와 실제 제조사는 따로 구분합니다.</p></div>
               </div>
               {loading.manufacturing ? <div className="detail-state">제조 정보를 불러오는 중입니다.</div> : null}
               {errors.manufacturing ? <div className="detail-state is-error">제조 정보를 불러오지 못했습니다. {errors.manufacturing}</div> : null}
@@ -473,20 +473,20 @@ export default function ProductDetail({
                 <div className="detail-fact-table">
                   <Fact label="제조국" value={countryLabel(manufacturing.country_code)} />
                   <Fact label="실제 제조사" value={manufacturing.manufacturer ?? '미확인'} />
-                  <Fact label="제조 공장" value={manufacturing.plant ?? 'exact 공장 미확인'} />
-                  <Fact label="근거 범위" value={`${scopeLabel(manufacturing.observation_scope)}${manufacturing.is_current_resolved_formula ? ' · 현재 배합 대응' : ''}`} />
+                  <Fact label="제조 공장" value={manufacturing.plant ?? '공장 미확인'} />
+                  <Fact label="확인 범위" value={`${scopeLabel(manufacturing.observation_scope)}${manufacturing.is_current_resolved_formula ? ' · 현재 배합 대응' : ''}`} />
                 </div>
               ) : null}
-              {!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">현재 공개 가능한 확인 제조 정보가 없습니다.</div> : null}
+              {!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">현재 확인된 제조 정보가 없습니다.</div> : null}
             </section>
 
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>G</span>
-                <div><h2>해외 유통 / 동일 배합 확인</h2><p>국가별 현재 제품 유통과 한국 제품의 배합 대응을 별개 상태로 표시합니다.</p></div>
+                <div><h2>해외 판매 · 배합 확인</h2><p>해외에서 판매되는지와 한국 제품과 같은 배합인지를 따로 확인합니다.</p></div>
               </div>
-              {loading.markets ? <div className="detail-state">시장 정보를 불러오는 중입니다.</div> : null}
-              {errors.markets ? <div className="detail-state is-error">시장 정보를 불러오지 못했습니다. {errors.markets}</div> : null}
+              {loading.markets ? <div className="detail-state">유통 정보를 불러오는 중입니다.</div> : null}
+              {errors.markets ? <div className="detail-state is-error">유통 정보를 불러오지 못했습니다. {errors.markets}</div> : null}
               {!loading.markets && !errors.markets && markets.length ? (
                 <div className="detail-market-list">
                   {markets.map((market) => (
@@ -499,7 +499,7 @@ export default function ProductDetail({
                   ))}
                 </div>
               ) : null}
-              {!loading.markets && !errors.markets && markets.length === 0 ? <div className="detail-empty">현재 공개 가능한 해외 시장 확인 정보가 없습니다.</div> : null}
+              {!loading.markets && !errors.markets && markets.length === 0 ? <div className="detail-empty">현재 확인된 해외 유통 정보가 없습니다.</div> : null}
             </section>
           </>
         ) : null}

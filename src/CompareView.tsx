@@ -94,7 +94,9 @@ function formatWeight(value: number | null | undefined): string | null {
 }
 
 function representativePackageLabel(product: CatalogProduct): string {
-  const size = product.representative_package_size_text ?? '미확인'
+  const packageLabels = product.available_package_labels ?? []
+  if (packageLabels.length > 0) return packageLabels.join(' · ')
+  const size = product.representative_package_size_text ?? '판매 규격 미확인'
   const units = product.representative_units_per_sale ?? null
   if (!units || units <= 1) return size
   const total = formatWeight(product.representative_sale_total_weight_g)
@@ -175,7 +177,7 @@ function ProductHead({
         <div className="compare-product-copy">
           <span>{product.brand}</span>
           <strong>{product.canonical_name}</strong>
-          <small>대표 규격 · {representativePackageLabel(product)}</small>
+          <small>판매 규격 · {representativePackageLabel(product)}</small>
         </div>
       </div>
       <button className="compare-detail-link" type="button" onClick={onDetail}>제품 상세 →</button>
@@ -399,11 +401,11 @@ export default function CompareView({
               <CompareRow label="표기 생애주기" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
               <CompareRow label="공식 대상" items={items} render={(item) => labels(item.product.official_targets, TARGET_LABELS)} />
               <CompareRow label="부가 기능" items={items} render={(item) => labels(item.product.features, FEATURE_LABELS)} />
-              <CompareSection title="레시피·판매 정보" note="레시피 계열과 공식 표방, 대표 판매 정보를 구분해 확인합니다." />
+              <CompareSection title="레시피·판매 정보" note="레시피 계열과 공식 표방, 확인된 판매 규격을 구분해 확인합니다." />
               <CompareRow label="레시피 계열" items={items} render={(item) => labels(item.product.recipe_families, RECIPE_LABELS)} />
               <CompareRow label="세부 레시피" items={items} render={(item) => labels(item.product.recipe_details, RECIPE_LABELS)} />
               <CompareRow label="Grain-Free 공식 표방" items={items} render={(item) => item.product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표방 미확인'} />
-              <CompareRow label="대표 규격" items={items} render={(item) => representativePackageLabel(item.product)} />
+              <CompareRow label="판매 규격" items={items} render={(item) => representativePackageLabel(item.product)} />
               <CompareRow label="제조국" items={items} render={(item) => item.product.manufacturing_country_codes.join(' · ') || '미확인'} />
             </>
           ) : null}

@@ -5,7 +5,7 @@
   max-width: 100%;
   margin-top: 2px;
   color: #72777a;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 560;
   line-height: 1.45;
   word-break: keep-all;
@@ -17,7 +17,7 @@
 
 .research-result-card:has(.research-result-facts) .research-result-packages {
   color: #69716e;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 /* While conditions are being edited, the condition form is the primary task rather than a narrow utility rail. */
@@ -79,7 +79,7 @@
 
 .research-workspace:has(.condition-actions) .condition-group-title small {
   color: #747b78;
-  font-size: 11px;
+  font-size: 11.5px;
 }
 
 .research-workspace:has(.condition-actions) .filter-section {
@@ -95,20 +95,20 @@
 
 .research-workspace:has(.condition-actions) .filter-heading > span:first-child {
   color: #253d37;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 720;
 }
 
 .research-workspace:has(.condition-actions) .filter-hint,
 .research-workspace:has(.condition-actions) .field-note {
-  font-size: 10.8px;
+  font-size: 11.5px;
   line-height: 1.5;
 }
 
 .research-workspace:has(.condition-actions) .choice {
-  min-height: 36px;
+  min-height: 38px;
   border-radius: 8px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .research-workspace:has(.condition-actions) .condition-actions {
@@ -124,7 +124,7 @@
 .research-workspace:has(.condition-actions) .secondary-action {
   min-height: 44px;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .research-workspace:has(.condition-actions) .research-results {
@@ -174,9 +174,25 @@
   max-width: 420px;
 }
 
+/* Keep the right-side open affordance inside the viewport even with long product/package text. */
+.research-shell.is-browsing:not(.is-inspecting) .research-result-card:not(:has(.research-result-facts)) {
+  grid-template-columns: 74px minmax(200px, 1.2fr) minmax(160px, 0.7fr) 72px;
+  gap: 14px;
+  padding-right: 20px;
+}
+
+.research-shell.is-browsing:not(.is-inspecting) .research-result-card:not(:has(.research-result-facts)) .research-result-open {
+  min-width: 72px;
+  justify-self: end;
+  color: #315f54;
+  font-size: 12px;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
 .research-shell.is-inspecting .research-result-packages {
   margin-top: 1px;
-  font-size: 10.8px;
+  font-size: 11.5px;
   line-height: 1.35;
 }
 
@@ -217,6 +233,6 @@
   }
 
   .research-result-packages {
-    font-size: 11px;
+    font-size: 11.5px;
   }
 }

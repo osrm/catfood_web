@@ -1,3 +1,5 @@
+import { isPreviewDataEnabled } from './preview-mode'
+
 export type DecisionMode = 'switch' | 'explore'
 export type DecisionAxis =
   | 'brand'
@@ -47,7 +49,8 @@ const NOTICE_VERSION = 'decision-collection-v1'
 let memorySession: { session_id: string; created_at: number } | null = null
 
 function enabled(): boolean {
-  return import.meta.env.VITE_DECISION_INTAKE_ENABLED?.trim().toLowerCase() === 'true'
+  return !isPreviewDataEnabled()
+    && import.meta.env.VITE_DECISION_INTAKE_ENABLED?.trim().toLowerCase() === 'true'
 }
 
 function intakeConfig(): { endpoint: string; publishableKey: string } | null {

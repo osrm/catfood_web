@@ -1,9 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { installDemoPreviewFetch } from './demo-preview'
-import { installRealVisualPreviewFetch } from './real-visual-preview'
-import { installStressPreviewFetch } from './stress-preview'
+import { isDemoPreview, isRealVisualPreview, isStressPreview } from './preview-mode'
 import './styles.css'
 import './refinements.css'
 import './warm-editorial.css'
@@ -29,12 +27,18 @@ import './stitch-final-polish.css'
 import './stitch-final-polish-fixes.css'
 import './explore-package-polish.css'
 
-installDemoPreviewFetch()
-installRealVisualPreviewFetch()
-installStressPreviewFetch()
+async function start() {
+  if (import.meta.env.DEV) {
+    if (isDemoPreview()) (await import('./demo-preview')).installDemoPreviewFetch()
+    if (isRealVisualPreview()) (await import('./real-visual-preview')).installRealVisualPreviewFetch()
+    if (isStressPreview()) (await import('./stress-preview')).installStressPreviewFetch()
+  }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}
+
+void start()

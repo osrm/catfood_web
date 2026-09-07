@@ -7,9 +7,7 @@ import type {
   ProductVariant,
 } from './api'
 
-export function isStressPreview(): boolean {
-  return new URLSearchParams(window.location.search).get('stresspreview') === '1'
-}
+import { isStressPreview } from './preview-mode'
 
 const ALL_TERMS = [
   'anchovy', 'beef', 'boar', 'chicken', 'cod', 'duck', 'egg', 'goat', 'goose', 'herring', 'lamb', 'mackerel',

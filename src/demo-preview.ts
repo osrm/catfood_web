@@ -7,9 +7,7 @@ import {
   DEMO_VARIANTS,
 } from './demo-data'
 
-export function isDemoPreview(): boolean {
-  return new URLSearchParams(window.location.search).get('demo') === '1'
-}
+import { isDemoPreview } from './preview-mode'
 
 function repairSvgDataUrl(value: string | null): string | null {
   if (!value?.startsWith('data:image/svg+xml')) return value

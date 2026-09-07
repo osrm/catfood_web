@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { isDemoPreview } from './demo-preview'
+import { isDemoPreview } from './preview-mode'
 
 type HomeMode = 'switch' | 'explore' | 'lookup'
 

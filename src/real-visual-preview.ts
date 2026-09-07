@@ -1,8 +1,6 @@
 import type { CatalogProduct } from './api'
 
-export function isRealVisualPreview(): boolean {
-  return new URLSearchParams(window.location.search).get('realpreview') === '1'
-}
+import { isRealVisualPreview } from './preview-mode'
 
 const REAL_VISUAL_PRODUCTS: CatalogProduct[] = [
   {

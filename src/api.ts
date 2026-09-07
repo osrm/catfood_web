@@ -421,19 +421,24 @@ async function fetchCatalogPackageOptions(signal?: AbortSignal): Promise<Catalog
   const url = new URL(`${baseUrl}/rest/v1/switch_current_variant_options`)
   url.searchParams.set('select', CATALOG_PACKAGE_FIELDS)
   url.searchParams.set('order', 'product_id.asc,display_rank.asc,variant_id.asc')
-  url.searchParams.set('limit', '2000')
-
-  const response = await fetch(url, {
-    signal,
-    headers: requestHeaders(publishableKey),
-  })
-
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 240)
-    throw new Error(`Package API ${response.status}: ${detail || response.statusText}`)
+  // The public API caps each response at 1,000 rows, even with a larger limit.
+  const pageSize = 1000
+  url.searchParams.set('limit', String(pageSize))
+  const rows: CatalogPackageOption[] = []
+  for (let offset = 0; ; offset += pageSize) {
+    url.searchParams.set('offset', String(offset))
+    const response = await fetch(url, {
+      signal,
+      headers: requestHeaders(publishableKey),
+    })
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 240)
+      throw new Error(`Package API ${response.status}: ${detail || response.statusText}`)
+    }
+    const page = (await response.json()) as CatalogPackageOption[]
+    rows.push(...page)
+    if (page.length < pageSize) return rows
   }
-
-  return (await response.json()) as CatalogPackageOption[]
 }
 
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {

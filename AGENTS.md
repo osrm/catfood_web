@@ -12,6 +12,7 @@ Role: Catfood의 public frontend를 구현하고 배포한다. 이 저장소는 
 
 ## Implementation
 
+- 개선 전 현재 계약·코드에서 문제와 사용자 영향을 확인한다. 변경 후 해당 동작과 영향을 받는 기존 의미를 실제로 검증하고, 확인된 결과와 미검증 범위를 구분한다.
 - 현재 milestone과 UI 의미는 private core의 활성 제품/UI 기준에서 채택되어 이 저장소에 반영된 구현 계약을 따른다.
 - 기존 React/Vite 구조로 목적을 달성할 수 있으면 재사용한다.
 - 실제 요구가 없는 abstraction, state machine, workflow, validator, 테스트 framework를 추가하지 않는다.

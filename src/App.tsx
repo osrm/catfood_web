@@ -791,7 +791,7 @@ export default function App() {
       return (
         <div className="state-message">
           <strong>조건을 골라 주세요.</strong>
-          <span>기본 조건은 필수로 적용합니다. 확인되지 않은 정보는 자동으로 제외하지 않습니다.</span>
+          <span>선택한 기본 조건은 필수로 적용합니다. 확인되지 않은 정보는 자동으로 제외하지 않습니다.</span>
         </div>
       )
     }

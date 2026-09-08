@@ -49,13 +49,18 @@ const FEATURE_LABELS: Record<string, string> = {
 
 const RECIPE_LABELS: Record<string, string> = {
   poultry: '가금류',
+  poultry_unspecified: '가금류(종류 미상)',
   meat: '육류',
   fish: '생선',
   chicken: '닭',
   duck: '오리',
   turkey: '칠면조',
+  goose: '거위',
+  quail: '메추리',
   beef: '소',
   lamb: '양',
+  goat: '염소',
+  boar: '멧돼지',
   rabbit: '토끼',
   salmon: '연어',
   tuna: '참치',
@@ -63,8 +68,13 @@ const RECIPE_LABELS: Record<string, string> = {
   mackerel: '고등어',
   trout: '송어',
   cod: '대구',
+  sardine: '정어리',
+  anchovy: '멸치',
+  menhaden: '멘헤이든',
+  whitefish: '흰살생선',
   pork: '돼지',
   venison: '사슴',
+  egg: '계란',
 }
 
 const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
@@ -93,7 +103,15 @@ function labels(values: string[], map: Record<string, string>): string {
 
 function formatNumber(value: number | null, suffix: string, qualifier?: string | null): string {
   if (value == null) return '미확인'
-  const qualifierLabel = qualifier === 'min' ? ' 이상' : qualifier === 'max' ? ' 이하' : qualifier ? ` ${qualifier}` : ''
+  const qualifierLabel = qualifier === 'min'
+    ? ' 이상'
+    : qualifier === 'max'
+      ? ' 이하'
+      : qualifier === 'typical'
+        ? ' 평균값'
+        : qualifier && qualifier !== 'reported' && qualifier !== 'exact'
+          ? ` ${qualifier}`
+          : ''
   return `${Number(value).toLocaleString('ko-KR')}${suffix}${qualifierLabel}`
 }
 
@@ -507,7 +525,7 @@ export default function CompareView({
 
           {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareSection title="확인 기준" note="대표 원재료 자료와 현재 확인 배합의 전체 목록을 구분해 표시합니다." />
+              <CompareSection title="확인 기준" note="정규화된 원료 요약과 출처 원문을 분리해 표시합니다." />
               <CompareRow
                 label="확인 기준"
                 items={items}
@@ -519,7 +537,7 @@ export default function CompareView({
                   variantsLoading,
                 )}</span>}
               />
-              <CompareSection title="원재료" note="한국/대표 자료가 요약이어도 현재 확인 배합의 전체 목록이 있으면 함께 보여줍니다." />
+              <CompareSection title="원재료" note="검토된 원료명은 한국어로 통일하고, 전체 선언은 출처 표현을 그대로 보존합니다." />
               <CompareRow label="목록 상태" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
@@ -534,7 +552,9 @@ export default function CompareView({
                   ? `${base} · 현재 확인 배합 전체 목록 있음`
                   : base
               }} />
-              <CompareRow label="원재료" items={items} render={(item) => {
+              <CompareRow label="직접 확인 원료" items={items} render={(item) => labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
+              <CompareRow label="향미 연관 원료" items={items} render={(item) => labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
+              <CompareRow label="출처 원문" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return <span className="compare-muted">확인된 목록 없음</span>
                 const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', ')
@@ -542,11 +562,11 @@ export default function CompareView({
                   || row.supplemental_full_ingredient_names?.join(', ')
                 return (
                   <div>
-                    <span className="compare-muted">대표 확인 자료</span>
+                    <span className="compare-muted">대표 확인 자료 · 출처 원문</span>
                     <p className="compare-ingredient-text">{primaryText || '확인된 목록 없음'}</p>
                     {supplementalText ? (
                       <>
-                        <span className="compare-muted">현재 확인 배합 전체 목록</span>
+                        <span className="compare-muted">현재 확인 배합 전체 목록 · 출처 원문</span>
                         <p className="compare-ingredient-text">{supplementalText}</p>
                       </>
                     ) : null}
@@ -558,8 +578,8 @@ export default function CompareView({
         </div>
       </section>
 
-      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다.</p> : null}
-      {tab === 'ingredients' ? <p className="compare-footnote">대표 원재료가 일부 또는 요약 상태여도 현재 확인 배합의 전체 목록은 별도 근거로 표시합니다. 그 전체 목록을 한국 라벨 자체의 전체 목록으로 해석하지 않습니다.</p> : null}
+      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 한정자 없는 수치는 최소·최대값으로 추정하지 않습니다. 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다.</p> : null}
+      {tab === 'ingredients' ? <p className="compare-footnote">정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다. 대표 원재료가 일부 또는 요약 상태여도 현재 확인 배합의 전체 목록은 별도 근거로 표시합니다.</p> : null}
     </main>
   )
 }

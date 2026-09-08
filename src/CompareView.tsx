@@ -187,6 +187,20 @@ function nutritionDetailContext(
   return `${base} · ${fieldLabels}: ${supplemental}`
 }
 
+function ingredientDetailContext(
+  detail: CompareIngredients | undefined,
+  variants: ProductVariant[] = [],
+  variantLookupFailed = false,
+  variantLookupLoading = false,
+): string {
+  const base = detailContext(detail, variants, variantLookupFailed, variantLookupLoading)
+  if (!(detail?.supplemental_full_ingredient_names?.length)) return base
+  const supplemental = detail.supplemental_is_current_resolved_formula
+    ? '현재 확인 배합 전체 목록 별도 확인'
+    : '보조 전체 목록 별도 확인'
+  return `${base} · ${supplemental}`
+}
+
 function ProductHead({
   item,
   onRemove,
@@ -493,32 +507,51 @@ export default function CompareView({
 
           {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareSection title="확인 기준" note="원재료 정보가 어느 시장·규격·배합에서 확인됐는지 먼저 확인합니다." />
+              <CompareSection title="확인 기준" note="대표 원재료 자료와 현재 확인 배합의 전체 목록을 구분해 표시합니다." />
               <CompareRow
                 label="확인 기준"
                 items={items}
                 tone="context"
-                render={(item) => <span className="compare-muted">{detailContext(
+                render={(item) => <span className="compare-muted">{ingredientDetailContext(
                   ingredientsByProduct.get(item.product.product_id),
                   variantsByProduct[item.product.product_id],
                   variantLookupFailures.includes(item.product.product_id),
                   variantsLoading,
                 )}</span>}
               />
-              <CompareSection title="원재료" note="목록이 전체인지 일부인지와 실제 확인 내용을 함께 봅니다." />
+              <CompareSection title="원재료" note="한국/대표 자료가 요약이어도 현재 확인 배합의 전체 목록이 있으면 함께 보여줍니다." />
               <CompareRow label="목록 상태" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return '미확인'
-                if (row.completeness_status === 'full') return '전체 목록 확인'
-                if (row.completeness_status === 'partial') return '일부 목록'
-                if (row.completeness_status === 'summary') return '요약 정보'
-                return '상태 미확인'
+                const base = row.completeness_status === 'full'
+                  ? '전체 목록 확인'
+                  : row.completeness_status === 'partial'
+                    ? '일부 목록'
+                    : row.completeness_status === 'summary'
+                      ? '요약 정보'
+                      : '상태 미확인'
+                return row.supplemental_full_ingredient_names?.length
+                  ? `${base} · 현재 확인 배합 전체 목록 있음`
+                  : base
               }} />
               <CompareRow label="원재료" items={items} render={(item) => {
                 const row = ingredientsByProduct.get(item.product.product_id)
                 if (!row) return <span className="compare-muted">확인된 목록 없음</span>
-                const text = row.raw_text?.trim() || row.ingredient_names.join(', ')
-                return <p className="compare-ingredient-text">{text || '확인된 목록 없음'}</p>
+                const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', ')
+                const supplementalText = row.supplemental_full_raw_text?.trim()
+                  || row.supplemental_full_ingredient_names?.join(', ')
+                return (
+                  <div>
+                    <span className="compare-muted">대표 확인 자료</span>
+                    <p className="compare-ingredient-text">{primaryText || '확인된 목록 없음'}</p>
+                    {supplementalText ? (
+                      <>
+                        <span className="compare-muted">현재 확인 배합 전체 목록</span>
+                        <p className="compare-ingredient-text">{supplementalText}</p>
+                      </>
+                    ) : null}
+                  </div>
+                )
               }} />
             </>
           ) : null}
@@ -526,7 +559,7 @@ export default function CompareView({
       </section>
 
       {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다.</p> : null}
-      {tab === 'ingredients' ? <p className="compare-footnote">원재료 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다.</p> : null}
+      {tab === 'ingredients' ? <p className="compare-footnote">대표 원재료가 일부 또는 요약 상태여도 현재 확인 배합의 전체 목록은 별도 근거로 표시합니다. 그 전체 목록을 한국 라벨 자체의 전체 목록으로 해석하지 않습니다.</p> : null}
     </main>
   )
 }

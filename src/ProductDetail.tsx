@@ -100,6 +100,16 @@ const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
   taurine: '타우린',
 }
 
+const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
+  energy: '열량',
+  protein: '조단백질',
+  fat: '조지방',
+  fiber: '조섬유',
+  moisture: '수분',
+  ash: '조회분',
+  additional_nutrients: '추가 영양성분',
+}
+
 function valueLabel(value: string, map: Record<string, string>): string {
   return map[value] ?? value.replaceAll('_', ' ')
 }
@@ -232,6 +242,16 @@ function evidenceContext(
   return `${market} · ${scope}`
 }
 
+function supplementalNutritionContext(detail: CompareNutrition | null): string | null {
+  const fields = detail?.supplemental_nutrition_fields ?? []
+  if (!fields.length) return null
+  const labels = fields.map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' ')).join(' · ')
+  const source = detail?.supplemental_is_current_resolved_formula
+    ? '현재 확인 배합 기준'
+    : '보조 영양 근거'
+  return `${labels} · ${source} 자료로 보완`
+}
+
 function ProductImage({ product }: { product: CatalogProduct }) {
   if (!product.display_image_url) return <div className="detail-image-placeholder">이미지 없음</div>
   return <img className="detail-product-image" src={product.display_image_url} alt="" />
@@ -309,6 +329,7 @@ export default function ProductDetail({
   }, [product.product_id])
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
+  const nutritionSupplementContext = supplementalNutritionContext(nutrition)
   const hasRecipeIdentity = product.recipe_families.length > 0
     || product.recipe_details.length > 0
     || product.official_recipe_traits.includes('grain_free')
@@ -437,6 +458,7 @@ export default function ProductDetail({
             {!loading.nutrition && !errors.nutrition && nutrition ? (
               <>
                 <div className="detail-evidence-context">{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</div>
+                {nutritionSupplementContext ? <div className="detail-evidence-context">일부 미기재 값 보완 · {nutritionSupplementContext}</div> : null}
                 {nutritionStructured ? (
                   <>
                     <div className="detail-nutrition-grid">

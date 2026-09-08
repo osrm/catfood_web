@@ -252,6 +252,19 @@ function supplementalNutritionContext(detail: CompareNutrition | null): string |
   return `${labels} · ${source} 자료로 보완`
 }
 
+function supplementalIngredientContext(detail: CompareIngredients | null): string | null {
+  if (!(detail?.supplemental_full_ingredient_names?.length)) return null
+  const market = detail.supplemental_market_code === 'KR'
+    ? '한국 확인'
+    : detail.supplemental_market_code
+      ? `${countryLabel(detail.supplemental_market_code)} 확인`
+      : '시장 미지정'
+  const scope = detail.supplemental_is_current_resolved_formula
+    ? '현재 확인 배합 기준'
+    : scopeLabel(detail.supplemental_observation_scope ?? '')
+  return `${market} · ${scope} · 전체 목록`
+}
+
 function ProductImage({ product }: { product: CatalogProduct }) {
   if (!product.display_image_url) return <div className="detail-image-placeholder">이미지 없음</div>
   return <img className="detail-product-image" src={product.display_image_url} alt="" />
@@ -330,6 +343,9 @@ export default function ProductDetail({
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
+  const ingredientSupplementContext = supplementalIngredientContext(ingredients)
+  const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
+  const hasSupplementalFullIngredients = supplementalIngredientNames.length > 0
   const hasRecipeIdentity = product.recipe_families.length > 0
     || product.recipe_details.length > 0
     || product.official_recipe_traits.includes('grain_free')
@@ -365,7 +381,7 @@ export default function ProductDetail({
         <div className="detail-status-grid">
           <Fact label="판매 규격" value={loading.variants ? '불러오는 중' : errors.variants ? '조회 실패' : variants.length ? `${variants.length}개 확인` : '미확인'} />
           <Fact label="영양" value={loading.nutrition ? '불러오는 중' : errors.nutrition ? '조회 실패' : nutrition ? nutritionStructured ? '수치 확인' : '표기 확인 · 수치 정리 중' : '확인 정보 없음'} />
-          <Fact label="원재료" value={loading.ingredients ? '불러오는 중' : errors.ingredients ? '조회 실패' : ingredients ? completenessLabel(ingredients.completeness_status) : '확인 정보 없음'} />
+          <Fact label="원재료" value={loading.ingredients ? '불러오는 중' : errors.ingredients ? '조회 실패' : ingredients ? hasSupplementalFullIngredients ? `${completenessLabel(ingredients.completeness_status)} · 배합 전체 목록 보완` : completenessLabel(ingredients.completeness_status) : '확인 정보 없음'} />
           <Fact label="제조 · 유통" value={contextStatus} />
         </div>
       </section>
@@ -406,10 +422,11 @@ export default function ProductDetail({
               {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
               {!loading.ingredients && !errors.ingredients && ingredients ? (
                 <div className="detail-fact-table">
-                  <Fact label="목록 상태" value={completenessLabel(ingredients.completeness_status)} />
-                  <Fact label="확인 범위" value={evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} />
-                  <Fact label="원재료 수" value={`${ingredients.ingredient_count}개`} />
+                  <Fact label="대표 목록 상태" value={completenessLabel(ingredients.completeness_status)} />
+                  <Fact label="대표 확인 범위" value={evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} />
+                  <Fact label="대표 원재료 수" value={`${ingredients.ingredient_count}개`} />
                   <Fact label="주요 원재료" value={ingredientPreviewLabel} />
+                  {hasSupplementalFullIngredients ? <Fact label="현재 확인 배합 전체 목록" value={`${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인`} /> : null}
                 </div>
               ) : null}
               {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 공개 화면에서 확인할 수 있는 원재료 목록이 없습니다.</div> : null}
@@ -491,22 +508,33 @@ export default function ProductDetail({
           <section className="detail-section">
             <div className="detail-section-heading">
               <span>I</span>
-              <div><h2>원재료</h2><p>확인된 원문과 목록이 얼마나 완전한지 함께 보여줍니다.</p></div>
+              <div><h2>원재료</h2><p>대표 확인 자료와 현재 확인 배합의 전체 목록을 근거 범위별로 구분해 보여줍니다.</p></div>
             </div>
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? (
               <>
-                <div className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</div>
+                <div className="detail-evidence-context">대표 확인 자료 · {evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</div>
                 <div className="detail-ingredient-copy">
                   {ingredients.raw_text?.trim() || ingredients.ingredient_names.join(', ') || '확인된 원재료 목록 없음'}
                 </div>
                 {ingredients.ingredient_names.length ? (
                   <div className="detail-ingredient-list">
-                    {ingredients.ingredient_names.map((ingredient, index) => <span key={`${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}
+                    {ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}
                   </div>
                 ) : null}
-                <p className="detail-note">목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
+                {hasSupplementalFullIngredients ? (
+                  <>
+                    <div className="detail-evidence-context">현재 확인 배합 전체 목록 · {ingredientSupplementContext}</div>
+                    <div className="detail-ingredient-copy">
+                      {ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}
+                    </div>
+                    <div className="detail-ingredient-list">
+                      {supplementalIngredientNames.map((ingredient, index) => <span key={`supplemental-${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}
+                    </div>
+                  </>
+                ) : null}
+                <p className="detail-note">대표 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 현재 확인 배합의 전체 목록이 별도로 있어도 한국 라벨 자체가 전체 목록이라는 뜻은 아닙니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
               </>
             ) : null}
             {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 확인된 원재료 목록이 없습니다.</div> : null}

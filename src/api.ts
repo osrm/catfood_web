@@ -105,6 +105,10 @@ export interface CompareNutrition {
   is_current_resolved_formula: boolean
   additional_nutrients?: AdditionalNutrient[]
   additional_nutrient_count?: number
+  supplemental_nutrition_fields?: string[]
+  supplemental_observation_scope?: string | null
+  supplemental_market_code?: string | null
+  supplemental_is_current_resolved_formula?: boolean
 }
 
 export interface CompareIngredients {
@@ -239,6 +243,10 @@ const COMPARE_NUTRITION_FIELDS = [
   'is_current_resolved_formula',
   'additional_nutrients',
   'additional_nutrient_count',
+  'supplemental_nutrition_fields',
+  'supplemental_observation_scope',
+  'supplemental_market_code',
+  'supplemental_is_current_resolved_formula',
 ].join(',')
 
 const COMPARE_INGREDIENT_FIELDS = [
@@ -314,6 +322,13 @@ function normalizeVariant(value: ProductVariant): ProductVariant {
     flavor_associated_ingredient_terms: asStringArray(value.flavor_associated_ingredient_terms),
     reviewed_not_found_ingredient_terms: asStringArray(value.reviewed_not_found_ingredient_terms),
     insufficient_evidence_ingredient_terms: asStringArray(value.insufficient_evidence_ingredient_terms),
+  }
+}
+
+function normalizeCompareNutrition(value: CompareNutrition): CompareNutrition {
+  return {
+    ...value,
+    supplemental_nutrition_fields: asStringArray(value.supplemental_nutrition_fields),
   }
 }
 
@@ -492,12 +507,13 @@ export async function fetchCompareNutrition(
   productIds: string[],
   signal?: AbortSignal,
 ): Promise<CompareNutrition[]> {
-  return fetchCompareRows<CompareNutrition>(
+  const data = await fetchCompareRows<CompareNutrition>(
     'compare_product_nutrition',
     COMPARE_NUTRITION_FIELDS,
     productIds,
     signal,
   )
+  return data.map(normalizeCompareNutrition)
 }
 
 export async function fetchCompareIngredients(

@@ -58,13 +58,18 @@ const FEATURE_LABELS: Record<string, string> = {
 
 const RECIPE_LABELS: Record<string, string> = {
   poultry: '가금류',
+  poultry_unspecified: '가금류(종류 미상)',
   meat: '육류',
   fish: '생선',
   chicken: '닭',
   duck: '오리',
   turkey: '칠면조',
+  goose: '거위',
+  quail: '메추리',
   beef: '소',
   lamb: '양',
+  goat: '염소',
+  boar: '멧돼지',
   rabbit: '토끼',
   salmon: '연어',
   tuna: '참치',
@@ -72,8 +77,13 @@ const RECIPE_LABELS: Record<string, string> = {
   mackerel: '고등어',
   trout: '송어',
   cod: '대구',
+  sardine: '정어리',
+  anchovy: '멸치',
+  menhaden: '멘헤이든',
+  whitefish: '흰살생선',
   pork: '돼지',
   venison: '사슴',
+  egg: '계란',
 }
 
 const COUNTRY_LABELS: Record<string, string> = {
@@ -156,6 +166,8 @@ function formulaMarketLabel(status: string): string {
 function qualifierLabel(value: string | null): string {
   if (value === 'min') return '이상 '
   if (value === 'max') return '이하 '
+  if (value === 'typical') return '평균값 '
+  if (value === 'reported' || value === 'exact') return ''
   return value ? `${value} ` : ''
 }
 
@@ -349,6 +361,10 @@ export default function ProductDetail({
   const hasRecipeIdentity = product.recipe_families.length > 0
     || product.recipe_details.length > 0
     || product.official_recipe_traits.includes('grain_free')
+  const directIngredientTerms = product.direct_evidence_ingredient_terms ?? []
+  const flavorIngredientTerms = product.flavor_associated_ingredient_terms ?? []
+  const directIngredientLabel = directIngredientTerms.length ? listLabel(directIngredientTerms, RECIPE_LABELS) : null
+  const flavorIngredientLabel = flavorIngredientTerms.length ? listLabel(flavorIngredientTerms, RECIPE_LABELS) : null
   const contextStatus = loading.manufacturing || loading.markets
     ? '불러오는 중'
     : errors.manufacturing && errors.markets
@@ -356,10 +372,6 @@ export default function ProductDetail({
       : manufacturing || markets.length
         ? '확정 정보 있음'
         : '현재 확정 정보 없음'
-  const ingredientPreview = ingredients?.ingredient_names.slice(0, 8) ?? []
-  const ingredientPreviewLabel = ingredientPreview.length
-    ? `${ingredientPreview.join(' · ')}${(ingredients?.ingredient_names.length ?? 0) > ingredientPreview.length ? ` · 외 ${(ingredients?.ingredient_names.length ?? 0) - ingredientPreview.length}개` : ''}`
-    : '확인된 목록 없음'
 
   return (
     <main className="detail-stage">
@@ -416,7 +428,7 @@ export default function ProductDetail({
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>02</span>
-                <div><h2>원재료 요약</h2><p>검색용 레시피 태그 대신 실제로 확인된 원재료 목록을 우선 보여줍니다.</p></div>
+                <div><h2>원재료 요약</h2><p>검토된 원료명은 한국어로 통일하고, 출처 표현은 상세 원문에서 그대로 보존합니다.</p></div>
               </div>
               {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
               {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
@@ -425,7 +437,8 @@ export default function ProductDetail({
                   <Fact label="대표 목록 상태" value={completenessLabel(ingredients.completeness_status)} />
                   <Fact label="대표 확인 범위" value={evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} />
                   <Fact label="대표 원재료 수" value={`${ingredients.ingredient_count}개`} />
-                  <Fact label="주요 원재료" value={ingredientPreviewLabel} />
+                  {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
+                  {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
                   {hasSupplementalFullIngredients ? <Fact label="현재 확인 배합 전체 목록" value={`${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인`} /> : null}
                 </div>
               ) : null}
@@ -493,7 +506,7 @@ export default function ProductDetail({
                         />
                       ))}
                     </div>
-                    <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
+                    <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 한정자가 없는 수치는 출처가 표시한 숫자 그대로이며 최소·최대값으로 추정하지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
                   </>
                 ) : (
                   <div className="detail-empty">영양 표기 원문은 확인됐지만 핵심 수치 구조화가 아직 완료되지 않았습니다.</div>
@@ -508,13 +521,19 @@ export default function ProductDetail({
           <section className="detail-section">
             <div className="detail-section-heading">
               <span>I</span>
-              <div><h2>원재료</h2><p>대표 확인 자료와 현재 확인 배합의 전체 목록을 근거 범위별로 구분해 보여줍니다.</p></div>
+              <div><h2>원재료</h2><p>검토된 원료명은 한국어로 통일해 요약하고, 아래 전체 목록은 출처 표현을 그대로 보여줍니다.</p></div>
             </div>
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? (
               <>
-                <div className="detail-evidence-context">대표 확인 자료 · {evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</div>
+                {directIngredientLabel || flavorIngredientLabel ? (
+                  <div className="detail-fact-table">
+                    {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
+                    {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
+                  </div>
+                ) : null}
+                <div className="detail-evidence-context">대표 확인 자료 · 출처 원문 · {evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</div>
                 <div className="detail-ingredient-copy">
                   {ingredients.raw_text?.trim() || ingredients.ingredient_names.join(', ') || '확인된 원재료 목록 없음'}
                 </div>
@@ -525,7 +544,7 @@ export default function ProductDetail({
                 ) : null}
                 {hasSupplementalFullIngredients ? (
                   <>
-                    <div className="detail-evidence-context">현재 확인 배합 전체 목록 · {ingredientSupplementContext}</div>
+                    <div className="detail-evidence-context">현재 확인 배합 전체 목록 · 출처 원문 · {ingredientSupplementContext}</div>
                     <div className="detail-ingredient-copy">
                       {ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}
                     </div>
@@ -534,7 +553,7 @@ export default function ProductDetail({
                     </div>
                   </>
                 ) : null}
-                <p className="detail-note">대표 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 현재 확인 배합의 전체 목록이 별도로 있어도 한국 라벨 자체가 전체 목록이라는 뜻은 아닙니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
+                <p className="detail-note">대표 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다. 현재 확인 배합의 전체 목록이 별도로 있어도 한국 라벨 자체가 전체 목록이라는 뜻은 아닙니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
               </>
             ) : null}
             {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 확인된 원재료 목록이 없습니다.</div> : null}

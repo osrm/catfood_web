@@ -74,6 +74,16 @@ const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
   taurine: '타우린',
 }
 
+const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
+  energy: '열량',
+  protein: '조단백질',
+  fat: '조지방',
+  fiber: '조섬유',
+  moisture: '수분',
+  ash: '조회분',
+  additional_nutrients: '추가 영양성분',
+}
+
 const ADDITIONAL_NUTRIENT_ORDER = ['calcium', 'phosphorus', 'magnesium', 'taurine']
 
 function labels(values: string[], map: Record<string, string>): string {
@@ -157,6 +167,24 @@ function detailContext(
   }
 
   return `${market} · ${scope}`
+}
+
+function nutritionDetailContext(
+  detail: CompareNutrition | undefined,
+  variants: ProductVariant[] = [],
+  variantLookupFailed = false,
+  variantLookupLoading = false,
+): string {
+  const base = detailContext(detail, variants, variantLookupFailed, variantLookupLoading)
+  const fields = detail?.supplemental_nutrition_fields ?? []
+  if (!fields.length) return base
+  const fieldLabels = fields
+    .map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' '))
+    .join(' · ')
+  const supplemental = detail?.supplemental_is_current_resolved_formula
+    ? '현재 확인 배합 자료로 보완'
+    : '보조 영양 근거로 보완'
+  return `${base} · ${fieldLabels}: ${supplemental}`
 }
 
 function ProductHead({
@@ -412,12 +440,12 @@ export default function CompareView({
 
           {tab === 'nutrition' && !nutritionLoading && !nutritionError ? (
             <>
-              <CompareSection title="확인 기준" note="영양값이 어느 시장·규격·배합에서 확인된 값인지 먼저 확인합니다." />
+              <CompareSection title="확인 기준" note="대표 표시값을 우선하고, 미기재 값만 현재 확인 배합 자료로 보완합니다." />
               <CompareRow
                 label="확인 기준"
                 items={items}
                 tone="context"
-                render={(item) => <span className="compare-muted">{detailContext(
+                render={(item) => <span className="compare-muted">{nutritionDetailContext(
                   nutritionByProduct.get(item.product.product_id),
                   variantsByProduct[item.product.product_id],
                   variantLookupFailures.includes(item.product.product_id),
@@ -497,7 +525,7 @@ export default function CompareView({
         </div>
       </section>
 
-      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여줍니다. 사료 형태가 다른 제품의 열량을 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p> : null}
+      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다.</p> : null}
       {tab === 'ingredients' ? <p className="compare-footnote">원재료 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다.</p> : null}
     </main>
   )

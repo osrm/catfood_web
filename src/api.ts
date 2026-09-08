@@ -123,6 +123,12 @@ export interface CompareIngredients {
   ingredient_count: number
   is_korea_market_observation: boolean
   is_current_resolved_formula: boolean
+  supplemental_full_raw_text?: string | null
+  supplemental_full_ingredient_names?: string[]
+  supplemental_full_ingredient_count?: number
+  supplemental_observation_scope?: string | null
+  supplemental_market_code?: string | null
+  supplemental_is_current_resolved_formula?: boolean
 }
 
 export interface ProductManufacturingDetail {
@@ -261,6 +267,12 @@ const COMPARE_INGREDIENT_FIELDS = [
   'ingredient_count',
   'is_korea_market_observation',
   'is_current_resolved_formula',
+  'supplemental_full_raw_text',
+  'supplemental_full_ingredient_names',
+  'supplemental_full_ingredient_count',
+  'supplemental_observation_scope',
+  'supplemental_market_code',
+  'supplemental_is_current_resolved_formula',
 ].join(',')
 
 const PRODUCT_MANUFACTURING_FIELDS = [
@@ -336,6 +348,7 @@ function normalizeCompareIngredients(value: CompareIngredients): CompareIngredie
   return {
     ...value,
     ingredient_names: asStringArray(value.ingredient_names),
+    supplemental_full_ingredient_names: asStringArray(value.supplemental_full_ingredient_names),
   }
 }
 

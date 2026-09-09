@@ -115,7 +115,7 @@ async function inputValue(element, value) {
   })
 }
 
-test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, and caps compare at five', () => {
+test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, caps compare at five, and keeps Home round-trippable', () => {
   const state = app.parseNavigationState('?view=workspace&mode=wat&feed=invalid&age=nope&targets=indoor,bad,indoor&features=hairball,bad&recipes=fish,bad&detailTab=nope&compareTab=nope&compare=a,a,b,c,d,e,f&compareOpen=1')
   assert.equal(state.mode, 'explore')
   assert.equal(state.search.feedType, '')
@@ -130,6 +130,16 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, and
   assert.equal(clean.detailProductId, null)
   assert.equal(clean.selectedId, 'a')
   assert.deepEqual(clean.compareIds, ['a', 'c'])
+  const homeSearch = app.navigationSearch({ ...state, screen: 'home' })
+  assert.equal(homeSearch, '')
+  assert.equal(app.parseNavigationState(homeSearch).screen, 'home')
+})
+
+test('Home navigation clears workspace query state so refresh remains Home', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=product_0000000000000000')
+  await click('FELINE ARCHIVE')
+  assert.equal(window.location.search, '')
+  assert.equal(app.parseNavigationState(window.location.search).screen, 'home')
 })
 
 test('direct detail URL restores the selected tab and still provides a way back to the product list', async () => {
@@ -177,6 +187,33 @@ test('list expansion, detail navigation, and browser back restore the expanded r
   assert.equal(document.querySelectorAll('.research-result-card').length, 130)
   assert.equal(document.activeElement?.dataset.productId, products[125].product_id)
   assert.equal(new URL(window.location.href).searchParams.get('visible'), '240')
+})
+
+test('comparison removals survive returning to the list history entry', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product')
+  const cards = [...document.querySelectorAll('.research-result-card')]
+  await act(async () => cards[0].click())
+  await click('비교에 추가')
+  await act(async () => cards[1].click())
+  await click('비교에 추가')
+  await click('비교 보기')
+  assert.ok(document.querySelector('.compare-stage'))
+  const removeFirst = document.querySelector(`button[aria-label="${products[0].canonical_name} 비교에서 제거"]`)
+  assert.ok(removeFirst)
+  await act(async () => removeFirst.click())
+  await act(async () => {
+    const close = [...document.querySelectorAll('button')].find((element) => element.textContent.includes('제품 목록으로'))
+    assert.ok(close)
+    close.click()
+    await waitForUi(
+      () => document.querySelector('.compare-stage') === null && document.querySelector('.switch-compare-dock') !== null,
+      'comparison closes to list with updated selection',
+    )
+  })
+  const dockText = document.querySelector('.switch-compare-dock')?.textContent ?? ''
+  assert.doesNotMatch(dockText, /Product 000/)
+  assert.match(dockText, /Product 001/)
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), products[1].product_id)
 })
 
 test('detail tablist supports arrow-key focus movement', async () => {

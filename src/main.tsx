@@ -26,6 +26,7 @@ import './document-scroll-fix.css'
 import './stitch-final-polish.css'
 import './stitch-final-polish-fixes.css'
 import './explore-package-polish.css'
+import './consumer-navigation.css'
 
 async function start() {
   if (import.meta.env.DEV) {

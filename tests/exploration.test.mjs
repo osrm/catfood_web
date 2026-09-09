@@ -103,6 +103,35 @@ async function click(target) {
   assert.equal(element.disabled, false)
   await act(async () => element.click())
 }
+async function waitForUi(predicate, message) {
+  if (predicate()) return
+  await new Promise((resolvePromise, rejectPromise) => {
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
+      observer.disconnect()
+      document.removeEventListener('focusin', check)
+      window.removeEventListener('popstate', check)
+      window.clearTimeout(timeout)
+      if (error) rejectPromise(error)
+      else resolvePromise()
+    }
+    const check = () => {
+      try {
+        if (predicate()) finish()
+      } catch (error) {
+        finish(error)
+      }
+    }
+    const observer = new window.MutationObserver(check)
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+    document.addEventListener('focusin', check)
+    window.addEventListener('popstate', check)
+    const timeout = window.setTimeout(() => finish(new Error(`UI condition not reached: ${message}`)), 1500)
+    check()
+  })
+}
 
 test('detail preserves supplemental raw ingredients without parsed names', async () => {
   const fallbackFetch = globalThis.fetch
@@ -208,16 +237,44 @@ for (const mode of ['explore', 'switch']) {
     await click('비교에 추가')
     await click('상세 보기')
     assert.equal(considerations().length, 1, '41st product detail and compare must not be sent')
-    await click('돌아가기')
+    if (mode === 'explore') {
+      const closeDetailButton = button('돌아가기')
+      assert.ok(closeDetailButton)
+      await act(async () => {
+        closeDetailButton.click()
+        await waitForUi(
+          () => document.querySelector('.detail-stage') === null
+            && rows(selector).length === 80
+            && document.activeElement?.dataset.productId === products[40].product_id,
+          'expanded explore list and focused product restored after detail history back',
+        )
+      })
+      assert.equal(rows(selector).length, 80, 'history restoration must finish before pagination becomes interactive')
+      assert.equal(document.activeElement?.dataset.productId, products[40].product_id, 'focus returns to the product that opened detail')
+    } else {
+      await click('돌아가기')
+    }
     await click('제품 더 보기')
-    assert.equal(rows(selector).length, 85)
+    assert.equal(rows(selector).length, 85, 'pagination after restoration must not be overwritten by late history state')
     assert.equal(button('제품 더 보기'), undefined)
     assert.equal(searchRuns().length, 1, 'pagination is not a new search run')
     await click(rows(selector)[84])
     await click('비교에 추가')
     await click('비교 보기')
     assert.match(document.querySelector('.compare-stage').textContent, /Product 0(84|85)/)
-    await click('제품 목록으로')
+    if (mode === 'explore') {
+      const closeCompareButton = button('제품 목록으로')
+      assert.ok(closeCompareButton)
+      await act(async () => {
+        closeCompareButton.click()
+        await waitForUi(
+          () => document.querySelector('.compare-stage') === null && rows(selector).length === 85,
+          'expanded explore list restored after compare history back',
+        )
+      })
+    } else {
+      await click('제품 목록으로')
+    }
     assert.equal(rows(selector).length, 85, 'returning from compare retains expanded results')
     assert.equal(considerations().length, 1)
     await click('조건 수정')

@@ -107,7 +107,7 @@ test('direct detail URL restores the selected tab and still provides a way back 
   const nutritionTab = document.getElementById('detail-tab-nutrition')
   assert.equal(nutritionTab?.getAttribute('aria-selected'), 'true')
   assert.equal(nutritionTab?.getAttribute('aria-controls'), 'detail-panel-nutrition')
-  assert.equal(document.querySelector('[role="tabpanel"]')?.getAttribute('aria-labelledby'), 'detail-tab-nutrition')
+  assert.equal(document.querySelector('[role="tabpanel"]:not([hidden])')?.getAttribute('aria-labelledby'), 'detail-tab-nutrition')
   await click('제품 목록')
   assert.equal(document.querySelector('.detail-stage'), null)
   assert.ok(document.querySelector('.research-results'))
@@ -139,11 +139,11 @@ test('list expansion, detail navigation, and browser back restore the expanded r
   assert.equal(new URL(window.location.href).searchParams.get('visible'), '240')
 })
 
-test('detail and compare tablists support arrow-key focus movement', async () => {
+test('detail tablist supports arrow-key focus movement', async () => {
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${products[0].product_id}`)
   const overview = document.getElementById('detail-tab-overview')
   overview.focus()
-  await act(async () => overview.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  await act(async () => { overview.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await new Promise((resolve) => setTimeout(resolve, 0)) })
   assert.equal(document.activeElement?.id, 'detail-tab-nutrition')
   assert.equal(document.activeElement?.getAttribute('aria-selected'), 'true')
 })

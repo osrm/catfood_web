@@ -110,6 +110,14 @@ const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
   taurine: '타우린',
 }
 
+const BASIS_NUTRIENT_LABELS: Record<string, string> = {
+  protein: '단백질',
+  fat: '지방',
+  fiber: '조섬유',
+  moisture: '수분',
+  ash: '조회분',
+}
+
 const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
   energy: '열량',
   protein: '조단백질',
@@ -186,6 +194,34 @@ function additionalNutrientValue(value: AdditionalNutrient): string {
   return nutrientValue(value.amount, value.qualifier, suffix)
 }
 
+function basisNutritionValues(row: CompareNutrition | null): AdditionalNutrient[] {
+  return row?.basis_specific_nutrition_values ?? []
+}
+
+function basisNutritionValue(row: CompareNutrition | null, nutrientKey: string): AdditionalNutrient | undefined {
+  return basisNutritionValues(row).find((value) => value.nutrient_key === nutrientKey && value.amount != null)
+}
+
+function basisLabel(row: CompareNutrition | null): string {
+  if (row?.basis_specific_nutrition_basis === 'dry_matter') return '건물 기준(Dry Matter)'
+  return row?.basis_specific_nutrition_basis?.replaceAll('_', ' ') ?? '다른 기준'
+}
+
+function standardNutrientValue(
+  row: CompareNutrition | null,
+  nutrientKey: string,
+  value: number | null,
+  qualifier: string | null,
+): string {
+  if (value != null) return nutrientValue(value, qualifier)
+  if (basisNutritionValue(row, nutrientKey)) {
+    return row?.basis_specific_nutrition_basis === 'dry_matter'
+      ? '건물 기준 자료만 확인'
+      : '다른 기준 자료만 확인'
+  }
+  return '미확인'
+}
+
 function energyValue(row: CompareNutrition | null): string {
   if (!row) return '미확인'
   if (row.kcal_per_kg != null) return `${Number(row.kcal_per_kg).toLocaleString('ko-KR')} kcal/kg`
@@ -205,6 +241,7 @@ function hasStructuredNutrition(row: CompareNutrition | null): boolean {
     row.kcal_per_100g,
   ].some((value) => value != null)
     || (row.additional_nutrients ?? []).some((value) => value.amount != null)
+    || basisNutritionValues(row).some((value) => value.amount != null)
 }
 
 function variantSizeLabel(variant: ProductVariant | null): string | null {
@@ -364,6 +401,7 @@ export default function ProductDetail({
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
+  const alternateNutritionValues = basisNutritionValues(nutrition).filter((value) => value.amount != null)
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
@@ -502,11 +540,11 @@ export default function ProductDetail({
                   <>
                     <div className="detail-nutrition-grid">
                       <Fact label="열량" value={energyValue(nutrition)} />
-                      <Fact label="조단백질" value={nutrientValue(nutrition.protein_pct, nutrition.protein_qualifier)} />
-                      <Fact label="조지방" value={nutrientValue(nutrition.fat_pct, nutrition.fat_qualifier)} />
-                      <Fact label="조섬유" value={nutrientValue(nutrition.fiber_pct, nutrition.fiber_qualifier)} />
-                      <Fact label="수분" value={nutrientValue(nutrition.moisture_pct, nutrition.moisture_qualifier)} />
-                      <Fact label="조회분" value={nutrientValue(nutrition.ash_pct, nutrition.ash_qualifier)} />
+                      <Fact label="조단백질" value={standardNutrientValue(nutrition, 'protein', nutrition.protein_pct, nutrition.protein_qualifier)} />
+                      <Fact label="조지방" value={standardNutrientValue(nutrition, 'fat', nutrition.fat_pct, nutrition.fat_qualifier)} />
+                      <Fact label="조섬유" value={standardNutrientValue(nutrition, 'fiber', nutrition.fiber_pct, nutrition.fiber_qualifier)} />
+                      <Fact label="수분" value={standardNutrientValue(nutrition, 'moisture', nutrition.moisture_pct, nutrition.moisture_qualifier)} />
+                      <Fact label="조회분" value={standardNutrientValue(nutrition, 'ash', nutrition.ash_pct, nutrition.ash_qualifier)} />
                       {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => (
                         <Fact
                           key={`${value.nutrient_key}-${index}`}
@@ -515,6 +553,20 @@ export default function ProductDetail({
                         />
                       ))}
                     </div>
+                    {alternateNutritionValues.length ? (
+                      <>
+                        <div className="detail-evidence-context">수분을 제거한 기준의 영양자료만 확인됐습니다. 일반 표시값과 기준이 달라 이 비교표에는 반영하지 않았습니다.</div>
+                        <div className="detail-nutrition-grid">
+                          {alternateNutritionValues.map((value, index) => (
+                            <Fact
+                              key={`basis-${value.nutrient_key}-${index}`}
+                              label={`${BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value)} · ${basisLabel(nutrition)}`}
+                              value={additionalNutrientValue(value)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
                     <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 한정자가 없는 수치는 출처가 표시한 숫자 그대로이며 최소·최대값으로 추정하지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
                   </>
                 ) : (

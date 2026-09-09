@@ -109,6 +109,8 @@ export interface CompareNutrition {
   supplemental_observation_scope?: string | null
   supplemental_market_code?: string | null
   supplemental_is_current_resolved_formula?: boolean
+  basis_specific_nutrition_basis?: string | null
+  basis_specific_nutrition_values?: AdditionalNutrient[]
 }
 
 export interface CompareIngredients {
@@ -253,6 +255,8 @@ const COMPARE_NUTRITION_FIELDS = [
   'supplemental_observation_scope',
   'supplemental_market_code',
   'supplemental_is_current_resolved_formula',
+  'basis_specific_nutrition_basis',
+  'basis_specific_nutrition_values',
 ].join(',')
 
 const COMPARE_INGREDIENT_FIELDS = [
@@ -302,6 +306,11 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string')
 }
 
+function asAdditionalNutrients(value: unknown): AdditionalNutrient[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is AdditionalNutrient => Boolean(item) && typeof item === 'object' && 'nutrient_key' in item)
+}
+
 function normalizeProduct(value: CatalogProduct): CatalogProduct {
   return {
     ...value,
@@ -341,6 +350,7 @@ function normalizeCompareNutrition(value: CompareNutrition): CompareNutrition {
   return {
     ...value,
     supplemental_nutrition_fields: asStringArray(value.supplemental_nutrition_fields),
+    basis_specific_nutrition_values: asAdditionalNutrients(value.basis_specific_nutrition_values),
   }
 }
 

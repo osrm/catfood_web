@@ -84,6 +84,14 @@ const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = {
   taurine: '타우린',
 }
 
+const BASIS_NUTRIENT_LABELS: Record<string, string> = {
+  protein: '단백질',
+  fat: '지방',
+  fiber: '조섬유',
+  moisture: '수분',
+  ash: '조회분',
+}
+
 const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
   energy: '열량',
   protein: '조단백질',
@@ -150,6 +158,37 @@ function formatAdditionalNutrient(value: AdditionalNutrient | undefined): string
   return formatNumber(value.amount, suffix, value.qualifier)
 }
 
+function basisSpecificNutrient(row: CompareNutrition | undefined, key: string): AdditionalNutrient | undefined {
+  return (row?.basis_specific_nutrition_values ?? []).find((item) => item.nutrient_key === key && item.amount != null)
+}
+
+function formatStandardNutrient(
+  row: CompareNutrition | undefined,
+  key: string,
+  value: number | null | undefined,
+  qualifier?: string | null,
+): string {
+  if (value != null) return formatNumber(value, '%', qualifier)
+  if (basisSpecificNutrient(row, key)) {
+    return row?.basis_specific_nutrition_basis === 'dry_matter'
+      ? '건물 기준 자료만 확인'
+      : '다른 기준 자료만 확인'
+  }
+  return '미확인'
+}
+
+function basisSpecificSummary(row: CompareNutrition | undefined): string {
+  const values = (row?.basis_specific_nutrition_values ?? []).filter((value) => value.amount != null)
+  if (!values.length) return '해당 없음'
+  const basis = row?.basis_specific_nutrition_basis === 'dry_matter'
+    ? '건물 기준(Dry Matter)'
+    : row?.basis_specific_nutrition_basis?.replaceAll('_', ' ') ?? '다른 기준'
+  return `${basis} · ${values.map((value) => {
+    const label = BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? value.raw_name ?? value.nutrient_key.replaceAll('_', ' ')
+    return `${label} ${formatAdditionalNutrient(value)}`
+  }).join(' · ')}`
+}
+
 function variantSizeLabel(variant: ProductVariant | null): string | null {
   if (!variant) return null
   if (variant.package_size_text?.trim()) return variant.package_size_text.trim()
@@ -194,16 +233,22 @@ function nutritionDetailContext(
   variantLookupFailed = false,
   variantLookupLoading = false,
 ): string {
-  const base = detailContext(detail, variants, variantLookupFailed, variantLookupLoading)
+  let context = detailContext(detail, variants, variantLookupFailed, variantLookupLoading)
   const fields = detail?.supplemental_nutrition_fields ?? []
-  if (!fields.length) return base
-  const fieldLabels = fields
-    .map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' '))
-    .join(' · ')
-  const supplemental = detail?.supplemental_is_current_resolved_formula
-    ? '현재 확인 배합 자료로 보완'
-    : '보조 영양 근거로 보완'
-  return `${base} · ${fieldLabels}: ${supplemental}`
+  if (fields.length) {
+    const fieldLabels = fields
+      .map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' '))
+      .join(' · ')
+    const supplemental = detail?.supplemental_is_current_resolved_formula
+      ? '현재 확인 배합 자료로 보완'
+      : '보조 영양 근거로 보완'
+    context = `${context} · ${fieldLabels}: ${supplemental}`
+  }
+  if (detail?.basis_specific_nutrition_values?.some((value) => value.amount != null)) {
+    const basis = detail.basis_specific_nutrition_basis === 'dry_matter' ? '건물 기준 자료 별도 확인' : '다른 기준 자료 별도 확인'
+    context = `${context} · ${basis}`
+  }
+  return context
 }
 
 function ingredientDetailContext(
@@ -343,6 +388,10 @@ export default function CompareView({
       return a.localeCompare(b, 'ko-KR')
     })
   }, [nutrition])
+  const hasBasisSpecificNutrition = useMemo(
+    () => nutrition.some((row) => row.basis_specific_nutrition_values?.some((value) => value.amount != null)),
+    [nutrition],
+  )
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
 
   useEffect(() => {
@@ -495,23 +544,23 @@ export default function CompareView({
               }} />
               <CompareRow label="조단백질" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
-                return row ? formatNumber(row.protein_pct, '%', row.protein_qualifier) : '미확인'
+                return formatStandardNutrient(row, 'protein', row?.protein_pct, row?.protein_qualifier)
               }} />
               <CompareRow label="조지방" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
-                return row ? formatNumber(row.fat_pct, '%', row.fat_qualifier) : '미확인'
+                return formatStandardNutrient(row, 'fat', row?.fat_pct, row?.fat_qualifier)
               }} />
               <CompareRow label="조섬유" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
-                return row ? formatNumber(row.fiber_pct, '%', row.fiber_qualifier) : '미확인'
+                return formatStandardNutrient(row, 'fiber', row?.fiber_pct, row?.fiber_qualifier)
               }} />
               <CompareRow label="수분" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
-                return row ? formatNumber(row.moisture_pct, '%', row.moisture_qualifier) : '미확인'
+                return formatStandardNutrient(row, 'moisture', row?.moisture_pct, row?.moisture_qualifier)
               }} />
               <CompareRow label="조회분" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
-                return row ? formatNumber(row.ash_pct, '%', row.ash_qualifier) : '미확인'
+                return formatStandardNutrient(row, 'ash', row?.ash_pct, row?.ash_qualifier)
               }} />
               {additionalNutrientKeys.map((key) => (
                 <CompareRow
@@ -522,6 +571,17 @@ export default function CompareView({
                   render={(item) => formatAdditionalNutrient(additionalNutrient(nutritionByProduct.get(item.product.product_id), key))}
                 />
               ))}
+              {hasBasisSpecificNutrition ? (
+                <>
+                  <CompareSection title="다른 기준의 영양자료" note="수분을 제거한 기준의 자료는 일반 표시값과 기준이 달라 위 비교 수치에 합치지 않습니다." />
+                  <CompareRow
+                    label="별도 확인 자료"
+                    items={items}
+                    tone="context"
+                    render={(item) => <span className="compare-muted">{basisSpecificSummary(nutritionByProduct.get(item.product.product_id))}</span>}
+                  />
+                </>
+              ) : null}
             </>
           ) : null}
 
@@ -580,7 +640,7 @@ export default function CompareView({
         </div>
       </section>
 
-      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 한정자 없는 수치는 최소·최대값으로 추정하지 않습니다. 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다.</p> : null}
+      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 한정자 없는 수치는 최소·최대값으로 추정하지 않습니다. 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다. 기준이 다른 자료는 환산하지 않고 별도 표시합니다.</p> : null}
       {tab === 'ingredients' ? <p className="compare-footnote">정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다. 대표 원재료가 일부 또는 요약 상태여도 현재 확인 배합의 전체 목록은 별도 근거로 표시합니다.</p> : null}
     </main>
   )

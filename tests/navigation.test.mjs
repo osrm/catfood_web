@@ -96,12 +96,14 @@ async function renderApp(url) {
   installFetch()
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
-  await act(async () => root.render(createElement(app.App)))
-  await waitForUi(
-    () => !document.body.textContent.includes('제품 데이터를 불러오는 중입니다.')
-      && (document.querySelector('.detail-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
-    'catalog-backed screen rendered',
-  )
+  await act(async () => {
+    root.render(createElement(app.App))
+    await waitForUi(
+      () => !document.body.textContent.includes('제품 데이터를 불러오는 중입니다.')
+        && (document.querySelector('.detail-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
+      'catalog-backed screen rendered',
+    )
+  })
 }
 async function click(text) {
   const button = [...document.querySelectorAll('button')].find((element) => element.textContent.includes(text))
@@ -165,13 +167,15 @@ test('list expansion, detail navigation, and browser back restore the expanded r
   await act(async () => cards[125].click())
   await click('상세 보기')
   assert.ok(document.querySelector('.detail-stage'))
-  window.history.back()
-  await waitForUi(
-    () => document.querySelector('.detail-stage') === null
-      && document.querySelectorAll('.research-result-card').length === 130
-      && document.activeElement?.dataset.productId === products[125].product_id,
-    'expanded lookup list and focused product restored after browser back',
-  )
+  await act(async () => {
+    window.history.back()
+    await waitForUi(
+      () => document.querySelector('.detail-stage') === null
+        && document.querySelectorAll('.research-result-card').length === 130
+        && document.activeElement?.dataset.productId === products[125].product_id,
+      'expanded lookup list and focused product restored after browser back',
+    )
+  })
   assert.equal(document.querySelectorAll('.research-result-card').length, 130)
   assert.equal(document.activeElement?.dataset.productId, products[125].product_id)
   assert.equal(new URL(window.location.href).searchParams.get('visible'), '240')

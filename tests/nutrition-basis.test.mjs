@@ -181,7 +181,7 @@ test('detail separates dry-matter evidence from standard nutrition and leaves tr
   await act(async () => root.render(createElement(app.ProductDetail, { product: targetProduct, onClose() {} })))
   await click('영양')
   const text = document.body.textContent
-  assert.match(text, /3772 kcal\/kg/)
+  assert.match(text, /3,772 kcal\/kg/)
   assert.match(text, /건물 기준 자료만 확인/)
   assert.match(text, /수분을 제거한 기준의 영양자료만 확인됐습니다/)
   assert.match(text, /단백질 · 건물 기준\(Dry Matter\)34\.3%/)

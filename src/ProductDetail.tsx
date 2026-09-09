@@ -120,6 +120,14 @@ const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
   additional_nutrients: '추가 영양성분',
 }
 
+const BASIS_NUTRIENT_LABELS: Record<string, string> = {
+  protein: '조단백질',
+  fat: '조지방',
+  fiber: '조섬유',
+  moisture: '수분',
+  ash: '조회분',
+}
+
 function valueLabel(value: string, map: Record<string, string>): string {
   return map[value] ?? value.replaceAll('_', ' ')
 }
@@ -193,6 +201,39 @@ function energyValue(row: CompareNutrition | null): string {
   return '미확인'
 }
 
+function standardNutrientValue(row: CompareNutrition, key: string): number | null {
+  if (key === 'protein') return row.protein_pct
+  if (key === 'fat') return row.fat_pct
+  if (key === 'fiber') return row.fiber_pct
+  if (key === 'moisture') return row.moisture_pct
+  if (key === 'ash') return row.ash_pct
+  return null
+}
+
+function basisSpecificValues(row: CompareNutrition | null): AdditionalNutrient[] {
+  if (!row) return []
+  return (row.basis_specific_nutrition_values ?? []).filter(
+    (value) => value.amount != null && standardNutrientValue(row, value.nutrient_key) == null,
+  )
+}
+
+function basisLabel(basis: string | null | undefined): string {
+  if (basis === 'dry_matter') return '수분 제거 기준 (Dry Matter)'
+  return basis ? basis.replaceAll('_', ' ') : '별도 기준'
+}
+
+function basisSpecificNotice(row: CompareNutrition | null): string | null {
+  const values = basisSpecificValues(row)
+  if (!values.length) return null
+  const labels = values
+    .map((value) => BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? value.raw_name ?? value.nutrient_key.replaceAll('_', ' '))
+    .join('·')
+  if (row?.basis_specific_nutrition_basis === 'dry_matter') {
+    return `${labels}는 수분을 제거한 기준의 영양자료만 확인됐습니다. 일반 표시값과 기준이 달라 이 비교표에는 반영하지 않았습니다.`
+  }
+  return `${labels}는 일반 표시값과 기준이 다른 영양자료가 확인됐습니다. 기준이 달라 이 비교표에는 반영하지 않았습니다.`
+}
+
 function hasStructuredNutrition(row: CompareNutrition | null): boolean {
   if (!row) return false
   return [
@@ -205,6 +246,7 @@ function hasStructuredNutrition(row: CompareNutrition | null): boolean {
     row.kcal_per_100g,
   ].some((value) => value != null)
     || (row.additional_nutrients ?? []).some((value) => value.amount != null)
+    || basisSpecificValues(row).length > 0
 }
 
 function variantSizeLabel(variant: ProductVariant | null): string | null {
@@ -364,6 +406,8 @@ export default function ProductDetail({
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
+  const nutritionBasisValues = basisSpecificValues(nutrition)
+  const nutritionBasisNotice = basisSpecificNotice(nutrition)
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
@@ -515,7 +559,21 @@ export default function ProductDetail({
                         />
                       ))}
                     </div>
-                    <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 한정자가 없는 수치는 출처가 표시한 숫자 그대로이며 최소·최대값으로 추정하지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
+                    {nutritionBasisNotice ? (
+                      <>
+                        <div className="detail-evidence-context">기준 차이 · {nutritionBasisNotice}</div>
+                        <div className="detail-nutrition-grid">
+                          {nutritionBasisValues.map((value, index) => (
+                            <Fact
+                              key={`basis-${value.nutrient_key}-${index}`}
+                              label={`${BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? value.raw_name ?? value.nutrient_key} · ${basisLabel(nutrition.basis_specific_nutrition_basis)}`}
+                              value={additionalNutrientValue(value)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                    <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 기준이 다른 영양자료는 별도로 표시하고 일반 표시값으로 환산하지 않습니다. 한정자가 없는 수치는 출처가 표시한 숫자 그대로이며 최소·최대값으로 추정하지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
                   </>
                 ) : (
                   <div className="detail-empty">현재 이 제품에 적용할 수 있는 영양 수치를 확인하지 못했습니다.</div>

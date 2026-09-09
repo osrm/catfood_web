@@ -7,12 +7,18 @@ export type CompareTab = 'overview' | 'nutrition' | 'ingredients'
 const MODES = new Set<AppMode>(['switch', 'explore', 'lookup'])
 const DETAIL_TABS = new Set<DetailTab>(['overview', 'nutrition', 'ingredients', 'context'])
 const COMPARE_TABS = new Set<CompareTab>(['overview', 'nutrition', 'ingredients'])
+const FEED_TYPES = new Set(['건식', '습식', '동결건조'])
+const LIFE_STAGES = new Set(['kitten', 'adult', 'senior', 'all_life_stages', 'gestation_lactation_and_kitten'])
+const TARGETS = new Set(['indoor', 'sterilized'])
+const FEATURES = new Set(['weight_management', 'stool', 'hairball', 'digestive', 'urinary', 'skin_coat', 'dental'])
+const RECIPE_FAMILIES = new Set(['poultry', 'meat', 'fish'])
 
 const csv = (value: string | null): string[] => value
   ? value.split(',').map((item) => item.trim()).filter(Boolean)
   : []
-
 const unique = (values: string[], max = Number.POSITIVE_INFINITY): string[] => [...new Set(values)].slice(0, max)
+const allowed = (values: string[], options: Set<string>): string[] => unique(values.filter((value) => options.has(value)))
+const allowedOne = (value: string | null, options: Set<string>): string => value && options.has(value) ? value : ''
 
 export type NavigationState = {
   mode: AppMode
@@ -45,14 +51,14 @@ export function parseNavigationState(searchString: string): NavigationState {
     screen: requestedWorkspace ? 'workspace' : 'home',
     lookupQuery: params.get('q') ?? '',
     search: {
-      feedType: params.get('feed') ?? '',
-      lifeStage: params.get('age') ?? '',
-      officialTargets: unique(csv(params.get('targets'))),
-      features: unique(csv(params.get('features'))),
-      recipeFamilies: unique(csv(params.get('recipes'))),
+      feedType: allowedOne(params.get('feed'), FEED_TYPES),
+      lifeStage: allowedOne(params.get('age'), LIFE_STAGES),
+      officialTargets: allowed(csv(params.get('targets')), TARGETS),
+      features: allowed(csv(params.get('features')), FEATURES),
+      recipeFamilies: allowed(csv(params.get('recipes')), RECIPE_FAMILIES),
       grainFree: params.get('grainFree') === '1',
     },
-    refine: { recipeDetails: unique(csv(params.get('recipeDetails'))) },
+    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36) },
     editingConditions: params.get('applied') !== '1',
     selectedId: params.get('selected') || null,
     visibleCount: Number.isFinite(visible) && visible > 0 ? Math.min(visible, 1000) : mode === 'lookup' ? 120 : 40,

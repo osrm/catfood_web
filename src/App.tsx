@@ -205,7 +205,11 @@ export default function App() {
     window.setTimeout(() => {
       const scroller = document.querySelector<HTMLElement>('.research-results-scroll')
       if (scroller) scroller.scrollTop = restore.scrollTop
-      if (restore.focusId) document.querySelector<HTMLElement>(`[data-product-id="${CSS.escape(restore.focusId)}"]`)?.focus()
+      if (restore.focusId) {
+        const focusTarget = Array.from(document.querySelectorAll<HTMLElement>('[data-product-id]'))
+          .find((element) => element.dataset.productId === restore.focusId)
+        focusTarget?.focus()
+      }
     }, 0)
   }, [visibleProducts.length, detailProductId, compareOpen, loading])
 
@@ -233,7 +237,7 @@ export default function App() {
   function openCompare() { if (!compareIds.length) return; const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview'); pushHistory(next, { catfoodCompareEntry: true }) }
   function closeCompare() {
     const state = (window.history.state ?? {}) as HistoryPayload
-    if (state.catfoodCompareEntry) { setCompareOpen(false); setCompareTab('overview'); window.history.back(); return }
+    if (state.catfoodCompareEntry) { window.history.back(); return }
     setCompareOpen(false); setCompareTab('overview'); replaceHistory(snapshot({ compareOpen: false, compareTab: 'overview' }))
   }
   function changeCompareTab(nextTab: CompareTab) { setCompareTab(nextTab); replaceHistory(snapshot({ compareTab: nextTab })) }
@@ -246,7 +250,7 @@ export default function App() {
   }
   function closeDetail() {
     const state = (window.history.state ?? {}) as HistoryPayload
-    if (state.catfoodDetailEntry) { setDetailProductId(null); setDetailTab('overview'); window.history.back(); return }
+    if (state.catfoodDetailEntry) { window.history.back(); return }
     const next = snapshot({ detailProductId: null, detailTab: 'overview', screen: 'workspace' })
     setDetailProductId(null); setDetailTab('overview'); setScreen('workspace'); replaceHistory(next)
   }

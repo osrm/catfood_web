@@ -1,0 +1,191 @@
+.detail-status-action {
+  gap: 6px;
+}
+
+.detail-status-action > button {
+  min-height: 34px;
+  margin-top: 2px;
+  border: 1px solid var(--detail-line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: var(--detail-accent);
+  font-size: 10.5px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+.detail-nutrition-subheading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 22px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--detail-line-soft);
+}
+
+.detail-nutrition-subheading strong {
+  color: var(--detail-text);
+  font-size: 13px;
+}
+
+.detail-nutrition-subheading span {
+  color: var(--detail-muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.detail-nutrition-subheading.is-basis {
+  margin-top: 26px;
+}
+
+.detail-nutrition-status {
+  margin: 4px 22px 20px;
+  border: 1px solid var(--detail-line-soft);
+  border-radius: 11px;
+  padding: 14px 16px;
+  background: #fbfcfb;
+}
+
+.detail-nutrition-status > strong {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--detail-muted);
+  font-size: 10.5px;
+}
+
+.detail-nutrition-status dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.detail-nutrition-status dl > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--detail-soft-2);
+}
+
+.detail-nutrition-status dt {
+  color: var(--detail-dim);
+  font-size: 9px;
+}
+
+.detail-nutrition-status dd {
+  margin: 0;
+  color: var(--detail-text);
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.detail-tabs button:focus-visible,
+.compare-tabs button:focus-visible,
+.detail-status-action > button:focus-visible,
+.research-result-card:focus-visible,
+.switch-compare-action:focus-visible,
+.compare-detail-link:focus-visible,
+.compare-remove:focus-visible {
+  outline: 3px solid rgba(35, 76, 67, 0.28);
+  outline-offset: 2px;
+}
+
+.detail-identity-copy h1,
+.quick-view-identity h1,
+.compare-product-copy > strong,
+.compare-cell,
+.compare-ingredient-text,
+.detail-ingredient-copy {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .detail-status-grid .detail-fact {
+    min-height: 88px;
+  }
+
+  .detail-status-action > button {
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .detail-tabs {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .detail-tabs button {
+    min-width: 88px;
+    min-height: 48px;
+  }
+
+  .detail-nutrition-subheading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    margin-right: 16px;
+    margin-left: 16px;
+  }
+
+  .detail-nutrition-status {
+    margin-right: 16px;
+    margin-left: 16px;
+  }
+
+  .detail-nutrition-status dl {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-table {
+    min-width: max(720px, calc(108px + (var(--compare-count) * 190px)));
+  }
+
+  .compare-head-row,
+  .compare-row {
+    grid-template-columns: 108px repeat(var(--compare-count), minmax(180px, 1fr));
+  }
+
+  .compare-corner,
+  .compare-row-label {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    box-shadow: 1px 0 0 var(--research-line);
+  }
+
+  .compare-corner {
+    z-index: 6;
+    padding: 12px 10px;
+  }
+
+  .compare-row-label {
+    padding: 12px 10px;
+    font-size: 10.5px;
+  }
+
+  .compare-cell {
+    padding: 12px 13px;
+  }
+
+  .compare-product-copy > strong {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .compare-remove,
+  .compare-detail-link,
+  .compare-header > button,
+  .switch-compare-dock > button {
+    min-height: 44px;
+  }
+
+  .compare-ingredient-text {
+    max-height: 280px;
+    word-break: break-word;
+  }
+}

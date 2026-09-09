@@ -77,8 +77,10 @@ function setCsv(params: URLSearchParams, key: string, values: string[]) {
 }
 
 export function navigationSearch(state: NavigationState): string {
+  if (state.screen === 'home') return ''
+
   const params = new URLSearchParams()
-  if (state.screen === 'workspace') params.set('view', 'workspace')
+  params.set('view', 'workspace')
   if (state.mode !== 'explore') params.set('mode', state.mode)
   if (state.mode === 'lookup' && state.lookupQuery) params.set('q', state.lookupQuery)
   if (state.mode === 'explore') {

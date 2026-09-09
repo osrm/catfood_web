@@ -94,6 +94,14 @@ const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
   additional_nutrients: '추가 영양성분',
 }
 
+const BASIS_NUTRIENT_LABELS: Record<string, string> = {
+  protein: '조단백질',
+  fat: '조지방',
+  fiber: '조섬유',
+  moisture: '수분',
+  ash: '조회분',
+}
+
 const ADDITIONAL_NUTRIENT_ORDER = ['calcium', 'phosphorus', 'magnesium', 'taurine']
 const countryNames = new Intl.DisplayNames(['ko'], { type: 'region' })
 
@@ -148,6 +156,34 @@ function formatAdditionalNutrient(value: AdditionalNutrient | undefined): string
   const unit = value.unit ?? ''
   const suffix = unit === '%' ? '%' : unit ? ` ${unit}` : ''
   return formatNumber(value.amount, suffix, value.qualifier)
+}
+
+function standardNutrientValue(row: CompareNutrition, key: string): number | null {
+  if (key === 'protein') return row.protein_pct
+  if (key === 'fat') return row.fat_pct
+  if (key === 'fiber') return row.fiber_pct
+  if (key === 'moisture') return row.moisture_pct
+  if (key === 'ash') return row.ash_pct
+  return null
+}
+
+function basisSpecificValues(row: CompareNutrition | undefined): AdditionalNutrient[] {
+  if (!row) return []
+  return (row.basis_specific_nutrition_values ?? []).filter(
+    (value) => value.amount != null && standardNutrientValue(row, value.nutrient_key) == null,
+  )
+}
+
+function basisSpecificNotice(row: CompareNutrition | undefined): string | null {
+  const values = basisSpecificValues(row)
+  if (!values.length) return null
+  const valueLabels = values
+    .map((value) => BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? value.raw_name ?? value.nutrient_key.replaceAll('_', ' '))
+    .join('·')
+  if (row?.basis_specific_nutrition_basis === 'dry_matter') {
+    return `${valueLabels}는 수분을 제거한 기준의 영양자료만 확인됐습니다. 일반 표시값과 기준이 달라 이 비교표에는 반영하지 않았습니다.`
+  }
+  return `${valueLabels}는 일반 표시값과 기준이 다른 영양자료가 확인됐습니다. 기준이 달라 이 비교표에는 반영하지 않았습니다.`
 }
 
 function variantSizeLabel(variant: ProductVariant | null): string | null {
@@ -327,6 +363,7 @@ export default function CompareView({
   const productIds = useMemo(() => items.map((item) => item.product.product_id), [items])
   const nutritionByProduct = useMemo(() => new Map(nutrition.map((row) => [row.product_id, row])), [nutrition])
   const ingredientsByProduct = useMemo(() => new Map(ingredients.map((row) => [row.product_id, row])), [ingredients])
+  const hasBasisSpecificNutrition = useMemo(() => nutrition.some((row) => basisSpecificNotice(row)), [nutrition])
   const additionalNutrientKeys = useMemo(() => {
     const keys = new Set<string>()
     nutrition.forEach((row) => (row.additional_nutrients ?? []).forEach((value) => {
@@ -486,6 +523,17 @@ export default function CompareView({
                   variantsLoading,
                 )}</span>}
               />
+              {hasBasisSpecificNutrition ? (
+                <CompareRow
+                  label="기준 차이"
+                  items={items}
+                  tone="context"
+                  render={(item) => {
+                    const notice = basisSpecificNotice(nutritionByProduct.get(item.product.product_id))
+                    return notice ? <span>{notice}</span> : <span className="compare-muted">—</span>
+                  }}
+                />
+              ) : null}
               <CompareSection title="영양 성분" note="확인된 공식 표시값을 비교합니다. 숫자만으로 우열을 매기지 않습니다." />
               <CompareRow label="열량" items={items} tone="metric" render={(item) => {
                 const row = nutritionByProduct.get(item.product.product_id)
@@ -580,7 +628,7 @@ export default function CompareView({
         </div>
       </section>
 
-      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 한정자 없는 수치는 최소·최대값으로 추정하지 않습니다. 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다.</p> : null}
+      {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 공식 표시값을 그대로 보여주며, 한정자 없는 수치는 최소·최대값으로 추정하지 않습니다. 대표 표시에서 미기재된 값은 동일 제품의 현재 확인 배합 자료가 하나로 확정된 경우에만 보완합니다. 기준이 다른 영양자료는 일반 표시값으로 환산하지 않고 별도 안내합니다.</p> : null}
       {tab === 'ingredients' ? <p className="compare-footnote">정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다. 대표 원재료가 일부 또는 요약 상태여도 현재 확인 배합의 전체 목록은 별도 근거로 표시합니다.</p> : null}
     </main>
   )

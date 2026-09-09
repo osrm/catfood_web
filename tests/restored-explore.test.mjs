@@ -156,4 +156,4 @@ test('direct and popstate-restored applied explore results create analytics runs
   assert.equal(runs.length, 2)
   assert.equal(runs[1].body.mode, 'explore')
   assert.equal(runs[1].body.candidate_count, 45)
-}
+})

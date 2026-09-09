@@ -124,6 +124,54 @@ test('detail preserves supplemental raw ingredients without parsed names', async
   assert.match(document.body.textContent, /Full source declaration preserved/)
   assert.match(document.body.textContent, /Primary declaration/)
 })
+
+test('detail distinguishes a timeout from missing facts and retries successfully', async () => {
+  const fallbackFetch = globalThis.fetch
+  let failing = true
+  globalThis.fetch = window.fetch = async (input, init) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/compare_product_ingredients')) {
+      if (failing) return Response.json({ code: '57014', message: 'canceling statement due to statement timeout' }, { status: 500 })
+      return Response.json([{ product_id: products[0].product_id, ingredient_names: ['Test ingredient'], ingredient_count: 1, completeness_status: 'full', raw_text: 'Recovered ingredient declaration' }])
+    }
+    if (url.pathname.endsWith('/product_detail_manufacturing')) {
+      return Response.json([{ product_id: products[0].product_id, observation_scope: 'variant', country_code: 'FR', manufacturer: null, plant: null, is_current_resolved_formula: false }])
+    }
+    return fallbackFetch(input, init)
+  }
+  await act(async () => root.render(createElement(app.ProductDetail, { product: products[0], onClose() {} })))
+  assert.match(document.querySelector('[role="alert"]').textContent, /다시 시도/)
+  assert.doesNotMatch(document.body.textContent, /57014|Data API|statement timeout|현재 공개 화면에서 확인할 수 있는 원재료 목록이 없습니다/)
+  failing = false
+  await click('다시 시도')
+  await click('원재료')
+  assert.match(document.body.textContent, /Recovered ingredient declaration/)
+  assert.equal(document.querySelector('[role="alert"]'), null)
+  await click('제조 · 유통')
+  assert.match(document.body.textContent, /프랑스/)
+  assert.match(document.body.textContent, /제조 업체와 공장 정보는 확인하지 못했습니다/)
+  assert.doesNotMatch(document.body.textContent, /실제 제조사|공장 미확인|확인 범위|규격 기준/)
+})
+
+test('comparison hides server diagnostics and retries nutrition', async () => {
+  const fallbackFetch = globalThis.fetch
+  let failing = true
+  globalThis.fetch = window.fetch = async (input, init) => {
+    if (new URL(String(input)).pathname.endsWith('/compare_product_nutrition')) {
+      if (failing) return Response.json({ code: '57014', message: 'canceling statement due to statement timeout' }, { status: 500 })
+      return Response.json([{ product_id: products[0].product_id, protein_pct: 38, protein_qualifier: 'reported', additional_nutrients: [] }])
+    }
+    return fallbackFetch(input, init)
+  }
+  await act(async () => root.render(createElement(app.CompareView, { items: [{ product: products[0] }], onClose() {}, onRemove() {} })))
+  await click('영양')
+  assert.match(document.querySelector('[role="alert"]').textContent, /다시 시도/)
+  assert.doesNotMatch(document.body.textContent, /57014|Data API|statement timeout/)
+  failing = false
+  await click('다시 시도')
+  assert.equal(document.querySelector('[role="alert"]'), null)
+  assert.match(document.body.textContent, /38%/)
+})
 async function explore() {
   await act(async () => root.render(createElement(app.App)))
   await click('조건으로 찾기')

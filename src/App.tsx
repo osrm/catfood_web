@@ -360,7 +360,7 @@ export default function App() {
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        if (active) setError(reason instanceof Error ? reason.message : '제품 데이터를 불러오지 못했습니다.')
+        if (active) setError('인터넷 연결을 확인한 뒤 잠시 후 다시 시도해 주세요.')
       })
       .finally(() => {
         if (active) setLoading(false)

@@ -130,14 +130,14 @@ function listLabel(values: string[], map: Record<string, string>): string {
 
 function countryLabel(value: string | null): string {
   if (!value) return '미확인'
-  return COUNTRY_LABELS[value] ? `${COUNTRY_LABELS[value]} (${value})` : value
+  return COUNTRY_LABELS[value] ?? value
 }
 
 function scopeLabel(scope: string): string {
-  if (scope === 'variant') return '규격 기준'
-  if (scope === 'formula') return '배합 기준'
-  if (scope === 'product') return '제품 기준'
-  return '범위 미확인'
+  if (scope === 'variant') return '제품 포장에서 확인한 자료'
+  if (scope === 'formula') return '배합 자료'
+  if (scope === 'product') return '제품 자료'
+  return '자료의 적용 범위는 확인되지 않았습니다'
 }
 
 function completenessLabel(status: string | null): string {
@@ -149,18 +149,18 @@ function completenessLabel(status: string | null): string {
 
 function distributionLabel(status: string): string {
   if (status === 'current_product_confirmed') return '현재 제품 유통 확인'
-  if (status === 'gate_confirmed_product_not_found') return '공식 유통 경로 확인 · 해당 제품 미확인'
+  if (status === 'gate_confirmed_product_not_found') return '브랜드는 유통되지만 이 제품은 확인하지 못했습니다'
   if (status === 'distribution_not_confirmed') return '공식 유통 미확인'
-  return status.replaceAll('_', ' ')
+  return '판매 여부를 확인하지 못했습니다'
 }
 
 function formulaMarketLabel(status: string): string {
   if (status === 'exact_same') return '동일 배합 확인'
   if (status === 'same_formula_different_package') return '동일 배합 · 다른 패키지'
   if (status === 'different_generation') return '다른 세대 확인'
-  if (status === 'uncertain') return '배합 대응 미확정'
+  if (status === 'uncertain') return '같은 배합인지 확인하지 못했습니다'
   if (status === 'not_found') return '동일 배합 미확인'
-  return status.replaceAll('_', ' ')
+  return '같은 배합인지 확인하지 못했습니다'
 }
 
 function qualifierLabel(value: string | null): string {
@@ -232,7 +232,7 @@ function evidenceContext(
     ? '한국 확인'
     : detail.market_code
       ? `${countryLabel(detail.market_code)} 확인`
-      : '시장 미지정'
+      : ''
   const variant = detail.variant_id
     ? variants.find((item) => item.variant_id === detail.variant_id) ?? null
     : null
@@ -240,18 +240,18 @@ function evidenceContext(
   if (detail.observation_scope === 'variant') {
     const size = variantSizeLabel(variant)
     scope = size
-      ? `${size} 규격 기준`
+      ? `${size} 제품에서 확인`
       : variantLookupLoading
-        ? '규격 기준 · 규격 확인 중'
+        ? '포장 용량 확인 중'
         : variantLookupFailed
-          ? '규격 기준 · 규격 조회 실패'
-          : '규격 기준 · 규격 표기 미확인'
+          ? '포장 용량을 불러오지 못했습니다'
+          : '확인한 포장 용량 정보 없음'
   } else if (detail.observation_scope === 'formula') {
     scope = detail.is_current_resolved_formula
-      ? '현재 확인 배합 기준'
-      : '배합 기준 · 한국 배합 대응 미확정'
+      ? '같은 배합으로 확인된 제품 자료'
+      : '한국 판매 제품과 배합이 같은지 확인되지 않은 자료'
   }
-  return `${market} · ${scope}`
+  return [market, scope].filter(Boolean).join(' · ')
 }
 
 function supplementalNutritionContext(detail: CompareNutrition | null): string | null {
@@ -265,16 +265,16 @@ function supplementalNutritionContext(detail: CompareNutrition | null): string |
 }
 
 function supplementalIngredientContext(detail: CompareIngredients | null): string | null {
-  if (!(detail?.supplemental_full_ingredient_names?.length)) return null
+  if (!detail?.supplemental_full_raw_text?.trim() && !detail?.supplemental_full_ingredient_names?.length) return null
   const market = detail.supplemental_market_code === 'KR'
     ? '한국 확인'
     : detail.supplemental_market_code
       ? `${countryLabel(detail.supplemental_market_code)} 확인`
-      : '시장 미지정'
+      : ''
   const scope = detail.supplemental_is_current_resolved_formula
     ? '현재 확인 배합 기준'
     : scopeLabel(detail.supplemental_observation_scope ?? '')
-  return `${market} · ${scope} · 전체 목록`
+  return [market, scope, '전체 목록'].filter(Boolean).join(' · ')
 }
 
 function ProductImage({ product }: { product: CatalogProduct }) {
@@ -291,6 +291,13 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
+function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <div className="detail-state is-error" role="alert">
+    <p>{message} 잠시 후 다시 시도해 주세요.</p>
+    <button type="button" onClick={onRetry}>다시 시도</button>
+  </div>
+}
+
 export default function ProductDetail({
   product,
   onClose,
@@ -299,6 +306,8 @@ export default function ProductDetail({
   onClose: () => void
 }) {
   const [tab, setTab] = useState<DetailTab>('overview')
+  const [reload, setReload] = useState(0)
+  const retry = () => setReload((value) => value + 1)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [nutrition, setNutrition] = useState<CompareNutrition | null>(null)
   const [ingredients, setIngredients] = useState<CompareIngredients | null>(null)
@@ -333,7 +342,7 @@ export default function ProductDetail({
           if (!active) return
           setErrors((current) => ({
             ...current,
-            [resource]: reason instanceof Error ? reason.message : fallbackMessage,
+            [resource]: fallbackMessage,
           }))
         })
         .finally(() => {
@@ -351,27 +360,29 @@ export default function ProductDetail({
       active = false
       controller.abort()
     }
-  }, [product.product_id])
+  }, [product.product_id, reload])
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
-  const hasRecipeIdentity = product.recipe_families.length > 0
-    || product.recipe_details.length > 0
-    || product.official_recipe_traits.includes('grain_free')
   const directIngredientTerms = product.direct_evidence_ingredient_terms ?? []
   const flavorIngredientTerms = product.flavor_associated_ingredient_terms ?? []
   const directIngredientLabel = directIngredientTerms.length ? listLabel(directIngredientTerms, RECIPE_LABELS) : null
   const flavorIngredientLabel = flavorIngredientTerms.length ? listLabel(flavorIngredientTerms, RECIPE_LABELS) : null
+  const missingManufacturingFields = manufacturing
+    ? [!manufacturing.manufacturer?.trim() ? '제조 업체' : null, !manufacturing.plant?.trim() ? '공장' : null].filter(Boolean)
+    : []
   const contextStatus = loading.manufacturing || loading.markets
     ? '불러오는 중'
     : errors.manufacturing && errors.markets
       ? '조회 실패'
-      : manufacturing || markets.length
-        ? '확정 정보 있음'
-        : '현재 확정 정보 없음'
+      : errors.manufacturing || errors.markets
+        ? '일부 정보 조회 실패'
+        : manufacturing || markets.length
+          ? '정보 보기'
+          : '확인된 정보 없음'
 
   return (
     <main className="detail-stage">
@@ -387,12 +398,12 @@ export default function ProductDetail({
           <h1>{product.canonical_name}</h1>
           <p>
             {product.feed_type ?? '형태 미확인'} ·{' '}
-            {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}
+            {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 정보 없음'}
           </p>
         </div>
         <div className="detail-status-grid">
           <Fact label="판매 규격" value={loading.variants ? '불러오는 중' : errors.variants ? '조회 실패' : variants.length ? `${variants.length}개 확인` : '미확인'} />
-          <Fact label="영양" value={loading.nutrition ? '불러오는 중' : errors.nutrition ? '조회 실패' : nutrition ? nutritionStructured ? '수치 확인' : '표기 확인 · 수치 정리 중' : '확인 정보 없음'} />
+          <Fact label="영양" value={loading.nutrition ? '불러오는 중' : errors.nutrition ? '일시적 조회 실패' : nutritionStructured ? '영양성분 보기' : '확인된 수치 없음'} />
           <Fact label="원재료" value={loading.ingredients ? '불러오는 중' : errors.ingredients ? '조회 실패' : ingredients ? hasSupplementalFullIngredients ? `${completenessLabel(ingredients.completeness_status)} · 배합 전체 목록 보완` : completenessLabel(ingredients.completeness_status) : '확인 정보 없음'} />
           <Fact label="제조 · 유통" value={contextStatus} />
         </div>
@@ -411,32 +422,30 @@ export default function ProductDetail({
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>01</span>
-                <div><h2>제품 기본 정보</h2><p>확인된 제품 정보만 보여줍니다. 비어 있는 검색용 분류는 제품 정보 없음으로 표시하지 않습니다.</p></div>
+                <div><h2>제품 기본 정보</h2><p>제품에 표시된 대상 연령과 특징입니다.</p></div>
               </div>
               <div className="detail-fact-table">
                 <Fact label="사료 형태" value={product.feed_type ?? '미확인'} />
-                <Fact label="생애주기" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />
+                <Fact label="대상 연령" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '확인하지 못했습니다'} />
                 {product.features.length ? <Fact label="기능" value={listLabel(product.features, FEATURE_LABELS)} /> : null}
-                {product.official_targets.length ? <Fact label="공식 대상" value={listLabel(product.official_targets, TARGET_LABELS)} /> : null}
-                {product.recipe_families.length ? <Fact label="공식 레시피 계열" value={listLabel(product.recipe_families, RECIPE_LABELS)} /> : null}
-                {product.recipe_details.length ? <Fact label="공식 세부 레시피" value={listLabel(product.recipe_details, RECIPE_LABELS)} /> : null}
-                {product.official_recipe_traits.includes('grain_free') ? <Fact label="공식 레시피 특성" value="Grain-Free 표기 확인" /> : null}
-                {!product.features.length && !product.official_targets.length && !hasRecipeIdentity ? <Fact label="추가 공식 분류" value="현재 별도 확인 분류 없음" /> : null}
+                {product.official_targets.length ? <Fact label="권장 대상" value={listLabel(product.official_targets, TARGET_LABELS)} /> : null}
+                {product.recipe_families.length ? <Fact label="레시피 종류" value={listLabel(product.recipe_families, RECIPE_LABELS)} /> : null}
+                {product.recipe_details.length ? <Fact label="레시피" value={listLabel(product.recipe_details, RECIPE_LABELS)} /> : null}
+                {product.official_recipe_traits.includes('grain_free') ? <Fact label="그레인프리" value="제품에 표기됨" /> : null}
               </div>
             </section>
 
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>02</span>
-                <div><h2>원재료 요약</h2><p>검토된 원료명은 한국어로 통일하고, 출처 표현은 상세 원문에서 그대로 보존합니다.</p></div>
+                <div><h2>원재료 요약</h2><p>확인된 원료를 한국어로 보여줍니다. 전체 목록은 원재료 탭에서 확인하세요.</p></div>
               </div>
               {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
-              {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
+              {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
               {!loading.ingredients && !errors.ingredients && ingredients ? (
                 <div className="detail-fact-table">
-                  <Fact label="대표 목록 상태" value={completenessLabel(ingredients.completeness_status)} />
-                  <Fact label="대표 확인 범위" value={evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} />
-                  <Fact label="대표 원재료 수" value={`${ingredients.ingredient_count}개`} />
+                  <Fact label="원재료 목록" value={completenessLabel(ingredients.completeness_status)} />
+                  {ingredients.ingredient_count > 0 ? <Fact label="확인된 원재료" value={`${ingredients.ingredient_count}개`} /> : null}
                   {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
                   {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
                   {hasSupplementalFullIngredients ? <Fact label="현재 확인 배합 전체 목록" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}
@@ -451,7 +460,7 @@ export default function ProductDetail({
                 <div><h2>한국 판매 규격</h2><p>현재 확인된 용량과 포장 단위입니다. 규격이 다르다고 다른 레시피로 보지는 않습니다.</p></div>
               </div>
               {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
-              {errors.variants ? <div className="detail-state is-error">판매 규격을 불러오지 못했습니다. {errors.variants}</div> : null}
+              {errors.variants ? <LoadError message={errors.variants} onRetry={retry} /> : null}
               {!loading.variants && !errors.variants && variants.length ? (
                 <div className="detail-variant-list">
                   {variants.map((variant) => (
@@ -481,10 +490,10 @@ export default function ProductDetail({
           <section className="detail-section">
             <div className="detail-section-heading">
               <span>N</span>
-              <div><h2>영양 · 열량</h2><p>현재 확인된 공식 표시값입니다. 다른 규격이나 배합에 그대로 적용하지 않습니다.</p></div>
+              <div><h2>영양 · 열량</h2><p>이 제품에서 확인한 영양성분과 열량입니다. 다른 용량이나 배합의 제품은 표시값이 다를 수 있습니다.</p></div>
             </div>
             {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : null}
-            {errors.nutrition ? <div className="detail-state is-error">영양 정보를 불러오지 못했습니다. {errors.nutrition}</div> : null}
+            {errors.nutrition ? <LoadError message={errors.nutrition} onRetry={retry} /> : null}
             {!loading.nutrition && !errors.nutrition && nutrition ? (
               <>
                 <div className="detail-evidence-context">{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</div>
@@ -509,7 +518,7 @@ export default function ProductDetail({
                     <p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 한정자가 없는 수치는 출처가 표시한 숫자 그대로이며 최소·최대값으로 추정하지 않습니다. 사료 형태가 다른 제품의 열량도 숫자만으로 좋고 나쁨을 판단하지 않습니다.</p>
                   </>
                 ) : (
-                  <div className="detail-empty">영양 표기 원문은 확인됐지만 핵심 수치 구조화가 아직 완료되지 않았습니다.</div>
+                  <div className="detail-empty">현재 이 제품에 적용할 수 있는 영양 수치를 확인하지 못했습니다.</div>
                 )}
               </>
             ) : null}
@@ -524,7 +533,7 @@ export default function ProductDetail({
               <div><h2>원재료</h2><p>검토된 원료명은 한국어로 통일해 요약하고, 아래 전체 목록은 출처 표현을 그대로 보여줍니다.</p></div>
             </div>
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
-            {errors.ingredients ? <div className="detail-state is-error">원재료 정보를 불러오지 못했습니다. {errors.ingredients}</div> : null}
+            {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? (
               <>
                 {directIngredientLabel || flavorIngredientLabel ? (
@@ -553,7 +562,7 @@ export default function ProductDetail({
                     </div> : null}
                   </>
                 ) : null}
-                <p className="detail-note">대표 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다. 현재 확인 배합의 전체 목록이 별도로 있어도 한국 라벨 자체가 전체 목록이라는 뜻은 아닙니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>
+                <p className="detail-note">일부 목록만 확인된 경우, 표시되지 않은 원료가 들어 있지 않다는 뜻은 아닙니다. 알레르기 때문에 원료를 피해야 한다면 구매할 제품의 포장과 제조사 안내도 확인해 주세요.</p>
               </>
             ) : null}
             {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 확인된 원재료 목록이 없습니다.</div> : null}
@@ -565,17 +574,20 @@ export default function ProductDetail({
             <section className="detail-section">
               <div className="detail-section-heading">
                 <span>M</span>
-                <div><h2>제조 정보</h2><p>브랜드 본사와 실제 제조사는 따로 구분합니다.</p></div>
+                <div><h2>제조 정보</h2><p>제품에서 확인한 제조국과 제조 업체 정보입니다.</p></div>
               </div>
               {loading.manufacturing ? <div className="detail-state">제조 정보를 불러오는 중입니다.</div> : null}
-              {errors.manufacturing ? <div className="detail-state is-error">제조 정보를 불러오지 못했습니다. {errors.manufacturing}</div> : null}
+              {errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={retry} /> : null}
               {!loading.manufacturing && !errors.manufacturing && manufacturing ? (
+                <>
                 <div className="detail-fact-table">
                   <Fact label="제조국" value={countryLabel(manufacturing.country_code)} />
-                  <Fact label="실제 제조사" value={manufacturing.manufacturer ?? '미확인'} />
-                  <Fact label="제조 공장" value={manufacturing.plant ?? '공장 미확인'} />
-                  <Fact label="확인 범위" value={`${scopeLabel(manufacturing.observation_scope)}${manufacturing.is_current_resolved_formula ? ' · 현재 배합 대응' : ''}`} />
+                  {manufacturing.manufacturer?.trim() ? <Fact label="제조 업체" value={manufacturing.manufacturer} /> : null}
+                  {manufacturing.plant?.trim() ? <Fact label="제조 공장" value={manufacturing.plant} /> : null}
                 </div>
+                {missingManufacturingFields.length ? <p className="detail-note">{missingManufacturingFields.join('와 ')} 정보는 확인하지 못했습니다.</p> : null}
+                {manufacturing.observation_scope === 'variant' ? <p className="detail-note">제조국은 확인한 포장을 기준으로 안내합니다. 구매할 제품의 포장도 확인해 주세요.</p> : null}
+                </>
               ) : null}
               {!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">현재 확정된 제조 정보가 없습니다.</div> : null}
             </section>
@@ -586,15 +598,15 @@ export default function ProductDetail({
                 <div><h2>해외 판매 · 배합 확인</h2><p>해외에서 판매되는지와 한국 제품과 같은 배합인지를 따로 확인합니다.</p></div>
               </div>
               {loading.markets ? <div className="detail-state">유통 정보를 불러오는 중입니다.</div> : null}
-              {errors.markets ? <div className="detail-state is-error">유통 정보를 불러오지 못했습니다. {errors.markets}</div> : null}
+              {errors.markets ? <LoadError message={errors.markets} onRetry={retry} /> : null}
               {!loading.markets && !errors.markets && markets.length ? (
                 <div className="detail-market-list">
                   {markets.map((market) => (
                     <div className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}>
                       <div><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 미기재'}</span></div>
                       <div><span>유통</span><strong>{distributionLabel(market.distribution_status)}</strong></div>
-                      <div><span>배합 대응</span><strong>{formulaMarketLabel(market.formula_correspondence_status)}</strong></div>
-                      <div><span>대응 제품</span><strong>{market.counterpart_name ?? '확인된 대응 제품 없음'}</strong></div>
+                      <div><span>한국 제품과의 배합 비교</span><strong>{formulaMarketLabel(market.formula_correspondence_status)}</strong></div>
+                      {market.counterpart_name ? <div><span>현지 제품명</span><strong>{market.counterpart_name}</strong></div> : null}
                     </div>
                   ))}
                 </div>

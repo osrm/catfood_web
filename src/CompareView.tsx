@@ -95,6 +95,7 @@ const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
 }
 
 const ADDITIONAL_NUTRIENT_ORDER = ['calcium', 'phosphorus', 'magnesium', 'taurine']
+const countryNames = new Intl.DisplayNames(['ko'], { type: 'region' })
 
 function labels(values: string[], map: Record<string, string>): string {
   if (values.length === 0) return '확인된 값 없음'
@@ -163,8 +164,8 @@ function detailContext(
   variantLookupLoading = false,
 ): string {
   if (!detail) return '확인값 없음'
-  const market = detail.market_code === 'KR' ? '한국 확인' : detail.market_code ? `${detail.market_code} 확인` : '시장 미지정'
-  let scope = '제품 기준'
+  const market = detail.market_code === 'KR' ? '한국 판매 제품 자료' : detail.market_code ? `${countryNames.of(detail.market_code) ?? detail.market_code} 제품 자료` : ''
+  let scope = '제품 자료'
 
   if (detail.observation_scope === 'variant') {
     const variant = detail.variant_id
@@ -172,19 +173,19 @@ function detailContext(
       : null
     const size = variantSizeLabel(variant)
     scope = size
-      ? `${size} 규격 기준`
+      ? `${size} 제품에서 확인`
       : variantLookupLoading
-        ? '규격 기준 · 규격 확인 중'
+        ? '포장 용량 확인 중'
         : variantLookupFailed
-          ? '규격 기준 · 규격 조회 실패'
-          : '규격 기준 · 규격 표기 미확인'
+          ? '포장 용량을 불러오지 못했습니다'
+          : '확인한 포장 용량 정보 없음'
   } else if (detail.observation_scope === 'formula') {
     scope = detail.is_current_resolved_formula
-      ? '현재 확인 배합 기준'
-      : '배합 기준 · 한국 배합 대응 미확정'
+      ? '같은 배합으로 확인된 제품 자료'
+      : '한국 판매 제품과 배합이 같은지 확인되지 않은 자료'
   }
 
-  return `${market} · ${scope}`
+  return [market, scope].filter(Boolean).join(' · ')
 }
 
 function nutritionDetailContext(
@@ -311,6 +312,7 @@ export default function CompareView({
   onRemove: (productId: string) => void
 }) {
   const [tab, setTab] = useState<CompareTab>('overview')
+  const [reload, setReload] = useState(0)
   const [nutrition, setNutrition] = useState<CompareNutrition[]>([])
   const [ingredients, setIngredients] = useState<CompareIngredients[]>([])
   const [variantsByProduct, setVariantsByProduct] = useState<Record<string, ProductVariant[]>>({})
@@ -362,7 +364,7 @@ export default function CompareView({
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        if (active) setNutritionError(reason instanceof Error ? reason.message : '영양 정보를 불러오지 못했습니다.')
+        if (active) setNutritionError('영양 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
       })
       .finally(() => {
         if (active) setNutritionLoading(false)
@@ -374,7 +376,7 @@ export default function CompareView({
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        if (active) setIngredientsError(reason instanceof Error ? reason.message : '원재료 정보를 불러오지 못했습니다.')
+        if (active) setIngredientsError('원재료 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
       })
       .finally(() => {
         if (active) setIngredientsLoading(false)
@@ -399,7 +401,7 @@ export default function CompareView({
       active = false
       controller.abort()
     }
-  }, [productIds.join('|')])
+  }, [productIds.join('|'), reload])
 
   if (detailItem) {
     return <ProductDetail product={detailItem.product} onClose={() => setDetailProductId(null)} />
@@ -430,8 +432,8 @@ export default function CompareView({
         <button className={tab === 'ingredients' ? 'is-active' : ''} type="button" onClick={() => setTab('ingredients')}>원재료</button>
       </nav>
 
-      {tab === 'nutrition' && nutritionError ? <div className="compare-state is-error">영양 정보를 불러오지 못했습니다. {nutritionError}</div> : null}
-      {tab === 'ingredients' && ingredientsError ? <div className="compare-state is-error">원재료 정보를 불러오지 못했습니다. {ingredientsError}</div> : null}
+      {tab === 'nutrition' && nutritionError ? <div className="compare-state is-error" role="alert"><p>{nutritionError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
+      {tab === 'ingredients' && ingredientsError ? <div className="compare-state is-error" role="alert"><p>{ingredientsError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
       {tab === 'nutrition' && nutritionLoading ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
       {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
@@ -458,7 +460,7 @@ export default function CompareView({
               <CompareRow label={currentProduct ? '현재 사료와 비교' : '선택한 조건과 비교'} items={items} render={(item) => <RelationSummary item={item} />} />
               <CompareSection title="제품 기본 정보" note="제품에 표시된 기본 정보를 나란히 봅니다." />
               <CompareRow label="사료 형태" items={items} render={(item) => item.product.feed_type ?? '미확인'} />
-              <CompareRow label="생애주기" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
+              <CompareRow label="대상 연령" items={items} render={(item) => item.product.life_stage ? LIFE_STAGE_LABELS[item.product.life_stage] ?? item.product.life_stage : '미확인'} />
               <CompareRow label="공식 대상" items={items} render={(item) => labels(item.product.official_targets, TARGET_LABELS)} />
               <CompareRow label="기능" items={items} render={(item) => labels(item.product.features, FEATURE_LABELS)} />
               <CompareSection title="레시피 · 판매 정보" note="레시피와 판매 규격을 함께 비교합니다." />
@@ -466,13 +468,13 @@ export default function CompareView({
               <CompareRow label="세부 레시피" items={items} render={(item) => labels(item.product.recipe_details, RECIPE_LABELS)} />
               <CompareRow label="Grain-Free 표기" items={items} render={(item) => item.product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표기 미확인'} />
               <CompareRow label="판매 규격" items={items} render={(item) => representativePackageLabel(item.product)} />
-              <CompareRow label="제조국" items={items} render={(item) => item.product.manufacturing_country_codes.join(' · ') || '미확인'} />
+              <CompareRow label="제조국" items={items} render={(item) => item.product.manufacturing_country_codes.map((code) => countryNames.of(code) ?? code).join(' · ') || '미확인'} />
             </>
           ) : null}
 
           {tab === 'nutrition' && !nutritionLoading && !nutritionError ? (
             <>
-              <CompareSection title="확인 기준" note="대표 표시값을 우선하고, 미기재 값만 현재 확인 배합 자료로 보완합니다." />
+              <CompareSection title="자료 안내" note="제품에서 확인한 수치를 비교합니다. 일부 항목은 같은 배합으로 확인된 제품 자료를 참고합니다." />
               <CompareRow
                 label="확인 기준"
                 items={items}
@@ -525,7 +527,7 @@ export default function CompareView({
 
           {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? (
             <>
-              <CompareSection title="확인 기준" note="정규화된 원료 요약과 출처 원문을 분리해 표시합니다." />
+              <CompareSection title="자료 안내" note="원료 요약과 제품에 표시된 전체 원문을 함께 볼 수 있습니다." />
               <CompareRow
                 label="확인 기준"
                 items={items}
@@ -548,7 +550,7 @@ export default function CompareView({
                     : row.completeness_status === 'summary'
                       ? '요약 정보'
                       : '상태 미확인'
-                return row.supplemental_full_ingredient_names?.length
+                return row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.length
                   ? `${base} · 현재 확인 배합 전체 목록 있음`
                   : base
               }} />

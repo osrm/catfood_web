@@ -662,7 +662,7 @@ export default function SwitchFlow({
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        if (active) setVariantError(reason instanceof Error ? reason.message : '판매 규격을 불러오지 못했습니다.')
+        if (active) setVariantError('판매 용량을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
       })
       .finally(() => {
         if (active) setVariantLoading(false)

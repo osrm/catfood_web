@@ -1,4 +1,5 @@
 export { default as App } from '../src/App'
+export { default as ProductDetail } from '../src/ProductDetail'
 export { default as SwitchFlow } from '../src/SwitchFlow'
 export { fetchCatalog } from '../src/api'
 export * from '../src/analytics'

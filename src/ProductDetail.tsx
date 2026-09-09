@@ -357,7 +357,7 @@ export default function ProductDetail({
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
-  const hasSupplementalFullIngredients = supplementalIngredientNames.length > 0
+  const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
   const hasRecipeIdentity = product.recipe_families.length > 0
     || product.recipe_details.length > 0
     || product.official_recipe_traits.includes('grain_free')
@@ -439,7 +439,7 @@ export default function ProductDetail({
                   <Fact label="대표 원재료 수" value={`${ingredients.ingredient_count}개`} />
                   {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
                   {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
-                  {hasSupplementalFullIngredients ? <Fact label="현재 확인 배합 전체 목록" value={`${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인`} /> : null}
+                  {hasSupplementalFullIngredients ? <Fact label="현재 확인 배합 전체 목록" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}
                 </div>
               ) : null}
               {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 공개 화면에서 확인할 수 있는 원재료 목록이 없습니다.</div> : null}
@@ -548,9 +548,9 @@ export default function ProductDetail({
                     <div className="detail-ingredient-copy">
                       {ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}
                     </div>
-                    <div className="detail-ingredient-list">
+                    {supplementalIngredientNames.length ? <div className="detail-ingredient-list">
                       {supplementalIngredientNames.map((ingredient, index) => <span key={`supplemental-${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}
-                    </div>
+                    </div> : null}
                   </>
                 ) : null}
                 <p className="detail-note">대표 목록이 일부 또는 요약 상태라면 보이지 않는 원료를 ‘없음’으로 보지 않습니다. 정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다. 현재 확인 배합의 전체 목록이 별도로 있어도 한국 라벨 자체가 전체 목록이라는 뜻은 아닙니다. 알레르기 안전이나 교차오염 없음도 보장하지 않습니다.</p>

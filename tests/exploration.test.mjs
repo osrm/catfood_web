@@ -103,6 +103,27 @@ async function click(target) {
   assert.equal(element.disabled, false)
   await act(async () => element.click())
 }
+
+test('detail preserves supplemental raw ingredients without parsed names', async () => {
+  const fallbackFetch = globalThis.fetch
+  globalThis.fetch = window.fetch = async (input, init) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/compare_product_ingredients')) {
+      return Response.json([{
+        product_id: products[0].product_id, ingredient_names: [], ingredient_count: 0,
+        completeness_status: 'partial', raw_text: 'Primary declaration',
+        supplemental_full_raw_text: 'Full source declaration preserved',
+        supplemental_full_ingredient_names: [], supplemental_full_ingredient_count: null,
+      }])
+    }
+    return fallbackFetch(input, init)
+  }
+  await act(async () => root.render(createElement(app.ProductDetail, { product: products[0], onClose() {} })))
+  assert.match(document.body.textContent, /출처 원문 확인/)
+  await click('원재료')
+  assert.match(document.body.textContent, /Full source declaration preserved/)
+  assert.match(document.body.textContent, /Primary declaration/)
+})
 async function explore() {
   await act(async () => root.render(createElement(app.App)))
   await click('조건으로 찾기')

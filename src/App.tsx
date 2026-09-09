@@ -100,6 +100,9 @@ function exploreCriteriaSnapshot(search: SearchState, refine: RefineState): Deci
   refine.recipeDetails.forEach((value) => criteria.push({ axis: 'recipe_detail', value, role: 'evidence_required', source: 'user_selected' }))
   return criteria
 }
+function exploreRunKey(search: SearchState, refine: RefineState): string {
+  return JSON.stringify([search, refine])
+}
 
 function FilterButtons({ options, selected, onToggle }: { options: readonly Option[]; selected: string[]; onToggle: (value: string) => void }) {
   return <div className="choice-grid">{options.map(([value, label]) => <button className={selected.includes(value) ? 'choice is-active' : 'choice'} key={value} onClick={() => onToggle(value)} type="button" aria-pressed={selected.includes(value)}>{label}</button>)}</div>
@@ -148,9 +151,11 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const pendingRestore = useRef<ListRestore | null>(null)
+  const pendingCompareReturnIds = useRef<string[] | null>(null)
   const exploreRunId = useRef<string | null>(null)
   const exploreRunGeneration = useRef(0)
   const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
+  const exploreRunStateKey = useRef<string | null>(null)
 
   function snapshot(overrides: Partial<NavigationState> = {}): NavigationState {
     return { mode, screen, lookupQuery, search, refine, editingConditions, selectedId, visibleCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, ...overrides }
@@ -166,7 +171,23 @@ export default function App() {
   }
 
   useEffect(() => {
-    const onPopState = (event: PopStateEvent) => applyNavigation(parseNavigationState(window.location.search), (event.state as HistoryPayload | null)?.catfoodList ?? null)
+    const onPopState = (event: PopStateEvent) => {
+      const restore = (event.state as HistoryPayload | null)?.catfoodList ?? null
+      const parsed = parseNavigationState(window.location.search)
+      if (pendingCompareReturnIds.current !== null) {
+        const next = {
+          ...parsed,
+          compareIds: pendingCompareReturnIds.current,
+          compareOpen: false,
+          compareTab: 'overview' as CompareTab,
+        }
+        pendingCompareReturnIds.current = null
+        applyNavigation(next, restore)
+        replaceHistory(next, (event.state as HistoryPayload | null) ?? {})
+        return
+      }
+      applyNavigation(parsed, restore)
+    }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
@@ -184,6 +205,12 @@ export default function App() {
     const current = snapshot(), clean = sanitizeProductNavigation(current, validIds)
     if (navigationSearch(clean) !== navigationSearch(current)) { applyNavigation(clean); replaceHistory(clean, window.history.state ?? {}) }
   }, [products.length])
+  useEffect(() => {
+    if (!products.length || mode !== 'explore' || editingConditions || detailProductId || compareOpen) return
+    const key = exploreRunKey(search, refine)
+    if (exploreRunStateKey.current === key) return
+    beginExploreRun(search, refine)
+  }, [products.length, mode, editingConditions, search, refine, detailProductId, compareOpen])
 
   const evaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
   const lookupResults = useMemo(() => lookupCatalog(products, lookupQuery), [products, lookupQuery])
@@ -215,13 +242,14 @@ export default function App() {
 
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
+    exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
     const candidates = evaluateCatalog(products, nextSearch, nextRefine), generation = exploreRunGeneration.current, previous = exploreRunTail.current
     const next = previous.then((previousRunId) => { if (exploreRunGeneration.current !== generation) return null; return createDecisionSearchRun({ parentSearchRunId: previousRunId ?? exploreRunId.current, mode: 'explore', currentProductId: null, currentVariantId: null, criteriaSnapshot: exploreCriteriaSnapshot(nextSearch, nextRefine), candidateCount: candidates.length, initialPresentedProductIds: candidates.slice(0, 40).map((item) => item.product.product_id) }) })
     exploreRunTail.current = next
     void next.then((id) => { if (id && exploreRunGeneration.current === generation) exploreRunId.current = id })
   }
   function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return; void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal)) }
-  function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null } }
+  function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null; exploreRunStateKey.current = null } }
   function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
   function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field], value) })) }
   function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, visibleCount: 40, selectedId: null })) }
@@ -233,11 +261,24 @@ export default function App() {
     const nextIds = compareIds.includes(productId) ? compareIds.filter((value) => value !== productId) : compareIds.length >= 5 ? compareIds : [...compareIds, productId]
     setCompareIds(nextIds); const nextOpen = compareOpen && nextIds.length > 0; setCompareOpen(nextOpen); replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen }))
   }
-  function removeCompare(productId: string) { const nextIds = compareIds.filter((value) => value !== productId), nextOpen = compareOpen && nextIds.length > 0; setCompareIds(nextIds); setCompareOpen(nextOpen); replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen })) }
-  function openCompare() { if (!compareIds.length) return; const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview'); pushHistory(next, { catfoodCompareEntry: true }) }
+  function removeCompare(productId: string) {
+    const nextIds = compareIds.filter((value) => value !== productId)
+    const state = (window.history.state ?? {}) as HistoryPayload
+    if (compareOpen && state.catfoodCompareEntry) {
+      pendingCompareReturnIds.current = nextIds
+      if (!nextIds.length) { window.history.back(); return }
+    }
+    const nextOpen = compareOpen && nextIds.length > 0
+    setCompareIds(nextIds); setCompareOpen(nextOpen); replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen }))
+  }
+  function openCompare() {
+    if (!compareIds.length) return
+    pendingCompareReturnIds.current = null
+    const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview'); pushHistory(next, { catfoodCompareEntry: true })
+  }
   function closeCompare() {
     const state = (window.history.state ?? {}) as HistoryPayload
-    if (state.catfoodCompareEntry) { window.history.back(); return }
+    if (state.catfoodCompareEntry) { pendingCompareReturnIds.current = compareIds; window.history.back(); return }
     setCompareOpen(false); setCompareTab('overview'); replaceHistory(snapshot({ compareOpen: false, compareTab: 'overview' }))
   }
   function changeCompareTab(nextTab: CompareTab) { setCompareTab(nextTab); replaceHistory(snapshot({ compareTab: nextTab })) }

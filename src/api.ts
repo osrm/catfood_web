@@ -308,7 +308,7 @@ function asStringArray(value: unknown): string[] {
 
 function asAdditionalNutrients(value: unknown): AdditionalNutrient[] {
   if (!Array.isArray(value)) return []
-  return value.filter((item): item is AdditionalNutrient => Boolean(item) && typeof item === 'object')
+  return value.filter((item): item is AdditionalNutrient => Boolean(item) && typeof item === 'object' && 'nutrient_key' in item)
 }
 
 function normalizeProduct(value: CatalogProduct): CatalogProduct {
@@ -349,7 +349,6 @@ function normalizeVariant(value: ProductVariant): ProductVariant {
 function normalizeCompareNutrition(value: CompareNutrition): CompareNutrition {
   return {
     ...value,
-    additional_nutrients: asAdditionalNutrients(value.additional_nutrients),
     supplemental_nutrition_fields: asStringArray(value.supplemental_nutrition_fields),
     basis_specific_nutrition_values: asAdditionalNutrients(value.basis_specific_nutrition_values),
   }

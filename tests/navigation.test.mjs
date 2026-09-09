@@ -11,7 +11,6 @@ const dom = new JSDOM('<div id="root"></div>', { url: 'https://catfood.test/catf
 globalThis.window = dom.window
 globalThis.document = dom.window.document
 globalThis.sessionStorage = dom.window.sessionStorage
-globalThis.CSS = { escape: (value) => String(value).replaceAll('"', '\\"') }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const { createRoot } = await import('react-dom/client')
 const nativeFetch = globalThis.fetch
@@ -63,13 +62,46 @@ function installFetch() {
     return Response.json([])
   }
 }
+async function waitForUi(predicate, message) {
+  if (predicate()) return
+  await new Promise((resolvePromise, rejectPromise) => {
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
+      observer.disconnect()
+      document.removeEventListener('focusin', check)
+      window.removeEventListener('popstate', check)
+      window.clearTimeout(timeout)
+      if (error) rejectPromise(error)
+      else resolvePromise()
+    }
+    const check = () => {
+      try {
+        if (predicate()) finish()
+      } catch (error) {
+        finish(error)
+      }
+    }
+    const observer = new window.MutationObserver(check)
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+    document.addEventListener('focusin', check)
+    window.addEventListener('popstate', check)
+    const timeout = window.setTimeout(() => finish(new Error(`UI condition not reached: ${message}`)), 1500)
+    check()
+  })
+}
 async function renderApp(url) {
   dom.reconfigure({ url })
   installFetch()
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
-  await act(async () => { root.render(createElement(app.App)); await new Promise((resolve) => setTimeout(resolve, 0)) })
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(
+    () => !document.body.textContent.includes('제품 데이터를 불러오는 중입니다.')
+      && (document.querySelector('.detail-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
+    'catalog-backed screen rendered',
+  )
 }
 async function click(text) {
   const button = [...document.querySelectorAll('button')].find((element) => element.textContent.includes(text))
@@ -124,7 +156,7 @@ test('typing a lookup query replaces URL state instead of adding history entries
   assert.equal(new URL(window.location.href).searchParams.get('q'), 'Product 00')
 })
 
-test('list expansion, detail navigation, and browser back restore the expanded result list', async () => {
+test('list expansion, detail navigation, and browser back restore the expanded result list and focus', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product')
   assert.equal(document.querySelectorAll('.research-result-card').length, 120)
   await click('제품 더 보기')
@@ -133,9 +165,15 @@ test('list expansion, detail navigation, and browser back restore the expanded r
   await act(async () => cards[125].click())
   await click('상세 보기')
   assert.ok(document.querySelector('.detail-stage'))
-  await act(async () => { window.history.back(); await new Promise((resolve) => setTimeout(resolve, 20)) })
-  assert.equal(document.querySelector('.detail-stage'), null)
+  window.history.back()
+  await waitForUi(
+    () => document.querySelector('.detail-stage') === null
+      && document.querySelectorAll('.research-result-card').length === 130
+      && document.activeElement?.dataset.productId === products[125].product_id,
+    'expanded lookup list and focused product restored after browser back',
+  )
   assert.equal(document.querySelectorAll('.research-result-card').length, 130)
+  assert.equal(document.activeElement?.dataset.productId, products[125].product_id)
   assert.equal(new URL(window.location.href).searchParams.get('visible'), '240')
 })
 
@@ -143,7 +181,8 @@ test('detail tablist supports arrow-key focus movement', async () => {
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${products[0].product_id}`)
   const overview = document.getElementById('detail-tab-overview')
   overview.focus()
-  await act(async () => { overview.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await new Promise((resolve) => setTimeout(resolve, 0)) })
+  await act(async () => overview.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  await waitForUi(() => document.activeElement?.id === 'detail-tab-nutrition', 'nutrition tab receives focus after ArrowRight')
   assert.equal(document.activeElement?.id, 'detail-tab-nutrition')
   assert.equal(document.activeElement?.getAttribute('aria-selected'), 'true')
 })

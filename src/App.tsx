@@ -156,9 +156,7 @@ export default function App() {
     return { mode, screen, lookupQuery, search, refine, editingConditions, selectedId, visibleCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, ...overrides }
   }
   function urlFor(next: NavigationState) { return `${window.location.pathname}${navigationSearch(next)}${window.location.hash}` }
-  function replaceHistory(next: NavigationState, payload: HistoryPayload = (window.history.state ?? {})) {
-    window.history.replaceState(payload, '', urlFor(next))
-  }
+  function replaceHistory(next: NavigationState, payload: HistoryPayload = (window.history.state ?? {})) { window.history.replaceState(payload, '', urlFor(next)) }
   function pushHistory(next: NavigationState, payload: HistoryPayload = {}) { window.history.pushState(payload, '', urlFor(next)) }
   function applyNavigation(next: NavigationState, restore?: ListRestore | null) {
     setMode(next.mode); setScreen(next.screen); setLookupQuery(next.lookupQuery); setSearch(next.search); setDraftSearch(next.search); setRefine(next.refine)
@@ -172,7 +170,6 @@ export default function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
-
   useEffect(() => {
     const controller = new AbortController(); let active = true
     fetchCatalog(controller.signal).then((data) => { if (active) { setProducts(data); setError(null) } }).catch((reason: unknown) => {
@@ -181,36 +178,21 @@ export default function App() {
     }).finally(() => { if (active) setLoading(false) })
     return () => { active = false; controller.abort() }
   }, [])
-
   useEffect(() => {
     if (!products.length) return
     const validIds = new Set(products.map((product) => product.product_id))
-    const current = snapshot()
-    const clean = sanitizeProductNavigation(current, validIds)
-    const currentSearch = navigationSearch(current), cleanSearch = navigationSearch(clean)
-    if (cleanSearch !== currentSearch) {
-      applyNavigation(clean)
-      replaceHistory(clean, window.history.state ?? {})
-    }
+    const current = snapshot(), clean = sanitizeProductNavigation(current, validIds)
+    if (navigationSearch(clean) !== navigationSearch(current)) { applyNavigation(clean); replaceHistory(clean, window.history.state ?? {}) }
   }, [products.length])
 
   const evaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
   const lookupResults = useMemo(() => lookupCatalog(products, lookupQuery), [products, lookupQuery])
-  const recipeDetails = useMemo(() => {
-    const values = new Set<string>(); products.forEach((product) => product.recipe_details.forEach((value) => values.add(value)))
-    return [...values].sort((a, b) => a.localeCompare(b, 'en'))
-  }, [products])
-  const visibleRecipeDetails = useMemo(() => {
-    const query = recipeSearch.trim().toLocaleLowerCase('ko-KR')
-    return recipeDetails.filter((value) => !query || value.toLocaleLowerCase('en').includes(query) || optionLabel(value, RECIPE_DETAIL_LABELS).toLocaleLowerCase('ko-KR').includes(query)).slice(0, 36)
-  }, [recipeDetails, recipeSearch])
+  const recipeDetails = useMemo(() => { const values = new Set<string>(); products.forEach((product) => product.recipe_details.forEach((value) => values.add(value))); return [...values].sort((a, b) => a.localeCompare(b, 'en')) }, [products])
+  const visibleRecipeDetails = useMemo(() => { const query = recipeSearch.trim().toLocaleLowerCase('ko-KR'); return recipeDetails.filter((value) => !query || value.toLocaleLowerCase('en').includes(query) || optionLabel(value, RECIPE_DETAIL_LABELS).toLocaleLowerCase('ko-KR').includes(query)).slice(0, 36) }, [recipeDetails, recipeSearch])
   const resultProducts = useMemo(() => mode === 'lookup' ? lookupResults : editingConditions ? [] : evaluated.map((item) => item.product), [mode, lookupResults, editingConditions, evaluated])
   const selectedProduct = selectedId ? resultProducts.find((product) => product.product_id === selectedId) ?? null : null
   const selectedEvaluation = selectedProduct && mode === 'explore' ? evaluated.find((item) => item.product.product_id === selectedProduct.product_id) ?? null : null
-  const compareItems = useMemo<CompareItem[]>(() => compareIds.map((id) => products.find((product) => product.product_id === id)).filter((product): product is CatalogProduct => Boolean(product)).map((product) => {
-    const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
-    return { product, confirmedMatches: evaluation?.confirmedMatches.map(relationLabel) ?? [], unknowns: evaluation?.unknowns.map(unknownLabel) ?? [] }
-  }), [compareIds, products, mode, evaluated])
+  const compareItems = useMemo<CompareItem[]>(() => compareIds.map((id) => products.find((product) => product.product_id === id)).filter((product): product is CatalogProduct => Boolean(product)).map((product) => { const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null; return { product, confirmedMatches: evaluation?.confirmedMatches.map(relationLabel) ?? [], unknowns: evaluation?.unknowns.map(unknownLabel) ?? [] } }), [compareIds, products, mode, evaluated])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
   const activeConditions = countActiveConditions(search, refine)
   const visibleProducts = resultProducts.slice(0, visibleCount)
@@ -230,85 +212,52 @@ export default function App() {
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
     const candidates = evaluateCatalog(products, nextSearch, nextRefine), generation = exploreRunGeneration.current, previous = exploreRunTail.current
-    const next = previous.then((previousRunId) => {
-      if (exploreRunGeneration.current !== generation) return null
-      return createDecisionSearchRun({ parentSearchRunId: previousRunId ?? exploreRunId.current, mode: 'explore', currentProductId: null, currentVariantId: null, criteriaSnapshot: exploreCriteriaSnapshot(nextSearch, nextRefine), candidateCount: candidates.length, initialPresentedProductIds: candidates.slice(0, 40).map((item) => item.product.product_id) })
-    })
+    const next = previous.then((previousRunId) => { if (exploreRunGeneration.current !== generation) return null; return createDecisionSearchRun({ parentSearchRunId: previousRunId ?? exploreRunId.current, mode: 'explore', currentProductId: null, currentVariantId: null, criteriaSnapshot: exploreCriteriaSnapshot(nextSearch, nextRefine), candidateCount: candidates.length, initialPresentedProductIds: candidates.slice(0, 40).map((item) => item.product.product_id) }) })
     exploreRunTail.current = next
     void next.then((id) => { if (id && exploreRunGeneration.current === generation) exploreRunId.current = id })
   }
-  function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') {
-    if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return
-    void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal))
-  }
-  function resetExploreRun(nextMode?: Mode) {
-    if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null }
-  }
-
+  function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return; void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal)) }
+  function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null } }
   function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
   function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field], value) })) }
-  function toggleRefineRecipe(value: string) {
-    const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }
-    setVisibleCount(40); setRefine(nextRefine); setSelectedId(null); beginExploreRun(search, nextRefine)
-    replaceHistory(snapshot({ refine: nextRefine, visibleCount: 40, selectedId: null }))
-  }
-  function openExploreProduct(productId: string) {
-    setSelectedId(productId); if (mode === 'explore') recordExploreConsideration(productId, 'detail_open')
-    replaceHistory(snapshot({ selectedId: productId }))
-  }
+  function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, visibleCount: 40, selectedId: null })) }
+  function openExploreProduct(productId: string) { setSelectedId(productId); if (mode === 'explore') recordExploreConsideration(productId, 'detail_open'); replaceHistory(snapshot({ selectedId: productId })) }
   function closeQuickView() { setSelectedId(null); replaceHistory(snapshot({ selectedId: null })) }
   function toggleCompare(productId: string) {
     const adding = !compareIds.includes(productId) && compareIds.length < 5
     if (adding && mode === 'explore') recordExploreConsideration(productId, 'compare_add')
     const nextIds = compareIds.includes(productId) ? compareIds.filter((value) => value !== productId) : compareIds.length >= 5 ? compareIds : [...compareIds, productId]
-    setCompareIds(nextIds); const nextOpen = compareOpen && nextIds.length > 0; setCompareOpen(nextOpen)
-    replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen }))
+    setCompareIds(nextIds); const nextOpen = compareOpen && nextIds.length > 0; setCompareOpen(nextOpen); replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen }))
   }
-  function removeCompare(productId: string) {
-    const nextIds = compareIds.filter((value) => value !== productId), nextOpen = compareOpen && nextIds.length > 0
-    setCompareIds(nextIds); setCompareOpen(nextOpen); replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen }))
-  }
-  function openCompare() {
-    if (!compareIds.length) return
-    const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview')
-    pushHistory(next, { catfoodCompareEntry: true })
-  }
+  function removeCompare(productId: string) { const nextIds = compareIds.filter((value) => value !== productId), nextOpen = compareOpen && nextIds.length > 0; setCompareIds(nextIds); setCompareOpen(nextOpen); replaceHistory(snapshot({ compareIds: nextIds, compareOpen: nextOpen })) }
+  function openCompare() { if (!compareIds.length) return; const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview'); pushHistory(next, { catfoodCompareEntry: true }) }
   function closeCompare() {
     const state = (window.history.state ?? {}) as HistoryPayload
-    if (state.catfoodCompareEntry) { window.history.back(); return }
+    if (state.catfoodCompareEntry) { setCompareOpen(false); setCompareTab('overview'); window.history.back(); return }
     setCompareOpen(false); setCompareTab('overview'); replaceHistory(snapshot({ compareOpen: false, compareTab: 'overview' }))
   }
   function changeCompareTab(nextTab: CompareTab) { setCompareTab(nextTab); replaceHistory(snapshot({ compareTab: nextTab })) }
-
-  function captureListRestore(focusId: string | null): ListRestore {
-    return { scrollTop: document.querySelector<HTMLElement>('.research-results-scroll')?.scrollTop ?? 0, visibleCount, focusId }
-  }
+  function captureListRestore(focusId: string | null): ListRestore { return { scrollTop: document.querySelector<HTMLElement>('.research-results-scroll')?.scrollTop ?? 0, visibleCount, focusId } }
   function openDetail(productId: string) {
     const restore = captureListRestore(productId)
-    const currentPayload = { ...(window.history.state ?? {}), catfoodList: restore }
-    replaceHistory(snapshot(), currentPayload)
+    replaceHistory(snapshot(), { ...(window.history.state ?? {}), catfoodList: restore })
     const next = snapshot({ detailProductId: productId, detailTab: 'overview', selectedId: productId, screen: 'workspace' })
-    setDetailProductId(productId); setDetailTab('overview'); setSelectedId(productId)
-    pushHistory(next, { catfoodDetailEntry: true })
+    setDetailProductId(productId); setDetailTab('overview'); setSelectedId(productId); pushHistory(next, { catfoodDetailEntry: true })
   }
   function closeDetail() {
     const state = (window.history.state ?? {}) as HistoryPayload
-    if (state.catfoodDetailEntry) { window.history.back(); return }
+    if (state.catfoodDetailEntry) { setDetailProductId(null); setDetailTab('overview'); window.history.back(); return }
     const next = snapshot({ detailProductId: null, detailTab: 'overview', screen: 'workspace' })
     setDetailProductId(null); setDetailTab('overview'); setScreen('workspace'); replaceHistory(next)
   }
   function changeDetailTab(nextTab: DetailTab) { setDetailTab(nextTab); replaceHistory(snapshot({ detailTab: nextTab })) }
-
   function applyConditions() {
     const nextSearch = draftSearch
     setVisibleCount(40); setSearch(nextSearch); setRefine(INITIAL_REFINE); setRecipeSearch(''); setEditingConditions(false); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null)
     beginExploreRun(nextSearch, INITIAL_REFINE)
     pushHistory(snapshot({ screen: 'workspace', mode: 'explore', search: nextSearch, refine: INITIAL_REFINE, editingConditions: false, selectedId: null, visibleCount: 40, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
   }
-  function editConditions() {
-    setDraftSearch(search); setSelectedId(null); setEditingConditions(true)
-    replaceHistory(snapshot({ selectedId: null, editingConditions: true }))
-  }
+  function editConditions() { setDraftSearch(search); setSelectedId(null); setEditingConditions(true); replaceHistory(snapshot({ selectedId: null, editingConditions: true })) }
   function resetDraft() { setDraftSearch(INITIAL_SEARCH) }
   function changeMode(nextMode: Mode) {
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
@@ -324,18 +273,9 @@ export default function App() {
     setVisibleCount(count); setMode(nextMode); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setScreen('workspace')
     pushHistory(snapshot({ screen: 'workspace', mode: nextMode, lookupQuery: nextMode === 'lookup' ? query : '', editingConditions: nextMode === 'explore' ? true : editingConditions, selectedId: null, visibleCount: count, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
   }
-  function goHome() {
-    setScreen('home'); setSelectedId(null); setCompareOpen(false); setDetailProductId(null)
-    pushHistory(snapshot({ screen: 'home', selectedId: null, compareOpen: false, detailProductId: null, detailTab: 'overview' }))
-  }
-  function changeLookupQuery(value: string) {
-    setLookupQuery(value); setVisibleCount(120); setSelectedId(null)
-    replaceHistory(snapshot({ screen: 'workspace', mode: 'lookup', lookupQuery: value, visibleCount: 120, selectedId: null }))
-  }
-  function loadMore() {
-    const nextCount = visibleCount + (mode === 'explore' ? 40 : 120)
-    setVisibleCount(nextCount); replaceHistory(snapshot({ visibleCount: nextCount }))
-  }
+  function goHome() { setScreen('home'); setSelectedId(null); setCompareOpen(false); setDetailProductId(null); pushHistory(snapshot({ screen: 'home', selectedId: null, compareOpen: false, detailProductId: null, detailTab: 'overview' })) }
+  function changeLookupQuery(value: string) { setLookupQuery(value); setVisibleCount(120); setSelectedId(null); replaceHistory(snapshot({ screen: 'workspace', mode: 'lookup', lookupQuery: value, visibleCount: 120, selectedId: null })) }
+  function loadMore() { const nextCount = visibleCount + (mode === 'explore' ? 40 : 120); setVisibleCount(nextCount); replaceHistory(snapshot({ visibleCount: nextCount })) }
 
   function activeCriteria() {
     const values: string[] = []
@@ -390,24 +330,12 @@ export default function App() {
     if (mode === 'explore' && editingConditions) return <div className="state-message"><strong>조건을 골라 주세요.</strong><span>확인되지 않은 정보는 자동으로 제외하지 않습니다.</span></div>
     if (mode === 'lookup' && !lookupQuery.trim()) return <div className="state-message"><strong>브랜드 또는 제품명을 입력해 주세요.</strong><span>일부만 입력해도 검색할 수 있습니다.</span></div>
     if (!resultProducts.length) return <div className="state-message"><strong>{mode === 'lookup' ? '검색 결과가 없습니다.' : '조건에 맞는 제품이 없습니다.'}</strong><span>{mode === 'explore' ? '선택한 조건은 임의로 완화하지 않습니다.' : '검색어를 다시 확인해 주세요.'}</span></div>
-    return <div className="research-results-list">{visibleProducts.map((product) => {
-      const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
-      return <button data-product-id={product.product_id} className={product.product_id === selectedId ? 'research-result-card is-selected' : 'research-result-card'} key={product.product_id} type="button" onClick={() => openExploreProduct(product.product_id)}>
-        <ProductImage className="research-result-image" product={product} /><span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>
-        {evaluation ? <RelationSummary evaluation={evaluation} /> : <span className="research-result-facts"><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong><span>주요 레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></span>}
-        <span className="research-result-open">제품 보기 →</span>
-      </button>
-    })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
+    return <div className="research-results-list">{visibleProducts.map((product) => { const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null; return <button data-product-id={product.product_id} className={product.product_id === selectedId ? 'research-result-card is-selected' : 'research-result-card'} key={product.product_id} type="button" onClick={() => openExploreProduct(product.product_id)}><ProductImage className="research-result-image" product={product} /><span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>{evaluation ? <RelationSummary evaluation={evaluation} /> : <span className="research-result-facts"><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong><span>주요 레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></span>}<span className="research-result-open">제품 보기 →</span></button> })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
   }
   function renderQuickView() {
     if (!selectedProduct) return null
     const isCompared = compareIds.includes(selectedProduct.product_id)
-    return <aside className="research-quick-view"><div className="quick-view-topline"><span>빠른 보기</span><button type="button" onClick={closeQuickView}>닫기 ×</button></div><div className="quick-view-scroll">
-      <section className="quick-view-identity"><ProductImage className="quick-view-image" product={selectedProduct} /><div><span>{selectedProduct.brand}</span><h1>{selectedProduct.canonical_name}</h1><p>{selectedProduct.feed_type ?? '형태 미확인'} · {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p></div></section>
-      <div className="quick-view-actions"><button className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !isCompared} onClick={() => toggleCompare(selectedProduct.product_id)}>{isCompared ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { if (mode === 'explore') recordExploreConsideration(selectedProduct.product_id, 'detail_open'); openDetail(selectedProduct.product_id) }}>상세 보기 →</button></div>
-      {selectedEvaluation ? <section className="quick-view-section"><h2>선택한 조건과 비교</h2><dl className="definition-list"><Definition label="확인됨">{selectedEvaluation.confirmedMatches.length ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ') : <span className="unknown-value">확인된 항목 없음</span>}</Definition><Definition label="미확인">{selectedEvaluation.unknowns.length ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ') : <span className="unknown-value">—</span>}</Definition></dl></section> : null}
-      <section className="quick-view-section"><h2>핵심 정보</h2><dl className="definition-list"><Definition label="판매 규격">{packageOptionsLabel(selectedProduct)}</Definition><Definition label="제품 표기 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition><Definition label="제품 특징"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition><Definition label="레시피 종류"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition><Definition label="주요 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition><Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition></dl><p className="quick-view-scope-note">제조·유통 정보와 출처 근거는 상세 화면에서 확인할 수 있습니다.</p></section>
-    </div></aside>
+    return <aside className="research-quick-view"><div className="quick-view-topline"><span>빠른 보기</span><button type="button" onClick={closeQuickView}>닫기 ×</button></div><div className="quick-view-scroll"><section className="quick-view-identity"><ProductImage className="quick-view-image" product={selectedProduct} /><div><span>{selectedProduct.brand}</span><h1>{selectedProduct.canonical_name}</h1><p>{selectedProduct.feed_type ?? '형태 미확인'} · {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p></div></section><div className="quick-view-actions"><button className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !isCompared} onClick={() => toggleCompare(selectedProduct.product_id)}>{isCompared ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { if (mode === 'explore') recordExploreConsideration(selectedProduct.product_id, 'detail_open'); openDetail(selectedProduct.product_id) }}>상세 보기 →</button></div>{selectedEvaluation ? <section className="quick-view-section"><h2>선택한 조건과 비교</h2><dl className="definition-list"><Definition label="확인됨">{selectedEvaluation.confirmedMatches.length ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ') : <span className="unknown-value">확인된 항목 없음</span>}</Definition><Definition label="미확인">{selectedEvaluation.unknowns.length ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ') : <span className="unknown-value">—</span>}</Definition></dl></section> : null}<section className="quick-view-section"><h2>핵심 정보</h2><dl className="definition-list"><Definition label="판매 규격">{packageOptionsLabel(selectedProduct)}</Definition><Definition label="제품 표기 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition><Definition label="제품 특징"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition><Definition label="레시피 종류"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition><Definition label="주요 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition><Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition></dl><p className="quick-view-scope-note">제조·유통 정보와 출처 근거는 상세 화면에서 확인할 수 있습니다.</p></section></div></aside>
   }
 
   if (detailProduct) return <ProductDetail product={detailProduct} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
@@ -418,9 +346,5 @@ export default function App() {
   const paneDescription = mode === 'explore' ? '원하는 조건을 골라 제품을 좁혀보세요.' : '브랜드나 제품명으로 찾습니다.'
   const waitingForConditions = mode === 'explore' && editingConditions
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
-
-  return <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}>
-    <header className="research-topbar"><button className="research-brand" type="button" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span><span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span></div></header>
-    {compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters"><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span></div></div><div className="research-filter-scroll">{renderLeftPane()}</div></aside> : null}<section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div>{mode === 'explore' && !editingConditions && activeConditions > 0 ? <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span> : null}</div><div className="research-results-scroll">{renderResultList()}</div></section>{renderQuickView()}</main>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}
-  </div>
+  return <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}><header className="research-topbar"><button className="research-brand" type="button" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span><span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span></div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters"><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span></div></div><div className="research-filter-scroll">{renderLeftPane()}</div></aside> : null}<section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div>{mode === 'explore' && !editingConditions && activeConditions > 0 ? <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span> : null}</div><div className="research-results-scroll">{renderResultList()}</div></section>{renderQuickView()}</main>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
 }

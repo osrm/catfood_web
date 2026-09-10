@@ -1,0 +1,128 @@
+name: Desktop compare width QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies and Korean font
+        run: |
+          npm ci
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Build branch preview
+        run: npm run build
+      - name: Start branch preview
+        shell: bash
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
+          echo $! > /tmp/catfood-preview.pid
+          for i in {1..80}; do
+            if curl -fsS http://127.0.0.1:4173/catfood_web/ >/dev/null; then exit 0; fi
+            sleep 0.25
+          done
+          cat /tmp/catfood-preview.log
+          exit 1
+      - name: Compare production and branch in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          node <<'NODE'
+          import { spawn } from 'node:child_process'
+          import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+
+          const PROD='https://osrm.github.io/catfood_web/'
+          const LOCAL='http://127.0.0.1:4173/catfood_web/'
+          const IDS=['product_b47d3ae674773585','product_99c5ee4eb9211a75','product_7729d5c3a145ffd6','product_06cc1df5a4cec6f6','product_e2df0243fd9a3e68']
+          const TABS=['overview','nutrition','ingredients']
+          const sleep=(ms)=>new Promise(r=>setTimeout(r,ms))
+
+          class Cdp {
+            constructor(url){this.url=url;this.ws=null;this.seq=1;this.pending=new Map()}
+            async connect(){
+              this.ws=new WebSocket(this.url)
+              await new Promise((resolve,reject)=>{
+                const timer=setTimeout(()=>reject(new Error('CDP websocket timeout')),15000)
+                this.ws.addEventListener('open',()=>{clearTimeout(timer);resolve()},{once:true})
+                this.ws.addEventListener('error',()=>reject(new Error('CDP websocket error')),{once:true})
+              })
+              this.ws.addEventListener('message',(event)=>{
+                const m=JSON.parse(event.data)
+                if(!m.id)return
+                const p=this.pending.get(m.id); if(!p)return
+                this.pending.delete(m.id)
+                m.error?p.reject(new Error(m.error.message)):p.resolve(m.result)
+              })
+              for(const method of ['Page.enable','Runtime.enable','Network.enable']) await this.send(method)
+            }
+            send(method,params={}){const id=this.seq++;return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject});this.ws.send(JSON.stringify({id,method,params}))})}
+            async eval(expression){const r=await this.send('Runtime.evaluate',{expression,returnByValue:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result?.value}
+            async wait(expression,label,timeout=50000){const end=Date.now()+timeout;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+            async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'document ready');await this.wait(`document.querySelector('#root')&&document.body.innerText.length>0`,'app root')}
+            async viewport(width,height,mobile=false){await this.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile})}
+            async shot(path){const metrics=await this.send('Page.getLayoutMetrics');const h=Math.min(Math.ceil(metrics.cssContentSize?.height||1100),5000);const shot=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:true,clip:{x:0,y:0,width:await this.eval('innerWidth'),height:h,scale:1}});writeFileSync(path,Buffer.from(shot.data,'base64'))}
+            close(){try{this.ws?.close()}catch{}}
+          }
+
+          async function launch(){
+            const binary=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(existsSync)
+            if(!binary)throw new Error('Chrome not found')
+            const port=9700+(process.pid%100), profile=`/tmp/catfood-width-${process.pid}`
+            rmSync(profile,{recursive:true,force:true})
+            const proc=spawn(binary,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--no-first-run',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'--window-size=1440,1100','about:blank'],{stdio:'ignore'})
+            const end=Date.now()+30000
+            while(Date.now()<end){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();const p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{binary,proc,profile,cdp:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(150)}
+            throw new Error('Chrome debugging endpoint timeout')
+          }
+
+          function url(base,tab){return `${base}?view=workspace&applied=1&compare=${IDS.join(',')}&compareOpen=1&compareTab=${tab}`}
+          async function waitTab(cdp,tab){
+            await cdp.wait(`document.querySelectorAll('.compare-product-head').length===5`,'five products')
+            if(tab==='nutrition')await cdp.wait(`!document.querySelector('.compare-state')?.innerText.includes('영양 정보를 불러오는 중입니다.')`,'nutrition loaded')
+            if(tab==='ingredients')await cdp.wait(`!document.querySelector('.compare-state')?.innerText.includes('원재료 정보를 불러오는 중입니다.')&&document.querySelector('.compare-ingredient-text')`,'ingredients loaded')
+            await sleep(350)
+          }
+          async function metrics(cdp){return cdp.eval(`(()=>{
+            const wrap=document.querySelector('.compare-table-wrap'), table=document.querySelector('.compare-table')
+            const r=n=>{const x=n.getBoundingClientRect();return{x:x.x,right:x.right,width:x.width}}
+            const inspect=sel=>[...document.querySelectorAll(sel)].map(n=>({text:n.textContent.trim().replace(/\\s+/g,' ').slice(0,180),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight,rect:r(n)}))
+            const ancestors=[]; let n=wrap
+            for(let i=0;n&&i<8;i++,n=n.parentElement){const s=getComputedStyle(n);ancestors.push({tag:n.tagName,class:n.className,clientWidth:n.clientWidth,rectWidth:r(n).width,width:s.width,maxWidth:s.maxWidth,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,boxSizing:s.boxSizing,overflowX:s.overflowX,display:s.display})}
+            return {href:location.href,innerWidth,docWidth:document.documentElement.scrollWidth,fontFamily:getComputedStyle(document.body).fontFamily,wrap:{clientWidth:wrap.clientWidth,scrollWidth:wrap.scrollWidth,rect:r(wrap),paddingLeft:getComputedStyle(wrap).paddingLeft,paddingRight:getComputedStyle(wrap).paddingRight},table:{clientWidth:table.clientWidth,scrollWidth:table.scrollWidth,rect:r(table),minWidth:getComputedStyle(table).minWidth},ancestors,names:inspect('.compare-product-copy>strong'),packages:inspect('.compare-product-copy>small'),labels:inspect('.compare-row-label'),cells:inspect('.compare-cell'),ingredientTexts:inspect('.compare-ingredient-text')}
+          })()`)}
+
+          mkdirSync('qa-artifacts',{recursive:true})
+          const {binary,proc,profile,cdp}=await launch()
+          const report={binary,viewport:'1440x1100',production:{},branch:{},mobile:{}}
+          try{
+            await cdp.connect(); await cdp.viewport(1440,1100,false)
+            await cdp.nav(url(PROD,'overview')); await waitTab(cdp,'overview'); report.production.overview=await metrics(cdp); await cdp.shot('qa-artifacts/before-production-overview-1440.png')
+            for(const tab of TABS){await cdp.viewport(1440,1100,false);await cdp.nav(url(LOCAL,tab));await waitTab(cdp,tab);report.branch[tab]=await metrics(cdp);await cdp.shot(`qa-artifacts/after-branch-${tab}-1440.png`)}
+            for(const width of [390,360]){
+              await cdp.viewport(width,844,true);await cdp.nav(url(LOCAL,'ingredients'));await waitTab(cdp,'ingredients')
+              const before=await cdp.eval(`(()=>{const w=document.querySelector('.compare-table-wrap'),l=document.querySelector('.compare-row-label');return{innerWidth,docWidth:document.documentElement.scrollWidth,wrapClient:w.clientWidth,wrapScroll:w.scrollWidth,scrollLeft:w.scrollLeft,labelX:l.getBoundingClientRect().x}})()`)
+              await cdp.eval(`(()=>{const w=document.querySelector('.compare-table-wrap');w.scrollLeft=Math.min(340,w.scrollWidth-w.clientWidth);w.dispatchEvent(new Event('scroll'));return w.scrollLeft})()`);await sleep(250)
+              const after=await cdp.eval(`(()=>{const w=document.querySelector('.compare-table-wrap'),l=document.querySelector('.compare-row-label');return{scrollLeft:w.scrollLeft,labelX:l.getBoundingClientRect().x}})()`)
+              report.mobile[width]={before,after};await cdp.shot(`qa-artifacts/mobile-${width}-ingredients-scrolled.png`)
+            }
+            writeFileSync('qa-artifacts/width-report.json',JSON.stringify(report,null,2));console.log('WIDTH_QA '+JSON.stringify(report))
+          } finally {cdp.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(profile,{recursive:true,force:true})}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-compare-width-qa
+          path: qa-artifacts/
+          if-no-files-found: error

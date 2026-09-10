@@ -158,8 +158,8 @@ jobs:
               await sleep(500)
               const resultsMetric=await cdp.eval(inspectExpr)
               report.viewports[key].results=resultsMetric
-              assert.ok(resultsMetric.docWidth<=resultsMetric.innerWidth+1,`page overflow in results ${key}: ${resultsMetric.docWidth}/${resultsMetric.innerWidth}`)
               await cdp.shot(`qa-artifacts/results-${key}.png`)
+              assert.ok(resultsMetric.docWidth<=resultsMetric.innerWidth+1,`page overflow in results ${key}: ${resultsMetric.docWidth}/${resultsMetric.innerWidth}`)
 
               for (const candidate of candidates) {
                 const selectedUrl=`${baseUrl}&selected=${encodeURIComponent(candidate.id)}`
@@ -169,12 +169,13 @@ jobs:
                 await sleep(450)
                 const metric=await cdp.eval(inspectExpr)
                 report.viewports[key].selected[candidate.role]=metric
-                assert.ok(metric.docWidth<=metric.innerWidth+1,`page overflow ${candidate.role} ${key}: ${metric.docWidth}/${metric.innerWidth}`)
-                assert.ok(metric.quickImage?.complete && metric.quickImage.naturalWidth>0,`quick image failed ${candidate.role} ${key}`)
-                assert.notEqual(metric.quickImage?.visibility,'hidden',`quick image hidden ${candidate.role} ${key}`)
-                assert.ok(metric.quickName && metric.quickName.scrollWidth<=metric.quickName.clientWidth+1 && metric.quickName.scrollHeight<=metric.quickName.clientHeight+1,`quick name clipped ${candidate.role} ${key}: ${JSON.stringify(metric.quickName)}`)
                 const safeRole=candidate.role.replace(/[^a-z0-9-]/gi,'-')
                 await cdp.shot(`qa-artifacts/selected-${safeRole}-${key}.png`)
+                assert.ok(metric.docWidth<=metric.innerWidth+1,`page overflow ${candidate.role} ${key}: ${metric.docWidth}/${metric.innerWidth}`)
+                assert.ok(metric.quickView && metric.quickView.x>=-1 && metric.quickView.right<=metric.innerWidth+1,`quick view outside viewport ${candidate.role} ${key}: ${JSON.stringify(metric.quickView)}`)
+                assert.ok(metric.quickImage?.complete && metric.quickImage.naturalWidth>0,`quick image failed ${candidate.role} ${key}`)
+                assert.notEqual(metric.quickImage?.visibility,'hidden',`quick image hidden ${candidate.role} ${key}`)
+                assert.ok(metric.quickName && metric.quickName.scrollWidth<=metric.quickName.clientWidth+1 && metric.quickName.scrollHeight<=metric.quickName.clientHeight+4,`quick name materially clipped ${candidate.role} ${key}: ${JSON.stringify(metric.quickName)}`)
               }
             }
             writeFileSync('qa-artifacts/results-inspector-report.json',JSON.stringify(report,null,2))

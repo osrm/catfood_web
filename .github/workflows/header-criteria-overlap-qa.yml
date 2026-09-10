@@ -1,0 +1,86 @@
+name: Header Criteria Overlap QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Measure deployed mobile header and criteria bar
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          node <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawn, execFileSync } from 'node:child_process'
+          import { existsSync, rmSync, writeFileSync } from 'node:fs'
+
+          const BASE='https://osrm.github.io/catfood_web/'
+          const SHA='5ca4c4c765283d592ecc28bb1b3c152f2e7e04a2'
+          const LONG=`${BASE}?view=workspace&applied=1&age=adult&targets=indoor,sterilized&features=hairball,digestive,urinary,skin_coat&recipes=poultry&grainFree=1`
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms))
+
+          class Cdp {
+            constructor(url){this.url=url;this.ws=null;this.id=1;this.pending=new Map()}
+            async connect(){this.ws=new WebSocket(this.url);await new Promise((r,j)=>{const t=setTimeout(()=>j(new Error('ws timeout')),15000);this.ws.addEventListener('open',()=>{clearTimeout(t);r()},{once:true});this.ws.addEventListener('error',()=>j(new Error('ws error')),{once:true})});this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(!m.id)return;const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.j(new Error(m.error.message)):p.r(m.result)});for(const x of ['Page.enable','Runtime.enable','Network.enable'])await this.send(x)}
+            send(method,params={}){const id=this.id++;return new Promise((r,j)=>{this.pending.set(id,{r,j});this.ws.send(JSON.stringify({id,method,params}))})}
+            async eval(expression){const x=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(x.exceptionDetails)throw new Error(x.exceptionDetails.exception?.description||x.exceptionDetails.text);return x.result?.value}
+            async wait(expression,label,ms=60000){const end=Date.now()+ms;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+            async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'ready');await this.wait(`document.querySelector('#root')&&document.body.innerText.length>0`,'root')}
+            async viewport(w,h){await this.send('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:true})}
+            async shot(path){const data=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});writeFileSync(path,Buffer.from(data.data,'base64'))}
+            close(){try{this.ws?.close()}catch{}}
+          }
+
+          async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin),'google-chrome required');const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9860+(process.pid%70),dir=`/tmp/catfood-header-criteria-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'--window-size=390,844','about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{bin,version,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
+
+          const metricExpr=`(()=>{
+            const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}}
+            const info=n=>{if(!n)return null;const s=getComputedStyle(n);return{text:(n.textContent||'').trim().replace(/\\s+/g,' ').slice(0,240),rect:rect(n),position:s.position,top:s.top,zIndex:s.zIndex,display:s.display,visibility:s.visibility,overflow:s.overflow,overflowX:s.overflowX,overflowY:s.overflowY}}
+            const overlap=(a,b)=>{if(!a||!b)return null;const left=Math.max(a.x,b.x),right=Math.min(a.right,b.right),top=Math.max(a.y,b.y),bottom=Math.min(a.bottom,b.bottom);const width=Math.max(0,right-left),height=Math.max(0,bottom-top);return{left,right,top,bottom,width,height,area:width*height,overlaps:width>0&&height>0}}
+            const topbar=document.querySelector('.research-topbar'), modeNav=document.querySelector('.mode-nav'), criteria=document.querySelector('.criteria-bar'), workspace=document.querySelector('.research-workspace'), scroll=document.querySelector('.research-results-scroll')
+            const topbarRect=rect(topbar), modeRect=rect(modeNav), criteriaRect=rect(criteria)
+            const modeCriteria=overlap(modeRect,criteriaRect), topbarCriteria=overlap(topbarRect,criteriaRect)
+            let hit=[]
+            if(modeCriteria?.overlaps){const x=(modeCriteria.left+modeCriteria.right)/2,y=(modeCriteria.top+modeCriteria.bottom)/2;hit=document.elementsFromPoint(x,y).slice(0,8).map(n=>({tag:n.tagName,class:n.className,text:(n.textContent||'').trim().replace(/\\s+/g,' ').slice(0,80)}))}
+            return{innerWidth,innerHeight,scrollY,docScrollTop:document.documentElement.scrollTop,bodyScrollTop:document.body.scrollTop,font:getComputedStyle(document.body).fontFamily,topbar:info(topbar),modeNav:info(modeNav),modeButtons:[...document.querySelectorAll('.mode-button')].map(info),criteriaBar:info(criteria),criteriaLabel:info(document.querySelector('.criteria-label')),criteriaChips:info(document.querySelector('.criteria-chips')),criteriaButton:info(document.querySelector('.criteria-bar > button')),workspace:info(workspace),resultsScroll:scroll?{scrollTop:scroll.scrollTop,clientHeight:scroll.clientHeight,scrollHeight:scroll.scrollHeight,rect:rect(scroll),overflowY:getComputedStyle(scroll).overflowY}:null,overlap:{modeNavCriteria:modeCriteria,topbarCriteria},hitAtModeCriteriaOverlap:hit}
+          })()`
+
+          async function load(c,w){await c.viewport(w,844);await c.nav(LONG);await c.wait(`document.querySelector('.criteria-bar')&&document.querySelectorAll('.research-result-card').length>=8`,'criteria/results');await c.wait(`document.querySelector('.research-result-image')?.complete`,'image');await sleep(500)}
+          async function scrollResults(c){return await c.eval(`(()=>{const pane=document.querySelector('.research-results-scroll');if(pane&&pane.scrollHeight>pane.clientHeight+10){pane.scrollTop=Math.min(360,pane.scrollHeight-pane.clientHeight);return{target:'research-results-scroll',value:pane.scrollTop,max:pane.scrollHeight-pane.clientHeight}}const max=Math.max(0,document.documentElement.scrollHeight-innerHeight);window.scrollTo(0,Math.min(360,max));return{target:'window',value:scrollY,max}})()`)}
+
+          const {bin,version,proc,dir,c}=await launch();const report={browser:bin,browserVersion:version,frontendSha:SHA,url:LONG,viewports:{}}
+          try{
+            await c.connect()
+            for(const w of [360,390]){
+              await load(c,w)
+              const top=await c.eval(metricExpr)
+              report.viewports[w]={top}
+              await c.shot(`qa-artifacts/header-criteria-${w}-top.png`)
+              const scrollAction=await scrollResults(c);await sleep(350)
+              const scrolled=await c.eval(metricExpr)
+              report.viewports[w].scrollAction=scrollAction
+              report.viewports[w].scrolled=scrolled
+              await c.shot(`qa-artifacts/header-criteria-${w}-scrolled.png`)
+            }
+            writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2))
+            console.log('HEADER_CRITERIA_QA '+JSON.stringify(report))
+          } finally {c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: header-criteria-overlap-qa
+          path: qa-artifacts/
+          if-no-files-found: error

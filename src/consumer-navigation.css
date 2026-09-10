@@ -152,9 +152,10 @@
 
   .compare-corner,
   .compare-row-label {
-    position: sticky;
-    left: 0;
+    position: relative;
+    left: auto;
     z-index: 4;
+    transform: translateX(var(--compare-scroll-x, 0px));
     box-shadow: 1px 0 0 var(--research-line);
   }
 

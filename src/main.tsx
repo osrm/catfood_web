@@ -28,6 +28,14 @@ import './stitch-final-polish-fixes.css'
 import './explore-package-polish.css'
 import './consumer-navigation.css'
 
+function syncCompareScroll(event: Event) {
+  const target = event.target
+  if (!(target instanceof HTMLElement) || !target.classList.contains('compare-table-wrap')) return
+  target.style.setProperty('--compare-scroll-x', `${target.scrollLeft}px`)
+}
+
+document.addEventListener('scroll', syncCompareScroll, true)
+
 async function start() {
   if (import.meta.env.DEV) {
     if (isDemoPreview()) (await import('./demo-preview')).installDemoPreviewFetch()

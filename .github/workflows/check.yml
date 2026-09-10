@@ -25,19 +25,23 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - smoke
-          - desktopHistory
-          - historyRace
+          - home
           - hills
-          - royal
-          - invalidUrl
-          - compareUrl
-          - detailKeyboard
-          - compareKeyboard
-          - mobile390
-          - mobile360
+          - invalid
+          - detailNav
+          - detailKeys
+          - lookupReplace
+          - lookupBack
+          - failureError
           - failureRetry
-          - lookupHistory
+          - m390Scroll
+          - m390Sticky
+          - m390Touch
+          - m390Text
+          - m360Scroll
+          - m360Sticky
+          - m360Touch
+          - m360Text
     name: live-browser (${{ matrix.group }})
     steps:
       - uses: actions/checkout@v5
@@ -45,4 +49,4 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: node scripts/live-browser-audit.mjs "${{ matrix.group }}"
+      - run: node scripts/live-browser-audit-v2.mjs "${{ matrix.group }}"

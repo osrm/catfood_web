@@ -1,0 +1,55 @@
+name: Postdeploy desktop compare QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Verify deployed 1440px comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          node <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawn } from 'node:child_process'
+          import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+          const BASE='https://osrm.github.io/catfood_web/'
+          const IDS=['product_b47d3ae674773585','product_99c5ee4eb9211a75','product_7729d5c3a145ffd6','product_06cc1df5a4cec6f6','product_e2df0243fd9a3e68']
+          const TABS=['overview','nutrition','ingredients']
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms))
+          class Cdp{
+            constructor(url){this.url=url;this.ws=null;this.id=1;this.pending=new Map()}
+            async connect(){this.ws=new WebSocket(this.url);await new Promise((r,j)=>{const t=setTimeout(()=>j(new Error('ws timeout')),15000);this.ws.addEventListener('open',()=>{clearTimeout(t);r()},{once:true});this.ws.addEventListener('error',()=>j(new Error('ws error')),{once:true})});this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(!m.id)return;const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.j(new Error(m.error.message)):p.r(m.result)});for(const x of ['Page.enable','Runtime.enable','Network.enable'])await this.send(x)}
+            send(method,params={}){const id=this.id++;return new Promise((r,j)=>{this.pending.set(id,{r,j});this.ws.send(JSON.stringify({id,method,params}))})}
+            async eval(expression){const x=await this.send('Runtime.evaluate',{expression,returnByValue:true});if(x.exceptionDetails)throw new Error(x.exceptionDetails.exception?.description||x.exceptionDetails.text);return x.result?.value}
+            async wait(expression,label,ms=50000){const end=Date.now()+ms;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+            async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'ready');await this.wait(`document.querySelector('#root')&&document.body.innerText.length>0`,'root')}
+            async viewport(w,h,mobile=false){await this.send('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile})}
+            async shot(path){const m=await this.send('Page.getLayoutMetrics');const h=Math.min(Math.ceil(m.cssContentSize?.height||1100),5000);const data=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:true,clip:{x:0,y:0,width:await this.eval('innerWidth'),height:h,scale:1}});writeFileSync(path,Buffer.from(data.data,'base64'))}
+            close(){try{this.ws?.close()}catch{}}
+          }
+          async function launch(){const bin=['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(existsSync);assert.ok(bin);const port=9900+(process.pid%60),dir=`/tmp/catfood-postdeploy-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'--window-size=1440,1100','about:blank'],{stdio:'ignore'});for(let i=0;i<200;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{bin,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(150)}throw new Error('chrome start timeout')}
+          const url=tab=>`${BASE}?view=workspace&applied=1&compare=${IDS.join(',')}&compareOpen=1&compareTab=${tab}`
+          async function waitTab(c,tab){await c.wait(`document.querySelectorAll('.compare-product-head').length===5`,'five products');if(tab==='nutrition')await c.wait(`!document.querySelector('.compare-state')?.innerText.includes('영양 정보를 불러오는 중입니다.')`,'nutrition');if(tab==='ingredients')await c.wait(`!document.querySelector('.compare-state')?.innerText.includes('원재료 정보를 불러오는 중입니다.')&&document.querySelector('.compare-ingredient-text')`,'ingredients');await sleep(350)}
+          const metric=async c=>c.eval(`(()=>{const w=document.querySelector('.compare-table-wrap'),t=document.querySelector('.compare-table'),wr=w.getBoundingClientRect(),tr=t.getBoundingClientRect();const inspect=sel=>[...document.querySelectorAll(sel)].map(n=>({text:n.textContent.trim().replace(/\\s+/g,' ').slice(0,180),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight}));return{innerWidth,docWidth:document.documentElement.scrollWidth,font:getComputedStyle(document.body).fontFamily,wrap:{clientWidth:w.clientWidth,scrollWidth:w.scrollWidth,x:wr.x,right:wr.right,width:wr.width,computedWidth:getComputedStyle(w).width},table:{clientWidth:t.clientWidth,scrollWidth:t.scrollWidth,x:tr.x,right:tr.right,width:tr.width,minWidth:getComputedStyle(t).minWidth},names:inspect('.compare-product-copy>strong'),packages:inspect('.compare-product-copy>small'),labels:inspect('.compare-row-label'),cells:inspect('.compare-cell'),ingredientTexts:inspect('.compare-ingredient-text')}})()`)
+          mkdirSync('qa-artifacts',{recursive:true});const {bin,proc,dir,c}=await launch();const report={browser:bin,viewport:'1440x1100',tabs:{}}
+          try{await c.connect();for(const tab of TABS){await c.viewport(1440,1100,false);await c.nav(url(tab));await waitTab(c,tab);const m=await metric(c);report.tabs[tab]=m;assert.ok(m.wrap.clientWidth>=1266,JSON.stringify(m.wrap));assert.ok(m.wrap.scrollWidth<=m.wrap.clientWidth+1,JSON.stringify(m.wrap));assert.ok(m.table.right<=m.wrap.right+1,JSON.stringify({wrap:m.wrap,table:m.table}));assert.ok(m.docWidth<=m.innerWidth+1);assert.ok(m.names.every(n=>n.scrollWidth<=n.clientWidth+1&&n.scrollHeight<=n.clientHeight+1),JSON.stringify(m.names));assert.ok(m.packages.every(n=>n.scrollWidth<=n.clientWidth+1&&n.scrollHeight<=n.clientHeight+1),JSON.stringify(m.packages));await c.shot(`qa-artifacts/postdeploy-${tab}-1440.png`)}writeFileSync('qa-artifacts/postdeploy-report.json',JSON.stringify(report,null,2));console.log('POSTDEPLOY_QA '+JSON.stringify(report));console.log('POSTDEPLOY_QA PASS')}finally{c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: postdeploy-desktop-compare-qa
+          path: qa-artifacts/
+          if-no-files-found: error

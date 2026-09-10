@@ -200,6 +200,10 @@
   min-height: 104px;
 }
 
+.research-shell.is-browsing:not(.is-inspecting) .research-result-card.is-unfiltered {
+  grid-template-columns: 74px minmax(200px, 1fr) 72px;
+}
+
 @media (max-width: 980px) {
   /* Editing conditions should use the document scroll on narrow screens, not a nested scroll box. */
   .research-shell.is-browsing:has(.condition-actions) {
@@ -277,6 +281,23 @@
   .research-shell.is-browsing:not(.is-inspecting) .research-result-card:not(:has(.research-result-facts)) {
     grid-template-columns: 76px minmax(0, 1fr);
     gap: 12px;
+  }
+
+  .research-results-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .research-results-heading > div {
+    width: 100%;
+  }
+
+  .research-results-heading > div > span,
+  .research-results-context {
+    max-width: none;
+    text-align: left;
+    word-break: keep-all;
   }
 
   .research-result-card .result-relation-empty {

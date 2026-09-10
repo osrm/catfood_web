@@ -1,0 +1,33 @@
+name: Recipe labels postdeploy QA
+
+on:
+  push:
+    branches:
+      - qa/recipe-labels-pr18-postdeploy-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Check deployed recipe labels
+        run: |
+          mkdir -p qa-artifacts
+          node .github/postdeploy-recipe-labels.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recipe-labels-pr18-postdeploy
+          path: qa-artifacts/
+          if-no-files-found: error

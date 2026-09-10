@@ -21,32 +21,12 @@ jobs:
 
   live-browser:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        group:
-          - home
-          - hills
-          - invalid
-          - detailNav
-          - detailKeys
-          - lookupReplace
-          - lookupBack
-          - failureError
-          - failureRetry
-          - m390Scroll
-          - m390Sticky
-          - m390Touch
-          - m390Text
-          - m360Scroll
-          - m360Sticky
-          - m360Touch
-          - m360Text
-    name: live-browser (${{ matrix.group }})
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - run: node scripts/live-browser-focus.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: node scripts/live-browser-audit-v2.mjs "${{ matrix.group }}"
+          name: catfood-live-browser-screenshots
+          path: qa-artifacts/
+          if-no-files-found: warn

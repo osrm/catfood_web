@@ -1,0 +1,57 @@
+name: Mobile Results Relations QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Measure deployed mobile Results relation layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          node <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawn, execFileSync } from 'node:child_process'
+          import { existsSync, rmSync, writeFileSync } from 'node:fs'
+
+          const BASE='https://osrm.github.io/catfood_web/'
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms))
+          class Cdp{
+            constructor(url){this.url=url;this.ws=null;this.id=1;this.pending=new Map()}
+            async connect(){this.ws=new WebSocket(this.url);await new Promise((r,j)=>{const t=setTimeout(()=>j(new Error('ws timeout')),15000);this.ws.addEventListener('open',()=>{clearTimeout(t);r()},{once:true});this.ws.addEventListener('error',()=>j(new Error('ws error')),{once:true})});this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(!m.id)return;const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.j(new Error(m.error.message)):p.r(m.result)});for(const x of ['Page.enable','Runtime.enable','Network.enable'])await this.send(x)}
+            send(method,params={}){const id=this.id++;return new Promise((r,j)=>{this.pending.set(id,{r,j});this.ws.send(JSON.stringify({id,method,params}))})}
+            async eval(expression){const x=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(x.exceptionDetails)throw new Error(x.exceptionDetails.exception?.description||x.exceptionDetails.text);return x.result?.value}
+            async wait(expression,label,ms=60000){const end=Date.now()+ms;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+            async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'ready');await this.wait(`document.querySelectorAll('.research-result-card').length>=8`,'cards');await sleep(500)}
+            async viewport(w,h,mobile=true){await this.send('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile})}
+            async shot(path){const data=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});writeFileSync(path,Buffer.from(data.data,'base64'))}
+            close(){try{this.ws?.close()}catch{}}
+          }
+          async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9820+(process.pid%80),dir=`/tmp/catfood-mobile-rel-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'--window-size=1440,1100','about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{bin,version,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
+
+          const urls={none:`${BASE}?view=workspace&applied=1`,condition:`${BASE}?view=workspace&applied=1&features=hairball&age=adult`}
+          const metricExpr=`(()=>{const rect=n=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};const cards=[...document.querySelectorAll('.research-result-card')].slice(0,10);return{innerWidth,docWidth:document.documentElement.scrollWidth,font:getComputedStyle(document.body).fontFamily,cards:cards.map(c=>{const rel=c.querySelector('.result-relations,.result-relation-empty');const lines=[...c.querySelectorAll('.relation-line')];const strongs=[...c.querySelectorAll('.relation-line>strong')];const img=c.querySelector('.research-result-image');const name=c.querySelector('.research-result-identity strong');const packages=c.querySelector('.research-result-packages');return{id:c.dataset.productId,grid:getComputedStyle(c).gridTemplateColumns,gap:getComputedStyle(c).columnGap,card:rect(c),relation:rel?{text:rel.textContent.trim().replace(/\\s+/g,' '),rect:rect(rel),clientWidth:rel.clientWidth,scrollWidth:rel.scrollWidth}:null,lines:lines.map(n=>({text:n.textContent.trim().replace(/\\s+/g,' '),rect:rect(n),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth})),strongs:strongs.map(n=>({text:n.textContent.trim(),rect:rect(n),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight,whiteSpace:getComputedStyle(n).whiteSpace,overflow:getComputedStyle(n).overflow,textOverflow:getComputedStyle(n).textOverflow})),image:img?{rect:rect(img),naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight}:null,name:name?{text:name.textContent.trim(),clientWidth:name.clientWidth,scrollWidth:name.scrollWidth,clientHeight:name.clientHeight,scrollHeight:name.scrollHeight}:null,packages:packages?{text:packages.textContent.trim(),clientWidth:packages.clientWidth,scrollWidth:packages.scrollWidth,clientHeight:packages.clientHeight,scrollHeight:packages.scrollHeight}:null}})}})()`
+          const gridStyle=`@media (max-width:760px){.research-shell.is-browsing:not(.is-inspecting) .research-result-card:not(:has(.research-result-facts)){grid-template-columns:58px minmax(0,1fr);}}`
+          const wrapStyle=`@media (max-width:760px){.research-result-card .relation-line>strong{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;}}`
+          async function addStyle(c,id,css){await c.eval(`(()=>{const s=document.createElement('style');s.id=${JSON.stringify(id)};s.textContent=${JSON.stringify(css)};document.head.appendChild(s)})()`);await sleep(180)}
+          const {bin,version,proc,dir,c}=await launch();const report={browser:bin,browserVersion:version,frontendSha:'e9dcf1e9b67848fdf9de13b8bd403ecc315c0fa9',cases:{}}
+          try{await c.connect();for(const vp of [390,360,1440]){report.cases[vp]={};for(const [kind,url] of Object.entries(urls)){await c.viewport(vp,vp===1440?1100:844,vp!==1440);await c.nav(url);const before=await c.eval(metricExpr);await c.shot(`qa-artifacts/${kind}-${vp}-before.png`);await addStyle(c,'candidate-grid',gridStyle);const gridOnly=await c.eval(metricExpr);await c.shot(`qa-artifacts/${kind}-${vp}-grid.png`);await addStyle(c,'candidate-wrap',wrapStyle);const wrapped=await c.eval(metricExpr);await c.shot(`qa-artifacts/${kind}-${vp}-wrapped.png`);report.cases[vp][kind]={before,gridOnly,wrapped};assert.ok(wrapped.docWidth<=wrapped.innerWidth+1,`page overflow ${vp} ${kind}`)}}writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2));console.log('MOBILE_RESULTS_RELATIONS '+JSON.stringify(report));console.log('MOBILE_RESULTS_RELATIONS PASS')}finally{c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-results-relations-qa
+          path: qa-artifacts/
+          if-no-files-found: error

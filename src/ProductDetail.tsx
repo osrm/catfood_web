@@ -29,7 +29,17 @@ const LIFE_STAGE_LABELS: Record<string, string> = { kitten: '키튼', adult: '�
 const TARGET_LABELS: Record<string, string> = { indoor: '실내묘', sterilized: '중성화묘' }
 const FEATURE_LABELS: Record<string, string> = { weight_management: '체중 관리', stool: '변 상태', hairball: '헤어볼', digestive: '소화', urinary: '요로', skin_coat: '피부·피모', dental: '덴탈' }
 const RECIPE_LABELS: Record<string, string> = {
-  poultry: '가금류', poultry_unspecified: '가금류(종류 미상)', meat: '육류', fish: '생선', chicken: '닭', duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추리', beef: '소', lamb: '양', goat: '염소', boar: '멧돼지', rabbit: '토끼', salmon: '연어', tuna: '참치', herring: '청어', mackerel: '고등어', trout: '송어', cod: '대구', sardine: '정어리', anchovy: '멸치', menhaden: '멘헤이든', whitefish: '흰살생선', pork: '돼지', venison: '사슴', egg: '계란',
+  poultry: '가금류', poultry_unspecified: '가금류(종류 미상)', meat: '육류', fish: '생선', chicken: '닭',
+  duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추리', beef: '소', lamb: '양', goat: '염소',
+  boar: '멧돼지', rabbit: '토끼', salmon: '연어', tuna: '참치', herring: '청어', mackerel: '고등어',
+  trout: '송어', cod: '대구', sardine: '정어리', anchovy: '멸치', menhaden: '멘헤이든', whitefish: '흰살생선',
+  pork: '돼지', venison: '사슴', egg: '계란', beef_liver: '소 간', bonito: '보니토(Bonito)', bream: '도미류(Bream)',
+  cheese: '치즈', chicken_liver: '닭 간', coconut_oil: '코코넛오일', green_mussel: '초록홍합', haddock: '해덕대구',
+  hoki: '호키', kahawai: 'Kahawai', mussel: '홍합류', mutton: '양고기(Mutton)', pheasant: '꿩',
+  poultry_hearts: '가금류 심장', poultry_liver: '가금류 간', pumpkin: '호박', rice: '쌀', rooster: '수탉',
+  sea_bass: '농어류(Sea bass)', sea_bream: '도미류(Sea bream)', shirasu: '치어(Shirasu)', shrimp: '새우',
+  skipjack_tuna: '가다랑어(Skipjack tuna)', southern_blue_whiting: '남방청대구', tuna_roe: '참치알', wallaby: '왈라비',
+  wild_boar: '야생 멧돼지',
 }
 const COUNTRY_LABELS: Record<string, string> = { KR: '한국', US: '미국', CA: '캐나다', GB: '영국', AU: '호주', NZ: '뉴질랜드', NL: '네덜란드', TH: '태국', DE: '독일', FR: '프랑스', IT: '이탈리아', CZ: '체코', AT: '오스트리아', JP: '일본' }
 const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = { calcium: '칼슘', phosphorus: '인', magnesium: '마그네슘', taurine: '타우린' }

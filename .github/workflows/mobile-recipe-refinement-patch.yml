@@ -1,0 +1,90 @@
+name: Apply mobile recipe refinement patch
+
+on:
+  push:
+    branches:
+      - ui/mobile-recipe-refinement-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ui/mobile-recipe-refinement-20260911
+      - name: Apply scoped source patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('src/App.tsx')
+          app = app_path.read_text()
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'missing App anchor: {label}')
+              return text.replace(old, new, 1)
+
+          app = replace_once(
+              app,
+              "  const [recipeSearch, setRecipeSearch] = useState('')\n",
+              "  const [recipeSearch, setRecipeSearch] = useState('')\n  const [mobileRefineOpen, setMobileRefineOpen] = useState(false)\n",
+              'mobile state',
+          )
+          app = replace_once(
+              app,
+              "  const exploreRunStateKey = useRef<string | null>(null)\n",
+              "  const exploreRunStateKey = useRef<string | null>(null)\n  const mobileRefineToggleRef = useRef<HTMLButtonElement | null>(null)\n",
+              'toggle ref',
+          )
+          effect_anchor = "  useEffect(() => {\n    const controller = new AbortController(); let active = true\n"
+          effect = """  useEffect(() => {\n    if (mode !== 'explore' || editingConditions || selectedId || compareOpen || detailProductId) {\n      setMobileRefineOpen(false)\n    }\n  }, [mode, editingConditions, selectedId, compareOpen, detailProductId])\n  useEffect(() => {\n    const media = window.matchMedia('(max-width: 980px)')\n    const handleChange = (event: MediaQueryListEvent) => {\n      const panel = document.getElementById('mobile-recipe-refine-panel')\n      const activeElement = document.activeElement\n      if (event.matches) {\n        if (activeElement instanceof HTMLElement && panel?.contains(activeElement)) {\n          setMobileRefineOpen(true)\n        }\n        return\n      }\n      setMobileRefineOpen(false)\n      if (activeElement === mobileRefineToggleRef.current) {\n        window.setTimeout(() => document.querySelector<HTMLInputElement>('#mobile-recipe-refine-panel .recipe-search')?.focus(), 0)\n      }\n    }\n    media.addEventListener('change', handleChange)\n    return () => media.removeEventListener('change', handleChange)\n  }, [])\n\n"""
+          app = replace_once(app, effect_anchor, effect + effect_anchor, 'responsive focus effect')
+
+          mobile_entry = """  function renderMobileRefineEntry() {\n    if (mode !== 'explore' || editingConditions || selectedProduct || compareOpen || detailProductId) return null\n    const togglePanel = () => {\n      if (mobileRefineOpen) {\n        setMobileRefineOpen(false)\n        window.setTimeout(() => mobileRefineToggleRef.current?.focus(), 0)\n        return\n      }\n      setMobileRefineOpen(true)\n      window.setTimeout(() => document.querySelector<HTMLInputElement>('#mobile-recipe-refine-panel .recipe-search')?.focus(), 0)\n    }\n    return <div className=\"mobile-refine-entry\"><button ref={mobileRefineToggleRef} className=\"secondary-action\" type=\"button\" aria-expanded={mobileRefineOpen} aria-controls=\"mobile-recipe-refine-panel\" onClick={togglePanel}>{mobileRefineOpen ? '목록으로 돌아가기' : '더 좁혀보기'}</button></div>\n  }\n"""
+          app = replace_once(app, "  function renderCriteriaBar() {\n", mobile_entry + "  function renderCriteriaBar() {\n", 'mobile entry renderer')
+
+          app = replace_once(
+              app,
+              "  const comparedNames = compareItems.map((item) => item.product.canonical_name)\n  return <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}>",
+              "  const comparedNames = compareItems.map((item) => item.product.canonical_name)\n  const showMobileRefine = mobileRefineOpen && mode === 'explore' && !editingConditions && !selectedProduct && !compareOpen && !detailProductId\n  const shellClassName = ['research-shell', selectedProduct ? 'is-inspecting' : 'is-browsing', showMobileRefine ? 'is-mobile-refining' : ''].filter(Boolean).join(' ')\n  return <div className={shellClassName}>",
+              'shell class',
+          )
+          app = replace_once(app, "</header>{compareOpen && compareItems.length ?", "</header>{compareOpen && compareItems.length ?", 'header sanity')
+          app = replace_once(app, "<>{renderCriteriaBar()}<main className=\"research-workspace\">", "<>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className=\"research-workspace\">", 'entry placement')
+          app = replace_once(app, "{!selectedProduct ? <aside className=\"research-filters\">", "{!selectedProduct ? <aside className=\"research-filters\" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}>", 'panel id')
+          app_path.write_text(app)
+
+          css_path = Path('src/explore-package-polish.css')
+          css = css_path.read_text()
+          anchor = ".research-shell.is-browsing:not(.is-inspecting) .research-result-card.is-unfiltered {\n  grid-template-columns: 74px minmax(200px, 1fr) 72px;\n}\n\n"
+          addition = anchor + ".mobile-refine-entry {\n  display: none;\n}\n\n"
+          if anchor not in css:
+              raise SystemExit('missing CSS base anchor')
+          css = css.replace(anchor, addition, 1)
+
+          hidden_anchor = "  .research-shell.is-browsing:has(.criteria-bar) .research-filters {\n    display: none;\n  }\n\n"
+          mobile_rules = hidden_anchor + """  .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry {\n    display: flex;\n    width: calc(100% - 36px);\n    margin: 14px auto 0;\n  }\n\n  .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry .secondary-action {\n    width: 100%;\n  }\n\n  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-filters {\n    display: block;\n    border-right: 0;\n  }\n\n  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-results {\n    display: none;\n  }\n\n  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-pane-heading,\n  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .condition-summary,\n  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .summary-actions {\n    display: none;\n  }\n\n  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-filter-scroll {\n    height: auto;\n    overflow: visible;\n  }\n\n"""
+          if hidden_anchor not in css:
+              raise SystemExit('missing CSS mobile hidden anchor')
+          css = css.replace(hidden_anchor, mobile_rules, 1)
+
+          narrow_anchor = "  .research-shell.is-browsing:has(.criteria-bar) .research-workspace {\n    width: calc(100% - 28px);\n  }\n\n"
+          narrow_rules = narrow_anchor + "  .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry {\n    width: calc(100% - 28px);\n  }\n\n"
+          if narrow_anchor not in css:
+              raise SystemExit('missing CSS 760 anchor')
+          css = css.replace(narrow_anchor, narrow_rules, 1)
+          css_path.write_text(css)
+          PY
+          rm .github/workflows/mobile-recipe-refinement-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/App.tsx src/explore-package-polish.css .github/workflows/mobile-recipe-refinement-patch.yml
+          git diff --cached --check
+          git commit -m "ui: restore mobile recipe refinement access"
+          git push origin HEAD:ui/mobile-recipe-refinement-20260911

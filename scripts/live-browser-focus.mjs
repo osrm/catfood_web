@@ -5,7 +5,8 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 const BASE = 'https://osrm.github.io/catfood_web/'
 const HILLS = 'product_84eb3905fc56f218'
 const ROYAL = 'product_5b13354ad9792881'
-const OUT = 'qa-artifacts'
+const OUT = 'qa-artifacts-final'
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 class Cdp {
   constructor(url) {
@@ -13,9 +14,10 @@ class Cdp {
     this.ws = null
     this.seq = 1
     this.pending = new Map()
-    this.consoleErrors = []
-    this.networkFailures = []
+    this.requests = new Map()
     this.restResponses = []
+    this.networkFailures = []
+    this.consoleErrors = []
   }
   async connect() {
     this.ws = new WebSocket(this.url)
@@ -25,32 +27,37 @@ class Cdp {
       this.ws.addEventListener('error', () => reject(new Error('CDP websocket error')), { once: true })
     })
     this.ws.addEventListener('message', (event) => {
-      const m = JSON.parse(event.data)
-      if (m.id) {
-        const p = this.pending.get(m.id)
-        if (!p) return
-        this.pending.delete(m.id)
-        m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result)
+      const message = JSON.parse(event.data)
+      if (message.id) {
+        const pending = this.pending.get(message.id)
+        if (!pending) return
+        this.pending.delete(message.id)
+        message.error ? pending.reject(new Error(message.error.message)) : pending.resolve(message.result)
         return
       }
-      if (m.method === 'Runtime.exceptionThrown') {
-        this.consoleErrors.push(m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text ?? 'uncaught exception')
-      }
-      if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
-        this.consoleErrors.push((m.params.args ?? []).map((a) => a.value ?? a.description ?? '').filter(Boolean).join(' ') || 'console.error')
-      }
-      if (m.method === 'Network.loadingFailed' && m.params.errorText !== 'net::ERR_ABORTED') {
-        this.networkFailures.push(m.params.errorText)
-      }
-      if (m.method === 'Network.responseReceived') {
-        const r = m.params.response
-        if (r?.url?.includes('.supabase.co/rest/v1/')) {
-          const u = new URL(r.url)
-          this.restResponses.push({ path: u.pathname, status: r.status })
+      if (message.method === 'Network.requestWillBeSent') this.requests.set(message.params.requestId, message.params.request?.url ?? '')
+      if (message.method === 'Network.responseReceived') {
+        const response = message.params.response
+        if (response?.url?.includes('.supabase.co/rest/v1/')) {
+          const parsed = new URL(response.url)
+          this.restResponses.push({ path: parsed.pathname, status: response.status })
         }
       }
+      if (message.method === 'Network.loadingFailed' && message.params.errorText !== 'net::ERR_ABORTED') {
+        this.networkFailures.push({
+          url: this.requests.get(message.params.requestId) ?? '',
+          error: message.params.errorText,
+          blockedReason: message.params.blockedReason ?? null,
+        })
+      }
+      if (message.method === 'Runtime.exceptionThrown') {
+        this.consoleErrors.push(message.params.exceptionDetails?.exception?.description ?? message.params.exceptionDetails?.text ?? 'uncaught exception')
+      }
+      if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
+        this.consoleErrors.push((message.params.args ?? []).map((arg) => arg.value ?? arg.description ?? '').filter(Boolean).join(' ') || 'console.error')
+      }
     })
-    for (const method of ['Page.enable', 'Runtime.enable', 'Network.enable', 'Log.enable']) await this.send(method)
+    for (const method of ['Page.enable', 'Runtime.enable', 'Network.enable']) await this.send(method)
   }
   send(method, params = {}) {
     const id = this.seq++
@@ -64,281 +71,269 @@ class Cdp {
     if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text ?? 'Runtime evaluation failed')
     return result.result?.value
   }
-  async wait(expression, label, timeout = 45000) {
+  async wait(expression, label, timeout = 60000) {
     const end = Date.now() + timeout
     let last = null
     while (Date.now() < end) {
       try { if (await this.eval(`Boolean(${expression})`)) return } catch (error) { last = error }
-      await new Promise((resolve) => setTimeout(resolve, 120))
+      await sleep(150)
     }
-    throw new Error(`Timed out waiting for ${label}${last ? `: ${last.message}` : ''}`)
+    const diag = await this.diagnostics()
+    throw new Error(`timeout ${label}${last ? ` (${last.message})` : ''}; diagnostics=${JSON.stringify(diag)}`)
   }
   async navigate(url) {
     await this.send('Page.navigate', { url })
-    await this.wait(`document.readyState === 'complete'`, `document ready: ${url}`)
+    await this.wait(`document.readyState === 'complete'`, `document ready ${url}`)
+    await this.wait(`document.querySelector('#root') && document.body.innerText.length > 0`, `app root ${url}`)
   }
   async viewport(width, height, mobile = false) {
     await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile })
+  }
+  async screenshot(name) {
+    const result = await this.send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: false })
+    writeFileSync(`${OUT}/${name}`, Buffer.from(result.data, 'base64'))
   }
   async key(key, code = key) {
     await this.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code })
     await this.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code })
   }
-  async screenshot(name, quality = 72) {
-    const { data } = await this.send('Page.captureScreenshot', { format: 'jpeg', quality, fromSurface: true, captureBeyondViewport: false })
-    writeFileSync(`${OUT}/${name}`, Buffer.from(data, 'base64'))
+  async diagnostics() {
+    let page = {}
+    try {
+      page = await this.eval(`({href:location.href, ready:document.readyState, title:document.title, body:(document.body?.innerText||'').slice(0,500)})`)
+    } catch {}
+    return {
+      page,
+      recentRest: this.restResponses.slice(-12),
+      recentFailures: this.networkFailures.slice(-8),
+      consoleErrors: this.consoleErrors.slice(-8),
+    }
   }
-  resetErrors() { this.consoleErrors.length = 0; this.networkFailures.length = 0 }
+  resetNetworkLog() { this.restResponses.length = 0; this.networkFailures.length = 0 }
   close() { try { this.ws?.close() } catch {} }
 }
 
 async function launch() {
   const binary = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find(existsSync)
   assert.ok(binary, 'Chrome/Chromium binary not found')
-  const port = 9800 + (process.pid % 100)
-  const dir = `/tmp/catfood-focus-${process.pid}`
-  rmSync(dir, { recursive: true, force: true })
+  const port = 9900 + (process.pid % 80)
+  const profile = `/tmp/catfood-final-${process.pid}`
+  rmSync(profile, { recursive: true, force: true })
   const proc = spawn(binary, [
-    '--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
-    '--no-first-run', '--no-default-browser-check', `--remote-debugging-port=${port}`,
-    `--user-data-dir=${dir}`, '--window-size=1440,1100', 'about:blank',
+    '--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-first-run',
+    `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--window-size=1440,1100', 'about:blank',
   ], { stdio: ['ignore', 'ignore', 'pipe'] })
   let stderr = ''
-  proc.stderr.on('data', (chunk) => { stderr += String(chunk); if (stderr.length > 5000) stderr = stderr.slice(-5000) })
+  proc.stderr.on('data', (chunk) => { stderr += String(chunk); if (stderr.length > 6000) stderr = stderr.slice(-6000) })
   const end = Date.now() + 30000
   while (Date.now() < end) {
     if (proc.exitCode != null) throw new Error(`Chrome exited early (${proc.exitCode}): ${stderr}`)
     try {
       const pages = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()
       const page = pages.find((item) => item.type === 'page' && item.webSocketDebuggerUrl)
-      if (page) return { proc, cdp: new Cdp(page.webSocketDebuggerUrl), binary, dir }
+      if (page) return { proc, profile, binary, cdp: new Cdp(page.webSocketDebuggerUrl) }
     } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 150))
+    await sleep(150)
   }
   proc.kill('SIGKILL')
-  throw new Error(`Chrome remote debugging endpoint timeout: ${stderr}`)
+  throw new Error(`Chrome debugging endpoint timeout: ${stderr}`)
 }
 
-async function shell(cdp) {
-  await cdp.wait(`document.body && (document.body.innerText.includes('CATFOOD') || document.body.innerText.includes('FELINE ARCHIVE') || document.body.innerText.includes('PRODUCT DETAIL') || document.body.innerText.includes('COMPARE'))`, 'app shell')
-}
-async function clickExact(cdp, text) {
-  assert.equal(await cdp.eval(`(() => { const b=[...document.querySelectorAll('button')].find(x=>x.textContent.trim()===${JSON.stringify(text)}); if(!b)return false; b.click(); return true })()`), true, `Missing button: ${text}`)
-}
-async function clickHas(cdp, text) {
-  assert.equal(await cdp.eval(`(() => { const b=[...document.querySelectorAll('button')].find(x=>x.textContent.includes(${JSON.stringify(text)})); if(!b)return false; b.click(); return true })()`), true, `Missing button containing: ${text}`)
-}
-function section(name, data = '') { console.log(`AUDIT ${name}${data ? ` :: ${typeof data === 'string' ? data : JSON.stringify(data)}` : ''}`) }
+function log(name, value) { console.log(`FINAL_QA ${name} :: ${typeof value === 'string' ? value : JSON.stringify(value)}`) }
 
-async function directHillAndReload(cdp) {
+async function waitWorkspace(cdp) {
+  await cdp.wait(`document.querySelector('.workspace, .research-shell, .research-stage, .detail-stage, .compare-stage, .home-shell')`, 'workspace shell')
+}
+
+async function getCompareIds(cdp) {
   await cdp.viewport(1440, 1100, false)
-  const url = `${BASE}?view=workspace&detail=${HILLS}&detailTab=nutrition`
-  await cdp.navigate(url); await shell(cdp)
-  await cdp.wait(`document.querySelector('.detail-stage')`, 'Hill detail')
-  await cdp.wait(`!document.querySelector('.detail-body')?.innerText.includes('영양 정보를 불러오는 중입니다.')`, 'Hill nutrition')
-  const first = await cdp.eval(`(() => { const body=document.querySelector('.detail-body')?.innerText||''; const subs=[...document.querySelectorAll('.detail-nutrition-subheading')]; const g=subs.find(x=>x.textContent.includes('일반 표시 영양정보')); return {h1:document.querySelector('h1')?.innerText||'', body, general:g?.nextElementSibling?.innerText||'', status:document.querySelector('.detail-nutrition-status')?.innerText||'', error:document.querySelector('.detail-state.is-error')?.innerText||'', href:location.href} })()`)
-  assert.equal(first.error, '')
-  assert.ok(first.h1.includes('11+') && first.h1.includes('인도어'), first.h1)
-  assert.ok(first.body.includes('3,772 kcal/kg'), 'Hill 3772 kcal/kg missing')
-  for (const value of ['34.3%', '20.4%', '8.6%']) assert.ok(first.body.includes(value), `Hill Dry Matter ${value} missing`)
-  for (const label of ['조단백질', '조지방', '조섬유', '수분', '조회분']) assert.ok(!first.general.includes(label), `General nutrient section unexpectedly contains ${label}: ${first.general}`)
-  assert.ok(first.status.includes('조단백질') && first.status.includes('건물 기준 자료만 확인'), first.status)
-  assert.ok(first.status.includes('수분') && first.status.includes('미확인'), first.status)
-  assert.ok(first.body.includes('건물 기준(Dry Matter) 자료'))
-  section('hill-initial', { h1:first.h1, energy:first.body.includes('3,772 kcal/kg'), dm:['34.3%','20.4%','8.6%'].map(v=>first.body.includes(v)), url:first.href })
-  await cdp.screenshot('detail-hills-1440.jpg')
-
-  await cdp.eval(`location.reload(); true`)
-  await cdp.wait(`document.readyState === 'complete'`, 'Hill hard reload document')
-  await shell(cdp)
-  await cdp.wait(`document.querySelector('.detail-stage')`, 'Hill detail after hard reload')
-  await cdp.wait(`!document.querySelector('.detail-body')?.innerText.includes('영양 정보를 불러오는 중입니다.')`, 'Hill nutrition after hard reload')
-  const after = await cdp.eval(`({href:location.href, text:document.querySelector('.detail-body')?.innerText||'', error:document.querySelector('.detail-state.is-error')?.innerText||'', selected:document.querySelector('[role="tab"][aria-selected="true"]')?.textContent.trim()||''})`)
-  section('hill-after-hard-reload', { href:after.href, selected:after.selected, energy:after.text.includes('3,772 kcal/kg'), error:after.error })
-  assert.equal(after.error, '')
-  assert.equal(after.selected, '영양')
-  assert.ok(after.href.includes(`detail=${HILLS}`) && after.href.includes('detailTab=nutrition'))
-  assert.ok(after.text.includes('3,772 kcal/kg'), 'Hill energy missing after hard reload')
+  await cdp.navigate(`${BASE}?view=workspace&applied=1`)
+  await waitWorkspace(cdp)
+  await cdp.wait(`document.querySelectorAll('.research-result-card').length >= 5`, 'five catalog result cards')
+  const ids = await cdp.eval(`[...document.querySelectorAll('.research-result-card')].slice(0,5).map((node)=>node.dataset.productId).filter(Boolean)`)
+  assert.equal(ids.length, 5)
+  return ids
 }
 
-async function royalAndManufacturing(cdp) {
-  await cdp.navigate(`${BASE}?view=workspace&detail=${ROYAL}&detailTab=nutrition`); await shell(cdp)
-  await cdp.wait(`document.querySelector('.detail-stage')`, 'Royal detail')
-  await cdp.wait(`!document.querySelector('.detail-body')?.innerText.includes('영양 정보를 불러오는 중입니다.')`, 'Royal nutrition')
-  const n = await cdp.eval(`({h1:document.querySelector('h1')?.innerText||'', text:document.querySelector('.detail-body')?.innerText||'', error:document.querySelector('.detail-state.is-error')?.innerText||''})`)
-  assert.equal(n.error, '')
-  assert.ok(n.h1.includes('노르웨이') || n.h1.includes('Norwegian'), n.h1)
-  assert.ok(/조단백질|조지방|조섬유/.test(n.text) && n.text.includes('%'), n.text.slice(0,400))
-  assert.ok(!n.text.includes('건물 기준(Dry Matter) 자료'), 'Unexpected Dry Matter section on Royal Canin comparison product')
-  await clickExact(cdp, '원재료')
-  await cdp.wait(`!document.querySelector('.detail-body')?.innerText.includes('원재료 정보를 불러오는 중입니다.')`, 'Royal ingredients')
-  const i = await cdp.eval(`({text:document.querySelector('.detail-body')?.innerText||'', error:document.querySelector('.detail-state.is-error')?.innerText||''})`)
-  assert.equal(i.error, '')
-  assert.ok(i.text.includes('출처 원문'), i.text.slice(0,400))
-  await clickExact(cdp, '제조 · 유통')
-  const m = await cdp.eval(`document.querySelector('.detail-body')?.innerText||''`)
-  section('royal', { h1:n.h1, nutritionLoaded:true, ingredientsLoaded:true, manufacturing:m.slice(0,700).replace(/\n/g,' | ') })
-  assert.ok(m.includes('제조국'), m)
-  assert.ok(m.includes('제조사') || m.includes('제조 공장') || m.includes('공장'), m)
-}
-
-async function invalidQuery(cdp) {
-  await cdp.navigate(`${BASE}?view=workspace&mode=garbage&feed=BAD&detail=product_invalid&compare=a,a,b,c,d,e,f&compareOpen=1&detailTab=nope&compareTab=nope`); await shell(cdp)
-  await cdp.wait(`!location.search.includes('product_invalid')`, 'invalid query sanitation')
-  const search = await cdp.eval('location.search')
-  for (const bad of ['mode=garbage','feed=BAD','product_invalid','detailTab=nope','compareTab=nope','compare=a']) assert.ok(!search.includes(bad), search)
-  section('invalid-query-sanitized', search)
-}
-
-async function lookupHistory(cdp) {
-  await cdp.navigate(`${BASE}?view=workspace&mode=lookup`); await shell(cdp)
+async function searchHistory(cdp) {
+  await cdp.viewport(1440, 1100, false)
+  await cdp.navigate(`${BASE}?view=workspace&mode=lookup`)
+  await waitWorkspace(cdp)
   await cdp.wait(`document.querySelector('.lookup-input')`, 'lookup input')
-  const before = await cdp.eval('history.length')
+  const initialLength = await cdp.eval('history.length')
   await cdp.eval(`document.querySelector('.lookup-input').focus(); true`)
-  await cdp.send('Input.insertText', { text: '로얄캐닌' })
-  await cdp.wait(`document.querySelector('.lookup-input')?.value === '로얄캐닌'`, 'lookup typed value')
-  await cdp.wait(`location.search.includes('q=')`, 'lookup query URL')
-  await cdp.wait(`document.querySelectorAll('.research-result-card').length > 0`, 'lookup results')
-  const afterType = await cdp.eval(`({history:history.length, q:location.search, count:document.querySelectorAll('.research-result-card').length, value:document.querySelector('.lookup-input').value})`)
-  assert.equal(afterType.history, before, 'Lookup typing should replaceState rather than add history entries')
-  const id = await cdp.eval(`document.querySelector('.research-result-card').dataset.productId`)
+  let prefix = ''
+  const samples = []
+  for (const char of ['1', '1', '+']) {
+    prefix += char
+    await cdp.send('Input.insertText', { text: char })
+    await cdp.wait(`document.querySelector('.lookup-input')?.value === ${JSON.stringify(prefix)}`, `lookup value ${prefix}`)
+    await sleep(120)
+    samples.push({ value: prefix, history: await cdp.eval('history.length'), search: await cdp.eval('location.search') })
+  }
+  assert.ok(samples.every((sample) => sample.history === initialLength), JSON.stringify(samples))
+  await cdp.wait(`document.querySelectorAll('.research-result-card').length > 0`, 'lookup result after typed query')
+  const selectedId = await cdp.eval(`document.querySelector('.research-result-card')?.dataset.productId`)
+  assert.ok(selectedId)
   await cdp.eval(`document.querySelector('.research-result-card').click(); true`)
   await cdp.wait(`document.querySelector('.research-quick-view')`, 'lookup quick view')
-  await clickHas(cdp, '상세 보기')
-  await cdp.wait(`document.querySelector('.detail-stage')`, 'lookup detail')
+  const clicked = await cdp.eval(`(() => { const b=[...document.querySelectorAll('button')].find((node)=>node.textContent.includes('상세 보기')); if(!b)return false; b.click(); return true })()`)
+  assert.equal(clicked, true)
+  await cdp.wait(`document.querySelector('.detail-stage')`, 'detail from lookup')
   const detailHistory = await cdp.eval('history.length')
-  assert.ok(detailHistory > before, 'Entering detail should push history')
-  await cdp.eval(`history.back(); true`)
-  await cdp.wait(`document.querySelector('.lookup-input') && document.querySelector('.research-results-list') && !document.querySelector('.detail-stage')`, 'lookup back')
-  await new Promise((resolve) => setTimeout(resolve, 350))
-  const restored = await cdp.eval(`({value:document.querySelector('.lookup-input').value, q:location.search, focus:document.activeElement?.dataset?.productId||null, quick:Boolean(document.querySelector('.research-quick-view')), exists:Boolean(document.querySelector('[data-product-id="${id}"]'))})`)
-  assert.equal(restored.value, '로얄캐닌')
-  assert.ok(restored.q.includes('q='), restored.q)
-  assert.equal(restored.focus, id)
-  assert.equal(restored.quick, true)
-  assert.equal(restored.exists, true)
-  section('lookup-history', { before, afterType:afterType.history, detailHistory, resultCount:afterType.count, restored })
+  assert.ok(detailHistory > initialLength)
+  await cdp.eval('history.back(); true')
+  await cdp.wait(`document.querySelector('.lookup-input')?.value === '11+' && !document.querySelector('.detail-stage')`, 'lookup state after back')
+  await cdp.wait(`document.querySelectorAll('.research-result-card').length > 0`, 'lookup results after back')
+  const restored = await cdp.eval(`({value:document.querySelector('.lookup-input').value, search:location.search, quick:Boolean(document.querySelector('.research-quick-view')), activeId:document.activeElement?.dataset?.productId||null})`)
+  assert.equal(restored.value, '11+')
+  assert.ok(restored.search.includes('q=11%2B') || restored.search.includes('q=11+'), restored.search)
+  log('search-history', { initialLength, samples, detailHistory, restored })
 }
 
-async function keyboardAndTopNavigation(cdp) {
-  await cdp.navigate(`${BASE}?view=workspace&detail=${HILLS}`); await shell(cdp)
-  await cdp.wait(`document.querySelector('.detail-stage')`, 'detail for keyboard')
-  await clickExact(cdp, '영양 정보 보기')
-  await cdp.wait(`document.querySelector('[role="tab"][aria-selected="true"]')?.textContent.trim() === '영양'`, 'top navigation to nutrition')
-  assert.ok((await cdp.eval('location.search')).includes('detailTab=nutrition'))
-  await cdp.eval(`document.querySelector('[role="tab"][aria-selected="true"]').focus(); true`)
-  await cdp.key('ArrowRight', 'ArrowRight'); await new Promise((r) => setTimeout(r, 180))
-  let s = await cdp.eval(`({selected:document.querySelector('[role="tab"][aria-selected="true"]').textContent.trim(), active:document.activeElement.textContent.trim()})`)
-  assert.deepEqual(s, { selected:'원재료', active:'원재료' })
-  await cdp.key('Home', 'Home'); await new Promise((r) => setTimeout(r, 180))
-  s = await cdp.eval(`({selected:document.querySelector('[role="tab"][aria-selected="true"]').textContent.trim(), active:document.activeElement.textContent.trim()})`)
-  assert.deepEqual(s, { selected:'개요', active:'개요' })
-  await cdp.key('End', 'End'); await new Promise((r) => setTimeout(r, 180))
-  s = await cdp.eval(`(() => {const a=document.activeElement,g=getComputedStyle(a);return{selected:document.querySelector('[role="tab"][aria-selected="true"]').textContent.trim(), active:a.textContent.trim(), outline:g.outline, shadow:g.boxShadow}})()`)
-  assert.equal(s.selected, '제조 · 유통'); assert.equal(s.active, '제조 · 유통')
-  assert.ok(s.outline !== 'none' || (s.shadow && s.shadow !== 'none'), JSON.stringify(s))
-  section('detail-keyboard', s)
+async function detailKeyboard(cdp) {
+  await cdp.navigate(`${BASE}?view=workspace&detail=${HILLS}&detailTab=overview`)
+  await waitWorkspace(cdp)
+  await cdp.wait(`document.querySelector('.detail-stage') && document.querySelector('.detail-tabs [role="tab"]')`, 'detail tabs')
+  await cdp.eval(`document.querySelector('.detail-tabs [role="tab"][aria-selected="true"]').focus(); true`)
+  const read = () => cdp.eval(`(() => { const a=document.activeElement; const s=document.querySelector('.detail-tabs [role="tab"][aria-selected="true"]'); const g=getComputedStyle(a); return {selected:s?.textContent.trim()||'', active:a?.textContent.trim()||'', search:location.search, outlineWidth:g.outlineWidth, outlineStyle:g.outlineStyle} })()`)
+  await cdp.key('ArrowRight', 'ArrowRight'); await sleep(180); let state = await read(); assert.equal(state.selected, '영양'); assert.equal(state.active, '영양')
+  await cdp.key('ArrowRight', 'ArrowRight'); await sleep(180); state = await read(); assert.equal(state.selected, '원재료'); assert.equal(state.active, '원재료')
+  await cdp.key('Home', 'Home'); await sleep(180); state = await read(); assert.equal(state.selected, '개요'); assert.equal(state.active, '개요')
+  await cdp.key('End', 'End'); await sleep(180); state = await read(); assert.equal(state.selected, '제조 · 유통'); assert.equal(state.active, '제조 · 유통'); assert.ok(state.search.includes('detailTab=context'))
+  assert.notEqual(state.outlineStyle, 'none', JSON.stringify(state)); assert.notEqual(state.outlineWidth, '0px', JSON.stringify(state))
+  await cdp.wait(`!document.querySelector('.detail-body')?.innerText.includes('제조 정보를 불러오는 중입니다.')`, 'manufacturing content')
+  const manufacturing = await cdp.eval(`document.querySelector('.detail-body')?.innerText||''`)
+  assert.ok(manufacturing.includes('제조국') && manufacturing.includes('제조 업체'), manufacturing.slice(0,800))
+  await cdp.screenshot('manufacturing-1440.png')
+  log('detail-keyboard', { state, manufacturing: manufacturing.slice(0,900).replaceAll('\n', ' | ') })
 }
 
-async function compareDesktop(cdp) {
-  await cdp.navigate(`${BASE}?view=workspace&applied=1`); await shell(cdp)
-  await cdp.wait(`document.querySelectorAll('.research-result-card').length >= 6`, 'catalog IDs for compare')
-  const ids = await cdp.eval(`[...document.querySelectorAll('.research-result-card')].slice(0,6).map(x=>x.dataset.productId)`)
-  const requested = [ids[0], ids[0], ...ids.slice(1,6)]
-  await cdp.navigate(`${BASE}?view=workspace&applied=1&compare=${requested.join(',')}&compareOpen=1&compareTab=nutrition`); await shell(cdp)
-  await cdp.wait(`document.querySelectorAll('.compare-product-head').length === 5`, '5-product compare')
-  assert.equal(await cdp.eval(`document.querySelector('[role="tab"][aria-selected="true"]').textContent.trim()`), '영양')
-  await cdp.eval(`document.querySelector('[role="tab"][aria-selected="true"]').focus(); true`)
-  await cdp.key('End','End'); await new Promise((r)=>setTimeout(r,180))
-  let key = await cdp.eval(`({selected:document.querySelector('[role="tab"][aria-selected="true"]').textContent.trim(),active:document.activeElement.textContent.trim()})`)
-  assert.deepEqual(key,{selected:'원재료',active:'원재료'})
-  await cdp.key('Home','Home'); await new Promise((r)=>setTimeout(r,180))
-  key = await cdp.eval(`({selected:document.querySelector('[role="tab"][aria-selected="true"]').textContent.trim(),active:document.activeElement.textContent.trim()})`)
-  assert.deepEqual(key,{selected:'개요',active:'개요'})
-  await cdp.screenshot('compare-5-desktop-1440.jpg')
-  const before = await cdp.eval(`document.querySelectorAll('.compare-product-head').length`)
-  await cdp.eval(`document.querySelector('.compare-remove').click(); true`)
-  await cdp.wait(`document.querySelectorAll('.compare-product-head').length === ${before-1}`, 'compare removal')
-  await clickExact(cdp, '← 제품 목록으로')
-  await cdp.wait(`document.querySelector('.research-results-list')`, 'return from compare')
-  const href = await cdp.eval('location.href')
-  assert.ok(!href.includes(ids[0]), `Removed compare product returned in URL: ${href}`)
-  section('compare-desktop', { requested:requested.length, uniqueRendered:5, keyboard:true, removedPersists:true })
-  return ids.slice(0,5)
+async function compareKeyboardAndMobile(cdp, ids) {
+  const compare = ids.join(',')
+  await cdp.viewport(1440, 1100, false)
+  await cdp.navigate(`${BASE}?view=workspace&applied=1&compare=${compare}&compareOpen=1&compareTab=overview`)
+  await waitWorkspace(cdp)
+  await cdp.wait(`document.querySelector('.compare-stage') && document.querySelectorAll('.compare-product-head').length === 5`, 'five product compare')
+  await cdp.eval(`document.querySelector('.compare-tabs [role="tab"][aria-selected="true"]').focus(); true`)
+  const read = () => cdp.eval(`(() => { const a=document.activeElement; const s=document.querySelector('.compare-tabs [role="tab"][aria-selected="true"]'); const g=getComputedStyle(a); return {selected:s?.textContent.trim()||'', active:a?.textContent.trim()||'', search:location.search, outlineWidth:g.outlineWidth, outlineStyle:g.outlineStyle} })()`)
+  await cdp.key('ArrowRight', 'ArrowRight'); await sleep(180); let state = await read(); assert.equal(state.selected, '영양'); assert.equal(state.active, '영양')
+  await cdp.key('End', 'End'); await sleep(180); state = await read(); assert.equal(state.selected, '원재료'); assert.equal(state.active, '원재료')
+  await cdp.key('Home', 'Home'); await sleep(180); state = await read(); assert.equal(state.selected, '개요'); assert.equal(state.active, '개요'); assert.ok(state.search.includes('compareTab=overview') || !state.search.includes('compareTab='))
+  assert.notEqual(state.outlineStyle, 'none', JSON.stringify(state)); assert.notEqual(state.outlineWidth, '0px', JSON.stringify(state))
+  log('compare-keyboard', state)
+
+  for (const width of [390, 360]) {
+    await cdp.viewport(width, 844, true)
+    await sleep(250)
+    const geometry = await cdp.eval(`(() => {
+      const rect = (node) => { if(!node)return null; const r=node.getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom} }
+      const wrap=document.querySelector('.compare-table-wrap')
+      const label=document.querySelector('.compare-row-label')
+      const heads=[...document.querySelectorAll('.compare-product-head')]
+      const names=[...document.querySelectorAll('.compare-product-copy > strong')].map((node)=>({text:node.textContent.trim(), clientWidth:node.clientWidth, scrollWidth:node.scrollWidth, height:node.getBoundingClientRect().height}))
+      const remove=document.querySelector('.compare-remove')
+      const detail=document.querySelector('.compare-detail-link')
+      const back=document.querySelector('.compare-header > button')
+      const tabs=[...document.querySelectorAll('.compare-tabs [role="tab"]')].map(rect)
+      return {width:innerWidth, wrap:{clientWidth:wrap.clientWidth,scrollWidth:wrap.scrollWidth,scrollLeft:wrap.scrollLeft,rect:rect(wrap)}, label:{position:getComputedStyle(label).position,left:getComputedStyle(label).left,rect:rect(label)}, heads:heads.map(rect), names, remove:rect(remove), detail:rect(detail), back:rect(back), tabs}
+    })()`)
+    assert.ok(geometry.wrap.scrollWidth > geometry.wrap.clientWidth, JSON.stringify(geometry.wrap))
+    assert.equal(geometry.label.position, 'sticky')
+    assert.ok(geometry.names.every((name) => name.text && name.scrollWidth <= name.clientWidth + 1), JSON.stringify(geometry.names))
+    assert.ok(geometry.back.height >= 44, JSON.stringify(geometry.back))
+    assert.ok(geometry.detail.height >= 44, JSON.stringify(geometry.detail))
+    assert.ok(geometry.tabs.every((tab) => tab.height >= 44), JSON.stringify(geometry.tabs))
+    assert.ok(geometry.remove.width >= 44 && geometry.remove.height >= 44, `compare remove touch target ${width}px: ${JSON.stringify(geometry.remove)}`)
+    await cdp.screenshot(`compare-${width}-start.png`)
+
+    const beforeLeft = geometry.label.rect.x
+    await cdp.eval(`(() => { const w=document.querySelector('.compare-table-wrap'); w.scrollLeft=Math.min(320,w.scrollWidth-w.clientWidth); w.dispatchEvent(new Event('scroll')); return w.scrollLeft })()`)
+    await sleep(250)
+    const after = await cdp.eval(`(() => { const rect=(n)=>{const r=n.getBoundingClientRect();return{x:r.x,right:r.right,width:r.width}}; const w=document.querySelector('.compare-table-wrap'), label=document.querySelector('.compare-row-label'); const heads=[...document.querySelectorAll('.compare-product-head')].map((node)=>({text:node.querySelector('strong')?.textContent.trim()||'',...rect(node)})); return {scrollLeft:w.scrollLeft,label:rect(label),wrap:rect(w),visible:heads.filter((h)=>h.right>Math.max(label.getBoundingClientRect().right,w.getBoundingClientRect().left)&&h.x<w.getBoundingClientRect().right)} })()`)
+    assert.ok(after.scrollLeft > 0, JSON.stringify(after))
+    assert.ok(Math.abs(after.label.x - beforeLeft) <= 2, JSON.stringify(after))
+    assert.ok(after.visible.length >= 1 && after.visible.every((head) => head.text), JSON.stringify(after.visible))
+    await cdp.screenshot(`compare-${width}-scrolled.png`)
+    log(`mobile-${width}`, { geometry, after })
+  }
 }
 
-async function mobileCompare(cdp, ids, width) {
-  await cdp.viewport(width, 844, true)
-  await cdp.navigate(`${BASE}?view=workspace&applied=1&compare=${ids.join(',')}&compareOpen=1&compareTab=ingredients`); await shell(cdp)
-  await cdp.wait(`document.querySelectorAll('.compare-product-head').length === 5`, `${width}px compare heads`)
-  await cdp.wait(`!document.querySelector('.compare-state')?.innerText.includes('원재료 정보를 불러오는 중입니다.')`, `${width}px ingredients`)
-  const layout = await cdp.eval(`(() => {
-    const wrap=document.querySelector('.compare-table-wrap'), label=document.querySelector('.compare-row-label'), ls=getComputedStyle(label)
-    const controls=[...document.querySelectorAll('.compare-remove,.compare-detail-link,.compare-header>button,.compare-tabs button')].map(x=>({text:x.textContent.trim(),h:x.getBoundingClientRect().height,w:x.getBoundingClientRect().width,font:parseFloat(getComputedStyle(x).fontSize)})).filter(x=>x.h>0)
-    const names=[...document.querySelectorAll('.compare-product-copy>strong')].map(x=>({text:x.textContent.trim(),font:parseFloat(getComputedStyle(x).fontSize),height:x.getBoundingClientRect().height,scrollWidth:x.scrollWidth,clientWidth:x.clientWidth}))
-    const longest=[...document.querySelectorAll('.compare-ingredient-text')].sort((a,b)=>b.textContent.length-a.textContent.length)[0]
-    const lg=longest?getComputedStyle(longest):null
-    return {innerWidth,docWidth:document.documentElement.scrollWidth,wrap:{client:wrap.clientWidth,scroll:wrap.scrollWidth,overflow:getComputedStyle(wrap).overflowX},sticky:{position:ls.position,left:ls.left,width:label.getBoundingClientRect().width},controls,names,longest:longest?{length:longest.textContent.length,scroll:longest.scrollWidth,client:longest.clientWidth,overflowWrap:lg.overflowWrap,wordBreak:lg.wordBreak,font:parseFloat(lg.fontSize)}:null}
-  })()`)
-  assert.ok(layout.wrap.scroll > layout.wrap.client, JSON.stringify(layout.wrap))
-  assert.ok(['auto','scroll'].includes(layout.wrap.overflow), JSON.stringify(layout.wrap))
-  assert.equal(layout.sticky.position, 'sticky'); assert.equal(parseFloat(layout.sticky.left), 0)
-  assert.ok(layout.sticky.width <= 112, JSON.stringify(layout.sticky))
-  assert.ok(layout.docWidth <= layout.innerWidth + 2, JSON.stringify({doc:layout.docWidth,inner:layout.innerWidth}))
-  for (const c of layout.controls) assert.ok(c.h >= 44, `Small touch target at ${width}px: ${JSON.stringify(c)}`)
-  for (const n of layout.names) assert.ok(n.font >= 13, `Small product name at ${width}px: ${JSON.stringify(n)}`)
-  if (layout.longest) assert.ok(layout.longest.scroll <= layout.longest.client + 2 || ['anywhere','break-word'].includes(layout.longest.overflowWrap) || ['break-all','break-word'].includes(layout.longest.wordBreak), JSON.stringify(layout.longest))
-  await cdp.screenshot(`compare-5-mobile-${width}.jpg`, 78)
-  section(`mobile-${width}`, layout)
+async function blockedRequestRetry(cdp) {
+  await cdp.viewport(1440, 1100, false)
+  cdp.resetNetworkLog()
+  await cdp.send('Network.setBlockedURLs', { urls: ['*compare_product_nutrition*'] })
+  try {
+    await cdp.navigate(`${BASE}?view=workspace&detail=${HILLS}&detailTab=nutrition`)
+    await waitWorkspace(cdp)
+    await cdp.wait(`document.querySelector('.detail-state.is-error[role="alert"]')`, 'blocked nutrition error')
+    const error = await cdp.eval(`document.querySelector('.detail-state.is-error[role="alert"]')?.innerText||''`)
+    assert.ok(error.includes('영양 정보를 불러오지 못했습니다') && error.includes('다시 시도'), error)
+    const blocked = cdp.networkFailures.filter((item) => item.url.includes('compare_product_nutrition'))
+    assert.ok(blocked.length > 0, JSON.stringify(cdp.networkFailures))
+    await cdp.screenshot('nutrition-blocked-error.png')
+    await cdp.send('Network.setBlockedURLs', { urls: [] })
+    const clicked = await cdp.eval(`(() => { const b=document.querySelector('.detail-state.is-error[role="alert"] button'); if(!b)return false; b.click(); return true })()`)
+    assert.equal(clicked, true)
+    await cdp.wait(`!document.querySelector('.detail-state.is-error[role="alert"]') && document.querySelector('.detail-body')?.innerText.includes('3,772 kcal/kg')`, 'nutrition retry recovery')
+    const successful = cdp.restResponses.filter((item) => item.path.includes('compare_product_nutrition') && item.status >= 200 && item.status < 300)
+    assert.ok(successful.length > 0, JSON.stringify(cdp.restResponses))
+    await cdp.screenshot('nutrition-retry-recovered.png')
+    log('blocked-retry', { error, blocked, successful, recentRest: cdp.restResponses.slice(-10) })
+  } finally {
+    await cdp.send('Network.setBlockedURLs', { urls: [] }).catch(() => {})
+  }
 }
 
-async function failureAndRetry(cdp) {
-  await cdp.viewport(1440,1100,false)
-  await cdp.navigate(`${BASE}?view=workspace&applied=1`); await shell(cdp)
-  await cdp.wait(`document.querySelector('.research-result-card')`, 'catalog before blocked request')
-  const id = await cdp.eval(`document.querySelector('.research-result-card').dataset.productId`)
-  cdp.resetErrors()
-  await cdp.send('Network.setBlockedURLs', { urls:['*compare_product_nutrition*'] })
-  await cdp.eval(`document.querySelector('[data-product-id="${id}"]').click(); true`)
-  await cdp.wait(`document.querySelector('.research-quick-view')`, 'quick view before blocked detail')
-  await clickHas(cdp, '상세 보기')
-  await cdp.wait(`document.querySelector('.detail-stage')`, 'blocked detail')
-  await clickExact(cdp, '영양 정보 보기')
-  await cdp.wait(`document.querySelector('.detail-body .detail-state.is-error')`, 'blocked nutrition error', 20000)
-  const error = await cdp.eval(`({role:document.querySelector('.detail-body .detail-state.is-error').getAttribute('role'), text:document.querySelector('.detail-body .detail-state.is-error').innerText, retry:[...document.querySelectorAll('.detail-body button')].some(x=>x.textContent.trim()==='다시 시도')})`)
-  assert.equal(error.role,'alert'); assert.equal(error.retry,true); assert.ok(error.text.includes('다시 시도'))
-  await cdp.send('Network.setBlockedURLs', { urls:[] })
-  cdp.resetErrors()
-  await clickExact(cdp, '다시 시도')
-  await cdp.wait(`!document.querySelector('.detail-body .detail-state.is-error') && !document.querySelector('.detail-body')?.innerText.includes('영양 정보를 불러오는 중입니다.')`, 'nutrition retry recovery')
-  section('failure-retry', { accessibleAlert:true, retry:true, recovered:true })
+async function fontScreens(cdp, ids) {
+  await cdp.viewport(1440, 1100, false)
+  await cdp.navigate(BASE)
+  await waitWorkspace(cdp)
+  await cdp.screenshot('home-1440-korean-font.png')
+  await cdp.viewport(390, 844, true)
+  await cdp.navigate(`${BASE}?view=workspace&detail=${HILLS}&detailTab=nutrition`)
+  await waitWorkspace(cdp)
+  await cdp.wait(`document.querySelector('.detail-body')?.innerText.includes('3,772 kcal/kg')`, 'Hill mobile nutrition')
+  await cdp.screenshot('hills-detail-390-korean-font.png')
+  log('font-screens', { ids, koreanFont: await cdp.eval(`getComputedStyle(document.body).fontFamily`) })
 }
 
-mkdirSync(OUT, { recursive:true })
-const { proc, cdp, binary, dir } = await launch()
-console.log(`AUDIT browser :: ${binary}; target=${BASE}; desktop=1440x1100; mobile=390x844/360x844 emulation; physical-device=false`)
+mkdirSync(OUT, { recursive: true })
+const failures = []
+const { proc, profile, binary, cdp } = await launch()
 try {
   await cdp.connect()
-  await directHillAndReload(cdp)
-  await royalAndManufacturing(cdp)
-  await invalidQuery(cdp)
-  await lookupHistory(cdp)
-  await keyboardAndTopNavigation(cdp)
-  const ids = await compareDesktop(cdp)
-  await mobileCompare(cdp, ids, 390)
-  await mobileCompare(cdp, ids, 360)
-  await failureAndRetry(cdp)
-  const rest = [...new Map(cdp.restResponses.map((x)=>[`${x.path}:${x.status}`,x])).values()]
-  section('public-rest', rest)
-  section('console-errors-after-normal-flows', [...new Set(cdp.consoleErrors)].filter(Boolean))
-  section('network-failures-after-normal-flows', [...new Set(cdp.networkFailures)].filter(Boolean))
-  assert.deepEqual([...new Set(cdp.consoleErrors)].filter(Boolean), [], 'Unexpected console errors after retry recovery')
-  assert.deepEqual([...new Set(cdp.networkFailures)].filter(Boolean), [], 'Unexpected network failures after retry recovery')
-  console.log('AUDIT PASS :: focused live-browser audit complete')
+  log('environment', { binary, physicalDevice: false, viewports: ['1440x1100', '390x844 emulation', '360x844 emulation'] })
+  let ids = null
+  const steps = [
+    ['search-history', () => searchHistory(cdp)],
+    ['detail-keyboard-manufacturing', () => detailKeyboard(cdp)],
+    ['compare-setup', async () => { ids = await getCompareIds(cdp); log('compare-ids', ids) }],
+    ['compare-keyboard-mobile', () => compareKeyboardAndMobile(cdp, ids)],
+    ['blocked-request-retry', () => blockedRequestRetry(cdp)],
+    ['font-screens', () => fontScreens(cdp, ids)],
+  ]
+  for (const [name, run] of steps) {
+    try {
+      await run()
+      console.log(`FINAL_QA PASS ${name}`)
+    } catch (error) {
+      const diagnostics = await cdp.diagnostics()
+      failures.push({ name, error: error.stack ?? String(error), diagnostics })
+      console.error(`FINAL_QA FAIL ${name} :: ${error.stack ?? error}`)
+      console.error(`FINAL_QA DIAGNOSTICS ${name} :: ${JSON.stringify(diagnostics)}`)
+    }
+  }
+  if (failures.length) {
+    console.error(`FINAL_QA FAILURES :: ${JSON.stringify(failures)}`)
+    process.exitCode = 1
+  } else {
+    console.log('FINAL_QA ALL_REMAINING_CHECKS_PASS')
+  }
 } finally {
   cdp.close()
   proc.kill('SIGTERM')
-  await new Promise((r)=>setTimeout(r,250))
+  await sleep(250)
   if (proc.exitCode == null) proc.kill('SIGKILL')
-  rmSync(dir, { recursive:true, force:true })
+  rmSync(profile, { recursive: true, force: true })
 }

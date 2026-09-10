@@ -1,0 +1,38 @@
+name: Apply Switch recipe detail labels
+
+on:
+  push:
+    branches:
+      - ui/recipe-detail-korean-labels-20260910
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ui/recipe-detail-korean-labels-20260910
+      - name: Patch SwitchFlow labels and remove helper
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/SwitchFlow.tsx')
+          text = p.read_text()
+          old = """const RECIPE_DETAIL_LABELS: Record<string, string> = {\n  chicken: '닭',\n  duck: '오리',\n  turkey: '칠면조',\n  beef: '소',\n  lamb: '양',\n  rabbit: '토끼',\n  salmon: '연어',\n  tuna: '참치',\n  herring: '청어',\n  mackerel: '고등어',\n  trout: '송어',\n  cod: '대구',\n  pork: '돼지',\n  venison: '사슴',\n}\n"""
+          new = """const RECIPE_DETAIL_LABELS: Record<string, string> = {\n  chicken: '닭', duck: '오리', turkey: '칠면조', beef: '소', lamb: '양', rabbit: '토끼', salmon: '연어',\n  tuna: '참치', herring: '청어', mackerel: '고등어', trout: '송어', cod: '대구', pork: '돼지', venison: '사슴',\n  anchovy: '멸치', beef_liver: '소 간', bonito: '보니토(Bonito)', bream: '도미류(Bream)', cheese: '치즈',\n  chicken_liver: '닭 간', coconut_oil: '코코넛오일', egg: '계란', goat: '염소', goose: '거위', green_mussel: '초록홍합',\n  haddock: '해덕대구', hoki: '호키', kahawai: 'Kahawai', mussel: '홍합류', mutton: '양고기(Mutton)', pheasant: '꿩',\n  poultry_hearts: '가금류 심장', poultry_liver: '가금류 간', pumpkin: '호박', quail: '메추리', rice: '쌀', rooster: '수탉',\n  sardine: '정어리', sea_bass: '농어류(Sea bass)', sea_bream: '도미류(Sea bream)', shirasu: '치어(Shirasu)', shrimp: '새우',\n  skipjack_tuna: '가다랑어(Skipjack tuna)', southern_blue_whiting: '남방청대구', tuna_roe: '참치알', wallaby: '왈라비',\n  whitefish: '흰살생선', wild_boar: '야생 멧돼지',\n}\n"""
+          if old not in text:
+              raise SystemExit('expected SwitchFlow recipe map not found')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          git rm .github/workflows/switch-recipe-label-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/SwitchFlow.tsx
+          git diff --cached --check
+          git commit -m "ui: localize switch recipe detail labels"
+          git push origin HEAD:ui/recipe-detail-korean-labels-20260910

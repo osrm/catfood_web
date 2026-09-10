@@ -274,6 +274,22 @@
     width: calc(100% - 28px);
   }
 
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card:not(:has(.research-result-facts)) {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .research-result-card .result-relation-empty {
+    grid-column: 2;
+  }
+
+  .research-result-card .relation-line > strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .research-result-packages {
     font-size: 11.5px;
   }

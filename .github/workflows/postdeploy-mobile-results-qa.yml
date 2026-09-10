@@ -1,0 +1,69 @@
+name: Postdeploy Mobile Results QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Verify deployed Results and quick view
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          node <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawn, execFileSync } from 'node:child_process'
+          import { existsSync, rmSync, writeFileSync } from 'node:fs'
+
+          const BASE='https://osrm.github.io/catfood_web/'
+          const SHA='5ca4c4c765283d592ecc28bb1b3c152f2e7e04a2'
+          const LONG_ID='product_db0958eea4a01c25'
+          const MULTI_ID='product_4185475c9a53164f'
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms))
+          class Cdp{
+            constructor(url){this.url=url;this.ws=null;this.id=1;this.pending=new Map()}
+            async connect(){this.ws=new WebSocket(this.url);await new Promise((r,j)=>{const t=setTimeout(()=>j(new Error('ws timeout')),15000);this.ws.addEventListener('open',()=>{clearTimeout(t);r()},{once:true});this.ws.addEventListener('error',()=>j(new Error('ws error')),{once:true})});this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(!m.id)return;const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.j(new Error(m.error.message)):p.r(m.result)});for(const x of ['Page.enable','Runtime.enable','Network.enable'])await this.send(x)}
+            send(method,params={}){const id=this.id++;return new Promise((r,j)=>{this.pending.set(id,{r,j});this.ws.send(JSON.stringify({id,method,params}))})}
+            async eval(expression){const x=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(x.exceptionDetails)throw new Error(x.exceptionDetails.exception?.description||x.exceptionDetails.text);return x.result?.value}
+            async wait(expression,label,ms=60000){const end=Date.now()+ms;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+            async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'ready');await this.wait(`document.querySelector('#root')&&document.body.innerText.length>0`,'root')}
+            async viewport(w,h,mobile){await this.send('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile})}
+            async shot(path){const data=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});writeFileSync(path,Buffer.from(data.data,'base64'))}
+            close(){try{this.ws?.close()}catch{}}
+          }
+          async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin),'google-chrome required');const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9810+(process.pid%80),dir=`/tmp/catfood-postdeploy-mobile-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'--window-size=1440,1100','about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{bin,version,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
+
+          const NONE=`${BASE}?view=workspace&applied=1`
+          const LONG=`${BASE}?view=workspace&applied=1&age=adult&targets=indoor,sterilized&features=hairball,digestive,urinary,skin_coat&recipes=poultry&grainFree=1`
+          const selected=id=>`${NONE}&selected=${encodeURIComponent(id)}`
+          const resultsMetric=`(()=>{const rect=n=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};const box=n=>n?{text:(n.textContent||'').trim().replace(/\\s+/g,' '),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight,rect:rect(n)}:null;return{innerWidth,innerHeight,docWidth:document.documentElement.scrollWidth,font:getComputedStyle(document.body).fontFamily,cards:[...document.querySelectorAll('.research-result-card')].slice(0,12).map(c=>{const img=c.querySelector('.research-result-image'),identity=c.querySelector('.research-result-identity'),rel=c.querySelector('.result-relations,.result-relation-empty');return{id:c.dataset.productId,grid:getComputedStyle(c).gridTemplateColumns,gap:getComputedStyle(c).columnGap,card:rect(c),image:img?{complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,rect:rect(img),visibility:getComputedStyle(img).visibility}:null,identity:rect(identity),name:box(identity?.querySelector('strong')),packages:box(c.querySelector('.research-result-packages')),relation:box(rel),strongs:[...c.querySelectorAll('.relation-line>strong')].map(n=>({...box(n),whiteSpace:getComputedStyle(n).whiteSpace,overflow:getComputedStyle(n).overflow,textOverflow:getComputedStyle(n).textOverflow}))}})}})()`
+          const quickMetric=`(()=>{const rect=n=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};const box=n=>n?{text:(n.textContent||'').trim().replace(/\\s+/g,' '),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight,rect:rect(n)}:null;const q=document.querySelector('.research-quick-view'),img=document.querySelector('.quick-view-image'),name=document.querySelector('.quick-view-identity h1'),pkg=[...document.querySelectorAll('.definition')].find(n=>n.querySelector('dt')?.textContent?.trim()==='판매 규격')?.querySelector('dd');return{innerWidth,innerHeight,docWidth:document.documentElement.scrollWidth,font:getComputedStyle(document.body).fontFamily,view:q?rect(q):null,image:img?{complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,rect:rect(img),visibility:getComputedStyle(img).visibility,objectFit:getComputedStyle(img).objectFit}:null,name:box(name),packages:box(pkg),compareText:document.querySelector('.quick-view-actions .switch-compare-action:first-child')?.textContent?.trim()||''}})()`
+          async function waitResults(c){await c.wait(`document.querySelectorAll('.research-result-card').length>=8`,'result cards');await c.wait(`document.querySelector('.research-result-image')?.complete`,'result image');await sleep(450)}
+          async function waitQuick(c){await c.wait(`document.querySelector('.research-quick-view')`,'quick view');await c.wait(`document.querySelector('.quick-view-image')?.complete&&document.querySelector('.quick-view-image')?.naturalWidth>0`,'quick image');await sleep(350)}
+          function assertResults(m,label,mobile){assert.ok(m.docWidth<=m.innerWidth+1,`${label} page overflow ${m.docWidth}/${m.innerWidth}`);for(const card of m.cards){assert.ok(card.card.right<=m.innerWidth+1,`${label} card outside`);if(card.image?.naturalWidth>0){assert.notEqual(card.image.visibility,'hidden',`${label} hidden image`);if(mobile&&card.identity)assert.ok(card.image.rect.right<=card.identity.x+0.5,`${label} image/text overlap ${card.id}`)}if(card.name){assert.ok(card.name.scrollWidth<=card.name.clientWidth+1&&card.name.scrollHeight<=card.name.clientHeight+3,`${label} name clipped ${card.id}`)}if(card.packages){assert.ok(card.packages.scrollWidth<=card.packages.clientWidth+1&&card.packages.scrollHeight<=card.packages.clientHeight+2,`${label} packages clipped ${card.id}`)}if(card.relation){assert.ok(card.relation.rect.x>=card.card.x-1&&card.relation.rect.right<=card.card.right+1,`${label} relation outside ${card.id}`)}if(mobile){for(const s of card.strongs){assert.ok(s.scrollWidth<=s.clientWidth+1&&s.scrollHeight<=s.clientHeight+1,`${label} relation text clipped ${card.id}: ${s.text}`);assert.equal(s.whiteSpace,'normal',`${label} relation does not wrap ${card.id}`)}}}}
+          function assertQuick(m,label){assert.ok(m.docWidth<=m.innerWidth+1,`${label} page overflow`);assert.ok(m.view&&m.view.x>=-1&&m.view.right<=m.innerWidth+1,`${label} quick view outside`);assert.ok(m.image?.complete&&m.image.naturalWidth>0,`${label} quick image failed`);assert.notEqual(m.image?.visibility,'hidden',`${label} quick image hidden`);assert.equal(m.image?.objectFit,'contain',`${label} quick image ratio handling`);assert.ok(m.name&&m.name.scrollWidth<=m.name.clientWidth+1&&m.name.scrollHeight<=m.name.clientHeight+4,`${label} quick name clipped`);assert.ok(m.packages&&m.packages.scrollWidth<=m.packages.clientWidth+1&&m.packages.scrollHeight<=m.packages.clientHeight+2,`${label} quick packages clipped`)}
+
+          const {bin,version,proc,dir,c}=await launch();const report={browser:bin,browserVersion:version,frontendSha:SHA,viewports:{}}
+          try{await c.connect();for(const vp of [390,360]){report.viewports[vp]={};await c.viewport(vp,844,true);await c.nav(NONE);await waitResults(c);let m=await c.eval(resultsMetric);report.viewports[vp].none=m;assertResults(m,`${vp} none`,true);await c.shot(`qa-artifacts/results-none-${vp}.png`);await c.nav(LONG);await waitResults(c);m=await c.eval(resultsMetric);report.viewports[vp].long=m;assertResults(m,`${vp} long`,true);await c.shot(`qa-artifacts/results-long-${vp}.png`);for(const [role,id] of [['long-name',LONG_ID],['multi-package',MULTI_ID]]){await c.nav(selected(id));await waitQuick(c);const q=await c.eval(quickMetric);report.viewports[vp][role]=q;assertQuick(q,`${vp} ${role}`);await c.shot(`qa-artifacts/quick-${role}-${vp}.png`)} }
+            await c.viewport(390,844,true);await c.nav(NONE);await waitResults(c);const clicked=await c.eval(`(()=>{const c=document.querySelector('.research-result-card');if(!c)return null;const id=c.dataset.productId;c.click();return id})()`);assert.ok(clicked);await waitQuick(c);await c.eval(`document.querySelector('.quick-view-actions .switch-compare-action:first-child')?.click()`);await c.wait(`document.querySelector('.quick-view-actions .switch-compare-action:first-child')?.textContent?.includes('비교에서 제거')`,'compare add');const interaction=await c.eval(quickMetric);report.interaction={clicked,metric:interaction};assertQuick(interaction,'390 interaction');assert.ok(interaction.compareText.includes('비교에서 제거'),'compare add did not persist');await c.shot('qa-artifacts/interaction-390.png')
+            await c.viewport(1440,1100,false);await c.nav(NONE);await waitResults(c);const desktop=await c.eval(resultsMetric);report.viewports[1440]={none:desktop};assertResults(desktop,'1440 none',false);await c.shot('qa-artifacts/results-none-1440.png')
+            writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2));console.log('POSTDEPLOY_MOBILE_RESULTS '+JSON.stringify(report));console.log('POSTDEPLOY_MOBILE_RESULTS PASS')
+          }finally{c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: postdeploy-mobile-results-qa
+          path: qa-artifacts/
+          if-no-files-found: error

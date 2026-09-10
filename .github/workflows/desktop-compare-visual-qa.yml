@@ -22,8 +22,8 @@ jobs:
           set -euo pipefail
           mkdir -p qa-artifacts
           node <<'NODE'
-          const { spawn } = require('node:child_process')
-          const { existsSync, writeFileSync, rmSync } = require('node:fs')
+          import { spawn } from 'node:child_process'
+          import { existsSync, writeFileSync, rmSync } from 'node:fs'
           const BASE = 'https://osrm.github.io/catfood_web/'
           const IDS = [
             'product_b47d3ae674773585',

@@ -1,0 +1,12 @@
+name: Helper Smoke
+
+on:
+  push:
+    branches:
+      - 'ui/results-quickview-density-20260910'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo ok

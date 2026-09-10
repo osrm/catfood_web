@@ -19,14 +19,32 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  live-browser:
+  visual-capture:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - run: node scripts/live-browser-focus.mjs
+      - name: Capture deployed UI with Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          COMMON=(--headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu --hide-scrollbars --virtual-time-budget=15000)
+          "$CHROME" "${COMMON[@]}" --window-size=1440,1100 --screenshot=qa-artifacts/home-1440.png 'https://osrm.github.io/catfood_web/'
+          "$CHROME" "${COMMON[@]}" --window-size=1440,1100 --screenshot=qa-artifacts/hills-detail-1440.png 'https://osrm.github.io/catfood_web/?view=workspace&detail=product_84eb3905fc56f218&detailTab=nutrition'
+          "$CHROME" "${COMMON[@]}" --window-size=390,844 --screenshot=qa-artifacts/hills-detail-390.png 'https://osrm.github.io/catfood_web/?view=workspace&detail=product_84eb3905fc56f218&detailTab=nutrition'
+          "$CHROME" "${COMMON[@]}" --window-size=1440,1100 --dump-dom 'https://osrm.github.io/catfood_web/?view=workspace&applied=1' > /tmp/catalog.html
+          IDS="$(grep -o 'data-product-id="[^"]*"' /tmp/catalog.html | sed -E 's/.*="([^"]+)"/\1/' | awk '!seen[$0]++' | head -5 | paste -sd, -)"
+          test "$(awk -F, '{print NF}' <<< "$IDS")" -eq 5
+          echo "Captured compare IDs: $IDS"
+          COMPARE_URL="https://osrm.github.io/catfood_web/?view=workspace&applied=1&compare=${IDS}&compareOpen=1&compareTab=ingredients"
+          "$CHROME" "${COMMON[@]}" --window-size=1440,1100 --screenshot=qa-artifacts/compare-5-1440.png "$COMPARE_URL"
+          "$CHROME" "${COMMON[@]}" --window-size=390,844 --screenshot=qa-artifacts/compare-5-390.png "$COMPARE_URL"
+          "$CHROME" "${COMMON[@]}" --window-size=360,844 --screenshot=qa-artifacts/compare-5-360.png "$COMPARE_URL"
+          printf '%s\n' "$COMPARE_URL" > qa-artifacts/compare-url.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: catfood-live-browser-screenshots
           path: qa-artifacts/
-          if-no-files-found: warn
+          if-no-files-found: error

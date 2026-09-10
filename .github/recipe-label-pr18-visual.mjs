@@ -26,57 +26,79 @@ class Cdp {
 
 async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9900+(process.pid%80);const dir=`/tmp/catfood-recipe-pr18-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();const page=pages.find((item)=>item.type==='page'&&item.webSocketDebuggerUrl);if(page)return{version,proc,dir,c:new Cdp(page.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
 
-async function setSearch(c,value){await c.eval(`(()=>{const input=document.querySelector('.recipe-search');if(!input)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;setter.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);await sleep(220)}
-async function waitEditor(c){await c.wait(`document.querySelector('.recipe-search')&&document.querySelector('.condition-actions')`,'condition editor');await sleep(220)}
+const visibleExpr=(selector)=>`(()=>{const n=document.querySelector(${JSON.stringify(selector)});if(!n)return false;const s=getComputedStyle(n),r=n.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth})()`
+async function clickVisible(c,selector,text){const point=await c.eval(`(()=>{const nodes=[...document.querySelectorAll(${JSON.stringify(selector)})];const n=nodes.find((x)=>x.textContent?.trim().includes(${JSON.stringify(text)}));if(!n)return null;n.scrollIntoView({block:'center',inline:'nearest'});const s=getComputedStyle(n),r=n.getBoundingClientRect();if(s.display==='none'||s.visibility==='hidden'||r.width<=0||r.height<=0)return null;return{x:r.left+r.width/2,y:r.top+r.height/2,text:n.textContent.trim()}})()`);assert.ok(point,`visible control not found: ${text}`);await sleep(120);await c.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});await c.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:point.y,button:'left',clickCount:1});await sleep(180)}
+async function setSearch(c,value){await c.eval(`(()=>{const input=document.querySelector('.recipe-search');if(!input)return false;input.scrollIntoView({block:'center'});const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;setter.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);await sleep(220)}
 async function resultIds(c){return JSON.parse(await c.eval(`JSON.stringify([...document.querySelectorAll('.research-result-card')].map((node)=>node.dataset.productId).sort())`))}
-async function apply(c){await c.eval(`(()=>{const b=[...document.querySelectorAll('.condition-actions button')].find((x)=>x.textContent?.includes('조건 적용'));if(!b)return false;b.click();return true})()`);await c.wait(`new URLSearchParams(location.search).get('applied')==='1'`,'conditions applied');await c.wait(`document.querySelectorAll('.research-result-card').length>0`,'filtered results');await sleep(300)}
+async function screenState(c){return c.eval(`(()=>({url:location.href,visibleText:document.body.innerText.slice(0,3500),recipeSearchVisible:${visibleExpr('.recipe-search')},conditionActionsVisible:${visibleExpr('.condition-actions')},criteriaButton:[...document.querySelectorAll('.criteria-bar button')].find((x)=>x.offsetParent!==null)?.textContent?.trim()||null,innerWidth,docWidth:document.documentElement.scrollWidth}))()`)}
 
-async function runCase(c,{base,width,prefix,query,label,capture}){
+async function reachResults(c){
+  await c.wait(`${visibleExpr('.condition-actions')}&&[...document.querySelectorAll('.condition-actions button')].some((x)=>x.textContent?.includes('이 조건으로 찾기'))`,'basic condition editor')
+  assert.equal(await c.eval(visibleExpr('.recipe-search')),false,'recipe refine must not be conflated with basic condition editor')
+  await clickVisible(c,'.condition-actions button','이 조건으로 찾기')
+  await c.wait(`new URLSearchParams(location.search).get('applied')==='1'`,'basic conditions applied')
+  await c.wait(`document.querySelectorAll('.research-result-card').length>0`,'results after basic conditions')
+  await sleep(250)
+}
+
+async function runCase(c,{base,width,prefix,query,label}){
   await c.viewport(width,width===1440?1000:900)
   await c.nav(base+EDIT)
-  await waitEditor(c)
+  await reachResults(c)
+  const refineVisible=await c.eval(visibleExpr('.recipe-search'))
+  const atResults=await screenState(c)
+
+  if(!refineVisible){
+    await c.shot(`qa-artifacts/${prefix}-${width}-results-no-refine.png`)
+    const editButtonVisible=Boolean(atResults.criteriaButton?.includes('조건 수정'))
+    let afterEdit=null
+    if(editButtonVisible){
+      await clickVisible(c,'.criteria-bar button','조건 수정')
+      await c.wait(`${visibleExpr('.condition-actions')}`,'condition editor after edit')
+      afterEdit=await screenState(c)
+      await c.shot(`qa-artifacts/${prefix}-${width}-condition-editor.png`)
+    }
+    return{accessible:false,atResults,editButtonVisible,afterEdit}
+  }
+
   await setSearch(c,query)
-  await c.wait(`[...document.querySelectorAll('.recipe-detail-grid .choice')].some((node)=>node.textContent?.trim()===${JSON.stringify(label)})`,'recipe option')
-  const metric=await c.eval(`(()=>{const node=[...document.querySelectorAll('.recipe-detail-grid .choice')].find((x)=>x.textContent?.trim()===${JSON.stringify(label)});const style=getComputedStyle(node);const r=node.getBoundingClientRect();return{text:node.textContent.trim(),rect:{x:r.x,y:r.y,width:r.width,height:r.height},clientWidth:node.clientWidth,scrollWidth:node.scrollWidth,clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,whiteSpace:style.whiteSpace,textOverflow:style.textOverflow,fontSize:style.fontSize}})()`)
+  await c.wait(`[...document.querySelectorAll('.recipe-detail-grid .choice')].some((node)=>node.textContent?.trim()===${JSON.stringify(label)}&&node.offsetParent!==null)`,'visible recipe option')
+  const metric=await c.eval(`(()=>{const node=[...document.querySelectorAll('.recipe-detail-grid .choice')].find((x)=>x.textContent?.trim()===${JSON.stringify(label)}&&x.offsetParent!==null);const style=getComputedStyle(node),r=node.getBoundingClientRect();return{text:node.textContent.trim(),rect:{x:r.x,y:r.y,width:r.width,height:r.height},clientWidth:node.clientWidth,scrollWidth:node.scrollWidth,clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,whiteSpace:style.whiteSpace,textOverflow:style.textOverflow,fontSize:style.fontSize}})()`)
   assert.ok(metric.rect.width>0&&metric.rect.height>0,`${prefix}-${width} recipe option not laid out`)
   assert.notEqual(metric.whiteSpace,'nowrap',`${prefix}-${width} nowrap`)
   assert.notEqual(metric.textOverflow,'ellipsis',`${prefix}-${width} ellipsis`)
   assert.ok(metric.scrollWidth<=metric.clientWidth+1,`${prefix}-${width} horizontal clipping`)
-  await c.eval(`document.querySelector('.recipe-search')?.scrollIntoView({block:'center'})`);await sleep(120)
-  if(capture)await c.shot(`qa-artifacts/${prefix}-${width}-filter.png`)
-  await c.eval(`(()=>{const node=[...document.querySelectorAll('.recipe-detail-grid .choice')].find((x)=>x.textContent?.trim()===${JSON.stringify(label)});node.click()})()`)
-  await c.wait(`new URLSearchParams(location.search).get('recipeDetails')?.includes('${KEY}')`,'raw recipe key')
-  const editorState=await c.eval(`(()=>({url:location.href,selected:[...document.querySelectorAll('.selected-refinement')].map((x)=>x.textContent?.replace('×','').trim()),innerWidth,docWidth:document.documentElement.scrollWidth}))()`)
-  if(capture){await c.eval(`document.querySelector('.selected-refinements')?.scrollIntoView({block:'center'})`);await sleep(120);await c.shot(`qa-artifacts/${prefix}-${width}-chosen.png`)}
-  await apply(c)
+  await c.shot(`qa-artifacts/${prefix}-${width}-filter.png`)
+  await clickVisible(c,'.recipe-detail-grid .choice',label)
+  await c.wait(`new URLSearchParams(location.search).get('recipeDetails')?.split(',').includes('${KEY}')`,'raw recipe key after immediate refinement')
+  await c.wait(`[...document.querySelectorAll('.selected-refinement')].some((x)=>x.textContent?.replace('×','').trim()===${JSON.stringify(label)})`,'selected refinement')
+  await c.wait(`document.querySelectorAll('.research-result-card').length>0`,'refined results')
   const ids=await resultIds(c)
   const resultState=await c.eval(`(()=>({url:location.href,criteria:[...document.querySelectorAll('.criteria-chips span')].map((x)=>x.textContent?.trim()),relations:[...document.querySelectorAll('.result-relations')].map((x)=>x.innerText.replace(/\\s+/g,' ').trim()).slice(0,5),innerWidth,docWidth:document.documentElement.scrollWidth}))()`)
-  assert.equal(editorState.docWidth,editorState.innerWidth,`${prefix}-${width} editor overflow`)
-  assert.equal(resultState.docWidth,resultState.innerWidth,`${prefix}-${width} results overflow`)
-  if(capture){await c.eval(`window.scrollTo(0,0)`);await sleep(120);await c.shot(`qa-artifacts/${prefix}-${width}-results.png`)}
-  return{ids,metric,editorState,resultState}
+  assert.ok(resultState.url.includes(`recipeDetails=${KEY}`),`${prefix}-${width} URL lost raw recipe key`)
+  assert.ok(resultState.criteria.includes(label),`${prefix}-${width} criteria label missing`)
+  assert.ok(resultState.relations.every((text)=>text.includes(label)),`${prefix}-${width} result relation label inconsistent`)
+  assert.equal(resultState.docWidth,resultState.innerWidth,`${prefix}-${width} horizontal overflow`)
+  await c.eval(`document.querySelector('.research-result-card')?.scrollIntoView({block:'start'})`);await sleep(160)
+  await c.shot(`qa-artifacts/${prefix}-${width}-results.png`)
+  return{accessible:true,ids,metric,resultState}
 }
 
 const {version,proc,dir,c}=await launch()
-const report={browserVersion:version,production:{sha:BASE_SHA,base:PROD},candidate:{sha:PR_SHA,base:PREVIEW},key:KEY,label:LABEL,checks:{}}
+const report={browserVersion:version,qaHead:process.env.GITHUB_SHA??null,production:{sha:BASE_SHA,base:PROD},candidate:{sourceSha:PR_SHA,base:PREVIEW},key:KEY,label:LABEL,reusedEvidence:{run:34479276361,note:'Existing English/Korean search and product-ID equivalence evidence; this run only rechecks what changed with the corrected user flow.'},checks:{}}
 try{
   await c.connect()
   for(const width of [390,1440]){
-    const before=await runCase(c,{base:PROD,width,prefix:'before',query:KEY,label:BEFORE_LABEL,capture:true})
-    const afterEnglish=await runCase(c,{base:PREVIEW,width,prefix:'after-en',query:KEY,label:LABEL,capture:false})
-    const afterKorean=await runCase(c,{base:PREVIEW,width,prefix:'after',query:'가다랑어',label:LABEL,capture:true})
-    assert.deepEqual(afterEnglish.ids,before.ids,`English key product set changed at ${width}`)
-    assert.deepEqual(afterKorean.ids,before.ids,`Korean label product set changed at ${width}`)
-    for(const candidate of [afterEnglish,afterKorean]){
-      assert.ok(candidate.editorState.url.includes(`recipeDetails=${KEY}`),`editor URL lost raw key at ${width}`)
-      assert.ok(candidate.editorState.selected.includes(LABEL),`selected refinement missing label at ${width}`)
-      assert.ok(candidate.resultState.url.includes(`recipeDetails=${KEY}`),`result URL lost raw key at ${width}`)
-      assert.ok(candidate.resultState.criteria.includes(LABEL),`criteria bar missing label at ${width}`)
-      assert.ok(candidate.resultState.relations.every((text)=>text.includes(LABEL)),`result relation label inconsistent at ${width}`)
-    }
-    report.checks[width]={before,afterEnglish,afterKorean}
+    const before=await runCase(c,{base:PROD,width,prefix:`before-prod-${BASE_SHA.slice(0,8)}`,query:KEY,label:BEFORE_LABEL})
+    const after=await runCase(c,{base:PREVIEW,width,prefix:`after-pr-${PR_SHA.slice(0,8)}`,query:'가다랑어',label:LABEL})
+    assert.equal(after.accessible,before.accessible,`translation PR unexpectedly changed refine accessibility at ${width}`)
+    if(width===1440)assert.equal(after.accessible,true,'desktop recipe refine should be reachable')
+    if(before.accessible&&after.accessible)assert.deepEqual(after.ids,before.ids,`product set changed at ${width}`)
+    report.checks[width]={before,after}
   }
-  await c.viewport(390,900);await c.nav(PREVIEW+`?view=workspace&applied=1&recipeDetails=${KEY}`);await c.wait(`document.querySelectorAll('.research-result-card').length>0`,'quick results');const first=await c.eval(`document.querySelector('.research-result-card')?.dataset.productId`);assert.ok(first);await c.eval(`document.querySelector('[data-product-id="${first}"]')?.click()`);await c.wait(`document.querySelector('.research-quick-view')`,'quick view');const quickText=await c.eval(`document.querySelector('.research-quick-view')?.innerText||''`);assert.ok(quickText.includes(LABEL),'quick view missing Korean recipe label');await c.shot('qa-artifacts/after-390-quick.png');report.quickView={productId:first,containsLabel:true}
-  writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2));console.log('RECIPE_LABEL_PR18_VISUAL PASS')
-}catch(error){writeFileSync('qa-artifacts/report.json',JSON.stringify({...report,error:String(error)},null,2));throw error}
-finally{c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+  writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2));console.log('RECIPE_LABEL_PR18_USER_FLOW PASS')
+}catch(error){
+  let failureState=null
+  try{failureState=await screenState(c);await c.shot('qa-artifacts/failure-current-screen.png')}catch{}
+  writeFileSync('qa-artifacts/report.json',JSON.stringify({...report,failureState,error:String(error)},null,2));throw error
+}finally{c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}

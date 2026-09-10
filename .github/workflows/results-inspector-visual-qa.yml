@@ -1,0 +1,192 @@
+name: Results Inspector Visual QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Capture deployed Results and Inspector
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          node <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawn, execFileSync } from 'node:child_process'
+          import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+
+          const BASE = 'https://osrm.github.io/catfood_web/'
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+          class Cdp {
+            constructor(url) { this.url=url; this.ws=null; this.id=1; this.pending=new Map() }
+            async connect() {
+              this.ws = new WebSocket(this.url)
+              await new Promise((resolve,reject) => {
+                const timer=setTimeout(()=>reject(new Error('websocket timeout')),15000)
+                this.ws.addEventListener('open',()=>{clearTimeout(timer);resolve()},{once:true})
+                this.ws.addEventListener('error',()=>reject(new Error('websocket error')),{once:true})
+              })
+              this.ws.addEventListener('message',(event)=>{
+                const message=JSON.parse(event.data)
+                if (!message.id) return
+                const pending=this.pending.get(message.id)
+                if (!pending) return
+                this.pending.delete(message.id)
+                message.error ? pending.reject(new Error(message.error.message)) : pending.resolve(message.result)
+              })
+              for (const method of ['Page.enable','Runtime.enable','Network.enable']) await this.send(method)
+            }
+            send(method, params={}) {
+              const id=this.id++
+              return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject});this.ws.send(JSON.stringify({id,method,params}))})
+            }
+            async eval(expression) {
+              const result=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true})
+              if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text)
+              return result.result?.value
+            }
+            async wait(expression,label,ms=60000) {
+              const end=Date.now()+ms
+              while (Date.now()<end) {
+                try { if (await this.eval(`Boolean(${expression})`)) return } catch {}
+                await sleep(140)
+              }
+              throw new Error(`timeout waiting for ${label}`)
+            }
+            async nav(url) {
+              await this.send('Page.navigate',{url})
+              await this.wait(`document.readyState==='complete'`,'document ready')
+              await this.wait(`document.querySelector('#root') && document.body.innerText.length>0`,'root')
+            }
+            async viewport(width,height,mobile=false) {
+              await this.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile})
+            }
+            async shot(path) {
+              const width=await this.eval('innerWidth'), height=await this.eval('innerHeight')
+              const data=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false,clip:{x:0,y:0,width,height,scale:1}})
+              writeFileSync(path,Buffer.from(data.data,'base64'))
+            }
+            close(){try{this.ws?.close()}catch{}}
+          }
+
+          async function launch() {
+            const bin='/usr/bin/google-chrome'
+            assert.ok(existsSync(bin), 'google-chrome is required for this QA')
+            const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim()
+            const port=9850+(process.pid%80), dir=`/tmp/catfood-results-inspector-${process.pid}`
+            rmSync(dir,{recursive:true,force:true})
+            const proc=spawn(bin,[
+              '--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',
+              `--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'--window-size=1440,1100','about:blank'
+            ],{stdio:'ignore'})
+            for(let i=0;i<220;i++){
+              try{
+                const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json()
+                const page=pages.find((item)=>item.type==='page'&&item.webSocketDebuggerUrl)
+                if(page) return {bin,version,proc,dir,cdp:new Cdp(page.webSocketDebuggerUrl)}
+              }catch{}
+              await sleep(140)
+            }
+            throw new Error('chrome start timeout')
+          }
+
+          const baseUrl = `${BASE}?view=workspace&applied=1`
+          const cardDataExpr = `(()=>[...document.querySelectorAll('.research-result-card')].map((card,index)=>{const img=card.querySelector('.research-result-image');const name=card.querySelector('.research-result-identity strong')?.textContent?.trim()||'';const brand=card.querySelector('.research-result-brand')?.textContent?.trim()||'';const packages=card.querySelector('.research-result-packages')?.textContent?.trim()||'';return{index,id:card.dataset.productId||'',brand,name,packages,imageSrc:img?.src||'',loaded:Boolean(img?.complete&&img.naturalWidth>0),naturalWidth:img?.naturalWidth||0,naturalHeight:img?.naturalHeight||0,ratio:img?.naturalHeight?img.naturalWidth/img.naturalHeight:null}}))()`
+
+          function uniqueCandidates(items) {
+            const loaded=items.filter((item)=>item.loaded && item.id)
+            assert.ok(loaded.length>=8, `too few loaded result images: ${loaded.length}`)
+            const longName=[...loaded].sort((a,b)=>b.name.length-a.name.length)[0]
+            const packageScore=(item)=>(item.packages.match(/·/g)||[]).length + (item.packages.match(/×/g)||[]).length*2
+            const multiSku=[...loaded].sort((a,b)=>packageScore(b)-packageScore(a) || b.packages.length-a.packages.length)[0]
+            const portrait=[...loaded].sort((a,b)=>(a.ratio??99)-(b.ratio??99))[0]
+            const wide=[...loaded].sort((a,b)=>(b.ratio??-1)-(a.ratio??-1))[0]
+            const ordered=[['long-name',longName],['multi-sku',multiSku],['portrait-image',portrait],['wide-image',wide]]
+            const seen=new Set(), out=[]
+            for(const [role,item] of ordered){if(item&&!seen.has(item.id)){seen.add(item.id);out.push({...item,role})}}
+            return out
+          }
+
+          async function loadResultImages(cdp) {
+            const count=await cdp.eval(`document.querySelectorAll('.research-result-card').length`)
+            for(let i=0;i<count;i+=4){
+              await cdp.eval(`document.querySelectorAll('.research-result-card')[${i}]?.scrollIntoView({block:'center'})`)
+              await sleep(120)
+            }
+            await cdp.eval(`scrollTo(0,0)`)
+            await sleep(400)
+          }
+
+          const inspectExpr = `(()=>{const doc=document.documentElement;const q=document.querySelector('.research-quick-view');const qi=document.querySelector('.quick-view-image');const qname=document.querySelector('.quick-view-identity h1');const cards=[...document.querySelectorAll('.research-result-card')].slice(0,12);const rect=(n)=>n?(()=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}})():null;const box=(n)=>n?({text:(n.textContent||'').trim().replace(/\\s+/g,' ').slice(0,240),clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight,rect:rect(n)}):null;return{innerWidth,innerHeight,docWidth:doc.scrollWidth,docHeight:doc.scrollHeight,font:getComputedStyle(document.body).fontFamily,quickView:rect(q),quickImage:qi?{src:qi.src,complete:qi.complete,naturalWidth:qi.naturalWidth,naturalHeight:qi.naturalHeight,rect:rect(qi),objectFit:getComputedStyle(qi).objectFit,visibility:getComputedStyle(qi).visibility}:null,quickName:box(qname),visibleCards:cards.map(card=>{const img=card.querySelector('.research-result-image'),name=card.querySelector('.research-result-identity strong'),packages=card.querySelector('.research-result-packages');return{id:card.dataset.productId,card:rect(card),image:img?{complete:img.complete,naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,rect:rect(img),visibility:getComputedStyle(img).visibility}:null,name:box(name),packages:box(packages)}})}})()`
+
+          mkdirSync('qa-artifacts',{recursive:true})
+          const {bin,version,proc,dir,cdp}=await launch()
+          const report={browser:bin,browserVersion:version,base:BASE,frontendSha:'e9dcf1e9b67848fdf9de13b8bd403ecc315c0fa9',viewports:{},candidates:[]}
+          try{
+            await cdp.connect()
+            await cdp.viewport(1440,1100,false)
+            await cdp.nav(baseUrl)
+            await cdp.wait(`document.querySelectorAll('.research-result-card').length>=20`,'Results cards')
+            await cdp.wait(`document.querySelector('.research-result-image')?.complete`,'first result image')
+            await loadResultImages(cdp)
+            const cards=await cdp.eval(cardDataExpr)
+            const candidates=uniqueCandidates(cards)
+            report.candidates=candidates
+            assert.ok(candidates.length>=3,'need at least three distinct representative products')
+            const ratios=candidates.map(c=>c.ratio).filter((x)=>typeof x==='number')
+            assert.ok(Math.max(...ratios)-Math.min(...ratios)>0.12,`candidate image ratios not meaningfully different: ${ratios}`)
+
+            for (const vp of [{w:1440,h:1100,mobile:false},{w:390,h:844,mobile:true}]) {
+              const key=String(vp.w)
+              report.viewports[key]={results:null,selected:{}}
+              await cdp.viewport(vp.w,vp.h,vp.mobile)
+              await cdp.nav(baseUrl)
+              await cdp.wait(`document.querySelectorAll('.research-result-card').length>=20`,'Results cards')
+              await cdp.wait(`document.querySelector('.research-result-image')?.complete`,'first result image')
+              await sleep(500)
+              const resultsMetric=await cdp.eval(inspectExpr)
+              report.viewports[key].results=resultsMetric
+              assert.ok(resultsMetric.docWidth<=resultsMetric.innerWidth+1,`page overflow in results ${key}: ${resultsMetric.docWidth}/${resultsMetric.innerWidth}`)
+              await cdp.shot(`qa-artifacts/results-${key}.png`)
+
+              for (const candidate of candidates) {
+                const selectedUrl=`${baseUrl}&selected=${encodeURIComponent(candidate.id)}`
+                await cdp.nav(selectedUrl)
+                await cdp.wait(`document.querySelector('.research-quick-view')`,'quick view')
+                await cdp.wait(`document.querySelector('.quick-view-image')?.complete && document.querySelector('.quick-view-image')?.naturalWidth>0`,'quick view image')
+                await sleep(450)
+                const metric=await cdp.eval(inspectExpr)
+                report.viewports[key].selected[candidate.role]=metric
+                assert.ok(metric.docWidth<=metric.innerWidth+1,`page overflow ${candidate.role} ${key}: ${metric.docWidth}/${metric.innerWidth}`)
+                assert.ok(metric.quickImage?.complete && metric.quickImage.naturalWidth>0,`quick image failed ${candidate.role} ${key}`)
+                assert.notEqual(metric.quickImage?.visibility,'hidden',`quick image hidden ${candidate.role} ${key}`)
+                assert.ok(metric.quickName && metric.quickName.scrollWidth<=metric.quickName.clientWidth+1 && metric.quickName.scrollHeight<=metric.quickName.clientHeight+1,`quick name clipped ${candidate.role} ${key}: ${JSON.stringify(metric.quickName)}`)
+                const safeRole=candidate.role.replace(/[^a-z0-9-]/gi,'-')
+                await cdp.shot(`qa-artifacts/selected-${safeRole}-${key}.png`)
+              }
+            }
+            writeFileSync('qa-artifacts/results-inspector-report.json',JSON.stringify(report,null,2))
+            console.log('RESULTS_INSPECTOR_QA '+JSON.stringify(report))
+            console.log('RESULTS_INSPECTOR_QA PASS')
+          } finally {
+            cdp.close(); proc.kill('SIGTERM'); await sleep(250); if(proc.exitCode==null)proc.kill('SIGKILL'); rmSync(dir,{recursive:true,force:true})
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-inspector-visual-qa
+          path: qa-artifacts/
+          if-no-files-found: error

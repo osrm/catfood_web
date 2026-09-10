@@ -104,6 +104,12 @@
   overflow-wrap: anywhere;
 }
 
+@media (max-width: 1120px) {
+  .research-shell {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 760px) {
   .detail-status-grid .detail-fact {
     min-height: 88px;

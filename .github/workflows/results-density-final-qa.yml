@@ -1,51 +1,47 @@
-name: Results Density Final PR QA
+name: Results Density Postdeploy QA
 
 on:
   push:
     branches:
       - 'qa/results-density-pr17-final-20260910'
+    paths:
+      - '.github/workflows/results-density-final-qa.yml'
+
+permissions:
+  contents: write
 
 jobs:
   verify:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: qa/results-density-pr17-final-20260910
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - name: Install and build PR candidate
-        run: |
-          npm ci
-          npm run build
       - name: Install Korean font
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-cache -f
-      - name: Capture production and PR preview
+      - name: Capture deployed Pages
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p qa-artifacts
-          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
-          PREVIEW_PID=$!
-          trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
-          for i in $(seq 1 80); do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
-            sleep 0.25
-          done
+          rm -rf qa-artifacts/postdeploy-pr17
+          mkdir -p qa-artifacts/postdeploy-pr17
           node <<'NODE'
           import assert from 'node:assert/strict'
           import { spawn, execFileSync } from 'node:child_process'
           import { existsSync, rmSync, writeFileSync } from 'node:fs'
 
           const PROD='https://osrm.github.io/catfood_web/'
-          const PREVIEW='http://127.0.0.1:4173/'
-          const BASE_SHA='adb5a3f4022c8eea2158bf89c590bd5d9f5a3115'
-          const PR_SHA='502dcf2819ae98fab6cb3ce1a497c6a2a083b6f4'
+          const DEPLOY_SHA='41346569f410d8caf9540f5e7be04a1de9847ec9'
           const NONE='?view=workspace&applied=1'
           const LONG='?view=workspace&applied=1&age=adult&targets=indoor,sterilized&features=hairball,digestive,urinary,skin_coat&recipes=poultry&grainFree=1'
+          const OUT='qa-artifacts/postdeploy-pr17'
           const sleep=ms=>new Promise(r=>setTimeout(r,ms))
 
           class Cdp {
@@ -60,61 +56,81 @@ jobs:
             close(){try{this.ws?.close()}catch{}}
           }
 
-          async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9980+(process.pid%10),dir=`/tmp/catfood-density-final-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{bin,version,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
+          async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9960+(process.pid%20),dir=`/tmp/catfood-postdeploy-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{version,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
 
-          const metric=`(()=>{const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};const cards=[...document.querySelectorAll('.research-result-card')].slice(0,5);const heading=document.querySelector('.research-results-heading'),primary=heading?.firstElementChild,context=document.querySelector('.research-results-context'),criteria=document.querySelector('.criteria-bar'),topbar=document.querySelector('.research-topbar'),nav=document.querySelector('.mode-nav'),quick=document.querySelector('.research-quick-view');return{href:location.href,innerWidth,docWidth:document.documentElement.scrollWidth,topbar:rect(topbar),nav:rect(nav),criteria:rect(criteria),heading:rect(heading),headingPrimary:rect(primary),headingContext:rect(context),headingDirection:heading?getComputedStyle(heading).flexDirection:null,headingText:(heading?.innerText||'').replace(/\\s+/g,' ').trim(),criteriaText:(criteria?.innerText||'').replace(/\\s+/g,' ').trim(),relationEmptyCount:document.querySelectorAll('.result-relation-empty').length,relationCount:document.querySelectorAll('.result-relations').length,unfilteredCount:document.querySelectorAll('.research-result-card.is-unfiltered').length,cardCount:cards.length,firstCard:rect(cards[0]),firstProductId:cards[0]?.dataset.productId||null,firstCardGrid:cards[0]?getComputedStyle(cards[0]).gridTemplateColumns:null,quick:rect(quick),quickHasComparison:[...document.querySelectorAll('.quick-view-section h2')].some(x=>x.textContent?.trim()==='선택한 조건과 비교'),quickText:(quick?.innerText||'').replace(/\\s+/g,' ').trim().slice(0,1200)}})()`
+          const metrics=`(()=>{const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};const cards=[...document.querySelectorAll('.research-result-card')];const first=cards[0];const heading=document.querySelector('.research-results-heading');const quick=document.querySelector('.research-quick-view');return{innerWidth,docWidth:document.documentElement.scrollWidth,href:location.href,criteriaText:(document.querySelector('.criteria-bar')?.innerText||'').replace(/\\s+/g,' ').trim(),headingText:(heading?.innerText||'').replace(/\\s+/g,' ').trim(),headingDirection:heading?getComputedStyle(heading).flexDirection:null,relationCount:document.querySelectorAll('.result-relations').length,relationEmptyCount:document.querySelectorAll('.result-relation-empty').length,unfilteredCount:document.querySelectorAll('.research-result-card.is-unfiltered').length,firstProductId:first?.dataset.productId||null,firstCardGrid:first?getComputedStyle(first).gridTemplateColumns:null,firstCard:rect(first),quick:rect(quick),quickHasComparison:[...document.querySelectorAll('.quick-view-section h2')].some(x=>x.textContent?.trim()==='선택한 조건과 비교')}})()`
 
-          async function waitResults(c){await c.wait(`document.querySelector('.research-results-heading')&&document.querySelectorAll('.research-result-card').length>=4`,'results');await c.wait(`document.querySelector('.research-result-image')?.complete`,'image');await sleep(450)}
-          async function capture(c,env,base,w,kind,query){await c.viewport(w,w===1440?1000:844);await c.nav(base+query);await waitResults(c);const list=await c.eval(metric);assert.equal(list.docWidth,list.innerWidth,`${env}-${w}-${kind} overflow`);await c.shot(`qa-artifacts/${env}-${kind}-${w}-results.png`);const firstId=list.firstProductId;assert.ok(firstId);await c.eval(`document.querySelector('[data-product-id="${firstId}"]')?.click()`);await c.wait(`document.querySelector('.research-quick-view')`,'quick view');await sleep(220);const quick=await c.eval(metric);assert.equal(quick.docWidth,quick.innerWidth,`${env}-${w}-${kind} quick overflow`);await c.shot(`qa-artifacts/${env}-${kind}-${w}-quick.png`);return{list,quick}}
+          async function waitResults(c){await c.wait(`document.querySelector('.research-results-heading')&&document.querySelectorAll('.research-result-card').length>=4`,'results');await c.wait(`document.querySelector('.research-result-image')?.complete`,'image');await sleep(500)}
 
-          const {bin,version,proc,dir,c}=await launch();const report={browser:bin,browserVersion:version,before:{source:'production Pages',sha:BASE_SHA,base:PROD,views:{}},after:{source:'PR local Vite preview',sha:PR_SHA,base:PREVIEW,views:{}},actions:{}}
+          const {version,proc,dir,c}=await launch()
+          const report={source:'deployed GitHub Pages',deployedSha:DEPLOY_SHA,browserVersion:version,views:{}}
           try {
             await c.connect()
-            for(const [env,base] of [['before',PROD],['after',PREVIEW]]){
-              for(const w of [360,390,1440]){
-                report[env].views[`${w}-none`]=await capture(c,env,base,w,'none',NONE)
-                report[env].views[`${w}-long`]=await capture(c,env,base,w,'long',LONG)
-              }
-            }
 
-            for(const w of [360,390,1440]){
-              const none=report.after.views[`${w}-none`],long=report.after.views[`${w}-long`]
-              assert.equal(none.list.relationEmptyCount,0,`after ${w} none relation empty remains`)
-              assert.equal(none.list.relationCount,0,`after ${w} none relations remain`)
-              assert.ok(none.list.unfilteredCount>=4,`after ${w} none lacks unfiltered cards`)
-              assert.equal(none.quick.quickHasComparison,false,`after ${w} none comparison section remains`)
-              assert.equal(long.list.unfilteredCount,0,`after ${w} long marked unfiltered`)
-              assert.ok(long.list.relationCount+long.list.relationEmptyCount>0,`after ${w} long lost relation`)
-              assert.equal(long.quick.quickHasComparison,true,`after ${w} long comparison section missing`)
-              assert.ok(long.quick.quickText.includes('확인됨')&&long.quick.quickText.includes('미확인'),`after ${w} long relation content missing`)
-            }
-            for(const w of [360,390]){
-              const none=report.after.views[`${w}-none`],long=report.after.views[`${w}-long`]
-              assert.equal(none.list.headingDirection,'column',`after ${w} none heading not stacked`)
-              assert.equal(long.list.headingDirection,'column',`after ${w} long heading not stacked`)
-              assert.ok(!long.list.headingContext||long.list.headingContext.y>=long.list.headingPrimary.bottom-0.5,`after ${w} context not on next line`)
-              assert.ok(none.list.criteriaText.includes('추가 조건 없음'),`after ${w} top no-condition message lost`)
-            }
-            const grid=report.after.views['1440-none'].list.firstCardGrid||''
-            report.after.desktopUnfilteredGrid=grid
-            assert.equal(grid.trim().split(' ').filter(Boolean).length,3,'desktop no-condition grid still reserves relation column')
+            await c.viewport(390,844)
+            await c.nav(PROD+NONE)
+            await waitResults(c)
+            const none390=await c.eval(metrics)
+            assert.equal(none390.docWidth,390,'390 no-condition overflow')
+            assert.equal(none390.relationCount,0,'390 no-condition relation remains')
+            assert.equal(none390.relationEmptyCount,0,'390 no-condition empty relation remains')
+            assert.ok(none390.unfilteredCount>=4,'390 no-condition cards not compact')
+            assert.ok(none390.criteriaText.includes('추가 조건 없음'),'top no-condition guidance missing')
+            assert.equal(none390.headingDirection,'column','390 Results header not stacked')
+            await c.shot(`${OUT}/mobile-390-none-results.png`)
 
-            await c.viewport(390,844);await c.nav(PREVIEW+LONG);await waitResults(c)
-            const id=await c.eval(`document.querySelector('.research-result-card')?.dataset.productId`);assert.ok(id)
-            await c.eval(`document.querySelector('[data-product-id="${id}"]')?.click()`);await c.wait(`document.querySelector('.research-quick-view')`,'interaction open');report.actions.opened=true
-            await c.eval(`document.querySelector('.quick-view-topline button')?.click()`);await c.wait(`!document.querySelector('.research-quick-view')`,'interaction close');report.actions.closed=true
-            await c.eval(`document.querySelector('[data-product-id="${id}"]')?.click()`);await c.wait(`document.querySelector('.research-quick-view')`,'interaction reopen')
-            await c.eval(`[...document.querySelectorAll('.quick-view-actions button')].find(b=>b.textContent?.includes('비교에 추가'))?.click()`);await c.wait(`[...document.querySelectorAll('.quick-view-actions button')].some(b=>b.textContent?.includes('비교에서 제거'))`,'compare add');report.actions.compareAdded=true
-            await c.eval(`[...document.querySelectorAll('.quick-view-actions button')].find(b=>b.textContent?.includes('비교에서 제거'))?.click()`);await c.wait(`[...document.querySelectorAll('.quick-view-actions button')].some(b=>b.textContent?.includes('비교에 추가'))`,'compare remove');report.actions.compareRemoved=true
-            writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2));console.log('RESULTS_DENSITY '+JSON.stringify(report));console.log('RESULTS_DENSITY PASS')
-          } catch (error) {
-            writeFileSync('qa-artifacts/report.json',JSON.stringify({...report,error:String(error)},null,2))
+            const firstId=none390.firstProductId
+            assert.ok(firstId)
+            await c.eval(`document.querySelector('[data-product-id="${firstId}"]')?.click()`)
+            await c.wait(`document.querySelector('.research-quick-view')`,'quick view')
+            await sleep(250)
+            const quick390=await c.eval(metrics)
+            assert.equal(quick390.docWidth,390,'390 quick-view overflow')
+            assert.equal(quick390.quickHasComparison,false,'empty comparison section remains in quick view')
+            await c.shot(`${OUT}/mobile-390-none-quick.png`)
+
+            await c.viewport(390,844)
+            await c.nav(PROD+LONG)
+            await waitResults(c)
+            const long390=await c.eval(metrics)
+            assert.equal(long390.docWidth,390,'390 long-condition overflow')
+            assert.ok(long390.relationCount+long390.relationEmptyCount>0,'long-condition relation information missing')
+            assert.equal(long390.unfilteredCount,0,'long-condition cards incorrectly marked unfiltered')
+            assert.equal(long390.headingDirection,'column','390 long-condition Results header not stacked')
+            await c.shot(`${OUT}/mobile-390-long-results.png`)
+
+            await c.viewport(1440,1000)
+            await c.nav(PROD+NONE)
+            await waitResults(c)
+            const none1440=await c.eval(metrics)
+            assert.equal(none1440.docWidth,1440,'1440 no-condition overflow')
+            assert.equal(none1440.relationCount,0,'1440 no-condition relation remains')
+            assert.equal(none1440.relationEmptyCount,0,'1440 no-condition empty relation remains')
+            assert.equal((none1440.firstCardGrid||'').trim().split(' ').filter(Boolean).length,3,'1440 no-condition relation column remains')
+            await c.shot(`${OUT}/desktop-1440-none-results.png`)
+
+            report.views={none390,quick390,long390,none1440}
+            writeFileSync(`${OUT}/report.json`,JSON.stringify(report,null,2))
+            console.log('POSTDEPLOY_RESULTS_DENSITY PASS')
+          } catch(error) {
+            report.error=String(error)
+            writeFileSync(`${OUT}/report.json`,JSON.stringify(report,null,2))
             throw error
-          } finally {c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+          } finally {
+            c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})
+          }
           NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: results-density-pr17-final-qa
-          path: qa-artifacts/
+          name: results-density-pr17-postdeploy
+          path: qa-artifacts/postdeploy-pr17/
           if-no-files-found: error
+      - name: Preserve QA captures on QA branch
+        if: success()
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add qa-artifacts/postdeploy-pr17
+          git commit -m "qa: preserve PR 17 postdeploy captures"
+          git push origin HEAD:qa/results-density-pr17-final-20260910

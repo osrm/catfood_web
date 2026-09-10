@@ -1,0 +1,36 @@
+name: Apply mobile refine matchMedia guard
+
+on:
+  push:
+    branches:
+      - ui/mobile-recipe-refinement-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ui/mobile-recipe-refinement-20260911
+      - name: Add unsupported-environment guard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/App.tsx')
+          s=p.read_text()
+          old="  useEffect(() => {\n    const media = window.matchMedia('(max-width: 980px)')\n"
+          new="  useEffect(() => {\n    if (typeof window.matchMedia !== 'function') return\n    const media = window.matchMedia('(max-width: 980px)')\n"
+          if old not in s: raise SystemExit('matchMedia anchor missing')
+          p.write_text(s.replace(old,new,1))
+          PY
+          rm .github/workflows/mobile-refine-matchmedia-guard.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/App.tsx .github/workflows/mobile-refine-matchmedia-guard.yml
+          git diff --cached --check
+          git commit -m "fix: guard mobile refinement media query"
+          git push origin HEAD:ui/mobile-recipe-refinement-20260911

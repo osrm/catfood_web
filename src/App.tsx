@@ -206,6 +206,7 @@ export default function App() {
     }
   }, [mode, editingConditions, selectedId, compareOpen, detailProductId])
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
     const media = window.matchMedia('(max-width: 980px)')
     const handleChange = (event: MediaQueryListEvent) => {
       const panel = document.getElementById('mobile-recipe-refine-panel')

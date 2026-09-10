@@ -1,0 +1,49 @@
+name: Recipe Detail Korean Labels QA
+
+on:
+  push:
+    branches:
+      - qa/recipe-detail-korean-labels-20260910
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build candidate with existing public Pages config
+        shell: bash
+        run: |
+          VITE_SUPABASE_URL=$(sed -n 's/^      VITE_SUPABASE_URL: //p' .github/workflows/pages.yml)
+          VITE_SUPABASE_PUBLISHABLE_KEY=$(sed -n 's/^      VITE_SUPABASE_PUBLISHABLE_KEY: //p' .github/workflows/pages.yml)
+          export VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY
+          npm ci
+          npm test
+          npm run build
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Capture production and candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 80); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 0.25; done
+          node .github/recipe-label-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recipe-detail-korean-labels-qa
+          path: qa-artifacts/
+          if-no-files-found: error

@@ -26,15 +26,17 @@ class Cdp {
 
 async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9900+(process.pid%80);const dir=`/tmp/catfood-recipe-pr18-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();const page=pages.find((item)=>item.type==='page'&&item.webSocketDebuggerUrl);if(page)return{version,proc,dir,c:new Cdp(page.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
 
+const renderedExpr=(selector)=>`(()=>{const n=document.querySelector(${JSON.stringify(selector)});if(!n)return false;const s=getComputedStyle(n),r=n.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0})()`
 const visibleExpr=(selector)=>`(()=>{const n=document.querySelector(${JSON.stringify(selector)});if(!n)return false;const s=getComputedStyle(n),r=n.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth})()`
-async function clickVisible(c,selector,text){const point=await c.eval(`(()=>{const nodes=[...document.querySelectorAll(${JSON.stringify(selector)})];const n=nodes.find((x)=>x.textContent?.trim().includes(${JSON.stringify(text)}));if(!n)return null;n.scrollIntoView({block:'center',inline:'nearest'});const s=getComputedStyle(n),r=n.getBoundingClientRect();if(s.display==='none'||s.visibility==='hidden'||r.width<=0||r.height<=0)return null;return{x:r.left+r.width/2,y:r.top+r.height/2,text:n.textContent.trim()}})()`);assert.ok(point,`visible control not found: ${text}`);await sleep(120);await c.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});await c.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:point.y,button:'left',clickCount:1});await sleep(180)}
-async function setSearch(c,value){await c.eval(`(()=>{const input=document.querySelector('.recipe-search');if(!input)return false;input.scrollIntoView({block:'center'});const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;setter.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);await sleep(220)}
+async function scrollToSelector(c,selector){await c.eval(`(()=>{const n=document.querySelector(${JSON.stringify(selector)});if(!n)return false;n.scrollIntoView({block:'center',inline:'nearest'});return true})()`);await sleep(180)}
+async function clickVisible(c,selector,text){await c.eval(`(()=>{const n=[...document.querySelectorAll(${JSON.stringify(selector)})].find((x)=>x.textContent?.trim().includes(${JSON.stringify(text)}));if(!n)return false;n.scrollIntoView({block:'center',inline:'nearest'});return true})()`);await sleep(180);const point=await c.eval(`(()=>{const n=[...document.querySelectorAll(${JSON.stringify(selector)})].find((x)=>x.textContent?.trim().includes(${JSON.stringify(text)}));if(!n)return null;const s=getComputedStyle(n),r=n.getBoundingClientRect();if(s.display==='none'||s.visibility==='hidden'||r.width<=0||r.height<=0||r.bottom<=0||r.top>=innerHeight)return null;return{x:r.left+r.width/2,y:r.top+r.height/2,text:n.textContent.trim()}})()`);assert.ok(point,`visible control not found after scroll: ${text}`);await c.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});await c.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:point.y,button:'left',clickCount:1});await sleep(180)}
+async function setSearch(c,value){await scrollToSelector(c,'.recipe-search');assert.equal(await c.eval(visibleExpr('.recipe-search')),true,'recipe search not visible after user scroll');await c.eval(`(()=>{const input=document.querySelector('.recipe-search');const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;setter.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);await sleep(220)}
 async function resultIds(c){return JSON.parse(await c.eval(`JSON.stringify([...document.querySelectorAll('.research-result-card')].map((node)=>node.dataset.productId).sort())`))}
-async function screenState(c){return c.eval(`(()=>({url:location.href,visibleText:document.body.innerText.slice(0,3500),recipeSearchVisible:${visibleExpr('.recipe-search')},conditionActionsVisible:${visibleExpr('.condition-actions')},criteriaButton:[...document.querySelectorAll('.criteria-bar button')].find((x)=>x.offsetParent!==null)?.textContent?.trim()||null,innerWidth,docWidth:document.documentElement.scrollWidth}))()`)}
+async function screenState(c){return c.eval(`(()=>({url:location.href,scrollY,visibleText:document.body.innerText.slice(0,3500),recipeSearchRendered:${renderedExpr('.recipe-search')},recipeSearchVisible:${visibleExpr('.recipe-search')},conditionActionsRendered:${renderedExpr('.condition-actions')},conditionActionsVisible:${visibleExpr('.condition-actions')},criteriaButton:[...document.querySelectorAll('.criteria-bar button')].find((x)=>getComputedStyle(x).display!=='none')?.textContent?.trim()||null,innerWidth,docWidth:document.documentElement.scrollWidth}))()`)}
 
 async function reachResults(c){
-  await c.wait(`${visibleExpr('.condition-actions')}&&[...document.querySelectorAll('.condition-actions button')].some((x)=>x.textContent?.includes('이 조건으로 찾기'))`,'basic condition editor')
-  assert.equal(await c.eval(visibleExpr('.recipe-search')),false,'recipe refine must not be conflated with basic condition editor')
+  await c.wait(`${renderedExpr('.condition-actions')}&&[...document.querySelectorAll('.condition-actions button')].some((x)=>x.textContent?.includes('이 조건으로 찾기'))`,'basic condition editor rendered')
+  assert.equal(await c.eval(renderedExpr('.recipe-search')),false,'recipe refine must not be conflated with basic condition editor')
   await clickVisible(c,'.condition-actions button','이 조건으로 찾기')
   await c.wait(`new URLSearchParams(location.search).get('applied')==='1'`,'basic conditions applied')
   await c.wait(`document.querySelectorAll('.research-result-card').length>0`,'results after basic conditions')
@@ -45,31 +47,37 @@ async function runCase(c,{base,width,prefix,query,label}){
   await c.viewport(width,width===1440?1000:900)
   await c.nav(base+EDIT)
   await reachResults(c)
-  const refineVisible=await c.eval(visibleExpr('.recipe-search'))
+
+  const refineRendered=await c.eval(renderedExpr('.recipe-search'))
+  let refineVisible=false
+  if(refineRendered){await scrollToSelector(c,'.recipe-search');refineVisible=await c.eval(visibleExpr('.recipe-search'))}
   const atResults=await screenState(c)
 
-  if(!refineVisible){
+  if(!refineRendered||!refineVisible){
+    await c.eval(`window.scrollTo(0,0)`);await sleep(120)
     await c.shot(`qa-artifacts/${prefix}-${width}-results-no-refine.png`)
-    const editButtonVisible=Boolean(atResults.criteriaButton?.includes('조건 수정'))
+    const editButtonRendered=Boolean(atResults.criteriaButton?.includes('조건 수정'))
     let afterEdit=null
-    if(editButtonVisible){
+    if(editButtonRendered){
       await clickVisible(c,'.criteria-bar button','조건 수정')
-      await c.wait(`${visibleExpr('.condition-actions')}`,'condition editor after edit')
+      await c.wait(`${renderedExpr('.condition-actions')}`,'condition editor after edit')
       afterEdit=await screenState(c)
       await c.shot(`qa-artifacts/${prefix}-${width}-condition-editor.png`)
     }
-    return{accessible:false,atResults,editButtonVisible,afterEdit}
+    return{accessible:false,atResults,editButtonRendered,afterEdit}
   }
 
   await setSearch(c,query)
-  await c.wait(`[...document.querySelectorAll('.recipe-detail-grid .choice')].some((node)=>node.textContent?.trim()===${JSON.stringify(label)}&&node.offsetParent!==null)`,'visible recipe option')
-  const metric=await c.eval(`(()=>{const node=[...document.querySelectorAll('.recipe-detail-grid .choice')].find((x)=>x.textContent?.trim()===${JSON.stringify(label)}&&x.offsetParent!==null);const style=getComputedStyle(node),r=node.getBoundingClientRect();return{text:node.textContent.trim(),rect:{x:r.x,y:r.y,width:r.width,height:r.height},clientWidth:node.clientWidth,scrollWidth:node.scrollWidth,clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,whiteSpace:style.whiteSpace,textOverflow:style.textOverflow,fontSize:style.fontSize}})()`)
-  assert.ok(metric.rect.width>0&&metric.rect.height>0,`${prefix}-${width} recipe option not laid out`)
+  await c.wait(`[...document.querySelectorAll('.recipe-detail-grid .choice')].some((node)=>node.textContent?.trim()===${JSON.stringify(label)}&&${renderedExpr('.recipe-detail-grid .choice')})`,'recipe option rendered')
+  const optionSelector='.recipe-detail-grid .choice'
+  await c.eval(`(()=>{const n=[...document.querySelectorAll(${JSON.stringify(optionSelector)})].find((x)=>x.textContent?.trim()===${JSON.stringify(label)});if(!n)return false;n.scrollIntoView({block:'center',inline:'nearest'});return true})()`);await sleep(160)
+  const metric=await c.eval(`(()=>{const node=[...document.querySelectorAll('.recipe-detail-grid .choice')].find((x)=>x.textContent?.trim()===${JSON.stringify(label)});const style=getComputedStyle(node),r=node.getBoundingClientRect();return{text:node.textContent.trim(),visible:r.bottom>0&&r.top<innerHeight,rect:{x:r.x,y:r.y,width:r.width,height:r.height},clientWidth:node.clientWidth,scrollWidth:node.scrollWidth,clientHeight:node.clientHeight,scrollHeight:node.scrollHeight,whiteSpace:style.whiteSpace,textOverflow:style.textOverflow,fontSize:style.fontSize}})()`)
+  assert.equal(metric.visible,true,`${prefix}-${width} recipe option not visible after scroll`)
   assert.notEqual(metric.whiteSpace,'nowrap',`${prefix}-${width} nowrap`)
   assert.notEqual(metric.textOverflow,'ellipsis',`${prefix}-${width} ellipsis`)
   assert.ok(metric.scrollWidth<=metric.clientWidth+1,`${prefix}-${width} horizontal clipping`)
   await c.shot(`qa-artifacts/${prefix}-${width}-filter.png`)
-  await clickVisible(c,'.recipe-detail-grid .choice',label)
+  await clickVisible(c,optionSelector,label)
   await c.wait(`new URLSearchParams(location.search).get('recipeDetails')?.split(',').includes('${KEY}')`,'raw recipe key after immediate refinement')
   await c.wait(`[...document.querySelectorAll('.selected-refinement')].some((x)=>x.textContent?.replace('×','').trim()===${JSON.stringify(label)})`,'selected refinement')
   await c.wait(`document.querySelectorAll('.research-result-card').length>0`,'refined results')

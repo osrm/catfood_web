@@ -55,20 +55,15 @@ const FEATURE_LABELS = Object.fromEntries(FEATURES)
 const RECIPE_FAMILY_LABELS = Object.fromEntries(RECIPE_FAMILIES)
 
 const RECIPE_DETAIL_LABELS: Record<string, string> = {
-  chicken: '닭',
-  duck: '오리',
-  turkey: '칠면조',
-  beef: '소',
-  lamb: '양',
-  rabbit: '토끼',
-  salmon: '연어',
-  tuna: '참치',
-  herring: '청어',
-  mackerel: '고등어',
-  trout: '송어',
-  cod: '대구',
-  pork: '돼지',
-  venison: '사슴',
+  chicken: '닭', duck: '오리', turkey: '칠면조', beef: '소', lamb: '양', rabbit: '토끼', salmon: '연어',
+  tuna: '참치', herring: '청어', mackerel: '고등어', trout: '송어', cod: '대구', pork: '돼지', venison: '사슴',
+  anchovy: '멸치', beef_liver: '소 간', bonito: '보니토(Bonito)', bream: '도미류(Bream)', cheese: '치즈',
+  chicken_liver: '닭 간', coconut_oil: '코코넛오일', egg: '계란', goat: '염소', goose: '거위', green_mussel: '초록홍합',
+  haddock: '해덕대구', hoki: '호키', kahawai: 'Kahawai', mussel: '홍합류', mutton: '양고기(Mutton)', pheasant: '꿩',
+  poultry_hearts: '가금류 심장', poultry_liver: '가금류 간', pumpkin: '호박', quail: '메추리', rice: '쌀', rooster: '수탉',
+  sardine: '정어리', sea_bass: '농어류(Sea bass)', sea_bream: '도미류(Sea bream)', shirasu: '치어(Shirasu)', shrimp: '새우',
+  skipjack_tuna: '가다랑어(Skipjack tuna)', southern_blue_whiting: '남방청대구', tuna_roe: '참치알', wallaby: '왈라비',
+  whitefish: '흰살생선', wild_boar: '야생 멧돼지',
 }
 
 const INGREDIENT_LABELS: Record<string, string> = {

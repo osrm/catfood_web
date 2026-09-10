@@ -1,0 +1,81 @@
+name: Mobile Shell Header Fix QA
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install and build candidate
+        run: |
+          npm ci
+          npm run build
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+      - name: Verify responsive shell geometry and actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          python3 -m http.server 4173 -d dist >/tmp/catfood-preview.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for i in {1..50}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep .2; done
+          node <<'NODE'
+          import assert from 'node:assert/strict'
+          import { spawn, execFileSync } from 'node:child_process'
+          import { existsSync, rmSync, writeFileSync } from 'node:fs'
+
+          const BASE='http://127.0.0.1:4173/'
+          const FIX='8b7d8ce7948db396f1246964b23e350a5a3d5372'
+          const NONE=`${BASE}?view=workspace&applied=1`
+          const LONG=`${BASE}?view=workspace&applied=1&age=adult&targets=indoor,sterilized&features=hairball,digestive,urinary,skin_coat&recipes=poultry&grainFree=1`
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms))
+          class Cdp{
+            constructor(url){this.url=url;this.ws=null;this.id=1;this.pending=new Map()}
+            async connect(){this.ws=new WebSocket(this.url);await new Promise((r,j)=>{const t=setTimeout(()=>j(new Error('ws timeout')),15000);this.ws.addEventListener('open',()=>{clearTimeout(t);r()},{once:true});this.ws.addEventListener('error',()=>j(new Error('ws error')),{once:true})});this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(!m.id)return;const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.j(new Error(m.error.message)):p.r(m.result)});for(const x of ['Page.enable','Runtime.enable','Network.enable'])await this.send(x)}
+            send(method,params={}){const id=this.id++;return new Promise((r,j)=>{this.pending.set(id,{r,j});this.ws.send(JSON.stringify({id,method,params}))})}
+            async eval(expression){const x=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(x.exceptionDetails)throw new Error(x.exceptionDetails.exception?.description||x.exceptionDetails.text);return x.result?.value}
+            async wait(expression,label,ms=60000){const end=Date.now()+ms;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+            async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'ready');await this.wait(`document.querySelector('#root')&&document.body.innerText.length>0`,'root')}
+            async viewport(w,h,mobile){await this.send('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile})}
+            async shot(path){const data=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});writeFileSync(path,Buffer.from(data.data,'base64'))}
+            close(){try{this.ws?.close()}catch{}}
+          }
+          async function launch(){const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9920+(process.pid%60),dir=`/tmp/catfood-shell-fix-${process.pid}`;rmSync(dir,{recursive:true,force:true});const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'});for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p)return{bin,version,proc,dir,c:new Cdp(p.webSocketDebuggerUrl)}}catch{}await sleep(120)}throw new Error('chrome start timeout')}
+          const metric=`(()=>{const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}};const info=n=>{if(!n)return null;const s=getComputedStyle(n);return{text:(n.textContent||'').trim().replace(/\\s+/g,' ').slice(0,180),rect:rect(n),position:s.position,top:s.top,zIndex:s.zIndex,display:s.display}};const overlap=(a,b)=>{if(!a||!b)return false;return Math.min(a.right,b.right)>Math.max(a.x,b.x)&&Math.min(a.bottom,b.bottom)>Math.max(a.y,b.y)};const shell=document.querySelector('.research-shell'),topbar=document.querySelector('.research-topbar'),nav=document.querySelector('.mode-nav'),criteria=document.querySelector('.criteria-bar'),card=document.querySelector('.research-result-card'),stage=document.querySelector('.switch-find-stage,.switch-step-layout,.switch-results-stage');const tr=rect(topbar),nr=rect(nav),cr=rect(criteria);return{innerWidth,scrollY,docWidth:document.documentElement.scrollWidth,font:getComputedStyle(document.body).fontFamily,shellRows:shell?getComputedStyle(shell).gridTemplateRows:null,topbar:info(topbar),modeNav:info(nav),criteriaBar:info(criteria),firstCard:info(card),switchStage:info(stage),topbarContainsNav:!nr||nr.height===0||tr.bottom>=nr.bottom-0.5,navCriteriaOverlap:overlap(nr,cr),topbarCriteriaOverlap:overlap(tr,cr)}})()`
+          function assertGeom(m,label){assert.ok(m.docWidth<=m.innerWidth+1,`${label} horizontal overflow ${m.docWidth}/${m.innerWidth}`);assert.ok(m.topbar,`${label} missing topbar`);assert.ok(m.topbarContainsNav,`${label} topbar does not contain nav`);assert.equal(m.navCriteriaOverlap,false,`${label} nav/criteria overlap`);assert.equal(m.topbarCriteriaOverlap,false,`${label} topbar/criteria overlap`);if(m.criteriaBar)assert.ok(m.criteriaBar.rect.y>=m.topbar.rect.bottom-0.5,`${label} criteria before topbar bottom`)}
+          async function waitExplore(c){await c.wait(`document.querySelector('.research-topbar')&&document.querySelector('.criteria-bar')&&document.querySelectorAll('.research-result-card').length>=4`,'explore shell');await c.wait(`document.querySelector('.research-result-image')?.complete`,'image');await sleep(350)}
+          async function captureExplore(c,w,url,name,mobile=true){await c.viewport(w,844,mobile);await c.nav(url);await waitExplore(c);window;const top=await c.eval(metric);assertGeom(top,`${name} top`);await c.shot(`qa-artifacts/${name}-top.png`);await c.eval(`window.scrollTo(0,Math.min(320,Math.max(0,document.documentElement.scrollHeight-innerHeight)))`);await sleep(250);const scrolled=await c.eval(metric);assertGeom(scrolled,`${name} scrolled`);await c.shot(`qa-artifacts/${name}-scrolled.png`);return{top,scrolled}}
+          const {bin,version,proc,dir,c}=await launch();const report={browser:bin,browserVersion:version,fixCommit:FIX,viewports:{},actions:{},otherModes:{}}
+          try{await c.connect();
+            for(const w of [360,390]){report.viewports[w]={none:await captureExplore(c,w,NONE,`none-${w}`),long:await captureExplore(c,w,LONG,`long-${w}`)}}
+            for(const w of [1120,1121,1440]){await c.viewport(w,900,false);await c.nav(LONG);await waitExplore(c);const m=await c.eval(metric);assertGeom(m,`breakpoint-${w}`);report.viewports[w]={long:{top:m}};await c.shot(`qa-artifacts/breakpoint-${w}.png`)}
+            await c.viewport(390,844,true);await c.nav(LONG);await waitExplore(c);const beforeEdit=await c.eval(metric);await c.eval(`document.querySelector('.criteria-bar > button')?.click()`);await c.wait(`document.querySelector('.condition-actions .primary-action')`,'condition editor');report.actions.conditionEdit={before:beforeEdit,afterUrl:await c.eval('location.href'),editorVisible:await c.eval(`Boolean(document.querySelector('.condition-actions .primary-action'))`)};assert.ok(report.actions.conditionEdit.editorVisible);await c.shot('qa-artifacts/action-condition-edit-390.png');
+            await c.nav(NONE);await waitExplore(c);await c.eval(`[...document.querySelectorAll('.mode-button')].find(b=>b.textContent?.includes('제품 찾기'))?.click()`);await c.wait(`document.querySelector('.lookup-input')`,'lookup mode');let lookup=await c.eval(metric);assertGeom(lookup,'lookup-390');report.otherModes.lookup390=lookup;report.actions.menuLookup={url:await c.eval('location.href'),inputVisible:await c.eval(`Boolean(document.querySelector('.lookup-input'))`)};assert.ok(report.actions.menuLookup.inputVisible);await c.shot('qa-artifacts/lookup-390.png');
+            await c.eval(`[...document.querySelectorAll('.mode-button')].find(b=>b.textContent?.includes('현재 사료'))?.click()`);await c.wait(`document.querySelector('.switch-workflow-shell')`,'switch mode');await sleep(300);let sw390=await c.eval(metric);assert.ok(sw390.docWidth<=390+1);assert.ok(sw390.topbar);assert.ok(sw390.topbarContainsNav);report.otherModes.switch390=sw390;report.actions.menuSwitch={url:await c.eval('location.href'),switchVisible:await c.eval(`Boolean(document.querySelector('.switch-workflow-shell'))`)};assert.ok(report.actions.menuSwitch.switchVisible);await c.shot('qa-artifacts/switch-390.png');
+            await c.viewport(820,844,false);await c.nav(`${BASE}?view=workspace&mode=switch`);await c.wait(`document.querySelector('.switch-workflow-shell')`,'switch 820');await sleep(300);let sw820=await c.eval(metric);assert.ok(sw820.docWidth<=821);assert.ok(sw820.topbarContainsNav,'switch-820 topbar does not contain nav');report.otherModes.switch820=sw820;await c.shot('qa-artifacts/switch-820.png');
+            writeFileSync('qa-artifacts/report.json',JSON.stringify(report,null,2));console.log('MOBILE_SHELL_HEADER_FIX '+JSON.stringify(report));console.log('MOBILE_SHELL_HEADER_FIX PASS')
+          }finally{c.close();proc.kill('SIGTERM');await sleep(200);if(proc.exitCode==null)proc.kill('SIGKILL');rmSync(dir,{recursive:true,force:true})}
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-shell-header-fix-qa
+          path: qa-artifacts/
+          if-no-files-found: error

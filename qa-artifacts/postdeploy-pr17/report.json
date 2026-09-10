@@ -1,0 +1,106 @@
+{
+  "source": "deployed GitHub Pages",
+  "deployedSha": "41346569f410d8caf9540f5e7be04a1de9847ec9",
+  "browserVersion": "Google Chrome 152.0.7977.82",
+  "views": {
+    "none390": {
+      "innerWidth": 390,
+      "docWidth": 390,
+      "href": "https://osrm.github.io/catfood_web/?view=workspace&applied=1",
+      "criteriaText": "적용된 조건 추가 조건 없음 조건 수정",
+      "headingText": "제품 목록 843개 중 40개 표시",
+      "headingDirection": "column",
+      "relationCount": 0,
+      "relationEmptyCount": 0,
+      "unfilteredCount": 40,
+      "firstProductId": "product_b47d3ae674773585",
+      "firstCardGrid": "76px 235px",
+      "firstCard": {
+        "x": 15,
+        "y": 210.09375,
+        "width": 361,
+        "height": 144.765625,
+        "right": 376,
+        "bottom": 354.859375
+      },
+      "quick": null,
+      "quickHasComparison": false
+    },
+    "quick390": {
+      "innerWidth": 390,
+      "docWidth": 390,
+      "href": "https://osrm.github.io/catfood_web/?view=workspace&applied=1&selected=product_b47d3ae674773585",
+      "criteriaText": "적용된 조건추가 조건 없음조건 수정",
+      "headingText": "제품 목록843개 중 40개 표시",
+      "headingDirection": "column",
+      "relationCount": 0,
+      "relationEmptyCount": 0,
+      "unfilteredCount": 40,
+      "firstProductId": "product_b47d3ae674773585",
+      "firstCardGrid": "62px minmax(0px, 1fr)",
+      "firstCard": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "right": 0,
+        "bottom": 0
+      },
+      "quick": {
+        "x": 0,
+        "y": 48,
+        "width": 390,
+        "height": 785.78125,
+        "right": 390,
+        "bottom": 833.78125
+      },
+      "quickHasComparison": false
+    },
+    "long390": {
+      "innerWidth": 390,
+      "docWidth": 390,
+      "href": "https://osrm.github.io/catfood_web/?view=workspace&applied=1&age=adult&targets=indoor,sterilized&features=hairball,digestive,urinary,skin_coat&recipes=poultry&grainFree=1",
+      "criteriaText": "적용된 조건 성묘 실내묘 중성화묘 헤어볼 소화 요로 피부·피모 가금류 Grain-Free 표기 조건 수정",
+      "headingText": "제품 목록 430개 중 40개 표시 조건과 확인된 제품 정보를 비교해 표시합니다.",
+      "headingDirection": "column",
+      "relationCount": 40,
+      "relationEmptyCount": 0,
+      "unfilteredCount": 0,
+      "firstProductId": "product_b47d3ae674773585",
+      "firstCardGrid": "76px 235px",
+      "firstCard": {
+        "x": 15,
+        "y": 230.1875,
+        "width": 361,
+        "height": 213.9375,
+        "right": 376,
+        "bottom": 444.125
+      },
+      "quick": null,
+      "quickHasComparison": false
+    },
+    "none1440": {
+      "innerWidth": 1440,
+      "docWidth": 1440,
+      "href": "https://osrm.github.io/catfood_web/?view=workspace&applied=1",
+      "criteriaText": "적용된 조건 추가 조건 없음 조건 수정",
+      "headingText": "제품 목록 843개 중 40개 표시",
+      "headingDirection": "row",
+      "relationCount": 0,
+      "relationEmptyCount": 0,
+      "unfilteredCount": 40,
+      "firstProductId": "product_b47d3ae674773585",
+      "firstCardGrid": "74px 876px 72px",
+      "firstCard": {
+        "x": 317,
+        "y": 179.09375,
+        "width": 1088,
+        "height": 133,
+        "right": 1405,
+        "bottom": 312.09375
+      },
+      "quick": null,
+      "quickHasComparison": false
+    }
+  }
+}

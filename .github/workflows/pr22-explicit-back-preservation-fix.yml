@@ -1,0 +1,64 @@
+name: PR22 explicit back preservation fix
+
+on:
+  push:
+    branches:
+      - qa/pr22-explicit-back-preservation-fix-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: 1212192bfbf81b378c22bfadc775548ce3acd2f2
+      PRODUCT_BRANCH: fix/switch-session-navigation-20260911
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.PRODUCT_BRANCH }}
+          fetch-depth: 0
+      - name: Guard reviewed product head
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Preserve latest session on explicit previous-step history back
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/SwitchFlow.tsx')
+          text = path.read_text()
+          old = """  function backToStep(nextStep: SwitchStep) {
+            const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
+            if (onHistoryBack) onHistoryBack(fallback)
+            else updateSession(fallback)
+          }
+          """
+          new = """  function backToStep(nextStep: SwitchStep) {
+            const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
+            if (onHistoryBack) onHistoryBack(fallback, fallback)
+            else updateSession(fallback)
+          }
+          """
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one backToStep block, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          git diff -- src/SwitchFlow.tsx
+      - name: Validate existing suite and build
+        run: |
+          npm test
+          npm run build
+      - name: Commit product fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/SwitchFlow.tsx
+          git commit -m "fix: preserve SWITCH edits on explicit back"
+          git push origin HEAD:"$PRODUCT_BRANCH"

@@ -236,6 +236,10 @@
     min-height: 100vh;
   }
 
+  .research-shell.is-browsing:has(.criteria-bar):has(.mobile-refine-entry) {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
   .research-shell.is-browsing:has(.criteria-bar) .research-workspace {
     width: calc(100% - 36px);
     grid-template-columns: 1fr;

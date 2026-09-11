@@ -32,6 +32,24 @@ jobs:
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-match ':lang=ko'
           /usr/bin/google-chrome --version
+      - name: Use mobile-visible readiness signals
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr22-mobile-postdeploy-review.mjs')
+          text = path.read_text()
+          replacements = {
+              "    await cdp.wait(`document.body.innerText.includes('데이터 연결됨')`, 'production catalog connected')":
+              "    await cdp.wait(`document.querySelector('.switch-find-search input')`, 'SWITCH search ready')",
+              "      await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`,'390 refresh restored results')":
+              "      await cdp.wait(`document.querySelector('.switch-results-stage')`,'390 refresh restored results')",
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one mobile readiness target, found {text.count(old)}: {old}')
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
       - name: Capture mobile review evidence
         run: node .github/pr22-mobile-postdeploy-review.mjs
       - uses: actions/upload-artifact@v4

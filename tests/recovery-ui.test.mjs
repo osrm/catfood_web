@@ -17,9 +17,9 @@ const nativeFetch = globalThis.fetch
 let app, root, temp, requestHandler
 
 function deferred() {
-  let resolvePromise, rejectPromise
-  const promise = new Promise((resolve, reject) => { resolvePromise = resolve; rejectPromise = reject })
-  return { promise, resolve: resolvePromise, reject: rejectPromise }
+  let resolvePromise
+  const promise = new Promise((resolve) => { resolvePromise = resolve })
+  return { promise, resolve: resolvePromise }
 }
 
 function product(id, name, overrides = {}) {
@@ -160,6 +160,13 @@ async function setInput(node, value) {
   })
 }
 
+async function resolveInAct(pending, response) {
+  await act(async () => {
+    pending.resolve(response)
+    await Promise.resolve()
+  })
+}
+
 async function waitForUi(predicate, message) {
   if (predicate()) return
   await new Promise((resolvePromise, rejectPromise) => {
@@ -226,7 +233,7 @@ test('catalog 503 retries once, preserves LOOKUP query, and opens quick view', a
   assert.equal(catalogCalls(), 2, 'duplicate retry must not create another catalog request')
   assert.match(document.body.textContent, /제품 데이터를 불러오는 중입니다/)
 
-  retry.resolve(Response.json(rows))
+  await resolveInAct(retry, Response.json(rows))
   await waitForUi(() => all('.research-result-card').length === 1, 'lookup retry success')
   assert.equal(catalogCalls(), 2)
   assert.equal(document.querySelector('.lookup-input').value, 'Needle')
@@ -312,7 +319,7 @@ test('SKU 503 is distinct from empty data and same-product retry is de-duplicate
   assert.equal(variantCalls, 2, 'duplicate SKU retry must not create another request')
   assert.match(document.body.textContent, /판매 규격을 불러오는 중입니다/)
 
-  retry.resolve(Response.json([variant(current.product_id, 'variant_alpha', '1 kg')]))
+  await resolveInAct(retry, Response.json([variant(current.product_id, 'variant_alpha', '1 kg')]))
   await waitForUi(() => document.body.textContent.includes('1 kg'), 'variant retry success')
   assert.equal(document.querySelector('[role="alert"]'), null)
   assert.doesNotMatch(document.body.textContent, /선택할 수 있는 판매 규격을 확인하지 못했습니다/)
@@ -348,8 +355,7 @@ test('changing current product aborts stale SKU state and a 200 empty response s
   await click('이 제품을 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('2 kg'), 'beta variant loaded')
 
-  alphaResponse.resolve(Response.json([variant(alpha.product_id, 'variant_alpha_stale', '9 kg')]))
-  await act(async () => Promise.resolve())
+  await resolveInAct(alphaResponse, Response.json([variant(alpha.product_id, 'variant_alpha_stale', '9 kg')]))
   assert.match(document.body.textContent, /2 kg/)
   assert.doesNotMatch(document.body.textContent, /9 kg/)
 
@@ -367,7 +373,7 @@ test('recipe choices expose every catalog value, sort by display label, and keep
   catalogRoute(rows)
 
   await act(async () => root.render(createElement(app.App)))
-  await waitForUi(() => document.body.textContent.includes('42 PRODUCTS'), 'catalog loaded')
+  await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 42개'), 'catalog loaded on home')
   await click('조건으로 찾기')
   await click('이 조건으로 찾기')
   await waitForUi(() => all('.recipe-detail-grid .choice').length === recipeKeys.length, 'all recipe choices')

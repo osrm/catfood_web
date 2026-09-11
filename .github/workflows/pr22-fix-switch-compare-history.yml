@@ -1,0 +1,28 @@
+name: PR22 fix SWITCH compare history
+
+on:
+  push:
+    branches:
+      - qa/pr22-switch-session-history-fix-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Patch product branch
+        run: |
+          cp .github/pr22-fix-switch-compare-history.py /tmp/pr22-fix-switch-compare-history.py
+          git fetch origin fix/switch-session-navigation-20260911
+          git checkout -B fix/switch-session-navigation-20260911 origin/fix/switch-session-navigation-20260911
+          python /tmp/pr22-fix-switch-compare-history.py
+          git config user.name osrm
+          git config user.email 90407222+osrm@users.noreply.github.com
+          git add src/App.tsx
+          git commit -m "fix: preserve compare removals across browser back"
+          git push origin HEAD:fix/switch-session-navigation-20260911

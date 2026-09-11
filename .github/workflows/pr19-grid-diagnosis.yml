@@ -1,0 +1,39 @@
+name: PR19 grid diagnosis
+
+on:
+  push:
+    branches:
+      - qa/pr19-grid-diagnosis-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci && npm run build
+      - run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Measure exact old candidate grid
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr19-grid-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 80); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 0.25; done
+          node .github/pr19-grid-diagnosis.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr19-grid-diagnosis
+          path: qa-artifacts/
+          if-no-files-found: error

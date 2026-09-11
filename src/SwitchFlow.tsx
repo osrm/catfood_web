@@ -345,7 +345,7 @@ function ReferenceRail({
 
       <ol className="switch-progress" aria-label="현재 사료 전환 단계">
         {steps.map((label, index) => (
-          <li className={index === activeIndex ? 'is-current' : index < activeIndex ? 'is-done' : ''} key={label}>
+          <li aria-current={index === activeIndex ? 'step' : undefined} className={index === activeIndex ? 'is-current' : index < activeIndex ? 'is-done' : ''} key={label}>
             <span>{index < activeIndex ? '✓' : index + 1}</span>
             <strong>{label}</strong>
           </li>

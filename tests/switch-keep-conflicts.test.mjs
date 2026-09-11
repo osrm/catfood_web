@@ -118,7 +118,7 @@ const exactButton = (text) => all('button').find((node) => node.textContent.trim
 
 async function click(target) {
   const node = typeof target === 'string' ? button(target) : target
-  assert.ok(node, `missing button: ${target}\nUI: ${document.body.textContent}`)
+  assert.ok(node, `missing button: ${target}`)
   assert.equal(node.disabled, false)
   await act(async () => node.click())
 }
@@ -150,44 +150,25 @@ async function waitForUi(predicate, message) {
 
 test('SWITCH clears only conflicting KEEP axes and never restores them after CHANGE is removed', async () => {
   const current = product('product_000000000101', '현재 건식 사료', {
-    brand: '현재브랜드',
-    feed_type: '건식',
-    life_stage: 'adult',
-    official_targets: ['indoor'],
-    features: ['digestive'],
-    recipe_families: ['poultry'],
-    confirmed_present_ingredient_terms: ['chicken'],
-    direct_evidence_ingredient_terms: ['chicken'],
+    brand: '현재브랜드', feed_type: '건식', life_stage: 'adult',
+    official_targets: ['indoor'], features: ['digestive'], recipe_families: ['poultry'],
+    confirmed_present_ingredient_terms: ['chicken'], direct_evidence_ingredient_terms: ['chicken'],
   })
   const matching = product('product_000000000102', '전환 습식 생선', {
-    brand: '새브랜드',
-    feed_type: '습식',
-    life_stage: 'senior',
-    official_targets: ['indoor'],
-    features: ['digestive'],
-    recipe_families: ['fish'],
+    brand: '새브랜드', feed_type: '습식', life_stage: 'senior',
+    official_targets: ['indoor'], features: ['digestive'], recipe_families: ['fish'],
     reviewed_not_found_ingredient_terms: ['chicken'],
   })
   const sameBrand = product('product_000000000103', '같은 브랜드 습식', {
-    brand: '현재브랜드',
-    feed_type: '습식',
-    life_stage: 'senior',
-    recipe_families: ['fish'],
+    brand: '현재브랜드', feed_type: '습식', life_stage: 'senior', recipe_families: ['fish'],
     reviewed_not_found_ingredient_terms: ['chicken'],
   })
   const ingredientConflict = product('product_000000000104', '닭 포함 습식', {
-    brand: '다른브랜드',
-    feed_type: '습식',
-    life_stage: 'senior',
-    recipe_families: ['fish'],
-    confirmed_present_ingredient_terms: ['chicken'],
-    direct_evidence_ingredient_terms: ['chicken'],
+    brand: '다른브랜드', feed_type: '습식', life_stage: 'senior', recipe_families: ['fish'],
+    confirmed_present_ingredient_terms: ['chicken'], direct_evidence_ingredient_terms: ['chicken'],
   })
   const dryCandidate = product('product_000000000105', '다른 건식 후보', {
-    brand: '다른브랜드',
-    feed_type: '건식',
-    life_stage: 'senior',
-    recipe_families: ['fish'],
+    brand: '다른브랜드', feed_type: '건식', life_stage: 'senior', recipe_families: ['fish'],
     reviewed_not_found_ingredient_terms: ['chicken'],
   })
   const searchRuns = []
@@ -203,12 +184,8 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
 
   await act(async () => root.render(createElement(app.SwitchFlow, {
     products: [current, matching, sameBrand, ingredientConflict, dryCandidate],
-    loading: false,
-    error: null,
-    initialQuery: '현재 건식',
-    onHome() {},
-    onModeChange() {},
-    onRetryCatalog() {},
+    loading: false, error: null, initialQuery: '현재 건식',
+    onHome() {}, onModeChange() {}, onRetryCatalog() {},
   })))
 
   await click(all('.switch-find-result').find((node) => node.textContent.includes('현재 건식 사료')))
@@ -216,7 +193,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await waitForUi(() => document.body.textContent.includes('선택할 수 있는 판매 규격을 확인하지 못했습니다'), 'empty variants')
   await click('사용 규격을 모르겠어요')
   await click('특별히 바꾸고 싶은 점 없음')
-  await click('다음')
+  await click(exactButton('다음 →'))
 
   await click(exactButton('현재브랜드 유지'))
   await click(exactButton('건식 유지'))
@@ -238,7 +215,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click(exactButton('생선'))
   assert.match(document.querySelector('[role="status"]').textContent, /레시피 계열 유지 조건을 해제했습니다/)
 
-  await click('다음')
+  await click(exactButton('다음 →'))
   assert.equal(exactButton('현재브랜드 유지'), undefined)
   assert.equal(exactButton('건식 유지'), undefined)
   assert.equal(exactButton('성묘 유지'), undefined)
@@ -278,7 +255,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click(exactButton('습식'))
   await click(exactButton('시니어'))
   await click(exactButton('생선'))
-  await click('다음')
+  await click(exactButton('다음 →'))
 
   assert.equal(exactButton('현재브랜드 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('건식 유지').getAttribute('aria-pressed'), 'false')

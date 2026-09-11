@@ -1,0 +1,41 @@
+name: PR22 postdeploy SWITCH QA
+
+on:
+  push:
+    branches:
+      - qa/pr22-postdeploy-switch-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      DEPLOY_SHA: 40822150b2bea4f70ef6a02ce8cb4f90a77ecdc8
+      QA_BASE: https://osrm.github.io/catfood_web/
+      EXPECTED_ASSET: index-CXaDmwpT.js
+      SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      SUPABASE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify QA branch product sources match deployed merge
+        run: git diff --exit-code "$DEPLOY_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+      - name: Run narrow production Pages validation
+        run: node .github/pr22-postdeploy-switch-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr22-postdeploy-switch-qa
+          path: qa-artifacts
+          if-no-files-found: warn

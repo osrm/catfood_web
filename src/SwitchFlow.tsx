@@ -12,6 +12,14 @@ import {
   type ProductVariant,
 } from './api'
 import { lookupCatalog, toggleValue, type SearchState } from './search'
+import {
+  createInitialSwitchSession,
+  type SwitchHistoryAction,
+  type SwitchHistoryEntry,
+  type SwitchSessionState,
+  type SwitchSessionUpdate,
+  type SwitchStep,
+} from './switch-session'
 
 const FEED_TYPES = [
   ['건식', '건식'],
@@ -102,7 +110,6 @@ const EMPTY_CRITERIA: SearchState = {
   grainFree: false,
 }
 
-type SwitchStep = 'current' | 'sku' | 'change' | 'keep' | 'results'
 type SecondaryMode = 'explore' | 'lookup'
 type Option = readonly [string, string]
 type ConditionSource = 'change' | 'keep'
@@ -573,6 +580,9 @@ export default function SwitchFlow({
   loading,
   error,
   initialQuery = '',
+  session: controlledSession,
+  onSessionChange,
+  onHistoryBack,
   onHome,
   onModeChange,
   onRetryCatalog,
@@ -581,36 +591,102 @@ export default function SwitchFlow({
   loading: boolean
   error: string | null
   initialQuery?: string
+  session?: SwitchSessionState
+  onSessionChange?: SwitchSessionUpdate
+  onHistoryBack?: (fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) => void
   onHome: () => void
   onModeChange: (mode: SecondaryMode) => void
   onRetryCatalog: () => void
 }) {
-  const [step, setStep] = useState<SwitchStep>('current')
-  const [query, setQuery] = useState(initialQuery)
+  const [localSession, setLocalSession] = useState<SwitchSessionState>(() => createInitialSwitchSession(initialQuery))
+  const activeSession = controlledSession ?? localSession
+  function updateSession(
+    update: SwitchSessionState | ((current: SwitchSessionState) => SwitchSessionState),
+    action: SwitchHistoryAction = 'replace',
+    entry?: SwitchHistoryEntry | null,
+  ) {
+    if (onSessionChange) { onSessionChange(update, action, entry); return }
+    setLocalSession((current) => typeof update === 'function' ? update(current) : update)
+  }
+  function setSessionField<K extends keyof SwitchSessionState>(
+    field: K,
+    next: SwitchSessionState[K] | ((value: SwitchSessionState[K]) => SwitchSessionState[K]),
+    action: SwitchHistoryAction = 'replace',
+    entry?: SwitchHistoryEntry | null,
+  ) {
+    updateSession((current) => ({
+      ...current,
+      [field]: typeof next === 'function'
+        ? (next as (value: SwitchSessionState[K]) => SwitchSessionState[K])(current[field])
+        : next,
+    }), action, entry)
+  }
+  const {
+    step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent,
+    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
+  } = activeSession
+  const currentVariantId = variantSelection.kind === 'variant' ? variantSelection.variantId : null
+  const setStep = (value: SwitchStep, action: SwitchHistoryAction = 'replace', entry?: SwitchHistoryEntry | null) => setSessionField('step', value, action, entry)
+  const setQuery = (value: string) => setSessionField('query', value)
+  const setCurrentVariantId = (value: string | null) => setSessionField('variantSelection', value ? { kind: 'variant', variantId: value } : { kind: 'unselected', variantId: null })
+  const setChange = (value: SearchState | ((current: SearchState) => SearchState)) => setSessionField('change', value)
+  const setKeep = (value: SearchState | ((current: SearchState) => SearchState)) => setSessionField('keep', value)
+  const setChangeBrand = (value: boolean | ((current: boolean) => boolean)) => setSessionField('changeBrand', value)
+  const setKeepBrand = (value: boolean | ((current: boolean) => boolean)) => setSessionField('keepBrand', value)
+  const setIngredientAvoidTerms = (value: string[] | ((current: string[]) => string[])) => setSessionField('ingredientAvoidTerms', value)
+  const setNoChangeIntent = (value: boolean | ((current: boolean) => boolean)) => setSessionField('noChangeIntent', value)
+  const setSelectedCandidateId = (value: string | null) => setSessionField('selectedCandidateId', value)
+  const setVisibleCandidateCount = (value: number | ((current: number) => number)) => setSessionField('visibleCandidateCount', value)
+  const setCompareIds = (value: string[] | ((current: string[]) => string[])) => setSessionField('compareIds', value)
+  const setCompareOpen = (value: boolean) => setSessionField('compareOpen', value)
+  const setDetailProductId = (value: string | null) => setSessionField('detailProductId', value)
   const [previewProductId, setPreviewProductId] = useState<string | null>(null)
-  const [currentProductId, setCurrentProductId] = useState<string | null>(null)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [variantLoading, setVariantLoading] = useState(false)
   const [variantError, setVariantError] = useState<string | null>(null)
-  const [currentVariantId, setCurrentVariantId] = useState<string | null>(null)
-  const [change, setChange] = useState<SearchState>(EMPTY_CRITERIA)
-  const [keep, setKeep] = useState<SearchState>(EMPTY_CRITERIA)
-  const [changeBrand, setChangeBrand] = useState(false)
-  const [keepBrand, setKeepBrand] = useState(false)
   const [keepConflictNotice, setKeepConflictNotice] = useState<string | null>(null)
-  const [ingredientAvoidTerms, setIngredientAvoidTerms] = useState<string[]>([])
   const [ingredientSearch, setIngredientSearch] = useState('')
-  const [noChangeIntent, setNoChangeIntent] = useState(false)
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
-  const [visibleCandidateCount, setVisibleCandidateCount] = useState(40)
-  const [compareIds, setCompareIds] = useState<string[]>([])
-  const [compareOpen, setCompareOpen] = useState(false)
-  const [detailProductId, setDetailProductId] = useState<string | null>(null)
   const switchRunId = useRef<string | null>(null)
   const switchRunGeneration = useRef(0)
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
+
+  function backToStep(nextStep: SwitchStep) {
+    const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
+    if (onHistoryBack) onHistoryBack(fallback)
+    else updateSession(fallback)
+  }
+  function openSwitchDetail(productId: string) {
+    updateSession((current) => ({ ...current, detailProductId: productId, detailTab: 'overview' }), 'push', 'detail')
+  }
+  function closeSwitchDetail() {
+    const fallback = { ...activeSession, detailProductId: null, detailTab: 'overview' as const }
+    if (onHistoryBack) onHistoryBack(fallback)
+    else updateSession(fallback)
+  }
+  function openSwitchCompare() {
+    if (!compareIds.length) return
+    updateSession((current) => ({ ...current, compareOpen: true, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
+  }
+  function closeSwitchCompare() {
+    const fallback = { ...activeSession, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+    const patch = { compareIds: activeSession.compareIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+    if (onHistoryBack) onHistoryBack(fallback, patch)
+    else updateSession(fallback)
+  }
+  function removeSwitchCompare(productId: string) {
+    const nextIds = compareIds.filter((value) => value !== productId)
+    if (compareOpen && nextIds.length === 0) {
+      const fallback = { ...activeSession, compareIds: nextIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+      if (onHistoryBack) onHistoryBack(fallback, { compareIds: nextIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' })
+      else updateSession(fallback)
+      return
+    }
+    setCompareIds(nextIds)
+  }
+  function changeSwitchCompareTab(nextTab: SwitchSessionState['compareTab']) { setSessionField('compareTab', nextTab) }
+  function changeSwitchDetailTab(nextTab: SwitchSessionState['detailTab']) { setSessionField('detailTab', nextTab) }
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
@@ -656,14 +732,22 @@ export default function SwitchFlow({
     setVariantLoading(true)
     setVariantError(null)
     setVariants([])
-    setCurrentVariantId(null)
 
     void fetchProductVariants(productId, controller.signal)
       .then((data) => {
         const request = variantRequest.current
         if (!request || request.id !== id || request.productId !== productId || controller.signal.aborted) return
         setVariants(data)
-        if (data.length === 1) setCurrentVariantId(data[0].variant_id)
+        updateSession((current) => {
+          if (current.currentProductId !== productId) return current
+          if (current.variantSelection.kind === 'variant') {
+            if (data.some((variant) => variant.variant_id === current.variantSelection.variantId)) return current
+            return { ...current, variantSelection: { kind: 'unselected', variantId: null }, step: 'sku', compareOpen: false, detailProductId: null, detailTab: 'overview' }
+          }
+          if (current.variantSelection.kind === 'unknown') return current
+          if (data.length === 1) return { ...current, variantSelection: { kind: 'variant', variantId: data[0].variant_id } }
+          return current
+        })
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
@@ -809,23 +893,15 @@ export default function SwitchFlow({
     switchRunGeneration.current += 1
     switchRunTail.current = Promise.resolve(null)
     switchRunId.current = null
-    setCurrentProductId(product.product_id)
+    const next = createInitialSwitchSession(query)
+    next.currentProductId = product.product_id
+    next.step = 'sku'
+    updateSession(next, 'push', 'step')
     setPreviewProductId(null)
-    setCurrentVariantId(null)
-    setChange(EMPTY_CRITERIA)
-    setKeep(EMPTY_CRITERIA)
-    setChangeBrand(false)
-    setKeepBrand(false)
+    setVariants([])
+    setVariantError(null)
     setKeepConflictNotice(null)
-    setIngredientAvoidTerms([])
     setIngredientSearch('')
-    setNoChangeIntent(false)
-    setSelectedCandidateId(null)
-    setVisibleCandidateCount(40)
-    setCompareIds([])
-    setCompareOpen(false)
-    setDetailProductId(null)
-    setStep('sku')
   }
 
   function resetCurrentProduct() {
@@ -837,25 +913,12 @@ export default function SwitchFlow({
     variantRequestId.current += 1
     request?.controller.abort()
     setVariantLoading(false)
-    setStep('current')
-    setCurrentProductId(null)
-    setCurrentVariantId(null)
     setVariants([])
     setVariantError(null)
     setPreviewProductId(null)
-    setChange(EMPTY_CRITERIA)
-    setKeep(EMPTY_CRITERIA)
-    setChangeBrand(false)
-    setKeepBrand(false)
     setKeepConflictNotice(null)
-    setIngredientAvoidTerms([])
     setIngredientSearch('')
-    setNoChangeIntent(false)
-    setSelectedCandidateId(null)
-    setVisibleCandidateCount(40)
-    setCompareIds([])
-    setCompareOpen(false)
-    setDetailProductId(null)
+    updateSession(createInitialSwitchSession(query), 'replace', null)
   }
 
   function toggleChangeBrandSelection() {
@@ -1021,8 +1084,8 @@ export default function SwitchFlow({
             ))}
           </section>
           <div className="switch-step-actions">
-            <button className="switch-secondary-action" type="button" onClick={() => { selectCurrentVariant(null); setStep('change') }}>사용 규격을 모르겠어요</button>
-            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => setStep('change')}>다음 →</button>
+            <button className="switch-secondary-action" type="button" onClick={() => { setSessionField('variantSelection', { kind: 'unknown', variantId: null }); setStep('change', 'push', 'step') }}>사용 규격을 모르겠어요</button>
+            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => setStep('change', 'push', 'step')}>다음 →</button>
           </div>
         </main>
       </div>
@@ -1145,8 +1208,8 @@ export default function SwitchFlow({
           </div>
 
           <div className="switch-step-actions">
-            <button className="switch-secondary-action" type="button" onClick={() => setStep('sku')}>← 사용 규격</button>
-            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { setKeepConflictNotice(null); setStep('keep') }}>다음 →</button>
+            <button className="switch-secondary-action" type="button" onClick={() => backToStep('sku')}>← 사용 규격</button>
+            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { setKeepConflictNotice(null); setStep('keep', 'push', 'step') }}>다음 →</button>
           </div>
         </main>
       </div>
@@ -1210,18 +1273,23 @@ export default function SwitchFlow({
           </div>
 
           <div className="switch-step-actions">
-            <button className="switch-secondary-action" type="button" onClick={() => setStep('change')}>← 바꿀 것 수정</button>
+            <button className="switch-secondary-action" type="button" onClick={() => backToStep('change')}>← 바꿀 것 수정</button>
             <button
               className="switch-primary-action"
               type="button"
               onClick={() => {
-                setSelectedCandidateId(null)
-                setVisibleCandidateCount(40)
-                setCompareIds([])
-                setCompareOpen(false)
-                setDetailProductId(null)
                 beginSwitchRun()
-                setStep('results')
+                updateSession((current) => ({
+                  ...current,
+                  selectedCandidateId: null,
+                  visibleCandidateCount: 40,
+                  compareIds: [],
+                  compareOpen: false,
+                  compareTab: 'overview',
+                  detailProductId: null,
+                  detailTab: 'overview',
+                  step: 'results',
+                }), 'push', 'step')
               }}
             >후보 제품 보기 →</button>
           </div>
@@ -1239,11 +1307,15 @@ export default function SwitchFlow({
           items={compareItems}
           currentProduct={currentProduct}
           currentVariantText={variantLabel(selectedVariant)}
-          onClose={() => setCompareOpen(false)}
-          onRemove={(productId) => {
-            setCompareIds((current) => current.filter((value) => value !== productId))
-            if (compareIds.length <= 1) setCompareOpen(false)
-          }}
+          initialTab={compareTab}
+          onTabChange={changeSwitchCompareTab}
+          detailProductId={detailProductId}
+          detailTab={detailTab}
+          onDetailOpen={openSwitchDetail}
+          onDetailClose={closeSwitchDetail}
+          onDetailTabChange={changeSwitchDetailTab}
+          onClose={closeSwitchCompare}
+          onRemove={removeSwitchCompare}
         />
       )
     }
@@ -1262,7 +1334,7 @@ export default function SwitchFlow({
           <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></div>
           <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
           <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '제약 없음'}</strong></div>
-          <button type="button" onClick={() => { setCompareOpen(false); setStep('change') }}>조건 수정</button>
+          <button type="button" onClick={() => updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step')}>조건 수정</button>
         </div>
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
@@ -1321,7 +1393,7 @@ export default function SwitchFlow({
                     type="button"
                     onClick={() => {
                       recordSwitchConsideration(selectedCandidate.product.product_id, 'detail_open')
-                      setDetailProductId(selectedCandidate.product.product_id)
+                      openSwitchDetail(selectedCandidate.product.product_id)
                     }}
                   >
                     상세 보기 →
@@ -1368,15 +1440,28 @@ export default function SwitchFlow({
           <div className="switch-compare-dock" role="status">
             <strong>비교 {compareIds.length}/5</strong>
             <div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div>
-            <button type="button" onClick={() => setCompareOpen(true)}>비교 보기 →</button>
+            <button type="button" onClick={openSwitchCompare}>비교 보기 →</button>
           </div>
         ) : null}
       </main>
     )
   }
 
-  if (detailProduct) {
-    return <ProductDetail product={detailProduct} onClose={() => setDetailProductId(null)} />
+  if (detailProduct && !compareOpen) {
+    return <ProductDetail product={detailProduct} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+  }
+
+  if (currentProductId && !currentProduct) {
+    return (
+      <div className="research-shell switch-workflow-shell">
+        <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+        <main className="switch-find-stage">
+          {error ? (
+            <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div>
+          ) : <div className="switch-state-message">{loading ? '저장된 SWITCH 작업을 불러오는 중입니다.' : '저장된 현재 사료를 확인할 수 없어 다시 선택해야 합니다.'}</div>}
+        </main>
+      </div>
+    )
   }
 
   return (

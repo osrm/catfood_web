@@ -18,6 +18,18 @@ import {
   type NavigationState,
 } from './navigation-state'
 import {
+  createInitialSwitchSession,
+  createSwitchSessionSnapshot,
+  parseSwitchSessionSnapshot,
+  readSwitchSession,
+  sanitizeSwitchSessionForCatalog,
+  writeSwitchSession,
+  type SwitchHistoryAction,
+  type SwitchHistoryEntry,
+  type SwitchSessionSnapshot,
+  type SwitchSessionState,
+} from './switch-session'
+import {
   INITIAL_REFINE,
   INITIAL_SEARCH,
   countActiveConditions,
@@ -64,7 +76,13 @@ type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies'
 type SingleSearchField = 'feedType' | 'lifeStage'
 type Option = readonly [string, string]
 type ListRestore = { scrollTop: number; visibleCount: number; focusId: string | null }
-type HistoryPayload = { catfoodDetailEntry?: boolean; catfoodCompareEntry?: boolean; catfoodList?: ListRestore }
+type HistoryPayload = {
+  catfoodDetailEntry?: boolean
+  catfoodCompareEntry?: boolean
+  catfoodList?: ListRestore
+  catfoodSwitch?: SwitchSessionSnapshot
+  catfoodSwitchEntry?: SwitchHistoryEntry
+}
 
 function optionLabel(value: string, labels: Record<string, string>) { return labels[value] ?? value.replaceAll('_', ' ') }
 function compactList(values: string[], labels: Record<string, string>, max = 3) {
@@ -138,6 +156,11 @@ function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
 
 export default function App() {
   const [initialNavigation] = useState(() => parseNavigationState(typeof window === 'undefined' ? '' : window.location.search))
+  const [initialSwitchSession] = useState(() => {
+    if (typeof window === 'undefined') return createInitialSwitchSession()
+    const fromHistory = parseSwitchSessionSnapshot((window.history.state as HistoryPayload | null)?.catfoodSwitch)
+    return fromHistory ?? readSwitchSession() ?? createInitialSwitchSession()
+  })
   const [screen, setScreen] = useState<Screen>(initialNavigation.screen)
   const [products, setProducts] = useState<CatalogProduct[]>([])
   const [mode, setMode] = useState<Mode>(initialNavigation.mode)
@@ -146,7 +169,7 @@ export default function App() {
   const [refine, setRefine] = useState<RefineState>(initialNavigation.refine)
   const [editingConditions, setEditingConditions] = useState(initialNavigation.editingConditions)
   const [lookupQuery, setLookupQuery] = useState(initialNavigation.lookupQuery)
-  const [switchQuery, setSwitchQuery] = useState('')
+  const [switchSession, setSwitchSession] = useState<SwitchSessionState>(initialSwitchSession)
   const [selectedId, setSelectedId] = useState<string | null>(initialNavigation.selectedId)
   const [visibleCount, setVisibleCount] = useState(initialNavigation.visibleCount)
   const [recipeSearch, setRecipeSearch] = useState('')
@@ -160,6 +183,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const pendingRestore = useRef<ListRestore | null>(null)
   const pendingCompareReturnIds = useRef<string[] | null>(null)
+  const switchSessionRef = useRef<SwitchSessionState>(initialSwitchSession)
+  const pendingSwitchPopPatch = useRef<Partial<SwitchSessionState> | null>(null)
   const exploreRunId = useRef<string | null>(null)
   const exploreRunGeneration = useRef(0)
   const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
@@ -168,12 +193,60 @@ export default function App() {
   const catalogRequestId = useRef(0)
   const catalogRequest = useRef<{ id: number; controller: AbortController } | null>(null)
 
+  function restoreSwitchSession(next: SwitchSessionState) {
+    const resolved = !loading && !error
+      ? sanitizeSwitchSessionForCatalog(next, new Set(products.map((product) => product.product_id)))
+      : next
+    switchSessionRef.current = resolved
+    setSwitchSession(resolved)
+    writeSwitchSession(resolved)
+    return resolved
+  }
+  function commitSwitchSession(
+    update: SwitchSessionState | ((current: SwitchSessionState) => SwitchSessionState),
+    action: SwitchHistoryAction = 'replace',
+    entry?: SwitchHistoryEntry | null,
+  ) {
+    const current = switchSessionRef.current
+    const next = typeof update === 'function' ? update(current) : update
+    if (next === current && action === 'replace' && entry === undefined) return
+    switchSessionRef.current = next
+    setSwitchSession(next)
+    writeSwitchSession(next)
+    const url = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    if (action === 'push') {
+      const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next) }
+      if (entry) payload.catfoodSwitchEntry = entry
+      window.history.pushState(payload, '', url)
+      return
+    }
+    const payload = { ...((window.history.state ?? {}) as HistoryPayload), catfoodSwitch: createSwitchSessionSnapshot(next) }
+    if (entry !== undefined) {
+      if (entry) payload.catfoodSwitchEntry = entry
+      else delete payload.catfoodSwitchEntry
+    }
+    window.history.replaceState(payload, '', url)
+  }
+  function backSwitchHistory(fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) {
+    const payload = (window.history.state ?? {}) as HistoryPayload
+    if (payload.catfoodSwitchEntry) {
+      pendingSwitchPopPatch.current = patch ?? null
+      window.history.back()
+      return
+    }
+    commitSwitchSession(patch ? { ...fallback, ...patch } : fallback, 'replace', null)
+  }
+
   function snapshot(overrides: Partial<NavigationState> = {}): NavigationState {
     return { mode, screen, lookupQuery, search, refine, editingConditions, selectedId, visibleCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, ...overrides }
   }
   function urlFor(next: NavigationState) { return `${window.location.pathname}${navigationSearch(next)}${window.location.hash}` }
-  function replaceHistory(next: NavigationState, payload: HistoryPayload = (window.history.state ?? {})) { window.history.replaceState(payload, '', urlFor(next)) }
-  function pushHistory(next: NavigationState, payload: HistoryPayload = {}) { window.history.pushState(payload, '', urlFor(next)) }
+  function replaceHistory(next: NavigationState, payload: HistoryPayload = (window.history.state ?? {}) as HistoryPayload) {
+    window.history.replaceState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }, '', urlFor(next))
+  }
+  function pushHistory(next: NavigationState, payload: HistoryPayload = {}) {
+    window.history.pushState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }, '', urlFor(next))
+  }
   function applyNavigation(next: NavigationState, restore?: ListRestore | null) {
     setMode(next.mode); setScreen(next.screen); setLookupQuery(next.lookupQuery); setSearch(next.search); setDraftSearch(next.search); setRefine(next.refine)
     setEditingConditions(next.editingConditions); setSelectedId(next.selectedId); setVisibleCount(next.visibleCount); setCompareIds(next.compareIds)
@@ -204,8 +277,24 @@ export default function App() {
   }
 
   useEffect(() => {
+    writeSwitchSession(switchSessionRef.current)
+    const payload = { ...((window.history.state ?? {}) as HistoryPayload), catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }
+    window.history.replaceState(payload, '', window.location.href)
+  }, [])
+
+  useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      const restore = (event.state as HistoryPayload | null)?.catfoodList ?? null
+      const payload = (event.state ?? {}) as HistoryPayload
+      const restored = parseSwitchSessionSnapshot(payload.catfoodSwitch)
+      const patch = pendingSwitchPopPatch.current
+      pendingSwitchPopPatch.current = null
+      if (restored || patch) {
+        const next = restoreSwitchSession(patch ? { ...(restored ?? switchSessionRef.current), ...patch } : restored ?? switchSessionRef.current)
+        if (patch) {
+          window.history.replaceState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(next) }, '', window.location.href)
+        }
+      }
+      const restore = payload.catfoodList ?? null
       const parsed = parseNavigationState(window.location.search)
       if (pendingCompareReturnIds.current !== null) {
         const next = {
@@ -260,11 +349,15 @@ export default function App() {
     }
   }, [])
   useEffect(() => {
-    if (!products.length) return
+    if (loading || error) return
     const validIds = new Set(products.map((product) => product.product_id))
-    const current = snapshot(), clean = sanitizeProductNavigation(current, validIds)
-    if (navigationSearch(clean) !== navigationSearch(current)) { applyNavigation(clean); replaceHistory(clean, window.history.state ?? {}) }
-  }, [products.length])
+    if (products.length) {
+      const current = snapshot(), clean = sanitizeProductNavigation(current, validIds)
+      if (navigationSearch(clean) !== navigationSearch(current)) { applyNavigation(clean); replaceHistory(clean, (window.history.state ?? {}) as HistoryPayload) }
+    }
+    const cleanSwitch = sanitizeSwitchSessionForCatalog(switchSessionRef.current, validIds)
+    if (cleanSwitch !== switchSessionRef.current) commitSwitchSession(cleanSwitch)
+  }, [products, loading, error])
   useEffect(() => {
     if (!products.length || mode !== 'explore' || editingConditions || detailProductId || compareOpen) return
     const key = exploreRunKey(search, refine)
@@ -382,7 +475,7 @@ export default function App() {
   }
   function startFromHome(nextMode: Mode, query = '') {
     if (nextMode === 'lookup') setLookupQuery(query)
-    if (nextMode === 'switch') setSwitchQuery(query)
+    if (nextMode === 'switch' && query.trim()) commitSwitchSession((current) => ({ ...current, query }))
     if (nextMode === 'explore') setEditingConditions(true)
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
     setVisibleCount(count); setMode(nextMode); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setScreen('workspace')
@@ -468,7 +561,7 @@ export default function App() {
 
   if (detailProduct) return <ProductDetail product={detailProduct} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
   if (screen === 'home') return <Home productCount={products.length} loading={loading} onStart={startFromHome} />
-  if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} initialQuery={switchQuery} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} />
+  if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} />
 
   const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'
   const paneDescription = mode === 'explore' ? '원하는 조건을 골라 제품을 좁혀보세요.' : '브랜드나 제품명으로 찾습니다.'

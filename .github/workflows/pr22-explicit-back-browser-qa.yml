@@ -32,7 +32,6 @@ jobs:
       - name: Install Korean font environment
         run: |
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
-          fc-cache -f
           fc-match ':lang=ko'
       - name: Build exact PR candidate without analytics writes
         run: npm run build

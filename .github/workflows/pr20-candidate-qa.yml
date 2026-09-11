@@ -1,0 +1,62 @@
+name: PR20 candidate browser QA
+
+on:
+  push:
+    branches:
+      - qa/pr20-recovery-mobile-design-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify-candidate:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: 'false'
+      SOURCE_SHA: 4e9ba6a75c6adc15dcec72f717e8a71eeed8dd40
+      QA_BASE: http://127.0.0.1:4173/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+
+      - name: Build candidate without analytics writes
+        run: npm run build
+
+      - name: Run candidate browser QA
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr20-vite-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 120); do
+            if curl -fsS "$QA_BASE" >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -fsS "$QA_BASE" >/dev/null
+          node .github/pr20-candidate-qa.mjs
+
+      - name: Upload candidate QA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr20-candidate-browser-qa
+          path: qa-artifacts
+          if-no-files-found: error

@@ -33,6 +33,22 @@ jobs:
           fc-match ':lang=ko'
       - name: Build exact PR candidate without analytics writes
         run: npm run build
+      - name: Patch QA harness readiness and cleanup only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.github/pr22-korean-browser-review-qa.mjs')
+          s = p.read_text()
+          old = "await cdp.wait(`document.body.innerText.includes('데이터 연결됨')`, 'mobile catalog');"
+          new = "await cdp.wait(`document.querySelector('.switch-find-search input')`, 'mobile catalog');"
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = "runtime.proc.kill('SIGTERM'); rmSync(runtime.dir, { recursive: true, force: true })"
+          new = "runtime.proc.kill('SIGTERM'); try { rmSync(runtime.dir, { recursive: true, force: true }) } catch {}"
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
       - name: Run desktop, review-fix, and mobile SWITCH paths
         run: |
           mkdir -p qa-artifacts

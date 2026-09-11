@@ -22,3 +22,4 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # This branch only drives validation; product changes stay on the fix branch.

@@ -158,7 +158,7 @@ function CompareRow({ label, items, render, tone }: { label: string; items: Comp
 }
 function CompareSection({ title, note }: { title: string; note?: string }) { return <div className="compare-section-row"><strong>{title}</strong>{note ? <span>{note}</span> : null}</div> }
 
-export default function CompareView({ items, currentProduct, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange }: {
+export default function CompareView({ items, currentProduct, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
   items: CompareItem[]
   currentProduct?: CatalogProduct | null
   currentVariantText?: string
@@ -166,6 +166,11 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   onRemove: (productId: string) => void
   initialTab?: CompareTab
   onTabChange?: (tab: CompareTab) => void
+  detailProductId?: string | null
+  detailTab?: import('./navigation-state').DetailTab
+  onDetailOpen?: (productId: string) => void
+  onDetailClose?: () => void
+  onDetailTabChange?: (tab: import('./navigation-state').DetailTab) => void
 }) {
   const [tab, setTab] = useState<CompareTab>(initialTab)
   const [reload, setReload] = useState(0)
@@ -178,7 +183,8 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const [ingredientsLoading, setIngredientsLoading] = useState(false)
   const [nutritionError, setNutritionError] = useState<string | null>(null)
   const [ingredientsError, setIngredientsError] = useState<string | null>(null)
-  const [detailProductId, setDetailProductId] = useState<string | null>(null)
+  const [localDetailProductId, setLocalDetailProductId] = useState<string | null>(null)
+  const detailProductId = controlledDetailProductId === undefined ? localDetailProductId : controlledDetailProductId
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => { setTab(initialTab) }, [initialTab])
@@ -231,7 +237,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     return () => { active = false; controller.abort() }
   }, [productIds.join('|'), reload])
 
-  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => setDetailProductId(null)} />
+  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} initialTab={detailTab} onTabChange={onDetailTabChange} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`
@@ -250,7 +256,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
 
     <section className="compare-table-wrap" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
       <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
-        <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} onRemove={() => onRemove(item.product.product_id)} onDetail={() => setDetailProductId(item.product.product_id)} />)}</div>
+        <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} onRemove={() => onRemove(item.product.product_id)} onDetail={() => onDetailOpen ? onDetailOpen(item.product.product_id) : setLocalDetailProductId(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           <CompareSection title={currentProduct ? '현재 사료와 비교' : '선택한 조건과 비교'} note={currentProduct ? '현재 사료와 각 후보가 어떻게 다른지 확인합니다.' : '선택한 조건과 각 제품이 어떻게 맞는지 확인합니다.'} />
           <CompareRow label={currentProduct ? '현재 사료와 비교' : '선택한 조건과 비교'} items={items} render={(item) => <RelationSummary item={item} />} />

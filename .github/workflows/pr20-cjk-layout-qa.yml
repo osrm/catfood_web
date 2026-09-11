@@ -56,6 +56,13 @@ jobs:
           done
           curl -fsS "$QA_BASE" >/dev/null
           sed -i 's/bottom.bottom <= innerHeight - 8/bottom.bottom <= height - 8/' .github/pr20-cjk-layout-qa.mjs
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const path = '.github/pr20-cjk-layout-qa.mjs'
+          let source = fs.readFileSync(path, 'utf8')
+          source = source.replaceAll(".filter(x=>/[가-힣]/.test(x.text))", ".filter(x=>/[가-힣]/.test(x.name?.textContent ?? ''))")
+          fs.writeFileSync(path, source)
+          NODE
           node .github/pr20-cjk-layout-qa.mjs
 
       - name: Upload Korean layout QA artifact

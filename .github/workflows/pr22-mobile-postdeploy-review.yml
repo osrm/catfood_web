@@ -44,7 +44,7 @@ jobs:
               "      await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`,'390 refresh restored results')":
               "      await cdp.wait(`document.querySelector('.switch-results-stage')`,'390 refresh restored results')",
               "    const fonts=await cdp.platformFonts('.mode-button.is-active')":
-              "    const fonts=await cdp.platformFonts('.switch-sku-option.is-selected strong')",
+              "    const fonts=await cdp.platformFonts(width===390 ? '.switch-session-current strong' : '.switch-sku-option.is-selected strong')",
           }
           for old, new in replacements.items():
               if text.count(old) != 1:

@@ -204,6 +204,10 @@
   grid-template-columns: 74px minmax(200px, 1fr) 72px;
 }
 
+.mobile-refine-entry {
+  display: none;
+}
+
 @media (max-width: 980px) {
   /* Editing conditions should use the document scroll on narrow screens, not a nested scroll box. */
   .research-shell.is-browsing:has(.condition-actions) {
@@ -232,6 +236,10 @@
     min-height: 100vh;
   }
 
+  .research-shell.is-browsing:has(.criteria-bar):has(.mobile-refine-entry) {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
   .research-shell.is-browsing:has(.criteria-bar) .research-workspace {
     width: calc(100% - 36px);
     grid-template-columns: 1fr;
@@ -241,6 +249,38 @@
 
   .research-shell.is-browsing:has(.criteria-bar) .research-filters {
     display: none;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry {
+    display: flex;
+    width: calc(100% - 36px);
+    margin: 14px auto 0;
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry .secondary-action {
+    width: 100%;
+  }
+
+  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-filters {
+    display: block;
+    max-height: none;
+    overflow: visible;
+    border-right: 0;
+  }
+
+  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-results {
+    display: none;
+  }
+
+  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-pane-heading,
+  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .condition-summary,
+  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .summary-actions {
+    display: none;
+  }
+
+  .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-filter-scroll {
+    height: auto;
+    overflow: visible;
   }
 
   .research-shell.is-browsing:has(.criteria-bar) .research-results {
@@ -275,6 +315,10 @@
   }
 
   .research-shell.is-browsing:has(.criteria-bar) .research-workspace {
+    width: calc(100% - 28px);
+  }
+
+  .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry {
     width: calc(100% - 28px);
   }
 

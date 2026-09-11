@@ -150,6 +150,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(initialNavigation.selectedId)
   const [visibleCount, setVisibleCount] = useState(initialNavigation.visibleCount)
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [mobileRefineOpen, setMobileRefineOpen] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>(initialNavigation.compareIds)
   const [compareOpen, setCompareOpen] = useState(initialNavigation.compareOpen)
   const [compareTab, setCompareTab] = useState<CompareTab>(initialNavigation.compareTab)
@@ -163,6 +164,7 @@ export default function App() {
   const exploreRunGeneration = useRef(0)
   const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const exploreRunStateKey = useRef<string | null>(null)
+  const mobileRefineToggleRef = useRef<HTMLButtonElement | null>(null)
 
   function snapshot(overrides: Partial<NavigationState> = {}): NavigationState {
     return { mode, screen, lookupQuery, search, refine, editingConditions, selectedId, visibleCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, ...overrides }
@@ -198,6 +200,32 @@ export default function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+  useEffect(() => {
+    if (mode !== 'explore' || editingConditions || selectedId || compareOpen || detailProductId) {
+      setMobileRefineOpen(false)
+    }
+  }, [mode, editingConditions, selectedId, compareOpen, detailProductId])
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia('(max-width: 980px)')
+    const handleChange = (event: MediaQueryListEvent) => {
+      const panel = document.getElementById('mobile-recipe-refine-panel')
+      const activeElement = document.activeElement
+      if (event.matches) {
+        if (activeElement instanceof HTMLElement && panel?.contains(activeElement)) {
+          setMobileRefineOpen(true)
+        }
+        return
+      }
+      setMobileRefineOpen(false)
+      if (activeElement === mobileRefineToggleRef.current) {
+        window.setTimeout(() => document.querySelector<HTMLInputElement>('#mobile-recipe-refine-panel .recipe-search')?.focus(), 0)
+      }
+    }
+    media.addEventListener('change', handleChange)
+    return () => media.removeEventListener('change', handleChange)
+  }, [])
+
   useEffect(() => {
     const controller = new AbortController(); let active = true
     fetchCatalog(controller.signal).then((data) => { if (active) { setProducts(data); setError(null) } }).catch((reason: unknown) => {
@@ -371,6 +399,19 @@ export default function App() {
     if (mode === 'lookup') return <><div className="mode-intro"><strong>제품 찾기</strong><span>브랜드나 제품명을 검색합니다.</span></div><FilterSection title="브랜드 / 제품명"><input className="lookup-input" type="search" value={lookupQuery} placeholder="예: 오리젠 식스 피쉬" onChange={(event) => changeLookupQuery(event.target.value)} /></FilterSection></>
     return editingConditions ? renderConditionEditor() : renderConditionSummary()
   }
+  function renderMobileRefineEntry() {
+    if (mode !== 'explore' || editingConditions || selectedProduct || compareOpen || detailProductId) return null
+    const togglePanel = () => {
+      if (mobileRefineOpen) {
+        setMobileRefineOpen(false)
+        window.setTimeout(() => mobileRefineToggleRef.current?.focus(), 0)
+        return
+      }
+      setMobileRefineOpen(true)
+      window.setTimeout(() => document.querySelector<HTMLInputElement>('#mobile-recipe-refine-panel .recipe-search')?.focus(), 0)
+    }
+    return <div className="mobile-refine-entry"><button ref={mobileRefineToggleRef} className="secondary-action" type="button" aria-expanded={mobileRefineOpen} aria-controls="mobile-recipe-refine-panel" onClick={togglePanel}>{mobileRefineOpen ? '목록으로 돌아가기' : '더 좁혀보기'}</button></div>
+  }
   function renderCriteriaBar() {
     if (mode !== 'explore' || editingConditions) return null
     const criteria = activeCriteria()
@@ -398,5 +439,7 @@ export default function App() {
   const paneDescription = mode === 'explore' ? '원하는 조건을 골라 제품을 좁혀보세요.' : '브랜드나 제품명으로 찾습니다.'
   const waitingForConditions = mode === 'explore' && editingConditions
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
-  return <div className={selectedProduct ? 'research-shell is-inspecting' : 'research-shell is-browsing'}><header className="research-topbar"><button className="research-brand" type="button" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span><span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span></div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters"><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span></div></div><div className="research-filter-scroll">{renderLeftPane()}</div></aside> : null}<section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div>{mode === 'explore' && !editingConditions && activeConditions > 0 ? <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span> : null}</div><div className="research-results-scroll">{renderResultList()}</div></section>{renderQuickView()}</main>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
+  const showMobileRefine = mobileRefineOpen && mode === 'explore' && !editingConditions && !selectedProduct && !compareOpen && !detailProductId
+  const shellClassName = ['research-shell', selectedProduct ? 'is-inspecting' : 'is-browsing', showMobileRefine ? 'is-mobile-refining' : ''].filter(Boolean).join(' ')
+  return <div className={shellClassName}><header className="research-topbar"><button className="research-brand" type="button" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span><span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span></div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span></div></div><div className="research-filter-scroll">{renderLeftPane()}</div></aside> : null}<section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div>{mode === 'explore' && !editingConditions && activeConditions > 0 ? <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span> : null}</div><div className="research-results-scroll">{renderResultList()}</div></section>{renderQuickView()}</main>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
 }

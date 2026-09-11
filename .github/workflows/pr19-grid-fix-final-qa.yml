@@ -47,6 +47,11 @@ jobs:
           if old not in s:
               raise SystemExit('condition editor anchor missing')
           s = s.replace(old, new, 1)
+          old = "assert.equal(m.docWidth,m.innerWidth,`${label} horizontal overflow`);"
+          new = "assert.ok(m.docWidth<=m.innerWidth,`${label} horizontal overflow: ${m.docWidth}>${m.innerWidth}`);"
+          if old not in s:
+              raise SystemExit('horizontal overflow anchor missing')
+          s = s.replace(old, new, 1)
           p.write_text(s)
           PY
       - name: Run focused layout and interaction QA

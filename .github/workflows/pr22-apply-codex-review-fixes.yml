@@ -1,0 +1,88 @@
+name: PR22 apply Codex review fixes
+
+on:
+  push:
+    branches:
+      - qa/pr22-codex-review-fixes-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Patch PR22 product branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin fix/switch-session-navigation-20260911
+          git checkout fix/switch-session-navigation-20260911
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/App.tsx')
+          s = app.read_text()
+          old = """  type SwitchHistoryEntry,\n  type SwitchSessionSnapshot,\n  type SwitchSessionState,\n"""
+          new = """  type SwitchHistoryEntry,\n  type SwitchSessionSnapshot,\n  type SwitchSessionState,\n  type SwitchStep,\n"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = """  catfoodSwitch?: SwitchSessionSnapshot\n  catfoodSwitchEntry?: SwitchHistoryEntry\n}"""
+          new = """  catfoodSwitch?: SwitchSessionSnapshot\n  catfoodSwitchEntry?: SwitchHistoryEntry\n  catfoodSwitchParentStep?: SwitchStep\n}"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = """    if (action === 'push') {\n      const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next) }\n      if (entry) payload.catfoodSwitchEntry = entry\n      switchHistoryEntryRef.current = entry ?? null\n      window.history.pushState(payload, '', url)\n      return\n    }\n    const payload = { ...((window.history.state ?? {}) as HistoryPayload), catfoodSwitch: createSwitchSessionSnapshot(next) }\n    if (entry !== undefined) {\n      if (entry) payload.catfoodSwitchEntry = entry\n      else delete payload.catfoodSwitchEntry\n      switchHistoryEntryRef.current = entry ?? null\n    }\n"""
+          new = """    if (action === 'push') {\n      const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next) }\n      if (entry) payload.catfoodSwitchEntry = entry\n      if (entry === 'step') payload.catfoodSwitchParentStep = current.step\n      switchHistoryEntryRef.current = entry ?? null\n      window.history.pushState(payload, '', url)\n      return\n    }\n    const payload = { ...((window.history.state ?? {}) as HistoryPayload), catfoodSwitch: createSwitchSessionSnapshot(next) }\n    if (entry !== undefined) {\n      if (entry) payload.catfoodSwitchEntry = entry\n      else delete payload.catfoodSwitchEntry\n      if (entry !== 'step') delete payload.catfoodSwitchParentStep\n      switchHistoryEntryRef.current = entry ?? null\n    }\n"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = """  function backSwitchHistory(fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) {\n    const payload = (window.history.state ?? {}) as HistoryPayload\n    if (payload.catfoodSwitchEntry) {\n      pendingSwitchPopPatch.current = patch ?? null\n      window.history.back()\n      return\n    }\n    commitSwitchSession(patch ? { ...fallback, ...patch } : fallback, 'replace', null)\n  }\n"""
+          new = """  function backSwitchHistory(fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) {\n    const payload = (window.history.state ?? {}) as HistoryPayload\n    const entry = payload.catfoodSwitchEntry\n    if (entry === 'step') {\n      if (payload.catfoodSwitchParentStep === fallback.step) {\n        pendingSwitchPopPatch.current = patch ?? null\n        window.history.back()\n        return\n      }\n      commitSwitchSession(patch ? { ...fallback, ...patch } : fallback, 'replace', null)\n      return\n    }\n    if (entry) {\n      pendingSwitchPopPatch.current = patch ?? null\n      window.history.back()\n      return\n    }\n    commitSwitchSession(patch ? { ...fallback, ...patch } : fallback, 'replace', null)\n  }\n"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          app.write_text(s)
+
+          flow = Path('src/SwitchFlow.tsx')
+          s = flow.read_text()
+          old = """function ReferenceRail({\n  product,\n  variant,\n  step,\n  onChangeProduct,\n}: {\n  product: CatalogProduct\n  variant: ProductVariant | null\n  step: SwitchStep\n  onChangeProduct: () => void\n}) {"""
+          new = """function ReferenceRail({\n  product,\n  variantText,\n  step,\n  onChangeProduct,\n}: {\n  product: CatalogProduct\n  variantText: string\n  step: SwitchStep\n  onChangeProduct: () => void\n}) {"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = "<strong>{variantLabel(variant)}</strong>"
+          assert old in s
+          s = s.replace(old, "<strong>{variantText}</strong>", 1)
+          s = s.replace("variantLabel(selectedVariant)", "currentVariantText")
+          marker = """  const selectedVariant = variants.find((variant) => variant.variant_id === currentVariantId) ?? null\n"""
+          insert = marker + """  const currentVariantText = variantSelection.kind === 'unknown'\n    ? '사용 규격 모름'\n    : variantSelection.kind === 'variant'\n      ? selectedVariant\n        ? variantLabel(selectedVariant)\n        : variantError\n          ? '선택한 규격 확인 실패'\n          : '선택한 규격 확인 중'\n      : '사용 규격 미선택'\n"""
+          assert marker in s
+          s = s.replace(marker, insert, 1)
+          s = s.replace("variant={selectedVariant}", "variantText={currentVariantText}")
+          marker = """  useEffect(() => {\n    if (!currentProductId) return\n    loadVariants(currentProductId)\n    return () => {\n      const request = variantRequest.current\n      if (request?.productId !== currentProductId) return\n      variantRequest.current = null\n      variantRequestId.current += 1\n      request.controller.abort()\n    }\n  }, [currentProductId])\n\n"""
+          insert = marker + """  function renderVariantRestoreStatus() {\n    if (!currentProduct || step === 'sku' || variantSelection.kind !== 'variant' || selectedVariant) return null\n    if (variantLoading) {\n      return <div className=\"switch-state-message switch-variant-status\">선택한 판매 규격을 확인하는 중입니다.</div>\n    }\n    if (variantError) {\n      return <div className=\"switch-state-message switch-variant-status is-error\" role=\"alert\"><span>{variantError}</span><button className=\"state-retry\" type=\"button\" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div>\n    }\n    return null\n  }\n\n"""
+          assert marker in s
+          s = s.replace(marker, insert, 1)
+          old = """      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />\n      {step === 'current' ? renderCurrentStage() : null}\n"""
+          new = """      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />\n      {renderVariantRestoreStatus()}\n      {step === 'current' ? renderCurrentStage() : null}\n"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          flow.write_text(s)
+
+          test = Path('tests/switch-session-navigation.test.mjs')
+          s = test.read_text()
+          s = s.replace("let failCatalogCount = 0\n", "let failCatalogCount = 0\nlet failVariantCount = 0\n", 1)
+          s = s.replace("  failCatalogCount = 0\n  searchRuns = []\n", "  failCatalogCount = 0\n  failVariantCount = 0\n  searchRuns = []\n", 1)
+          old = """    if (url.pathname.endsWith('/switch_current_variant_options')) {\n      const productFilter = url.searchParams.get('product_id')\n      if (productFilter?.startsWith('eq.')) return Response.json(variantsByProduct.get(productFilter.slice(3)) ?? [])\n"""
+          new = """    if (url.pathname.endsWith('/switch_current_variant_options')) {\n      const productFilter = url.searchParams.get('product_id')\n      if (productFilter?.startsWith('eq.')) {\n        if (failVariantCount > 0) {\n          failVariantCount -= 1\n          return new Response('temporary variant failure', { status: 503 })\n        }\n        return Response.json(variantsByProduct.get(productFilter.slice(3)) ?? [])\n      }\n"""
+          assert old in s
+          s = s.replace(old, new, 1)
+          s += """\n\ntest('explicit SWITCH previous-step buttons honor their displayed destinations after restored results', async () => {\n  await renderApp()\n  await reachResultsWithConditions()\n  await remountApp()\n  assert.ok(document.querySelector('.switch-results-stage'))\n  const before = session()\n\n  await click('조건 수정')\n  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'restored results to CHANGE')\n  await click('← 사용 규격')\n  await waitForUi(() => document.body.textContent.includes('현재 먹이는 규격을 골라주세요'), 'explicit previous button reaches SKU')\n  assert.equal(session().step, 'sku')\n  assert.equal(session().variantSelection.variantId, before.variantSelection.variantId)\n  assert.equal(session().change.feedType, before.change.feedType)\n  assert.deepEqual(session().keep.officialTargets, before.keep.officialTargets)\n  assert.deepEqual(session().ingredientAvoidTerms, before.ingredientAvoidTerms)\n  assert.equal(document.querySelector('.switch-results-stage'), null)\n\n  await click(exactButton('다음 →'))\n  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'SKU to CHANGE again')\n  await click(exactButton('다음 →'))\n  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'CHANGE to KEEP again')\n  await click('← 바꿀 것 수정')\n  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'explicit previous button reaches CHANGE')\n  assert.equal(session().step, 'change')\n  assert.equal(session().variantSelection.variantId, before.variantSelection.variantId)\n})\n\ntest('restored actual SKU reports variant API failure and retries without becoming explicit unknown', async () => {\n  const restored = app.createInitialSwitchSession('현재')\n  restored.currentProductId = current.product_id\n  restored.variantSelection = { kind: 'variant', variantId: 'variant_current_1' }\n  restored.change = { ...restored.change, feedType: '습식' }\n  restored.keep = { ...restored.keep, officialTargets: ['indoor'] }\n  restored.ingredientAvoidTerms = ['chicken']\n  restored.compareIds = [candidateA.product_id]\n  restored.step = 'results'\n  app.writeSwitchSession(restored, sessionStorage)\n  window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)\n  failVariantCount = 1\n\n  await renderApp({ preserveHistory: true })\n  await waitForUi(() => document.querySelector('.switch-variant-status[role=\"alert\"]'), 'restored variant error')\n  const failedSummary = document.querySelector('.switch-session-bar')?.textContent ?? ''\n  assert.match(failedSummary, /선택한 규격 확인 실패/)\n  assert.doesNotMatch(failedSummary, /사용 규격 모름/)\n  assert.equal(session().variantSelection.kind, 'variant')\n  assert.equal(session().variantSelection.variantId, 'variant_current_1')\n  assert.equal(session().change.feedType, '습식')\n  assert.deepEqual(session().keep.officialTargets, ['indoor'])\n  assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])\n  assert.deepEqual(session().compareIds, [candidateA.product_id])\n  assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /전환 습식 A/)\n\n  await click(document.querySelector('.switch-variant-status .state-retry'))\n  await waitForUi(() => (document.querySelector('.switch-session-bar')?.textContent ?? '').includes('1 kg'), 'restored variant retry success')\n  assert.equal(document.querySelector('.switch-variant-status[role=\"alert\"]'), null)\n  assert.equal(session().variantSelection.kind, 'variant')\n  assert.equal(session().variantSelection.variantId, 'variant_current_1')\n  assert.deepEqual(session().compareIds, [candidateA.product_id])\n})\n"""
+          test.write_text(s)
+          PY
+          git diff --check
+          git status --short
+          git add src/App.tsx src/SwitchFlow.tsx tests/switch-session-navigation.test.mjs
+          git commit -m "fix: honor SWITCH step targets and variant retries"
+          git push origin HEAD:fix/switch-session-navigation-20260911

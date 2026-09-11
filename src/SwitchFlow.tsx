@@ -575,6 +575,7 @@ export default function SwitchFlow({
   initialQuery = '',
   onHome,
   onModeChange,
+  onRetryCatalog,
 }: {
   products: CatalogProduct[]
   loading: boolean
@@ -582,6 +583,7 @@ export default function SwitchFlow({
   initialQuery?: string
   onHome: () => void
   onModeChange: (mode: SecondaryMode) => void
+  onRetryCatalog: () => void
 }) {
   const [step, setStep] = useState<SwitchStep>('current')
   const [query, setQuery] = useState(initialQuery)
@@ -606,6 +608,8 @@ export default function SwitchFlow({
   const switchRunId = useRef<string | null>(null)
   const switchRunGeneration = useRef(0)
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
+  const variantRequestId = useRef(0)
+  const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
@@ -641,31 +645,48 @@ export default function SwitchFlow({
       .slice(0, 8)
   }, [ingredientTerms, ingredientSearch, ingredientAvoidTerms])
 
-  useEffect(() => {
-    if (!currentProductId) return
+  function loadVariants(productId: string) {
+    const activeRequest = variantRequest.current
+    if (activeRequest?.productId === productId) return
+    activeRequest?.controller.abort()
+    const id = ++variantRequestId.current
     const controller = new AbortController()
-    let active = true
+    variantRequest.current = { id, productId, controller }
     setVariantLoading(true)
     setVariantError(null)
     setVariants([])
+    setCurrentVariantId(null)
 
-    fetchProductVariants(currentProductId, controller.signal)
+    void fetchProductVariants(productId, controller.signal)
       .then((data) => {
-        if (!active) return
+        const request = variantRequest.current
+        if (!request || request.id !== id || request.productId !== productId || controller.signal.aborted) return
         setVariants(data)
         if (data.length === 1) setCurrentVariantId(data[0].variant_id)
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        if (active) setVariantError('판매 용량을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        const request = variantRequest.current
+        if (request?.id === id && request.productId === productId && !controller.signal.aborted) {
+          setVariantError('판매 규격을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        }
       })
       .finally(() => {
-        if (active) setVariantLoading(false)
+        if (variantRequest.current?.id !== id) return
+        variantRequest.current = null
+        if (!controller.signal.aborted) setVariantLoading(false)
       })
+  }
 
+  useEffect(() => {
+    if (!currentProductId) return
+    loadVariants(currentProductId)
     return () => {
-      active = false
-      controller.abort()
+      const request = variantRequest.current
+      if (request?.productId !== currentProductId) return
+      variantRequest.current = null
+      variantRequestId.current += 1
+      request.controller.abort()
     }
   }, [currentProductId])
 
@@ -809,6 +830,11 @@ export default function SwitchFlow({
     switchRunGeneration.current += 1
     switchRunTail.current = Promise.resolve(null)
     switchRunId.current = null
+    const request = variantRequest.current
+    variantRequest.current = null
+    variantRequestId.current += 1
+    request?.controller.abort()
+    setVariantLoading(false)
     setStep('current')
     setCurrentProductId(null)
     setCurrentVariantId(null)
@@ -876,7 +902,7 @@ export default function SwitchFlow({
               <span>{query.trim() ? `${searchResults.length}개 표시` : '브랜드 또는 제품명의 일부를 입력하세요.'}</span>
             </div>
             <div className="switch-find-results-list">
-              {error ? <div className="switch-state-message is-error">{error}</div> : null}
+              {error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
               {loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}
               {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message">검색 결과가 없습니다.</div> : null}
               {searchResults.map((product) => (
@@ -948,10 +974,13 @@ export default function SwitchFlow({
             <p>지금 먹이는 용량이나 포장 단위를 선택하세요. 용량이 다르다고 다른 레시피로 보지는 않습니다.</p>
           </div>
           <section className="switch-sku-list">
-            {variantLoading ? <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div> : null}
-            {variantError ? <div className="switch-state-message is-error">{variantError}</div> : null}
-            {!variantLoading && variants.length === 0 ? <div className="switch-state-message">선택할 수 있는 판매 규격을 확인하지 못했습니다.</div> : null}
-            {variants.map((variant) => (
+            {variantLoading ? (
+              <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div>
+            ) : variantError ? (
+              <div className="switch-state-message is-error" role="alert"><span>{variantError}</span><button className="state-retry" type="button" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div>
+            ) : variants.length === 0 ? (
+              <div className="switch-state-message">선택할 수 있는 판매 규격을 확인하지 못했습니다.</div>
+            ) : variants.map((variant) => (
               <button
                 className={currentVariantId === variant.variant_id ? 'switch-sku-option is-selected' : 'switch-sku-option'}
                 key={variant.variant_id}

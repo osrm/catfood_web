@@ -597,6 +597,7 @@ export default function SwitchFlow({
   const [keep, setKeep] = useState<SearchState>(EMPTY_CRITERIA)
   const [changeBrand, setChangeBrand] = useState(false)
   const [keepBrand, setKeepBrand] = useState(false)
+  const [keepConflictNotice, setKeepConflictNotice] = useState<string | null>(null)
   const [ingredientAvoidTerms, setIngredientAvoidTerms] = useState<string[]>([])
   const [ingredientSearch, setIngredientSearch] = useState('')
   const [noChangeIntent, setNoChangeIntent] = useState(false)
@@ -815,6 +816,7 @@ export default function SwitchFlow({
     setKeep(EMPTY_CRITERIA)
     setChangeBrand(false)
     setKeepBrand(false)
+    setKeepConflictNotice(null)
     setIngredientAvoidTerms([])
     setIngredientSearch('')
     setNoChangeIntent(false)
@@ -845,6 +847,7 @@ export default function SwitchFlow({
     setKeep(EMPTY_CRITERIA)
     setChangeBrand(false)
     setKeepBrand(false)
+    setKeepConflictNotice(null)
     setIngredientAvoidTerms([])
     setIngredientSearch('')
     setNoChangeIntent(false)
@@ -855,14 +858,36 @@ export default function SwitchFlow({
     setDetailProductId(null)
   }
 
+  function toggleChangeBrandSelection() {
+    setNoChangeIntent(false)
+    const nextValue = !changeBrand
+    if (nextValue && keepBrand) {
+      setKeepBrand(false)
+      setKeepConflictNotice('브랜드 유지 조건을 해제했습니다.')
+    }
+    setChangeBrand(nextValue)
+  }
+
   function toggleChangeArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) {
     setNoChangeIntent(false)
-    setChange((current) => ({ ...current, [field]: toggleValue(current[field], value) }))
+    const nextValues = toggleValue(change[field], value)
+    if (field === 'recipeFamilies' && nextValues.length > 0 && keep.recipeFamilies.length > 0) {
+      setKeep((current) => ({ ...current, recipeFamilies: [] }))
+      setKeepConflictNotice('레시피 계열 유지 조건을 해제했습니다.')
+    }
+    setChange((current) => ({ ...current, [field]: nextValues }))
   }
 
   function setChangeSingle(field: 'feedType' | 'lifeStage', value: string) {
     setNoChangeIntent(false)
-    setChange((current) => ({ ...current, [field]: current[field] === value ? '' : value }))
+    const nextValue = change[field] === value ? '' : value
+    if (nextValue && keep[field]) {
+      setKeep((current) => ({ ...current, [field]: '' }))
+      setKeepConflictNotice(field === 'feedType'
+        ? '사료 형태 유지 조건을 해제했습니다.'
+        : '생애주기 유지 조건을 해제했습니다.')
+    }
+    setChange((current) => ({ ...current, [field]: nextValue }))
   }
 
   function toggleKeepArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) {
@@ -1070,6 +1095,8 @@ export default function SwitchFlow({
             <p>지금 사료에서 바꾸고 싶은 점만 골라주세요. 확인되지 않은 정보는 임의로 추정하지 않습니다.</p>
           </div>
 
+          {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
+
           <button
             className={noChangeIntent ? 'switch-no-change is-selected' : 'switch-no-change'}
             type="button"
@@ -1078,6 +1105,7 @@ export default function SwitchFlow({
               setChangeBrand(false)
               setIngredientAvoidTerms([])
               setIngredientSearch('')
+              setKeepConflictNotice(null)
               setNoChangeIntent((value) => !value)
             }}
           >
@@ -1088,7 +1116,7 @@ export default function SwitchFlow({
           <div className="switch-criteria-columns">
             <div>
               <CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}>
-                <button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={() => { setNoChangeIntent(false); setChangeBrand((value) => !value) }}>다른 브랜드로 보기</button>
+                <button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button>
               </CriterionSection>
               <CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}>
                 <ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} />
@@ -1118,7 +1146,7 @@ export default function SwitchFlow({
 
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => setStep('sku')}>← 사용 규격</button>
-            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => setStep('keep')}>다음 →</button>
+            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { setKeepConflictNotice(null); setStep('keep') }}>다음 →</button>
           </div>
         </main>
       </div>

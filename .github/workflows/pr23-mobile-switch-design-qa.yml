@@ -48,7 +48,7 @@ jobs:
           done
           cat /tmp/pr23-http.log
           exit 1
-      - name: Use current-search preview close semantics
+      - name: Use exact interaction semantics in QA harness
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -58,7 +58,12 @@ jobs:
           end_marker = "result.returnCapture=await capture(cdp,prefix,'05-preview-return',['.switch-find-result.is-selected'])"
           end = s.index(end_marker, start) + len(end_marker)
           replacement = r'''const returned=await cdp.eval(`(()=>{const e=[...document.querySelectorAll('.switch-find-result')].find(x=>x.querySelector('.switch-find-result-copy strong')?.textContent.trim()===${j(lastName)});if(!e)return null;const r=e.getBoundingClientRect();return{text:e.textContent.trim(),scrollY,visible:r.bottom>0&&r.top<innerHeight,rect:[r.left,r.top,r.width,r.height]}})()`);assert.ok(returned,'same result row missing after preview close');result.returnState={beforeY,afterY:await cdp.eval('scrollY'),row:returned};result.returnCapture=await capture(cdp,prefix,'05-preview-return-position',['.switch-find-results-list']);if(!returned.visible){result.returnState.reach=await reach(cdp,lastSelector);result.returnReachedCapture=await capture(cdp,prefix,'05b-preview-return-reached',[lastSelector])}'''
-          p.write_text(s[:start] + replacement + s[end:])
+          s = s[:start] + replacement + s[end:]
+          old = "await cdp.wait(`document.body.innerText.includes('유지하고 싶은')||[...document.querySelectorAll('button')].some(x=>x.textContent.includes('유지'))`,'keep step')"
+          new = "await cdp.wait(`(()=>{const r=sessionStorage.getItem('catfood.switch-session.v1');return r&&JSON.parse(r).state.step==='keep'})()`,'keep step')"
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one KEEP wait target, found {s.count(old)}')
+          p.write_text(s.replace(old, new))
           PY
       - name: Capture and verify responsive SWITCH behavior
         run: node .github/pr23-mobile-switch-design-qa.mjs

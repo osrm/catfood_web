@@ -1,0 +1,36 @@
+name: PR20 postdeploy smoke
+
+on:
+  push:
+    branches:
+      - qa/pr20-postdeploy-smoke-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-24.04
+    env:
+      QA_BASE: https://osrm.github.io/catfood_web/
+      DEPLOY_SHA: 6879910170375734b761d782fd1eded2c93249b5
+      PRODUCT_HEAD: 56cb7a8b234f8ed413f9f240dab941b08b24349d
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Reuse Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+      - name: Run narrow production smoke
+        run: node .github/pr20-postdeploy-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr20-postdeploy-smoke
+          path: qa-artifacts/
+          if-no-files-found: error

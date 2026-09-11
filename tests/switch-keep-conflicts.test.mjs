@@ -211,7 +211,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
     onRetryCatalog() {},
   })))
 
-  await click(all('.switch-find-result')[0])
+  await click(all('.switch-find-result').find((node) => node.textContent.includes('현재 건식 사료')))
   await click('이 제품을 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('선택할 수 있는 판매 규격을 확인하지 못했습니다'), 'empty variants')
   await click('사용 규격을 모르겠어요')

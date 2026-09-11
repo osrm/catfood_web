@@ -203,6 +203,7 @@ function installFetch() {
 
 const all = (selector) => [...document.querySelectorAll(selector)]
 const exactButton = (text) => all('button').find((node) => node.textContent.trim() === text)
+const variantButton = (text) => all('button').find((node) => node.textContent.includes(text) && node.textContent.includes('단일 판매'))
 const button = (text) => all('button').find((node) => node.textContent.includes(text))
 
 async function click(target) {
@@ -272,8 +273,8 @@ async function chooseCurrent(productName = current.canonical_name) {
 async function reachResultsWithConditions({ variantMode = 'variant' } = {}) {
   await chooseCurrent()
   if (variantMode === 'variant') {
-    await waitForUi(() => exactButton('1 kg') !== undefined, 'variant option')
-    await click(exactButton('1 kg'))
+    await waitForUi(() => variantButton('1 kg') !== undefined, 'variant option')
+    await click(variantButton('1 kg'))
     await click(exactButton('다음 →'))
   } else {
     await click('사용 규격을 모르겠어요')
@@ -329,8 +330,8 @@ test('versioned SWITCH snapshot rejects corrupt/unknown data and storage failure
 test('refresh restores an actual SKU and explicit unknown SKU is not replaced by a single available variant', async () => {
   await renderApp()
   await chooseCurrent()
-  await waitForUi(() => exactButton('1 kg') !== undefined, 'actual SKU')
-  await click(exactButton('1 kg'))
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'actual SKU')
+  await click(variantButton('1 kg'))
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'change before refresh')
   assert.equal(session().variantSelection.variantId, 'variant_current_1')
@@ -342,7 +343,7 @@ test('refresh restores an actual SKU and explicit unknown SKU is not replaced by
   await click('현재 사료 다시 선택')
   await waitForUi(() => document.body.textContent.includes('현재 먹이는 사료를 찾으세요'), 'current reset')
   await chooseCurrent(singleSku.canonical_name)
-  await waitForUi(() => exactButton('1 kg') !== undefined, 'single SKU auto available')
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'single SKU auto available')
   await click('사용 규격을 모르겠어요')
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'unknown SKU change')
   assert.equal(session().variantSelection.kind, 'unknown')

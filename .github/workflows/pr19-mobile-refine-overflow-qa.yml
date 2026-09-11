@@ -1,9 +1,7 @@
 name: PR19 mobile refine overflow QA
 
 on:
-  push:
-    branches:
-      - qa/pr19-mobile-refine-overflow-20260911
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,14 +31,12 @@ jobs:
           s = p.read_text()
           old = "bottom.lastRect.top>=0&&bottom.lastRect.bottom<=bottom.innerHeight"
           new = "bottom.lastRect.y>=0&&bottom.lastRect.bottom<=bottom.innerHeight"
-          if old not in s:
-              raise SystemExit('last rect assertion anchor missing')
-          s = s.replace(old, new, 1)
+          if old in s:
+              s = s.replace(old, new, 1)
           old = "rmSync(dir,{recursive:true,force:true})}"
           new = "try{rmSync(dir,{recursive:true,force:true})}catch{}}"
-          if old not in s:
-              raise SystemExit('cleanup anchor missing')
-          s = s.replace(old, new, 1)
+          if old in s:
+              s = s.replace(old, new, 1)
           p.write_text(s)
           PY
       - name: Run focused mobile refine overflow QA

@@ -33,21 +33,17 @@ jobs:
           from pathlib import Path
           path = Path('src/SwitchFlow.tsx')
           text = path.read_text()
-          old = """  function backToStep(nextStep: SwitchStep) {
-            const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
-            if (onHistoryBack) onHistoryBack(fallback)
-            else updateSession(fallback)
-          }
-          """
-          new = """  function backToStep(nextStep: SwitchStep) {
-            const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
-            if (onHistoryBack) onHistoryBack(fallback, fallback)
-            else updateSession(fallback)
-          }
-          """
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one backToStep block, found {text.count(old)}')
-          path.write_text(text.replace(old, new))
+          start_marker = '  function backToStep(nextStep: SwitchStep) {'
+          end_marker = '\n  function openSwitchDetail'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          block = text[start:end]
+          old = 'if (onHistoryBack) onHistoryBack(fallback)'
+          new = 'if (onHistoryBack) onHistoryBack(fallback, fallback)'
+          if block.count(old) != 1:
+              raise SystemExit(f'expected one backToStep history call, found {block.count(old)}')
+          block = block.replace(old, new)
+          path.write_text(text[:start] + block + text[end:])
           PY
           git diff --check
           git diff -- src/SwitchFlow.tsx

@@ -654,7 +654,7 @@ export default function SwitchFlow({
 
   function backToStep(nextStep: SwitchStep) {
     const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
-    if (onHistoryBack) onHistoryBack(fallback)
+    if (onHistoryBack) onHistoryBack(fallback, fallback)
     else updateSession(fallback)
   }
   function openSwitchDetail(productId: string) {

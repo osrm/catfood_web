@@ -1,0 +1,55 @@
+name: PR22 explicit back browser QA
+
+on:
+  push:
+    branches:
+      - qa/pr22-explicit-back-browser-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: 7ddbfa1e7c1add958446c2c73326c16beec33b5e
+      QA_BASE: http://127.0.0.1:4173/
+      VITE_SUPABASE_URL: http://127.0.0.1:4174
+      VITE_SUPABASE_PUBLISHABLE_KEY: test-key
+      VITE_DECISION_INTAKE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match final PR head
+        run: git diff --exit-code "$SOURCE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+      - name: Build exact PR candidate without analytics writes
+        run: npm run build
+      - name: Run narrow explicit-back browser paths
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr22-explicit-back-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 120); do
+            if curl -fsS "$QA_BASE" >/dev/null; then break; fi
+            sleep 0.25
+          done
+          curl -fsS "$QA_BASE" >/dev/null
+          node .github/pr22-explicit-back-browser-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr22-explicit-back-browser-qa
+          path: qa-artifacts
+          if-no-files-found: warn

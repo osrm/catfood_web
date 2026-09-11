@@ -5,6 +5,7 @@ export { default as SwitchFlow } from '../src/SwitchFlow'
 export { fetchCatalog } from '../src/api'
 export * from '../src/analytics'
 export * from '../src/navigation-state'
+// SWITCH session regressions exercise App-level persistence and history helpers through this test entry.
 export * from '../src/switch-session'
 export * from '../src/preview-mode'
 export { installDemoPreviewFetch } from '../src/demo-preview'

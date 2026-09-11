@@ -352,8 +352,8 @@
   }
 
   /* consumer-visual.css gives both Results and quick-view a 55vh minimum here.
-     Only short applied Results should shrink to their content; quick-view keeps its existing height. */
-  .research-shell.is-browsing:has(.criteria-bar):not(.is-mobile-refining) .research-results {
+     Browsing Results may shrink to content; the inspector keeps its existing 55vh minimum. */
+  .research-shell.is-browsing:not(.is-inspecting) .research-results {
     min-height: 0;
   }
 

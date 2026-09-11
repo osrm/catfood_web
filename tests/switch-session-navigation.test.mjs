@@ -416,6 +416,8 @@ test('comparison removal survives browser back to results and explicit current-f
   assert.doesNotMatch(dock, /전환 습식 A/)
   assert.match(dock, /전환 습식 B/)
 
+  await click('조건 수정')
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'return to editable SWITCH conditions')
   await click('현재 사료 다시 선택')
   await waitForUi(() => document.body.textContent.includes('현재 먹이는 사료를 찾으세요'), 'explicit current-food reset')
   const reset = session()

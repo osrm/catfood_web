@@ -25,12 +25,6 @@ jobs:
       - name: Verify product sources match reviewed PR head
         run: |
           git diff --exit-code "$SOURCE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
-      - name: Patch QA harness only
-        run: |
-          sed -i '270d' .github/pr22-korean-browser-review-qa.mjs
-          sed -i '/rmSync(runtime.dir/d' .github/pr22-korean-browser-review-qa.mjs
-          sed -i '/mobile catalog connected/d' .github/pr22-korean-browser-review-qa.mjs
-          sed -i '/mobile catalog after reload/d' .github/pr22-korean-browser-review-qa.mjs
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

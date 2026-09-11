@@ -1,0 +1,36 @@
+name: PR22 retry Codex review fixes
+
+on:
+  push:
+    branches:
+      - qa/pr22-codex-review-fixes-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Extract patch and update PR22 branch
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/pr22-apply-codex-review-fixes.yml').read_text()
+          body = text.split("          python3 - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
+          lines = [(line[10:] if line.startswith('          ') else line) for line in body.splitlines()]
+          Path('/tmp/pr22_patch.py').write_text('\n'.join(lines) + '\n')
+          PY
+          git config user.name "osrm"
+          git config user.email "90407222+osrm@users.noreply.github.com"
+          git fetch origin fix/switch-session-navigation-20260911
+          git checkout fix/switch-session-navigation-20260911
+          python3 /tmp/pr22_patch.py
+          git diff --check
+          git add src/App.tsx src/SwitchFlow.tsx tests/switch-session-navigation.test.mjs
+          git commit -m "fix: honor SWITCH step targets and variant retries"
+          git push origin HEAD:fix/switch-session-navigation-20260911

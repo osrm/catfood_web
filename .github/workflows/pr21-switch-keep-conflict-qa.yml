@@ -1,0 +1,63 @@
+name: PR21 SWITCH keep conflict QA
+
+on:
+  push:
+    branches:
+      - qa/pr21-switch-keep-conflict-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify-switch-keep-conflict:
+    runs-on: ubuntu-24.04
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:4174
+      VITE_SUPABASE_PUBLISHABLE_KEY: test-key
+      VITE_DECISION_INTAKE_ENABLED: 'false'
+      SOURCE_SHA: b4392a41854aee2a8ef96175c8b853352d4ef97d
+      QA_BASE: http://127.0.0.1:4173/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reuse Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+
+      - name: Build candidate without analytics writes
+        run: npm run build
+
+      - name: Run SWITCH keep conflict browser QA
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr21-vite-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 120); do
+            if curl -fsS "$QA_BASE" >/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          curl -fsS "$QA_BASE" >/dev/null
+          node .github/pr21-switch-keep-conflict-qa.mjs
+
+      - name: Upload SWITCH keep conflict QA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr21-switch-keep-conflict-qa
+          path: qa-artifacts
+          if-no-files-found: error

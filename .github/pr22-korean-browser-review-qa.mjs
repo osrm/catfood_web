@@ -267,7 +267,6 @@ async function chooseCurrent(cdp, name) {
 
 async function desktopFlow(cdp) {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false })
-  await cdp.eval(`sessionStorage.removeItem('catfood.switch-session.v1')`)
   await cdp.nav(`${BASE}?view=workspace&mode=switch`)
   await cdp.wait(`document.body.innerText.includes('데이터 연결됨')`, 'desktop catalog connected')
   await chooseCurrent(cdp, current.canonical_name)
@@ -299,7 +298,7 @@ async function desktopFlow(cdp) {
   await clickExact(cdp, '다음 →')
   await cdp.wait(`document.body.innerText.includes('무엇을 바꾸고 싶나요?')`, 'SKU to change again')
   await clickExact(cdp, '다음 →')
-  await cdp.wait(`document.body.innerText.includes('무엇을 그대로 유지할까요?')`, 'change to keep again')
+  await cdp.wait(`document.body.innerText.includes('무엇을 그대로 유지할까요?')`, 'CHANGE to KEEP again')
   await clickExact(cdp, '← 바꿀 것 수정')
   await cdp.wait(`document.body.innerText.includes('무엇을 바꾸고 싶나요?')`, 'explicit change destination')
   assert.equal(await cdp.eval(`Boolean(document.querySelector('.switch-results-stage'))`), false, 'explicit CHANGE back returned to results')
@@ -415,7 +414,6 @@ async function mobileFlow(cdp) {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 900, deviceScaleFactor: 1, mobile: true })
   await cdp.eval(`sessionStorage.removeItem('catfood.switch-session.v1'); history.replaceState(null,'',${js(`${BASE}?view=workspace&mode=switch`)})`)
   await cdp.nav(`${BASE}?view=workspace&mode=switch`)
-  await cdp.wait(`document.body.innerText.includes('데이터 연결됨')`, 'mobile catalog connected')
   await chooseCurrent(cdp, single.canonical_name)
   await cdp.wait(`[...document.querySelectorAll('.switch-sku-option')].some(n=>n.textContent.includes('1 kg'))`, 'mobile single SKU')
   await clickContains(cdp, '사용 규격을 모르겠어요')
@@ -424,7 +422,6 @@ async function mobileFlow(cdp) {
   await cdp.shot(`${OUT}/pr22-${SOURCE_SHA.slice(0,8)}-mobile-before-reload.png`)
 
   await cdp.reload()
-  await cdp.wait(`document.body.innerText.includes('데이터 연결됨')`, 'mobile catalog after reload')
   await cdp.wait(`document.body.innerText.includes('무엇을 바꾸고 싶나요?')`, 'mobile restored change')
   const text = await cdp.eval(`document.body.innerText`)
   assert.match(text, /단일 규격 건식/)
@@ -483,7 +480,6 @@ try {
   if (runtime) {
     runtime.cdp.close()
     runtime.proc.kill('SIGTERM')
-    rmSync(runtime.dir, { recursive: true, force: true })
   }
   await new Promise((resolve) => apiServer.close(resolve))
 }

@@ -311,12 +311,12 @@ function SwitchTopbar({
 
 function ReferenceRail({
   product,
-  variant,
+  variantText,
   step,
   onChangeProduct,
 }: {
   product: CatalogProduct
-  variant: ProductVariant | null
+  variantText: string
   step: SwitchStep
   onChangeProduct: () => void
 }) {
@@ -339,7 +339,7 @@ function ReferenceRail({
       </div>
       <div className="switch-reference-sku">
         <span>현재 규격</span>
-        <strong>{variantLabel(variant)}</strong>
+        <strong>{variantText}</strong>
       </div>
       <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 사료 다시 선택</button>
 
@@ -692,6 +692,15 @@ export default function SwitchFlow({
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
   const detailProduct = products.find((product) => product.product_id === detailProductId) ?? null
   const selectedVariant = variants.find((variant) => variant.variant_id === currentVariantId) ?? null
+  const currentVariantText = variantSelection.kind === 'unknown'
+    ? '사용 규격 모름'
+    : variantSelection.kind === 'variant'
+      ? selectedVariant
+        ? variantLabel(selectedVariant)
+        : variantError
+          ? '선택한 규격 확인 실패'
+          : '선택한 규격 확인 중'
+      : '사용 규격 미선택'
   const currentRecipeFamilies = currentProduct?.recipe_families ?? []
   const currentRecipeTraits = currentProduct?.official_recipe_traits ?? []
   const currentIsGrainFree = currentRecipeTraits.includes('grain_free')
@@ -774,6 +783,17 @@ export default function SwitchFlow({
       request.controller.abort()
     }
   }, [currentProductId])
+
+  function renderVariantRestoreStatus() {
+    if (!currentProduct || step === 'sku' || variantSelection.kind !== 'variant' || selectedVariant) return null
+    if (variantLoading) {
+      return <div className="switch-state-message switch-variant-status">선택한 판매 규격을 확인하는 중입니다.</div>
+    }
+    if (variantError) {
+      return <div className="switch-state-message switch-variant-status is-error" role="alert"><span>{variantError}</span><button className="state-retry" type="button" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div>
+    }
+    return null
+  }
 
   const conditions = useMemo(() => currentProduct ? buildConditions({
     change,
@@ -1054,7 +1074,7 @@ export default function SwitchFlow({
 
     return (
       <div className="switch-step-layout">
-        <ReferenceRail product={currentProduct} variant={selectedVariant} step="sku" onChangeProduct={resetCurrentProduct} />
+        <ReferenceRail product={currentProduct} variantText={currentVariantText} step="sku" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>사용 규격</span>
@@ -1150,7 +1170,7 @@ export default function SwitchFlow({
 
     return (
       <div className="switch-step-layout">
-        <ReferenceRail product={currentProduct} variant={selectedVariant} step="change" onChangeProduct={resetCurrentProduct} />
+        <ReferenceRail product={currentProduct} variantText={currentVariantText} step="change" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>CHANGE</span>
@@ -1221,7 +1241,7 @@ export default function SwitchFlow({
 
     return (
       <div className="switch-step-layout">
-        <ReferenceRail product={currentProduct} variant={selectedVariant} step="keep" onChangeProduct={resetCurrentProduct} />
+        <ReferenceRail product={currentProduct} variantText={currentVariantText} step="keep" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>KEEP</span>
@@ -1306,7 +1326,7 @@ export default function SwitchFlow({
         <CompareView
           items={compareItems}
           currentProduct={currentProduct}
-          currentVariantText={variantLabel(selectedVariant)}
+          currentVariantText={currentVariantText}
           initialTab={compareTab}
           onTabChange={changeSwitchCompareTab}
           detailProductId={detailProductId}
@@ -1331,7 +1351,7 @@ export default function SwitchFlow({
     return (
       <main className="switch-results-stage">
         <div className="switch-session-bar">
-          <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></div>
+          <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
           <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
           <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '제약 없음'}</strong></div>
           <button type="button" onClick={() => updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step')}>조건 수정</button>
@@ -1373,7 +1393,7 @@ export default function SwitchFlow({
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}</p></div>
                 </section>
 
-                <section className="switch-inspector-baseline"><span>현재 사료</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{variantLabel(selectedVariant)}</small></section>
+                <section className="switch-inspector-baseline"><span>현재 사료</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></section>
 
                 <div className="quick-view-actions switch-inspector-actions">
                   <button
@@ -1467,6 +1487,7 @@ export default function SwitchFlow({
   return (
     <div className="research-shell switch-workflow-shell">
       <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+      {renderVariantRestoreStatus()}
       {step === 'current' ? renderCurrentStage() : null}
       {step === 'sku' ? renderSkuStep() : null}
       {step === 'change' ? renderChangeStep() : null}

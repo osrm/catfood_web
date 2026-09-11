@@ -28,6 +28,7 @@ import {
   type SwitchHistoryEntry,
   type SwitchSessionSnapshot,
   type SwitchSessionState,
+  type SwitchStep,
 } from './switch-session'
 import {
   INITIAL_REFINE,
@@ -82,6 +83,7 @@ type HistoryPayload = {
   catfoodList?: ListRestore
   catfoodSwitch?: SwitchSessionSnapshot
   catfoodSwitchEntry?: SwitchHistoryEntry
+  catfoodSwitchParentStep?: SwitchStep
 }
 
 function optionLabel(value: string, labels: Record<string, string>) { return labels[value] ?? value.replaceAll('_', ' ') }
@@ -220,6 +222,7 @@ export default function App() {
     if (action === 'push') {
       const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next) }
       if (entry) payload.catfoodSwitchEntry = entry
+      if (entry === 'step') payload.catfoodSwitchParentStep = current.step
       switchHistoryEntryRef.current = entry ?? null
       window.history.pushState(payload, '', url)
       return
@@ -228,13 +231,24 @@ export default function App() {
     if (entry !== undefined) {
       if (entry) payload.catfoodSwitchEntry = entry
       else delete payload.catfoodSwitchEntry
+      if (entry !== 'step') delete payload.catfoodSwitchParentStep
       switchHistoryEntryRef.current = entry ?? null
     }
     window.history.replaceState(payload, '', url)
   }
   function backSwitchHistory(fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) {
     const payload = (window.history.state ?? {}) as HistoryPayload
-    if (payload.catfoodSwitchEntry) {
+    const entry = payload.catfoodSwitchEntry
+    if (entry === 'step') {
+      if (payload.catfoodSwitchParentStep === fallback.step) {
+        pendingSwitchPopPatch.current = patch ?? null
+        window.history.back()
+        return
+      }
+      commitSwitchSession(patch ? { ...fallback, ...patch } : fallback, 'replace', null)
+      return
+    }
+    if (entry) {
       pendingSwitchPopPatch.current = patch ?? null
       window.history.back()
       return

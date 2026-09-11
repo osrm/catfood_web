@@ -19,6 +19,7 @@ let app, root, temp
 let catalogProducts = []
 let variantsByProduct = new Map()
 let failCatalogCount = 0
+let failVariantCount = 0
 let searchRuns = []
 let considerations = []
 
@@ -149,6 +150,7 @@ beforeEach(() => {
     [candidateB.product_id, [variant(candidateB.product_id, 'variant_candidate_b', '85 g', 1)]],
   ])
   failCatalogCount = 0
+  failVariantCount = 0
   searchRuns = []
   considerations = []
   sessionStorage.clear()
@@ -177,7 +179,13 @@ function installFetch() {
     }
     if (url.pathname.endsWith('/switch_current_variant_options')) {
       const productFilter = url.searchParams.get('product_id')
-      if (productFilter?.startsWith('eq.')) return Response.json(variantsByProduct.get(productFilter.slice(3)) ?? [])
+      if (productFilter?.startsWith('eq.')) {
+        if (failVariantCount > 0) {
+          failVariantCount -= 1
+          return new Response('temporary variant failure', { status: 503 })
+        }
+        return Response.json(variantsByProduct.get(productFilter.slice(3)) ?? [])
+      }
       return Response.json([...variantsByProduct.values()].flat().map((row) => ({
         product_id: row.product_id,
         variant_id: row.variant_id,
@@ -465,4 +473,67 @@ test('catalog failure preserves restored selection until retry, then deleted pro
   assert.equal(session().currentProductId, current.product_id)
   assert.equal(session().variantSelection.kind, 'unselected')
   assert.equal(session().change.feedType, '습식', 'only invalid SKU choice is cleared')
+})
+
+
+test('explicit SWITCH previous-step buttons honor their displayed destinations after restored results', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await remountApp()
+  assert.ok(document.querySelector('.switch-results-stage'))
+  const before = session()
+
+  await click('조건 수정')
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'restored results to CHANGE')
+  await click('← 사용 규격')
+  await waitForUi(() => document.body.textContent.includes('현재 먹이는 규격을 골라주세요'), 'explicit previous button reaches SKU')
+  assert.equal(session().step, 'sku')
+  assert.equal(session().variantSelection.variantId, before.variantSelection.variantId)
+  assert.equal(session().change.feedType, before.change.feedType)
+  assert.deepEqual(session().keep.officialTargets, before.keep.officialTargets)
+  assert.deepEqual(session().ingredientAvoidTerms, before.ingredientAvoidTerms)
+  assert.equal(document.querySelector('.switch-results-stage'), null)
+
+  await click(exactButton('다음 →'))
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'SKU to CHANGE again')
+  await click(exactButton('다음 →'))
+  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'CHANGE to KEEP again')
+  await click('← 바꿀 것 수정')
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'explicit previous button reaches CHANGE')
+  assert.equal(session().step, 'change')
+  assert.equal(session().variantSelection.variantId, before.variantSelection.variantId)
+})
+
+test('restored actual SKU reports variant API failure and retries without becoming explicit unknown', async () => {
+  const restored = app.createInitialSwitchSession('현재')
+  restored.currentProductId = current.product_id
+  restored.variantSelection = { kind: 'variant', variantId: 'variant_current_1' }
+  restored.change = { ...restored.change, feedType: '습식' }
+  restored.keep = { ...restored.keep, officialTargets: ['indoor'] }
+  restored.ingredientAvoidTerms = ['chicken']
+  restored.compareIds = [candidateA.product_id]
+  restored.step = 'results'
+  app.writeSwitchSession(restored, sessionStorage)
+  window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
+  failVariantCount = 1
+
+  await renderApp({ preserveHistory: true })
+  await waitForUi(() => document.querySelector('.switch-variant-status[role="alert"]'), 'restored variant error')
+  const failedSummary = document.querySelector('.switch-session-bar')?.textContent ?? ''
+  assert.match(failedSummary, /선택한 규격 확인 실패/)
+  assert.doesNotMatch(failedSummary, /사용 규격 모름/)
+  assert.equal(session().variantSelection.kind, 'variant')
+  assert.equal(session().variantSelection.variantId, 'variant_current_1')
+  assert.equal(session().change.feedType, '습식')
+  assert.deepEqual(session().keep.officialTargets, ['indoor'])
+  assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+  assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /전환 습식 A/)
+
+  await click(document.querySelector('.switch-variant-status .state-retry'))
+  await waitForUi(() => (document.querySelector('.switch-session-bar')?.textContent ?? '').includes('1 kg'), 'restored variant retry success')
+  assert.equal(document.querySelector('.switch-variant-status[role="alert"]'), null)
+  assert.equal(session().variantSelection.kind, 'variant')
+  assert.equal(session().variantSelection.variantId, 'variant_current_1')
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
 })

@@ -351,6 +351,12 @@
     width: calc(100% - 28px);
   }
 
+  /* consumer-visual.css gives both Results and quick-view a 55vh minimum here.
+     Only short applied Results should shrink to their content; quick-view keeps its existing height. */
+  .research-shell.is-browsing:has(.criteria-bar):not(.is-mobile-refining) .research-results {
+    min-height: 0;
+  }
+
   .research-shell.is-browsing:has(.criteria-bar) .mobile-refine-entry {
     width: calc(100% - 28px);
   }

@@ -1,0 +1,47 @@
+name: PR21 postdeploy SWITCH QA
+
+on:
+  push:
+    branches:
+      - qa/pr21-postdeploy-switch-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify-postdeploy-switch:
+    runs-on: ubuntu-24.04
+    env:
+      QA_BASE: https://osrm.github.io/catfood_web/
+      DEPLOY_SHA: 1fcd92500c057cb02a74a75a2b979e24244b9575
+      SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      SUPABASE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Reuse Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+
+      - name: Confirm deployed Pages responds
+        run: curl -fsSL "$QA_BASE" >/dev/null
+
+      - name: Run one postdeploy SWITCH path
+        run: node .github/pr21-postdeploy-switch-qa.mjs
+
+      - name: Upload postdeploy artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr21-postdeploy-switch-qa
+          path: qa-artifacts
+          if-no-files-found: error

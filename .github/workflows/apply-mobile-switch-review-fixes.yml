@@ -1,0 +1,116 @@
+name: Apply mobile SWITCH review fixes
+
+on:
+  push:
+    branches:
+      - fix/mobile-switch-review-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/mobile-switch-review-20260911
+          fetch-depth: 0
+      - name: Apply narrow mobile SWITCH fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          flow = Path('src/SwitchFlow.tsx')
+          text = flow.read_text()
+          old = "          <li className={index === activeIndex ? 'is-current' : index < activeIndex ? 'is-done' : ''} key={label}>"
+          new = "          <li aria-current={index === activeIndex ? 'step' : undefined} className={index === activeIndex ? 'is-current' : index < activeIndex ? 'is-done' : ''} key={label}>"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one progress item target, found {text.count(old)}')
+          flow.write_text(text.replace(old, new))
+
+          css = Path('src/switch-consumer-refresh.css')
+          text = css.read_text()
+          marker = '/* Mobile SWITCH review fixes: readable steps, one document scroll for current search, full-width candidate identity. */'
+          if marker in text:
+              raise SystemExit('mobile review fixes already present')
+          addition = r'''
+
+/* Mobile SWITCH review fixes: readable steps, one document scroll for current search, full-width candidate identity. */
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-progress {
+    align-items: start;
+    overflow: visible;
+  }
+
+  .switch-workflow-shell .switch-progress li {
+    min-width: 0;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    text-align: center;
+  }
+
+  .switch-workflow-shell .switch-progress li > span {
+    flex: 0 0 auto;
+  }
+
+  .switch-workflow-shell .switch-progress li strong {
+    max-width: 100%;
+    overflow: visible;
+    font-size: 11px;
+    line-height: 1.25;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: keep-all;
+  }
+
+  .switch-workflow-shell .switch-progress li:nth-child(3) strong::after,
+  .switch-workflow-shell .switch-progress li:nth-child(4) strong::after {
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  .switch-workflow-shell .switch-find-body {
+    min-height: 0;
+  }
+
+  .switch-workflow-shell .switch-find-results-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .switch-workflow-shell .switch-inspector-identity {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 16px;
+  }
+
+  .switch-workflow-shell .switch-inspector-identity > div {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .switch-workflow-shell .switch-inspector-identity h1 {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: keep-all;
+  }
+}
+'''
+          css.write_text(text + addition)
+          PY
+      - name: Commit product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/SwitchFlow.tsx src/switch-consumer-refresh.css
+          git diff --cached --check
+          git commit -m "fix: refine mobile SWITCH layout"
+          git push origin HEAD:fix/mobile-switch-review-20260911

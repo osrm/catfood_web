@@ -118,7 +118,7 @@ const exactButton = (text) => all('button').find((node) => node.textContent.trim
 
 async function click(target) {
   const node = typeof target === 'string' ? button(target) : target
-  assert.ok(node, `missing button: ${target}`)
+  assert.ok(node, `missing button: ${target}\nUI: ${document.body.textContent}`)
   assert.equal(node.disabled, false)
   await act(async () => node.click())
 }

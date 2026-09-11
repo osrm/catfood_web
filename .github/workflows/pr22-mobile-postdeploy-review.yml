@@ -32,7 +32,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-match ':lang=ko'
           /usr/bin/google-chrome --version
-      - name: Use mobile-visible readiness signals
+      - name: Use mobile-visible readiness and font signals
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -43,10 +43,12 @@ jobs:
               "    await cdp.wait(`document.querySelector('.switch-find-search input')`, 'SWITCH search ready')",
               "      await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`,'390 refresh restored results')":
               "      await cdp.wait(`document.querySelector('.switch-results-stage')`,'390 refresh restored results')",
+              "    const fonts=await cdp.platformFonts('.mode-button.is-active')":
+              "    const fonts=await cdp.platformFonts('.switch-sku-option.is-selected strong')",
           }
           for old, new in replacements.items():
               if text.count(old) != 1:
-                  raise SystemExit(f'expected one mobile readiness target, found {text.count(old)}: {old}')
+                  raise SystemExit(f'expected one mobile QA target, found {text.count(old)}: {old}')
               text = text.replace(old, new)
           path.write_text(text)
           PY

@@ -24,6 +24,25 @@ jobs:
         run: npm ci && npm test && npm run build
       - name: Install Korean font
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Fix QA-only rect and cleanup assertions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.github/pr19-mobile-refine-overflow-qa-v2.mjs')
+          s = p.read_text()
+          old = "bottom.lastRect.top>=0&&bottom.lastRect.bottom<=bottom.innerHeight"
+          new = "bottom.lastRect.y>=0&&bottom.lastRect.bottom<=bottom.innerHeight"
+          if old not in s:
+              raise SystemExit('last rect assertion anchor missing')
+          s = s.replace(old, new, 1)
+          old = "rmSync(dir,{recursive:true,force:true})}"
+          new = "try{rmSync(dir,{recursive:true,force:true})}catch{}}"
+          if old not in s:
+              raise SystemExit('cleanup anchor missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
       - name: Run focused mobile refine overflow QA
         shell: bash
         run: |

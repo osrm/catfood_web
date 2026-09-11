@@ -43,6 +43,10 @@ jobs:
           new = "await cdp.wait(`document.querySelector('.switch-find-search input')`, 'mobile catalog');"
           assert old in s
           s = s.replace(old, new, 1)
+          old = "await cdp.reload(); await cdp.wait(`document.body.innerText.includes('데이터 연결됨')`, 'mobile reload catalog'); await cdp.wait(`document.body.innerText.includes('무엇을 바꾸고 싶나요?')`, 'mobile restored change')"
+          new = "await cdp.reload(); await cdp.wait(`document.body.innerText.includes('무엇을 바꾸고 싶나요?')`, 'mobile restored change')"
+          assert old in s
+          s = s.replace(old, new, 1)
           old = "runtime.proc.kill('SIGTERM'); rmSync(runtime.dir, { recursive: true, force: true })"
           new = "runtime.proc.kill('SIGTERM'); try { rmSync(runtime.dir, { recursive: true, force: true }) } catch {}"
           assert old in s

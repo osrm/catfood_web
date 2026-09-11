@@ -165,6 +165,8 @@ export default function App() {
   const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const exploreRunStateKey = useRef<string | null>(null)
   const mobileRefineToggleRef = useRef<HTMLButtonElement | null>(null)
+  const catalogRequestId = useRef(0)
+  const catalogRequest = useRef<{ id: number; controller: AbortController } | null>(null)
 
   function snapshot(overrides: Partial<NavigationState> = {}): NavigationState {
     return { mode, screen, lookupQuery, search, refine, editingConditions, selectedId, visibleCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, ...overrides }
@@ -177,6 +179,28 @@ export default function App() {
     setEditingConditions(next.editingConditions); setSelectedId(next.selectedId); setVisibleCount(next.visibleCount); setCompareIds(next.compareIds)
     setCompareOpen(next.compareOpen); setCompareTab(next.compareTab); setDetailProductId(next.detailProductId); setDetailTab(next.detailTab)
     if (restore) pendingRestore.current = restore
+  }
+  function loadCatalog() {
+    if (catalogRequest.current) return
+    const id = ++catalogRequestId.current
+    const controller = new AbortController()
+    catalogRequest.current = { id, controller }
+    setLoading(true)
+    setError(null)
+    void fetchCatalog(controller.signal).then((data) => {
+      if (catalogRequest.current?.id !== id || controller.signal.aborted) return
+      setProducts(data)
+      setError(null)
+    }).catch((reason: unknown) => {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      if (catalogRequest.current?.id === id && !controller.signal.aborted) {
+        setError('인터넷 연결을 확인한 뒤 잠시 후 다시 시도해 주세요.')
+      }
+    }).finally(() => {
+      if (catalogRequest.current?.id !== id) return
+      catalogRequest.current = null
+      if (!controller.signal.aborted) setLoading(false)
+    })
   }
 
   useEffect(() => {
@@ -227,12 +251,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const controller = new AbortController(); let active = true
-    fetchCatalog(controller.signal).then((data) => { if (active) { setProducts(data); setError(null) } }).catch((reason: unknown) => {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      if (active) setError('인터넷 연결을 확인한 뒤 잠시 후 다시 시도해 주세요.')
-    }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false; controller.abort() }
+    loadCatalog()
+    return () => {
+      const request = catalogRequest.current
+      catalogRequest.current = null
+      catalogRequestId.current += 1
+      request?.controller.abort()
+    }
   }, [])
   useEffect(() => {
     if (!products.length) return
@@ -249,8 +274,18 @@ export default function App() {
 
   const evaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
   const lookupResults = useMemo(() => lookupCatalog(products, lookupQuery), [products, lookupQuery])
-  const recipeDetails = useMemo(() => { const values = new Set<string>(); products.forEach((product) => product.recipe_details.forEach((value) => values.add(value))); return [...values].sort((a, b) => a.localeCompare(b, 'en')) }, [products])
-  const visibleRecipeDetails = useMemo(() => { const query = recipeSearch.trim().toLocaleLowerCase('ko-KR'); return recipeDetails.filter((value) => !query || value.toLocaleLowerCase('en').includes(query) || optionLabel(value, RECIPE_DETAIL_LABELS).toLocaleLowerCase('ko-KR').includes(query)).slice(0, 36) }, [recipeDetails, recipeSearch])
+  const recipeDetails = useMemo(() => {
+    const values = new Set<string>()
+    products.forEach((product) => product.recipe_details.forEach((value) => values.add(value)))
+    return [...values].sort((a, b) => {
+      const displayOrder = optionLabel(a, RECIPE_DETAIL_LABELS).localeCompare(optionLabel(b, RECIPE_DETAIL_LABELS), 'ko-KR')
+      return displayOrder || a.localeCompare(b, 'en')
+    })
+  }, [products])
+  const visibleRecipeDetails = useMemo(() => {
+    const query = recipeSearch.trim().toLocaleLowerCase('ko-KR')
+    return recipeDetails.filter((value) => !query || value.toLocaleLowerCase('en').includes(query) || optionLabel(value, RECIPE_DETAIL_LABELS).toLocaleLowerCase('ko-KR').includes(query))
+  }, [recipeDetails, recipeSearch])
   const resultProducts = useMemo(() => mode === 'lookup' ? lookupResults : editingConditions ? [] : evaluated.map((item) => item.product), [mode, lookupResults, editingConditions, evaluated])
   const selectedProduct = selectedId ? resultProducts.find((product) => product.product_id === selectedId) ?? null : null
   const selectedEvaluation = selectedProduct && mode === 'explore' ? evaluated.find((item) => item.product.product_id === selectedProduct.product_id) ?? null : null
@@ -418,12 +453,12 @@ export default function App() {
     return <div className="criteria-bar"><span className="criteria-label">적용된 조건</span><div className="criteria-chips">{criteria.length ? criteria.map((value) => <span key={value}>{value}</span>) : <span>추가 조건 없음</span>}</div><button type="button" onClick={editConditions}>조건 수정</button></div>
   }
   function renderResultList() {
-    if (error) return <div className="state-message error-message"><strong>제품 데이터를 불러오지 못했습니다.</strong><span>{error}</span></div>
+    if (error) return <div className="state-message error-message" role="alert"><strong>제품 데이터를 불러오지 못했습니다.</strong><span>{error}</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div>
     if (loading) return <div className="state-message"><strong>제품 데이터를 불러오는 중입니다.</strong></div>
     if (mode === 'explore' && editingConditions) return <div className="state-message"><strong>조건을 골라 주세요.</strong><span>확인되지 않은 정보는 자동으로 제외하지 않습니다.</span></div>
     if (mode === 'lookup' && !lookupQuery.trim()) return <div className="state-message"><strong>브랜드 또는 제품명을 입력해 주세요.</strong><span>일부만 입력해도 검색할 수 있습니다.</span></div>
     if (!resultProducts.length) return <div className="state-message"><strong>{mode === 'lookup' ? '검색 결과가 없습니다.' : '조건에 맞는 제품이 없습니다.'}</strong><span>{mode === 'explore' ? '선택한 조건은 임의로 완화하지 않습니다.' : '검색어를 다시 확인해 주세요.'}</span></div>
-    return <div className="research-results-list">{visibleProducts.map((product) => { const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null; const hasExploreCriteria = mode === 'explore' && activeConditions > 0; const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' '); return <button data-product-id={product.product_id} className={cardClass} key={product.product_id} type="button" onClick={() => openExploreProduct(product.product_id)}><ProductImage className="research-result-image" product={product} /><span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>{evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} /> : null : <span className="research-result-facts"><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong><span>주요 레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></span>}<span className="research-result-open">제품 보기 →</span></button> })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
+    return <div className="research-results-list">{visibleProducts.map((product) => { const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null; const hasExploreCriteria = mode === 'explore' && activeConditions > 0; const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' '); return <button data-product-id={product.product_id} className={cardClass} key={product.product_id} type="button" onClick={() => openExploreProduct(product.product_id)}><ProductImage className="research-result-image" product={product} /><span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>{evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} /> : null : <span className="research-result-facts"><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong><span>주요 레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></span>}<span className="research-result-open">빠른 보기 →</span></button> })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
   }
   function renderQuickView() {
     if (!selectedProduct) return null
@@ -433,7 +468,7 @@ export default function App() {
 
   if (detailProduct) return <ProductDetail product={detailProduct} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
   if (screen === 'home') return <Home productCount={products.length} loading={loading} onStart={startFromHome} />
-  if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} initialQuery={switchQuery} onHome={goHome} onModeChange={changeMode} />
+  if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} initialQuery={switchQuery} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} />
 
   const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'
   const paneDescription = mode === 'explore' ? '원하는 조건을 골라 제품을 좁혀보세요.' : '브랜드나 제품명으로 찾습니다.'

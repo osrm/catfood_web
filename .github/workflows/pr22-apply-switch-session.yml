@@ -23,6 +23,15 @@ jobs:
           git fetch origin fix/switch-session-navigation-20260911
           git checkout -B fix/switch-session-navigation-20260911 origin/fix/switch-session-navigation-20260911
           python /tmp/pr22-apply-switch-session.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/switch-session.ts')
+          text = path.read_text()
+          text = text.replace("changeBrand: currentProductId && source.changeBrand === true,", "changeBrand: Boolean(currentProductId && source.changeBrand === true),")
+          text = text.replace("keepBrand: currentProductId && source.keepBrand === true,", "keepBrand: Boolean(currentProductId && source.keepBrand === true),")
+          text = text.replace("noChangeIntent: currentProductId && source.noChangeIntent === true,", "noChangeIntent: Boolean(currentProductId && source.noChangeIntent === true),")
+          path.write_text(text)
+          PY
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -40,6 +49,6 @@ jobs:
         run: |
           git config user.name osrm
           git config user.email 90407222+osrm@users.noreply.github.com
-          git add src/App.tsx src/SwitchFlow.tsx src/CompareView.tsx tests/entry.ts
+          git add src/App.tsx src/SwitchFlow.tsx src/CompareView.tsx src/switch-session.ts tests/entry.ts
           git commit -m "fix: preserve SWITCH session navigation"
           git push origin HEAD:fix/switch-session-navigation-20260911

@@ -54,16 +54,28 @@ jobs:
           from pathlib import Path
           p = Path('.github/pr23-mobile-switch-design-qa.mjs')
           s = p.read_text()
+
           start = s.index("const selected=await cdp.eval(`(()=>{const e=[...document.querySelectorAll('.switch-find-result')].find(x=>x.classList.contains('is-selected'))")
           end_marker = "result.returnCapture=await capture(cdp,prefix,'05-preview-return',['.switch-find-result.is-selected'])"
           end = s.index(end_marker, start) + len(end_marker)
           replacement = r'''const returned=await cdp.eval(`(()=>{const e=[...document.querySelectorAll('.switch-find-result')].find(x=>x.querySelector('.switch-find-result-copy strong')?.textContent.trim()===${j(lastName)});if(!e)return null;const r=e.getBoundingClientRect();return{text:e.textContent.trim(),scrollY,visible:r.bottom>0&&r.top<innerHeight,rect:[r.left,r.top,r.width,r.height]}})()`);assert.ok(returned,'same result row missing after preview close');result.returnState={beforeY,afterY:await cdp.eval('scrollY'),row:returned};result.returnCapture=await capture(cdp,prefix,'05-preview-return-position',['.switch-find-results-list']);if(!returned.visible){result.returnState.reach=await reach(cdp,lastSelector);result.returnReachedCapture=await capture(cdp,prefix,'05b-preview-return-reached',[lastSelector])}'''
           s = s[:start] + replacement + s[end:]
-          old = "await cdp.wait(`document.body.innerText.includes('유지하고 싶은')||[...document.querySelectorAll('button')].some(x=>x.textContent.includes('유지'))`,'keep step')"
-          new = "await cdp.wait(`(()=>{const r=sessionStorage.getItem('catfood.switch-session.v1');return r&&JSON.parse(r).state.step==='keep'})()`,'keep step')"
-          if s.count(old) != 1:
-              raise SystemExit(f'expected one KEEP wait target, found {s.count(old)}')
-          p.write_text(s.replace(old, new))
+
+          flow_start = s.index('async function configureToResults(cdp){')
+          flow_end = s.index('\n\nasync function progressAudit', flow_start)
+          robust = r'''async function configureToResults(cdp){
+  assert.equal(await cdp.eval(`(()=>{const b=document.querySelector('.switch-step-actions .switch-primary-action');if(!b||b.disabled)return false;b.click();return true})()`),true,'SKU next unavailable')
+  await cdp.wait(`(()=>{const r=sessionStorage.getItem('catfood.switch-session.v1');return r&&JSON.parse(r).state.step==='change'})()`,'change step')
+  await clickText(cdp,'다른 브랜드로 보기')
+  await cdp.wait(`(()=>{const r=sessionStorage.getItem('catfood.switch-session.v1');return r&&JSON.parse(r).state.changeBrand===true})()`,'change brand stored')
+  assert.equal(await cdp.eval(`(()=>{const b=document.querySelector('.switch-step-actions .switch-primary-action');if(!b||b.disabled)return false;b.click();return true})()`),true,'CHANGE next unavailable')
+  await cdp.wait(`(()=>{const r=sessionStorage.getItem('catfood.switch-session.v1');return r&&JSON.parse(r).state.step==='keep'})()`,'keep step')
+  await clickText(cdp,'건식 유지')
+  await cdp.wait(`(()=>{const r=sessionStorage.getItem('catfood.switch-session.v1');return r&&JSON.parse(r).state.keep?.feedType==='건식'})()`,'dry keep stored')
+  assert.equal(await cdp.eval(`(()=>{const b=document.querySelector('.switch-step-actions .switch-primary-action');if(!b||b.disabled)return false;b.click();return true})()`),true,'KEEP candidate action unavailable')
+  await cdp.wait(`document.querySelector('.switch-results-stage')`,'results')
+}'''
+          p.write_text(s[:flow_start] + robust + s[flow_end:])
           PY
       - name: Capture and verify responsive SWITCH behavior
         run: node .github/pr23-mobile-switch-design-qa.mjs

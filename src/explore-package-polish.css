@@ -263,6 +263,8 @@
 
   .research-shell.is-browsing.is-mobile-refining:has(.criteria-bar) .research-filters {
     display: block;
+    max-height: none;
+    overflow: visible;
     border-right: 0;
   }
 

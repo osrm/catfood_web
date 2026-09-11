@@ -31,17 +31,26 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-match ':lang=ko'
-      - name: Keep Chrome profile cleanup from masking QA result
+      - name: Stabilize narrow browser QA timing and cleanup
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path('.github/pr22-postdeploy-switch-qa.mjs')
           text = path.read_text()
-          old = "  rmSync(dir, { recursive: true, force: true })\n}"
-          new = "  try { rmSync(dir, { recursive: true, force: true }) } catch {}\n}"
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one cleanup call, found {text.count(old)}')
-          path.write_text(text.replace(old, new))
+          cleanup_old = "  rmSync(dir, { recursive: true, force: true })\n}"
+          cleanup_new = "  try { rmSync(dir, { recursive: true, force: true }) } catch {}\n}"
+          if text.count(cleanup_old) != 1:
+              raise SystemExit(f'expected one cleanup call, found {text.count(cleanup_old)}')
+          text = text.replace(cleanup_old, cleanup_new)
+          refresh_old = "  await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`, 'refresh restored SWITCH')\n  const refreshSummary = await cdp.eval(`document.querySelector('.switch-session-bar')?.textContent.trim()` )"
+          refresh_new = "  await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`, 'refresh restored SWITCH')\n  await cdp.wait(`!document.querySelector('.switch-session-current')?.textContent.includes('선택한 규격 확인 중')`, 'restored SKU label')\n  const refreshSummary = await cdp.eval(`document.querySelector('.switch-session-bar')?.textContent.trim()` )"
+          if text.count(refresh_old) != 1:
+              # Source uses no space before the closing parenthesis; handle that exact form.
+              refresh_old = "  await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`, 'refresh restored SWITCH')\n  const refreshSummary = await cdp.eval(`document.querySelector('.switch-session-bar')?.textContent.trim()` )".replace('` )', '`)')
+              refresh_new = "  await cdp.wait(`document.body.innerText.includes('데이터 연결됨') && document.querySelector('.switch-results-stage')`, 'refresh restored SWITCH')\n  await cdp.wait(`!document.querySelector('.switch-session-current')?.textContent.includes('선택한 규격 확인 중')`, 'restored SKU label')\n  const refreshSummary = await cdp.eval(`document.querySelector('.switch-session-bar')?.textContent.trim()` )".replace('` )', '`)')
+          if text.count(refresh_old) != 1:
+              raise SystemExit(f'expected one refresh assertion block, found {text.count(refresh_old)}')
+          path.write_text(text.replace(refresh_old, refresh_new))
           PY
       - name: Run narrow production Pages validation
         run: node .github/pr22-postdeploy-switch-qa.mjs

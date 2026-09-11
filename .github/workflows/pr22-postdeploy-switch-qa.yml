@@ -31,6 +31,18 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-match ':lang=ko'
+      - name: Keep Chrome profile cleanup from masking QA result
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr22-postdeploy-switch-qa.mjs')
+          text = path.read_text()
+          old = "  rmSync(dir, { recursive: true, force: true })\n}"
+          new = "  try { rmSync(dir, { recursive: true, force: true }) } catch {}\n}"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one cleanup call, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
       - name: Run narrow production Pages validation
         run: node .github/pr22-postdeploy-switch-qa.mjs
       - uses: actions/upload-artifact@v4

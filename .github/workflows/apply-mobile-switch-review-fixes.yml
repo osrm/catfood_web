@@ -20,6 +20,7 @@ jobs:
       - name: Apply narrow mobile SWITCH fixes
         run: |
           python3 - <<'PY'
+          from base64 import b64decode
           from pathlib import Path
 
           flow = Path('src/SwitchFlow.tsx')
@@ -35,76 +36,8 @@ jobs:
           marker = '/* Mobile SWITCH review fixes: readable steps, one document scroll for current search, full-width candidate identity. */'
           if marker in text:
               raise SystemExit('mobile review fixes already present')
-          addition = r'''
-
-/* Mobile SWITCH review fixes: readable steps, one document scroll for current search, full-width candidate identity. */
-@media (max-width: 760px) {
-  .switch-workflow-shell .switch-progress {
-    align-items: start;
-    overflow: visible;
-  }
-
-  .switch-workflow-shell .switch-progress li {
-    min-width: 0;
-    min-height: 52px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 5px;
-    text-align: center;
-  }
-
-  .switch-workflow-shell .switch-progress li > span {
-    flex: 0 0 auto;
-  }
-
-  .switch-workflow-shell .switch-progress li strong {
-    max-width: 100%;
-    overflow: visible;
-    font-size: 11px;
-    line-height: 1.25;
-    text-overflow: clip;
-    white-space: normal;
-    word-break: keep-all;
-  }
-
-  .switch-workflow-shell .switch-progress li:nth-child(3) strong::after,
-  .switch-workflow-shell .switch-progress li:nth-child(4) strong::after {
-    font-size: 11px;
-    line-height: 1.25;
-    white-space: normal;
-  }
-
-  .switch-workflow-shell .switch-find-body {
-    min-height: 0;
-  }
-
-  .switch-workflow-shell .switch-find-results-list {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .switch-workflow-shell .switch-inspector-identity {
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: 16px;
-  }
-
-  .switch-workflow-shell .switch-inspector-identity > div {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .switch-workflow-shell .switch-inspector-identity h1 {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-    word-break: keep-all;
-  }
-}
-'''
-          css.write_text(text + addition)
+          encoded = 'CgovKiBNb2JpbGUgU1dJVENIIHJldmlldyBmaXhlczogcmVhZGFibGUgc3RlcHMsIG9uZSBkb2N1bWVudCBzY3JvbGwgZm9yIGN1cnJlbnQgc2VhcmNoLCBmdWxsLXdpZHRoIGNhbmRpZGF0ZSBpZGVudGl0eS4gKi8KQG1lZGlhIChtYXgtd2lkdGg6IDc2MHB4KSB7CiAgLnN3aXRjaC13b3JrZmxvdy1zaGVsbCAuc3dpdGNoLXByb2dyZXNzIHsKICAgIGFsaWduLWl0ZW1zOiBzdGFydDsKICAgIG92ZXJmbG93OiB2aXNpYmxlOwogIH0KCiAgLnN3aXRjaC13b3JrZmxvdy1zaGVsbCAuc3dpdGNoLXByb2dyZXNzIGxpIHsKICAgIG1pbi13aWR0aDogMDsKICAgIG1pbi1oZWlnaHQ6IDUycHg7CiAgICBkaXNwbGF5OiBmbGV4OwogICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjsKICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7CiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtc3RhcnQ7CiAgICBnYXA6IDVweDsKICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICB9CgogIC5zd2l0Y2gtd29ya2Zsb3ctc2hlbGwgLnN3aXRjaC1wcm9ncmVzcyBsaSA+IHNwYW4gewogICAgZmxleDogMCAwIGF1dG87CiAgfQoKICAuc3dpdGNoLXdvcmtmbG93LXNoZWxsIC5zd2l0Y2gtcHJvZ3Jlc3MgbGkgc3Ryb25nIHsKICAgIG1heC13aWR0aDogMTAwJTsKICAgIG92ZXJmbG93OiB2aXNpYmxlOwogICAgZm9udC1zaXplOiAxMXB4OwogICAgbGluZS1oZWlnaHQ6IDEuMjU7CiAgICB0ZXh0LW92ZXJmbG93OiBjbGlwOwogICAgd2hpdGUtc3BhY2U6IG5vcm1hbDsKICAgIHdvcmQtYnJlYWs6IGtlZXAtYWxsOwogIH0KCiAgLnN3aXRjaC13b3JrZmxvdy1zaGVsbCAuc3dpdGNoLXByb2dyZXNzIGxpOm50aC1jaGlsZCgzKSBzdHJvbmc6OmFmdGVyLAogIC5zd2l0Y2gtd29ya2Zsb3ctc2hlbGwgLnN3aXRjaC1wcm9ncmVzcyBsaTpudGgtY2hpbGQoNCkgc3Ryb25nOjphZnRlciB7CiAgICBmb250LXNpemU6IDExcHg7CiAgICBsaW5lLWhlaWdodDogMS4yNTsKICAgIHdoaXRlLXNwYWNlOiBub3JtYWw7CiAgfQoKICAuc3dpdGNoLXdvcmtmbG93LXNoZWxsIC5zd2l0Y2gtZmluZC1ib2R5IHsKICAgIG1pbi1oZWlnaHQ6IDA7CiAgfQoKICAuc3dpdGNoLXdvcmtmbG93LXNoZWxsIC5zd2l0Y2gtZmluZC1yZXN1bHRzLWxpc3QgewogICAgbWF4LWhlaWdodDogbm9uZTsKICAgIG92ZXJmbG93OiB2aXNpYmxlOwogIH0KCiAgLnN3aXRjaC13b3JrZmxvdy1zaGVsbCAuc3dpdGNoLWluc3BlY3Rvci1pZGVudGl0eSB7CiAgICBncmlkLXRlbXBsYXRlLWNvbHVtbnM6IDFmcjsKICAgIGFsaWduLWl0ZW1zOiBzdGFydDsKICAgIGdhcDogMTZweDsKICB9CgogIC5zd2l0Y2gtd29ya2Zsb3ctc2hlbGwgLnN3aXRjaC1pbnNwZWN0b3ItaWRlbnRpdHkgPiBkaXYgewogICAgbWluLXdpZHRoOiAwOwogICAgd2lkdGg6IDEwMCU7CiAgfQoKICAuc3dpdGNoLXdvcmtmbG93LXNoZWxsIC5zd2l0Y2gtaW5zcGVjdG9yLWlkZW50aXR5IGgxIHsKICAgIG92ZXJmbG93OiB2aXNpYmxlOwogICAgdGV4dC1vdmVyZmxvdzogY2xpcDsKICAgIHdoaXRlLXNwYWNlOiBub3JtYWw7CiAgICB3b3JkLWJyZWFrOiBrZWVwLWFsbDsKICB9Cn0K'
+          css.write_text(text + b64decode(encoded).decode())
           PY
       - name: Commit product changes
         run: |

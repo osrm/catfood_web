@@ -1,0 +1,28 @@
+name: PR22 fix explicit reset test
+
+on:
+  push:
+    branches:
+      - qa/pr22-switch-session-test-fix2-20260911
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Patch product branch test
+        run: |
+          cp .github/pr22-fix-explicit-reset-test.py /tmp/pr22-fix-explicit-reset-test.py
+          git fetch origin fix/switch-session-navigation-20260911
+          git checkout -B fix/switch-session-navigation-20260911 origin/fix/switch-session-navigation-20260911
+          python /tmp/pr22-fix-explicit-reset-test.py
+          git config user.name osrm
+          git config user.email 90407222+osrm@users.noreply.github.com
+          git add tests/switch-session-navigation.test.mjs
+          git commit -m "test: follow explicit SWITCH reset path"
+          git push origin HEAD:fix/switch-session-navigation-20260911

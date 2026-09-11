@@ -1,0 +1,117 @@
+import assert from 'node:assert/strict'
+import { spawn, execFileSync } from 'node:child_process'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
+
+const BASE='http://127.0.0.1:4173/'
+const SOURCE_SHA='eafb94839d2684cf2081f9858962b21f1a305152'
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms))
+const out='qa-artifacts'
+
+class Cdp {
+  constructor(url){this.url=url;this.ws=null;this.id=1;this.pending=new Map()}
+  async connect(){
+    this.ws=new WebSocket(this.url)
+    await new Promise((res,rej)=>{const t=setTimeout(()=>rej(new Error('ws timeout')),15000);this.ws.addEventListener('open',()=>{clearTimeout(t);res()},{once:true});this.ws.addEventListener('error',()=>rej(new Error('ws error')),{once:true})})
+    this.ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(!m.id)return;const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.reject(new Error(m.error.message)):p.resolve(m.result)})
+    for(const m of ['Page.enable','Runtime.enable']) await this.send(m)
+  }
+  send(method,params={}){const id=this.id++;return new Promise((res,rej)=>{this.pending.set(id,{resolve:res,reject:rej});this.ws.send(JSON.stringify({id,method,params}))})}
+  async eval(expression){const r=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result?.value}
+  async wait(expression,label,ms=45000){const end=Date.now()+ms;while(Date.now()<end){try{if(await this.eval(`Boolean(${expression})`))return}catch{}await sleep(120)}throw new Error(`timeout ${label}`)}
+  async nav(url){await this.send('Page.navigate',{url});await this.wait(`document.readyState==='complete'`,'ready');await this.wait(`document.querySelector('#root')&&document.body.innerText.length>0`,'root')}
+  async viewport(w,h){await this.send('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:w<=390})}
+  async shot(path){const r=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});writeFileSync(path,Buffer.from(r.data,'base64'))}
+  close(){try{this.ws?.close()}catch{}}
+}
+
+async function launch(){
+  const bin='/usr/bin/google-chrome';assert.ok(existsSync(bin));const version=execFileSync(bin,['--version'],{encoding:'utf8'}).trim();const port=9950+(process.pid%30);const dir=`/tmp/pr19-overflow-${process.pid}`;rmSync(dir,{recursive:true,force:true});
+  const proc=spawn(bin,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'})
+  for(let i=0;i<220;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();const p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p){const c=new Cdp(p.webSocketDebuggerUrl);await c.connect();return{version,proc,dir,c}}}catch{}await sleep(100)}throw new Error('chrome timeout')
+}
+
+const visibleExpr=(s)=>`(()=>{const n=document.querySelector(${JSON.stringify(s)});if(!n)return false;const r=n.getBoundingClientRect(),c=getComputedStyle(n);return c.display!=='none'&&c.visibility!=='hidden'&&r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight})()`
+async function clickVisible(c,selector,text=null){
+  const p=await c.eval(`(()=>{const nodes=[...document.querySelectorAll(${JSON.stringify(selector)})];const n=${text===null?'nodes[0]':`nodes.find(x=>x.textContent?.trim().includes(${JSON.stringify(text)}))`};if(!n)return null;const r=n.getBoundingClientRect();if(r.bottom<=0||r.top>=innerHeight)return {hidden:true,rect:{top:r.top,bottom:r.bottom}};return{x:r.left+r.width/2,y:r.top+r.height/2,text:n.textContent?.trim()}})()`)
+  assert.ok(p&&!p.hidden,`target not visibly clickable: ${text??selector} ${JSON.stringify(p)}`)
+  await c.send('Input.dispatchMouseEvent',{type:'mousePressed',x:p.x,y:p.y,button:'left',clickCount:1});await c.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x,y:p.y,button:'left',clickCount:1});await sleep(250)
+}
+async function setInput(c,selector,value){const ok=await c.eval(`(()=>{const n=document.querySelector(${JSON.stringify(selector)});if(!n)return false;const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(n,${JSON.stringify(value)});n.dispatchEvent(new Event('input',{bubbles:true}));n.focus();return true})()`);assert.equal(ok,true);await sleep(250)}
+async function wheel(c,deltaY,w,h){await c.send('Input.dispatchMouseEvent',{type:'mouseWheel',x:Math.floor(w/2),y:Math.floor(h/2),deltaX:0,deltaY});await sleep(140)}
+async function wheelUntilLastVisible(c,w,h){
+  for(let i=0;i<40;i++){
+    const m=await c.eval(`(()=>{const n=document.querySelector('.recipe-detail-grid .choice:last-child');if(!n)return null;const r=n.getBoundingClientRect();return{top:r.top,bottom:r.bottom,text:n.textContent?.trim(),scrollY,docH:document.documentElement.scrollHeight}})()`)
+    assert.ok(m,'missing last recipe choice')
+    if(m.top>=0&&m.bottom<=h-8)return m
+    const before=await c.eval('window.scrollY');await wheel(c,Math.min(520,Math.max(180,m.top-h+120)),w,h);const after=await c.eval('window.scrollY');
+    if(after===before&&m.bottom>h)throw new Error(`document scroll stopped before last choice: ${JSON.stringify(m)}`)
+  }
+  throw new Error('last recipe choice never became visible')
+}
+async function wheelToTop(c,w,h){for(let i=0;i<30;i++){const y=await c.eval('window.scrollY');if(y<=1)return;await wheel(c,-600,w,h)}throw new Error('failed to return to top')}
+async function pressTab(c){await c.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await c.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await sleep(100)}
+async function keyboardReachLast(c,h){
+  const lastText=await c.eval(`document.querySelector('.recipe-detail-grid .choice:last-child')?.textContent?.trim()`);assert.ok(lastText)
+  await c.eval(`document.querySelector('.recipe-search')?.focus()`);await sleep(100)
+  for(let i=0;i<120;i++){
+    await pressTab(c)
+    const m=await c.eval(`(()=>{const a=document.activeElement,last=document.querySelector('.recipe-detail-grid .choice:last-child');const r=a?.getBoundingClientRect?.();return{isLast:a===last,text:a?.textContent?.trim(),top:r?.top,bottom:r?.bottom,scrollY}})()`)
+    if(m.isLast){assert.ok(m.top>=0&&m.bottom<=h,`keyboard-focused last item not visible ${JSON.stringify(m)}`);return m}
+  }
+  throw new Error('Tab focus never reached last recipe choice')
+}
+async function waitResultsSettled(c){await c.wait(`!document.body.innerText.includes('제품 데이터를 불러오는 중입니다.')`,'catalog settle',60000);await sleep(350)}
+async function waitImages(c){const end=Date.now()+10000;while(Date.now()<end){const done=await c.eval(`[...document.querySelectorAll('.research-result-image')].filter(n=>{const r=n.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight}).every(n=>n.complete)`);if(done)break;await sleep(150)}await sleep(250)}
+
+async function measure(c){return c.eval(`(()=>{const q=s=>document.querySelector(s);const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{x:+r.x.toFixed(2),y:+r.y.toFixed(2),width:+r.width.toFixed(2),height:+r.height.toFixed(2),bottom:+r.bottom.toFixed(2)}};const panel=q('#mobile-recipe-refine-panel'),inner=q('#mobile-recipe-refine-panel .research-filter-scroll'),entry=q('.mobile-refine-entry'),button=q('.mobile-refine-entry button'),last=q('.recipe-detail-grid .choice:last-child'),root=document.scrollingElement;const pc=panel?getComputedStyle(panel):null,ic=inner?getComputedStyle(inner):null;return{innerWidth,innerHeight,scrollY,docHeight:document.documentElement.scrollHeight,rootScroller:root?.tagName,rootScrollTop:root?.scrollTop,entryRect:rect(entry),buttonRect:rect(button),panelRect:rect(panel),panelClientHeight:panel?.clientHeight??null,panelScrollHeight:panel?.scrollHeight??null,panelScrollTop:panel?.scrollTop??null,panelOverflow:pc?.overflow,panelOverflowY:pc?.overflowY,panelMaxHeight:pc?.maxHeight,innerRect:rect(inner),innerClientHeight:inner?.clientHeight??null,innerScrollHeight:inner?.scrollHeight??null,innerScrollTop:inner?.scrollTop??null,innerOverflow:ic?.overflow,innerOverflowY:ic?.overflowY,lastRect:rect(last),lastText:last?.textContent?.trim()??null,lastPressed:last?.getAttribute('aria-pressed')??null,expanded:button?.getAttribute('aria-expanded')??null,resultsDisplay:getComputedStyle(q('.research-results'))?.display,entryDisplay:getComputedStyle(entry)?.display,shellRows:getComputedStyle(q('.research-shell'))?.gridTemplateRows,searchValue:q('.recipe-search')?.value??null,activeText:document.activeElement?.textContent?.trim()??null,activeClass:document.activeElement?.className??null,resultCount:document.querySelectorAll('.research-result-card').length,stateText:q('.state-message')?.textContent?.trim()??null}})()`)}
+function assertOpenContent(m,label){
+  assert.equal(m.panelOverflowY,'visible',`${label} panel overflowY`);assert.equal(m.innerOverflowY,'visible',`${label} inner overflowY`);assert.equal(m.panelMaxHeight,'none',`${label} max-height`)
+  assert.ok(m.panelClientHeight>=m.panelScrollHeight-2,`${label} panel clips content ${m.panelClientHeight}/${m.panelScrollHeight}`)
+  assert.ok(m.innerClientHeight>=m.innerScrollHeight-2,`${label} inner clips content ${m.innerClientHeight}/${m.innerScrollHeight}`)
+  assert.equal(m.panelScrollTop,0,`${label} panel became scroll container`);assert.equal(m.innerScrollTop,0,`${label} inner became scroll container`);assert.ok(['HTML','BODY'].includes(m.rootScroller),`${label} unexpected document scroller ${m.rootScroller}`)
+  assert.ok(m.buttonRect?.height>=34&&m.buttonRect.height<=50,`${label} button stretched`);assert.match(m.shellRows,/\b35px\b|\b49px\b|\bauto\b/,`${label} four-row shell lost`)
+}
+async function reachApplied(c,w,h,url='?view=workspace&applied=1'){await c.viewport(w,h);await c.nav(BASE+url);await waitResultsSettled(c);await c.eval('window.scrollTo(0,0)');await sleep(180)}
+async function openRefine(c){await clickVisible(c,'.mobile-refine-entry button','더 좁혀보기');await c.wait(`${visibleExpr('.recipe-search')}&&document.querySelector('.mobile-refine-entry button')?.getAttribute('aria-expanded')==='true'`,'open refine');await c.eval('window.scrollTo(0,0)');await sleep(180)}
+async function closeRefine(c,w,h){await wheelToTop(c,w,h);await clickVisible(c,'.mobile-refine-entry button','목록으로 돌아가기');await c.wait(`document.querySelector('.mobile-refine-entry button')?.getAttribute('aria-expanded')==='false'&&${visibleExpr('.research-results')}`,'close refine');await sleep(180)}
+
+async function mobileFlow(c,w,h){
+  const p=`candidate-${SOURCE_SHA.slice(0,8)}-${w}x${h}`
+  await reachApplied(c,w,h);await openRefine(c);await setInput(c,'.recipe-search','')
+  const top=await measure(c);assertOpenContent(top,`${w} top`);await c.shot(`${out}/${p}-open-top.png`)
+
+  const lastAtBottom=await wheelUntilLastVisible(c,w,h);const bottom=await measure(c);assertOpenContent(bottom,`${w} bottom`);assert.ok(bottom.rootScrollTop>0,`${w} document did not scroll`);assert.ok(bottom.lastRect.top>=0&&bottom.lastRect.bottom<=h,`${w} last not visible`);await c.shot(`${out}/${p}-open-bottom.png`)
+
+  await wheelToTop(c,w,h);const keyboard=await keyboardReachLast(c,h);await c.shot(`${out}/${p}-keyboard-last-focus.png`)
+  const lastLabel=keyboard.text;assert.equal(lastLabel,lastAtBottom.text,`${w} last label changed`)
+  await clickVisible(c,'.recipe-detail-grid .choice:last-child');await c.wait(`document.querySelector('.recipe-detail-grid .choice:last-child')?.getAttribute('aria-pressed')==='true'`,'last selection');
+  const selectedOpen=await measure(c);assertOpenContent(selectedOpen,`${w} selected open`);assert.equal(selectedOpen.lastPressed,'true');assert.ok(new URL(BASE).origin);await c.shot(`${out}/${p}-open-last-selected.png`)
+
+  await closeRefine(c,w,h);await waitResultsSettled(c);await waitImages(c);const selectedResults=await measure(c);assert.ok(selectedResults.resultCount>0||selectedResults.stateText,`${w} no result state after selection`);await c.shot(`${out}/${p}-selected-results.png`)
+
+  await openRefine(c);await setInput(c,'.recipe-search','');await wheelUntilLastVisible(c,w,h);const beforeOff=await measure(c);assert.equal(beforeOff.lastPressed,'true',`${w} selected last not retained`);await clickVisible(c,'.recipe-detail-grid .choice:last-child');await c.wait(`document.querySelector('.recipe-detail-grid .choice:last-child')?.getAttribute('aria-pressed')==='false'`,'last deselection');const deselected=await measure(c);assert.equal(deselected.lastPressed,'false');await c.shot(`${out}/${p}-open-last-deselected.png`);await closeRefine(c,w,h)
+
+  await openRefine(c);await setInput(c,'.recipe-search','가다랑어');await c.wait(`document.querySelectorAll('.recipe-detail-grid .choice').length===1`,'one search result');const one=await measure(c);assertOpenContent(one,`${w} one-result`);assert.equal(await c.eval(`document.querySelector('.recipe-detail-grid .choice')?.textContent?.trim()`),'가다랑어(Skipjack tuna)');await c.shot(`${out}/${p}-one-result.png`);await closeRefine(c,w,h)
+  return{top,bottom,lastAtBottom,keyboard,lastLabel,selectedOpen,selectedResults,beforeOff,deselected,one}
+}
+
+async function breakpoints(c){
+  const r={}
+  for(const w of [980,981,1440]){
+    await reachApplied(c,w,900)
+    if(w===980){await openRefine(c);await setInput(c,'.recipe-search','');const m=await measure(c);assertOpenContent(m,'980 open');r[w]=m;await c.shot(`${out}/candidate-980-open.png`);await closeRefine(c,w,900)}
+    else {const m=await measure(c);assert.equal(m.entryDisplay,'none',`${w} mobile entry visible`);assert.notEqual(m.resultsDisplay,'none',`${w} results hidden`);assert.notEqual(m.panelOverflowY,'visible',`${w} desktop panel overflow changed`);r[w]=m;await c.shot(`${out}/candidate-${w}-desktop.png`)}
+  }
+  return r
+}
+
+const {version,proc,dir,c}=await launch();const report={browserVersion:version,sourceSha:SOURCE_SHA,checks:{}}
+try{
+  report.checks.mobile360=await mobileFlow(c,360,844)
+  report.checks.mobile390=await mobileFlow(c,390,900)
+  report.checks.breakpoints=await breakpoints(c)
+  writeFileSync(`${out}/report.json`,JSON.stringify(report,null,2))
+  console.log(JSON.stringify(report,null,2))
+} catch(e) {
+  report.error=String(e?.stack||e);try{await c.shot(`${out}/failure.png`)}catch{}writeFileSync(`${out}/report.json`,JSON.stringify(report,null,2));throw e
+} finally {c.close();proc.kill('SIGTERM');rmSync(dir,{recursive:true,force:true})}

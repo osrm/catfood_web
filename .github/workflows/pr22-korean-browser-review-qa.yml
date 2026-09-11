@@ -1,0 +1,57 @@
+name: PR22 Korean browser review QA
+
+on:
+  push:
+    branches:
+      - qa/pr22-korean-browser-review-fixes-20260911
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:4174
+      VITE_SUPABASE_PUBLISHABLE_KEY: test-key
+      VITE_DECISION_INTAKE_ENABLED: 'false'
+      SOURCE_SHA: 1212192bfbf81b378c22bfadc775548ce3acd2f2
+      QA_BASE: http://127.0.0.1:4173/
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match reviewed PR head
+        run: |
+          git diff --exit-code "$SOURCE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+      - name: Build exact PR candidate without analytics writes
+        run: npm run build
+      - name: Run desktop, review-fix, and mobile SWITCH paths
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr22-vite-preview.log 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 120); do
+            if curl -fsS "$QA_BASE" >/dev/null; then break; fi
+            sleep 0.25
+          done
+          curl -fsS "$QA_BASE" >/dev/null
+          node .github/pr22-korean-browser-review-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr22-korean-browser-review-qa
+          path: qa-artifacts
+          if-no-files-found: warn

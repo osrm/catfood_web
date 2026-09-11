@@ -185,6 +185,9 @@ export default function App() {
   const pendingCompareReturnIds = useRef<string[] | null>(null)
   const switchSessionRef = useRef<SwitchSessionState>(initialSwitchSession)
   const pendingSwitchPopPatch = useRef<Partial<SwitchSessionState> | null>(null)
+  const switchHistoryEntryRef = useRef<SwitchHistoryEntry | null>(
+    ((typeof window !== 'undefined' ? window.history.state : null) as HistoryPayload | null)?.catfoodSwitchEntry ?? null,
+  )
   const exploreRunId = useRef<string | null>(null)
   const exploreRunGeneration = useRef(0)
   const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
@@ -217,6 +220,7 @@ export default function App() {
     if (action === 'push') {
       const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next) }
       if (entry) payload.catfoodSwitchEntry = entry
+      switchHistoryEntryRef.current = entry ?? null
       window.history.pushState(payload, '', url)
       return
     }
@@ -224,6 +228,7 @@ export default function App() {
     if (entry !== undefined) {
       if (entry) payload.catfoodSwitchEntry = entry
       else delete payload.catfoodSwitchEntry
+      switchHistoryEntryRef.current = entry ?? null
     }
     window.history.replaceState(payload, '', url)
   }
@@ -286,14 +291,26 @@ export default function App() {
     const onPopState = (event: PopStateEvent) => {
       const payload = (event.state ?? {}) as HistoryPayload
       const restored = parseSwitchSessionSnapshot(payload.catfoodSwitch)
-      const patch = pendingSwitchPopPatch.current
+      const previousSwitchEntry = switchHistoryEntryRef.current
+      const incomingSwitchEntry = payload.catfoodSwitchEntry ?? null
+      let patch = pendingSwitchPopPatch.current
       pendingSwitchPopPatch.current = null
+      if (
+        !patch
+        && previousSwitchEntry === 'compare'
+        && incomingSwitchEntry !== 'detail'
+        && restored
+        && !restored.compareOpen
+      ) {
+        patch = { compareIds: switchSessionRef.current.compareIds }
+      }
       if (restored || patch) {
         const next = restoreSwitchSession(patch ? { ...(restored ?? switchSessionRef.current), ...patch } : restored ?? switchSessionRef.current)
         if (patch) {
           window.history.replaceState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(next) }, '', window.location.href)
         }
       }
+      switchHistoryEntryRef.current = incomingSwitchEntry
       const restore = payload.catfoodList ?? null
       const parsed = parseNavigationState(window.location.search)
       if (pendingCompareReturnIds.current !== null) {

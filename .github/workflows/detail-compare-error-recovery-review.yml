@@ -1,0 +1,73 @@
+name: Detail compare error recovery review
+
+on:
+  push:
+    branches:
+      - qa/detail-compare-error-recovery-20260912
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: b5218c85269e25a2250de88d65a15a4f27fae98c
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify product sources match target main
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html .env.example
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build target-equivalent candidate
+        run: npm run build
+
+      - name: Verify relative candidate assets
+        run: grep -Eq '(src|href)="\./assets/' dist/index.html
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Start localhost candidate
+        run: |
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/tmp/candidate.html; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/catfood-preview.log
+          exit 1
+
+      - name: Run injected error recovery review
+        run: node .github/detail-compare-error-recovery.mjs
+
+      - name: Upload review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detail-compare-error-recovery-review
+          path: qa-artifacts/detail-compare-error-recovery/
+          if-no-files-found: warn
+          retention-days: 90

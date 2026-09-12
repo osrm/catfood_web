@@ -1,0 +1,63 @@
+name: Detail tab scroll position review
+
+on:
+  push:
+    branches:
+      - qa/detail-tab-scroll-position-candidate-20260912
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-24.04
+    env:
+      TARGET_SHA: ce908a52eae206225f2241b607b22d78f36c2ac8
+      QA_ORIGIN: http://127.0.0.1:4173/catfood_web/
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match candidate
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run existing tests
+        run: npm test
+      - name: Typecheck and production build
+        run: npm run build
+      - name: Validate project-site asset paths
+        run: grep -q './assets/' dist/index.html
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Start local candidate preview
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/catfood-preview.log 2>&1 &
+          echo $! >/tmp/catfood-preview.pid
+          for i in $(seq 1 80); do
+            if curl -fsS http://127.0.0.1:4173/catfood_web/ >/tmp/catfood-preview-index.html; then
+              exit 0
+            fi
+            sleep 0.25
+          done
+          cat /tmp/catfood-preview.log
+          exit 1
+      - name: Run focused browser review
+        run: node .github/detail-tab-scroll-position-review.mjs
+      - name: Upload review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detail-tab-scroll-position-review
+          path: qa-artifacts/detail-tab-scroll-position/
+          if-no-files-found: warn
+          retention-days: 90

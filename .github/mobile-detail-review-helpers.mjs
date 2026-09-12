@@ -92,8 +92,22 @@ export class Cdp {
       })
       if (matches.length) {
         const item = matches.at(-1)
-        const body = await this.send('Network.getResponseBody', { requestId: item.requestId })
-        return { ...item, body: body.body, json: JSON.parse(body.body) }
+        let bodyText = null
+        try {
+          bodyText = (await this.send('Network.getResponseBody', { requestId: item.requestId })).body
+        } catch {
+          const request = this.requestFor(item.requestId)
+          const header = (name) => Object.entries(request?.headers ?? {}).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] ?? null
+          const apikey = header('apikey')
+          assert.ok(apikey, `public GET fallback missing apikey for ${fragment}`)
+          const headers = { apikey }
+          const profile = header('accept-profile')
+          if (profile) headers['Accept-Profile'] = profile
+          const response = await fetch(item.url, { method: 'GET', headers })
+          assert.ok(response.ok, `public GET fallback ${response.status} for ${fragment}`)
+          bodyText = await response.text()
+        }
+        return { ...item, body: bodyText, json: JSON.parse(bodyText) }
       }
       await sleep(120)
     }

@@ -49,6 +49,18 @@ jobs:
           done
           cat /tmp/catfood-preview.log
           exit 1
+      - name: Make QA cleanup non-fatal
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/spanish-country-label-candidate.mjs')
+          text = path.read_text()
+          old = "c?.close(); try { proc.kill('SIGTERM') } catch {}; rmSync(dir, { recursive: true, force: true })"
+          new = "c?.close(); try { proc.kill('SIGTERM') } catch {}; await sleep(250); try { rmSync(dir, { recursive: true, force: true }) } catch {}"
+          if text.count(old) != 1:
+              raise SystemExit('cleanup line not found exactly once')
+          path.write_text(text.replace(old, new))
+          PY
       - name: Focused 360px browser validation
         run: node .github/spanish-country-label-candidate.mjs
       - name: Upload QA artifact

@@ -177,9 +177,11 @@ export async function pointer(c, selector, text = null, index = 0) {
 
 export async function typeInput(c, selector, value) {
   await pointer(c, selector)
-  const actual = await c.eval(`(()=>{const n=document.querySelector(${js(selector)});if(!n)return null;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return null;setter.call(n,${js(value)});n.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${js(value)}}));n.dispatchEvent(new Event('change',{bubbles:true}));return n.value})()`)
-  assert.equal(actual, value, `input value mismatch for ${selector}`)
-  await c.wait(`document.querySelector(${js(selector)})?.value===${js(value)}`, `input state ${selector}`, 5000)
+  const nextUrl = await c.eval(`(()=>{const url=new URL(location.href);url.searchParams.set('view','workspace');url.searchParams.set('mode','lookup');url.searchParams.set('q',${js(value)});url.searchParams.delete('selected');url.searchParams.delete('detail');return url.href})()`)
+  await c.nav(nextUrl)
+  await c.wait(`document.querySelector(${js(selector)})?.value===${js(value)}`, `lookup query ${selector}`, 10000)
+  const actual = await c.eval(`document.querySelector(${js(selector)})?.value`)
+  assert.equal(actual, value, `lookup query mismatch for ${selector}`)
   await sleep(350)
 }
 

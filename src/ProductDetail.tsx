@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -167,14 +167,54 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
   const [markets, setMarkets] = useState<ProductMarketDetail[]>([])
   const [loading, setLoading] = useState<Record<DetailResource, boolean>>(INITIAL_LOADING)
   const [errors, setErrors] = useState<Record<DetailResource, string | null>>(INITIAL_ERRORS)
+  const stageRef = useRef<HTMLElement | null>(null)
+  const topbarRef = useRef<HTMLElement | null>(null)
+  const tabsRef = useRef<HTMLElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const pendingTabChangeRef = useRef<{ tab: DetailTab; focus: boolean; productId: string } | null>(null)
   const retry = () => setReload((value) => value + 1)
 
   useEffect(() => { setTab(initialTab) }, [initialTab, product.product_id])
+  useLayoutEffect(() => {
+    const pending = pendingTabChangeRef.current
+    if (!pending || pending.tab !== tab || pending.productId !== product.product_id) return
+    pendingTabChangeRef.current = null
+
+    const stage = stageRef.current
+    const panel = panelRef.current
+    const topbar = topbarRef.current
+    const tabs = tabsRef.current
+    const heading = panel?.querySelector<HTMLElement>('.detail-section-heading') ?? null
+    if (stage && heading && topbar && tabs) {
+      const stageRect = stage.getBoundingClientRect()
+      const topbarStyle = window.getComputedStyle(topbar)
+      const tabsStyle = window.getComputedStyle(tabs)
+      const topbarTop = Number.parseFloat(topbarStyle.top) || 0
+      const tabsTop = Number.parseFloat(tabsStyle.top) || 0
+      const stickyBottom = Math.max(
+        topbarTop + topbar.getBoundingClientRect().height,
+        tabsTop + tabs.getBoundingClientRect().height,
+      )
+      const headingTop = heading.getBoundingClientRect().top - stageRect.top
+      const maxScrollTop = Math.max(0, stage.scrollHeight - stage.clientHeight)
+      stage.scrollTop = Math.max(0, Math.min(maxScrollTop, stage.scrollTop + headingTop - stickyBottom))
+    }
+
+    if (pending.focus) {
+      tabRefs.current[TABS.findIndex(([key]) => key === tab)]?.focus({ preventScroll: true })
+    }
+  }, [tab, product.product_id])
+
   function selectTab(next: DetailTab, focus = false) {
+    if (next === tab) {
+      onTabChange?.(next)
+      if (focus) tabRefs.current[TABS.findIndex(([key]) => key === next)]?.focus({ preventScroll: true })
+      return
+    }
+    pendingTabChangeRef.current = { tab: next, focus, productId: product.product_id }
     setTab(next)
     onTabChange?.(next)
-    if (focus) window.setTimeout(() => tabRefs.current[TABS.findIndex(([key]) => key === next)]?.focus(), 0)
   }
   function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next = index
@@ -226,8 +266,8 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
   const panelId = `detail-panel-${tab}`
   const tabId = `detail-tab-${tab}`
 
-  return <main className="detail-stage">
-    <header className="detail-topbar"><button type="button" onClick={onClose}>← 돌아가기 · 제품 목록</button><span>PRODUCT DETAIL</span></header>
+  return <main className="detail-stage" ref={stageRef}>
+    <header className="detail-topbar" ref={topbarRef}><button type="button" onClick={onClose}>← 돌아가기 · 제품 목록</button><span>PRODUCT DETAIL</span></header>
     <section className="detail-identity">
       <ProductImage product={product} />
       <div className="detail-identity-copy"><span>{product.brand}</span><h1>{product.canonical_name}</h1><p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p></div>
@@ -238,11 +278,11 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
         <div className="detail-fact detail-status-action"><span>제조 · 유통</span><strong>{contextStatus}</strong><button type="button" onClick={() => selectTab('context')}>제조 · 유통 보기</button></div>
       </div>
     </section>
-    <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist">
+    <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist" ref={tabsRef}>
       {TABS.map(([key, label], index) => <button key={key} id={`detail-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`detail-panel-${key}`} tabIndex={tab === key ? 0 : -1} className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}>{label}</button>)}
     </nav>
     {TABS.filter(([key]) => key !== tab).map(([key]) => <div key={`hidden-${key}`} id={`detail-panel-${key}`} role="tabpanel" aria-labelledby={`detail-tab-${key}`} hidden />)}
-    <div className="detail-body" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
+    <div className="detail-body" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0} ref={panelRef}>
       {tab === 'overview' ? <>
         <section className="detail-section"><div className="detail-section-heading"><span>01</span><div><h2>제품 기본 정보</h2><p>제품에 표시된 대상 연령과 특징입니다.</p></div></div><div className="detail-fact-table"><Fact label="사료 형태" value={product.feed_type ?? '미확인'} /><Fact label="대상 연령" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />{product.features.length ? <Fact label="제품 특징" value={listLabel(product.features, FEATURE_LABELS)} /> : null}{product.official_targets.length ? <Fact label="제품 표기 대상" value={listLabel(product.official_targets, TARGET_LABELS)} /> : null}{product.recipe_families.length ? <Fact label="레시피 종류" value={listLabel(product.recipe_families, RECIPE_LABELS)} /> : null}{product.recipe_details.length ? <Fact label="주요 레시피" value={listLabel(product.recipe_details, RECIPE_LABELS)} /> : null}{product.official_recipe_traits.includes('grain_free') ? <Fact label="Grain-Free" value="제품에 표기됨" /> : null}</div></section>
         <section className="detail-section"><div className="detail-section-heading"><span>02</span><div><h2>원재료 요약</h2><p>확인된 원료를 한국어로 요약합니다. 출처 원문은 원재료 탭에서 확인할 수 있습니다.</p></div></div>{loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}{errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}{!loading.ingredients && !errors.ingredients && ingredients ? <div className="detail-fact-table"><Fact label="원재료 목록" value={completenessLabel(ingredients.completeness_status)} />{ingredients.ingredient_count > 0 ? <Fact label="확인된 원재료" value={`${ingredients.ingredient_count}개`} /> : null}{directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}{flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}{hasSupplementalFullIngredients ? <Fact label="전체 목록 보완" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}</div> : null}{!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 공개 화면에서 확인할 수 있는 원재료 목록이 없습니다.</div> : null}</section>

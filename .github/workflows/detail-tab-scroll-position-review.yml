@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       TARGET_SHA: ce908a52eae206225f2241b607b22d78f36c2ac8
-      QA_ORIGIN: http://127.0.0.1:4173/catfood_web/
+      QA_ORIGIN: http://127.0.0.1:4173/
     steps:
       - uses: actions/checkout@v5
         with:
@@ -44,7 +44,7 @@ jobs:
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/catfood-preview.log 2>&1 &
           echo $! >/tmp/catfood-preview.pid
           for i in $(seq 1 80); do
-            if curl -fsS http://127.0.0.1:4173/catfood_web/ >/tmp/catfood-preview-index.html; then
+            if curl -fsS http://127.0.0.1:4173/ >/tmp/catfood-preview-index.html; then
               exit 0
             fi
             sleep 0.25

@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 export const js = (value) => JSON.stringify(value)
 export const norm = (value) => String(value ?? '').replace(/\s+/g, ' ').trim()
+
+function publicApiConfig() {
+  const env = readFileSync('.env.example', 'utf8')
+  const baseUrl = env.match(/^VITE_SUPABASE_URL=(.+)$/m)?.[1]?.trim()
+  const publishableKey = env.match(/^VITE_SUPABASE_PUBLISHABLE_KEY=(.+)$/m)?.[1]?.trim()
+  assert.ok(baseUrl && publishableKey, 'public API config missing from .env.example')
+  return { baseUrl: baseUrl.replace(/\/$/, ''), publishableKey }
+}
 
 export class Cdp {
   constructor(url) {
@@ -96,13 +104,22 @@ export class Cdp {
         try {
           bodyText = (await this.send('Network.getResponseBody', { requestId: item.requestId })).body
         } catch {
-          for (let index = 0; index < 50 && bodyText == null; index++) {
+          for (let index = 0; index < 20 && bodyText == null; index++) {
             const captured = await this.eval(`(()=>{const list=window.__qaCapturedApi||[],fragment=${JSON.stringify(fragment)},productId=${JSON.stringify(productId)};for(let i=list.length-1;i>=0;i--){const item=list[i],decoded=decodeURIComponent(item.url||'');if(decoded.includes(fragment)&&(!productId||decoded.includes(productId)))return item}return null})()`)
             if (captured?.body != null) bodyText = captured.body
             else await sleep(100)
           }
+          if (bodyText == null) {
+            const { baseUrl, publishableKey } = publicApiConfig()
+            assert.equal(new URL(item.url).origin, new URL(baseUrl).origin, `unexpected public API origin for ${fragment}`)
+            const response = await fetch(item.url, { method: 'GET', headers: { apikey: publishableKey, 'Accept-Profile': 'api' } })
+            assert.ok(response.ok, `public GET fallback ${response.status} for ${fragment}`)
+            bodyText = await response.text()
+            const request = this.requestFor(item.requestId)
+            if (request) request.headers = { ...(request.headers ?? {}), apikey: publishableKey, 'Accept-Profile': 'api' }
+          }
         }
-        assert.ok(bodyText != null, `captured public GET body unavailable for ${fragment}`)
+        assert.ok(bodyText != null, `public GET body unavailable for ${fragment}`)
         return { ...item, body: bodyText, json: JSON.parse(bodyText) }
       }
       await sleep(120)

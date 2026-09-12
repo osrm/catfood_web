@@ -112,9 +112,9 @@ export async function launch(width, height, mobile = true) {
   throw new Error('Chrome launch timeout')
 }
 
-export async function clickVisibleNoScroll(c, selector) {
-  const metric = await c.eval(`(()=>{const n=document.querySelector(${js(selector)});if(!n)return null;const r=n.getBoundingClientRect(),s=getComputedStyle(n),x=r.left+r.width/2,y=r.top+r.height/2,h=r.width>0&&r.height>0&&x>=0&&x<innerWidth&&y>=0&&y<innerHeight?document.elementFromPoint(x,y):null;return{rect:[r.left,r.top,r.width,r.height,r.right,r.bottom],rendered:s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0,inViewport:r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth,centerHit:Boolean(h&&(h===n||n.contains(h))),disabled:Boolean(n.disabled),x,y}})()`)
-  assert.ok(metric?.rendered && metric.inViewport && metric.centerHit && !metric.disabled, `click target unavailable without scrolling ${selector}: ${JSON.stringify(metric)}`)
+export async function clickVisibleNoScroll(c, selector, text = null) {
+  const metric = await c.eval(`(()=>{const nodes=[...document.querySelectorAll(${js(selector)})],n=${text == null ? 'nodes[0]??null' : `nodes.find(x=>(x.textContent||'').includes(${js(text)}))??null`};if(!n)return null;const r=n.getBoundingClientRect(),s=getComputedStyle(n),x=r.left+r.width/2,y=r.top+r.height/2,h=r.width>0&&r.height>0&&x>=0&&x<innerWidth&&y>=0&&y<innerHeight?document.elementFromPoint(x,y):null;return{rect:[r.left,r.top,r.width,r.height,r.right,r.bottom],text:(n.textContent||'').replace(/\\s+/g,' ').trim(),rendered:s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0,inViewport:r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth,centerHit:Boolean(h&&(h===n||n.contains(h))),disabled:Boolean(n.disabled),x,y}})()`)
+  assert.ok(metric?.rendered && metric.inViewport && metric.centerHit && !metric.disabled, `click target unavailable without scrolling ${selector}${text ? ` text=${text}` : ''}: ${JSON.stringify(metric)}`)
   await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: metric.x, y: metric.y })
   await c.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: metric.x, y: metric.y, button: 'left', clickCount: 1 })
   await c.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: metric.x, y: metric.y, button: 'left', clickCount: 1 })

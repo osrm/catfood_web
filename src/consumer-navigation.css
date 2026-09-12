@@ -148,12 +148,13 @@
   }
 
   .compare-table {
-    min-width: max(720px, calc(108px + (var(--compare-count) * 190px)));
+    width: calc(108px + (var(--compare-count) * 190px));
+    min-width: calc(108px + (var(--compare-count) * 190px));
   }
 
   .compare-head-row,
   .compare-row {
-    grid-template-columns: 108px repeat(var(--compare-count), minmax(180px, 1fr));
+    grid-template-columns: 108px repeat(var(--compare-count), 190px);
   }
 
   .compare-corner,

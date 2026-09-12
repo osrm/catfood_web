@@ -4,7 +4,6 @@ import {
   cleanup,
   clickVisibleNoScroll,
   detailGeometry,
-  js,
   launch,
   network,
   setStageBottom,
@@ -12,7 +11,7 @@ import {
   sleep,
 } from './detail-tab-scroll-qa-helpers.mjs'
 
-const ORIGIN = process.env.QA_ORIGIN || 'http://127.0.0.1:4173/catfood_web/'
+const ORIGIN = process.env.QA_ORIGIN || 'http://127.0.0.1:4173/'
 const TARGET_SHA = process.env.TARGET_SHA || 'ce908a52eae206225f2241b607b22d78f36c2ac8'
 const OUT = 'qa-artifacts/detail-tab-scroll-position'
 const GO = { id: 'product_31bc515d78d43d5d', query: '카니보 치킨&칠면조&오리', label: 'go' }
@@ -27,7 +26,6 @@ function detailUrl(product, tab = 'nutrition') {
   url.searchParams.set('q', product.query)
   url.searchParams.set('selected', product.id)
   url.searchParams.set('compare', COMPARE_IDS)
-  url.searchParams.set('compareOpen', '1')
   url.searchParams.set('compareTab', 'ingredients')
   url.searchParams.set('detail', product.id)
   if (tab !== 'overview') url.searchParams.set('detailTab', tab)
@@ -123,7 +121,7 @@ async function keyboardScenario() {
     await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight' })
     await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight' })
     await c.wait(`document.querySelector('#detail-tab-ingredients')?.getAttribute('aria-selected')==='true'`, 'keyboard ArrowRight ingredients')
-    let metric = await detailGeometry(c)
+    const metric = await detailGeometry(c)
     assertPanelStartVisible(metric, 'keyboard ArrowRight nutrition -> ingredients')
     assert.equal(metric.activeElement, 'detail-tab-ingredients', 'keyboard ArrowRight did not keep focus on selected tab')
     const arrowFile = `${OUT}/360x844-keyboard-arrowright-immediate.png`
@@ -192,7 +190,7 @@ async function parentAndCompareScenario() {
     })
     const duringParams = await c.eval(`Object.fromEntries(new URLSearchParams(location.search))`)
     assert.equal(duringParams.compare, COMPARE_IDS, 'detail tab change lost compare selection')
-    assert.equal(duringParams.compareOpen, '1', 'detail tab change closed compare state')
+    assert.equal(duringParams.compareOpen, undefined, 'detail review unexpectedly opened compare view')
     assert.equal(duringParams.compareTab, 'ingredients', 'detail tab change changed compare tab')
     assert.equal(duringParams.selected, GO.id, 'detail tab change lost selected product')
     assert.equal(duringParams.detailTab, 'ingredients', 'detail tab URL did not track selected detail tab')
@@ -201,12 +199,12 @@ async function parentAndCompareScenario() {
     await c.wait(`!document.querySelector('.detail-stage')`, 'detail parent return')
     const returned = await c.eval(`(()=>({params:Object.fromEntries(new URLSearchParams(location.search)),compare:Boolean(document.querySelector('.compare-stage')),quickView:Boolean(document.querySelector('.research-quick-view')),url:location.href}))()`)
     assert.equal(returned.params.compare, COMPARE_IDS, 'detail return lost compare selection')
-    assert.equal(returned.params.compareOpen, '1', 'detail return lost compare-open state')
+    assert.equal(returned.params.compareOpen, undefined, 'detail return unexpectedly opened compare view')
     assert.equal(returned.params.compareTab, 'ingredients', 'detail return lost compare tab')
     assert.equal(returned.params.selected, GO.id, 'detail return lost selected product')
     assert.equal(returned.params.detail, undefined, 'detail return retained detail product')
     assert.equal(returned.params.detailTab, undefined, 'detail return retained detail tab')
-    assert.ok(returned.compare || returned.quickView, `detail return did not restore a parent view: ${JSON.stringify(returned)}`)
+    assert.ok(returned.quickView, `detail return did not restore selected-product quick view: ${JSON.stringify(returned)}`)
     return { beforeParams, transition, duringParams, returned, network: await verifyNetwork(c, 'parent/compare') }
   } finally {
     cleanup(launched.proc, launched.dir, c)

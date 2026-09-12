@@ -33,7 +33,9 @@ jobs:
           html="$(curl -fsS https://osrm.github.io/catfood_web/)"
           printf '%s' "$html" | grep -F "$EXPECTED_ASSET" >/dev/null
       - name: Run narrow mobile comparison QA
-        run: node .github/mobile-compare-postdeploy-qa.mjs
+        run: |
+          sed -i 's/\.switch-inspector h1/\.switch-candidate-inspector h1/' .github/mobile-compare-postdeploy-qa.mjs
+          node .github/mobile-compare-postdeploy-qa.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

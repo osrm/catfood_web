@@ -50,4 +50,11 @@ new_state = '''  assert.ok(state?.currentProductId,'real product id missing')
   assert.equal(state?.changeBrand,true,'CHANGE brand selection missing')
 '''
 assert text.count(old_state) == 1, f'state block count {text.count(old_state)}'
-path.write_text(text.replace(old_state, new_state), encoding='utf-8')
+text = text.replace(old_state, new_state)
+
+cleanup = "c.close();browser.proc.kill('SIGTERM');rmSync(browser.dir,{recursive:true,force:true})"
+replacement = "c.close();browser.proc.kill('SIGTERM')"
+assert text.count(cleanup) == 2, f'cleanup count {text.count(cleanup)}'
+text = text.replace(cleanup, replacement)
+
+path.write_text(text, encoding='utf-8')

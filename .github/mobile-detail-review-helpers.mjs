@@ -40,7 +40,7 @@ export class Cdp {
     })
     for (const method of ['Page.enable', 'Runtime.enable', 'DOM.enable', 'CSS.enable', 'Network.enable']) await this.send(method)
     await this.send('Emulation.setLocaleOverride', { locale: 'ko-KR' })
-    await this.send('Page.addScriptToEvaluateOnNewDocument', { source: `(()=>{const nativeFetch=window.fetch.bind(window);const nativeBeacon=navigator.sendBeacon?.bind(navigator);window.__qaBlockedAnalytics=0;window.__qaBlockedWrites=0;window.fetch=(input,init={})=>{const url=typeof input==='string'?input:(input&&input.url)||'';const method=String(init.method||(input&&input.method)||'GET').toUpperCase();if(url.includes('/functions/v1/decision-intake')){window.__qaBlockedAnalytics+=1;return Promise.resolve(new Response(null,{status:204}))}if(url.includes('gnosbstdatkytsyxuapt.supabase.co')&&!['GET','HEAD','OPTIONS'].includes(method)){window.__qaBlockedWrites+=1;return Promise.resolve(new Response(null,{status:204}))}return nativeFetch(input,init)};if(nativeBeacon){navigator.sendBeacon=(url,data)=>{const u=String(url||'');if(u.includes('/functions/v1/decision-intake')){window.__qaBlockedAnalytics+=1;return true}return nativeBeacon(url,data)}}})();` })
+    await this.send('Page.addScriptToEvaluateOnNewDocument', { source: `(()=>{const nativeFetch=window.fetch.bind(window);const nativeBeacon=navigator.sendBeacon?.bind(navigator);window.__qaBlockedAnalytics=0;window.__qaBlockedWrites=0;window.__qaCapturedApi=[];window.fetch=(input,init={})=>{const url=typeof input==='string'?input:(input&&input.url)||'';const method=String(init.method||(input&&input.method)||'GET').toUpperCase();if(url.includes('/functions/v1/decision-intake')){window.__qaBlockedAnalytics+=1;return Promise.resolve(new Response(null,{status:204}))}if(url.includes('gnosbstdatkytsyxuapt.supabase.co')&&!['GET','HEAD','OPTIONS'].includes(method)){window.__qaBlockedWrites+=1;return Promise.resolve(new Response(null,{status:204}))}const pending=nativeFetch(input,init);if(url.includes('gnosbstdatkytsyxuapt.supabase.co')&&method==='GET'){return pending.then(response=>{try{response.clone().text().then(body=>{window.__qaCapturedApi.push({url:response.url||url,status:response.status,body});if(window.__qaCapturedApi.length>200)window.__qaCapturedApi.shift()}).catch(()=>{})}catch{}return response})}return pending};if(nativeBeacon){navigator.sendBeacon=(url,data)=>{const u=String(url||'');if(u.includes('/functions/v1/decision-intake')){window.__qaBlockedAnalytics+=1;return true}return nativeBeacon(url,data)}}})();` })
   }
   send(method, params = {}) {
     const id = this.id++
@@ -96,17 +96,13 @@ export class Cdp {
         try {
           bodyText = (await this.send('Network.getResponseBody', { requestId: item.requestId })).body
         } catch {
-          const request = this.requestFor(item.requestId)
-          const header = (name) => Object.entries(request?.headers ?? {}).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1] ?? null
-          const apikey = header('apikey')
-          assert.ok(apikey, `public GET fallback missing apikey for ${fragment}`)
-          const headers = { apikey }
-          const profile = header('accept-profile')
-          if (profile) headers['Accept-Profile'] = profile
-          const response = await fetch(item.url, { method: 'GET', headers })
-          assert.ok(response.ok, `public GET fallback ${response.status} for ${fragment}`)
-          bodyText = await response.text()
+          for (let index = 0; index < 50 && bodyText == null; index++) {
+            const captured = await this.eval(`(()=>{const list=window.__qaCapturedApi||[],fragment=${JSON.stringify(fragment)},productId=${JSON.stringify(productId)};for(let i=list.length-1;i>=0;i--){const item=list[i],decoded=decodeURIComponent(item.url||'');if(decoded.includes(fragment)&&(!productId||decoded.includes(productId)))return item}return null})()`)
+            if (captured?.body != null) bodyText = captured.body
+            else await sleep(100)
+          }
         }
+        assert.ok(bodyText != null, `captured public GET body unavailable for ${fragment}`)
         return { ...item, body: bodyText, json: JSON.parse(bodyText) }
       }
       await sleep(120)

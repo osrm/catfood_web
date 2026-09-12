@@ -152,20 +152,20 @@ export async function setStageBottom(c) {
   return c.eval(`(()=>{const n=document.querySelector('.detail-stage');if(!n)return null;n.scrollTop=Math.max(0,n.scrollHeight-n.clientHeight);return{scrollTop:n.scrollTop,max:Math.max(0,n.scrollHeight-n.clientHeight)}})()`)
 }
 
-export async function waitForHttpResponse(c, urlFragment, timeoutMs = 30000) {
+export async function waitForHttpResponse(c, urlFragment, timeoutMs = 30000, method = 'GET') {
   const end = Date.now() + timeoutMs
   while (Date.now() < end) {
-    const response = c.responses.find((item) => item.url.includes(urlFragment))
-    if (response) return response
-    const request = c.requests.find((item) => item.url.includes(urlFragment))
+    const request = c.requests.find((item) => item.url.includes(urlFragment) && item.method === method)
     if (request) {
+      const response = c.responses.find((item) => item.requestId === request.requestId)
+      if (response) return response
       const failure = c.loadingFailures.find((item) => item.requestId === request.requestId)
-      if (failure) throw new Error(`request failed ${urlFragment}: ${failure.errorText}`)
+      if (failure) throw new Error(`${method} request failed ${urlFragment}: ${failure.errorText}`)
     }
     await sleep(100)
   }
   const observed = c.requests.filter((item) => item.url.includes(urlFragment))
-  throw new Error(`HTTP response not observed for ${urlFragment}; requests=${JSON.stringify(observed)}`)
+  throw new Error(`${method} HTTP response not observed for ${urlFragment}; requests=${JSON.stringify(observed)}`)
 }
 
 export async function network(c) {

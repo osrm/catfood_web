@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 export const js = (value) => JSON.stringify(value)
 export const norm = (value) => String(value ?? '').replace(/\s+/g, ' ').trim()
+let launchSequence = 0
 
 function publicApiConfig() {
   const env = readFileSync('.env.example', 'utf8')
@@ -133,8 +134,9 @@ export class Cdp {
 export async function launch(width, height) {
   const chrome = '/usr/bin/google-chrome'
   assert.ok(existsSync(chrome), 'Chrome unavailable')
-  const port = 9700 + (process.pid % 180) + (width % 19)
-  const dir = `/tmp/catfood-detail-${width}-${height}-${process.pid}`
+  const sequence = ++launchSequence
+  const port = 9700 + (process.pid % 180) + (width % 19) + sequence
+  const dir = `/tmp/catfood-detail-${width}-${height}-${process.pid}-${sequence}`
   rmSync(dir, { recursive: true, force: true })
   const proc = spawn(chrome, ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-cache', `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, 'about:blank'], { stdio: 'ignore' })
   for (let index = 0; index < 220; index++) {

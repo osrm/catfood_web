@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 
-const BASE='http://127.0.0.1:4173/catfood_web/'
-const IDS=['product_db0958eea4a01c25','product_b47d3ae674773585']
+const BASE='https://osrm.github.io/catfood_web/'
+const IDS=['product_b47d3ae674773585','product_99c5ee4eb9211a75']
 const OUT='qa-artifacts'
 mkdirSync(OUT,{recursive:true})
 const sleep=ms=>new Promise(r=>setTimeout(r,ms))
@@ -21,7 +21,6 @@ class Cdp{
   close(){try{this.ws?.close()}catch{}}
 }
 async function launch(){const chrome='/usr/bin/google-chrome';assert.ok(existsSync(chrome));const port=9917,dir='/tmp/mobile-compare-baseline';rmSync(dir,{recursive:true,force:true});const proc=spawn(chrome,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'});for(let i=0;i<200;i++){try{const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json(),p=pages.find(x=>x.type==='page'&&x.webSocketDebuggerUrl);if(p){const c=new Cdp(p.webSocketDebuggerUrl);await c.connect();await c.send('Emulation.setDeviceMetricsOverride',{width:360,height:844,deviceScaleFactor:1,mobile:true,screenWidth:360,screenHeight:844});await c.send('Emulation.setUserAgentOverride',{userAgent:'Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36',acceptLanguage:'ko-KR,ko;q=0.9,en;q=0.8',platform:'Android'});return{c,proc,dir,version:execFileSync(chrome,['--version'],{encoding:'utf8'}).trim()}}}catch{}await sleep(100)}throw new Error('chrome launch timeout')}
-function rectInfo(n){const r=n.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}}
 async function atRight(c){await c.eval(`(()=>{const w=document.querySelector('.compare-table-wrap');w.scrollLeft=w.scrollWidth-w.clientWidth;return true})()`);await sleep(180)}
 async function metrics(c){return c.eval(`(()=>{const wrap=document.querySelector('.compare-table-wrap'),label=document.querySelector('.compare-corner'),heads=[...document.querySelectorAll('.compare-product-head')],last=heads.at(-1),detail=last.querySelector('.compare-detail-link'),remove=last.querySelector('.compare-remove');const R=n=>{const r=n.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};const hit=n=>{const r=n.getBoundingClientRect(),x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2)),y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2)),h=document.elementFromPoint(x,y);return{center:[x,y],ok:h===n||n.contains(h),hit:h?.className||h?.tagName}};return{docWidth:document.documentElement.scrollWidth,innerWidth,wrap:{clientWidth:wrap.clientWidth,scrollWidth:wrap.scrollWidth,scrollLeft:wrap.scrollLeft,max:wrap.scrollWidth-wrap.clientWidth},label:R(label),last:R(last),detail:{...R(detail),...hit(detail)},remove:{...R(remove),...hit(remove)},names:[...document.querySelectorAll('.compare-product-copy>strong')].map(n=>n.textContent.trim())}})()`)}
 async function pointerTab(c,text){const p=await c.eval(`(()=>{const b=[...document.querySelectorAll('.compare-tabs button')].find(x=>x.textContent.trim()===${JSON.stringify(text)});if(!b)return null;const r=b.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`);assert.ok(p);await c.send('Input.dispatchMouseEvent',{type:'mousePressed',x:p.x,y:p.y,button:'left',clickCount:1});await c.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x,y:p.y,button:'left',clickCount:1})}

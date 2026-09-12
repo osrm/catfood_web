@@ -34,7 +34,7 @@ jobs:
           curl -fsS --retry 5 --retry-delay 2 https://osrm.github.io/catfood_web/ >/tmp/catfood-live-index.html
           grep -q './assets/' /tmp/catfood-live-index.html
       - name: Run focused mobile detail review
-        run: node .github/mobile-detail-nutrition-ingredients-review.mjs
+        run: QA_FULL=1 node .github/mobile-detail-nutrition-ingredients-review.mjs
       - name: Upload review material
         if: always()
         uses: actions/upload-artifact@v4

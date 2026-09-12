@@ -40,17 +40,51 @@ jobs:
       - name: Typecheck and build
         run: npm run build
 
-      - name: Fix QA GET interception counter
+      - name: Normalize QA interception accounting
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path('.github/retry-button-candidate-review.mjs')
           text = path.read_text()
-          old = """    const hit = (this.hits.get(view) || 0) + 1\n    this.hits.set(view, hit)"""
-          new = """    const hit = request.method === 'GET' ? (this.hits.get(view) || 0) + 1 : 0\n    if (request.method === 'GET') this.hits.set(view, hit)"""
-          if old not in text:
-              raise SystemExit('expected QA counter source not found')
-          path.write_text(text.replace(old, new, 1))
+          replacements = [
+            (
+              "    const hit = (this.hits.get(view) || 0) + 1\n    this.hits.set(view, hit)",
+              "    const hit = request.method === 'GET' ? (this.hits.get(view) || 0) + 1 : 0\n    if (request.method === 'GET') this.hits.set(view, hit)",
+            ),
+            (
+              "    assert.equal(finalCounts.compare_product_nutrition, 2, `detail nutrition retry count unexpected: ${JSON.stringify(finalCounts)}`)",
+              "    assert.equal((finalCounts.compare_product_nutrition || 0) - (initialCounts.compare_product_nutrition || 0), 1, `detail nutrition user retry delta unexpected: initial=${JSON.stringify(initialCounts)} final=${JSON.stringify(finalCounts)}`)",
+            ),
+            (
+              "    assert.equal(finalCounts.compare_product_ingredients, 2, `detail ingredient retry count unexpected: ${JSON.stringify(finalCounts)}`)",
+              "    assert.equal((finalCounts.compare_product_ingredients || 0) - (initialCounts.compare_product_ingredients || 0), 1, `detail ingredient user retry delta unexpected: initial=${JSON.stringify(initialCounts)} final=${JSON.stringify(finalCounts)}`)",
+            ),
+            (
+              "    assert.equal(finalCounts.compare_product_nutrition, 2, `compare nutrition retry count unexpected: ${JSON.stringify(finalCounts)}`)",
+              "    assert.equal((finalCounts.compare_product_nutrition || 0) - (initialCounts.compare_product_nutrition || 0), 1, `compare nutrition user retry delta unexpected: initial=${JSON.stringify(initialCounts)} final=${JSON.stringify(finalCounts)}`)",
+            ),
+            (
+              "    await c.wait(`document.querySelector(${js(selector)})`, 'compare keyboard retry')\n    const tab = await tabTo(c, selector);",
+              "    await c.wait(`document.querySelector(${js(selector)})`, 'compare keyboard retry')\n    const initialCounts = counts(c.pausedLog)\n    const tab = await tabTo(c, selector);",
+            ),
+            (
+              "    assert.equal(finalCounts.compare_product_nutrition, 2, `compare keyboard retry count unexpected: ${JSON.stringify(finalCounts)}`)",
+              "    assert.equal((finalCounts.compare_product_nutrition || 0) - (initialCounts.compare_product_nutrition || 0), 1, `compare keyboard user retry delta unexpected: initial=${JSON.stringify(initialCounts)} final=${JSON.stringify(finalCounts)}`)",
+            ),
+            (
+              "    return { tab, focused, focusPng, pendingCounts, finalCounts, finalState, requestLog: c.pausedLog, safety: await safety(c), exceptions: c.exceptions, consoleErrors: c.console.filter(x => x.type === 'error') }",
+              "    return { initialCounts, tab, focused, focusPng, pendingCounts, finalCounts, finalState, requestLog: c.pausedLog, safety: await safety(c), exceptions: c.exceptions, consoleErrors: c.console.filter(x => x.type === 'error') }",
+            ),
+            (
+              "    const view = 'compare_product_nutrition'; let once = false\n    c.setRule(view, () => { if (!once) { once = true; return { kind: 'fulfill', status: 503, body: { message: 'QA injected 503' }, label: 'mock_503' } } return { kind: 'continue' } })",
+              "    const view = 'compare_product_nutrition'\n    c.setRule(view, () => ({ kind: 'fulfill', status: 503, body: { message: 'QA injected 503' }, label: 'mock_503' }))",
+            ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'expected QA source not found: {old[:90]}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
           PY
 
       - name: Install Korean font environment

@@ -40,7 +40,7 @@ jobs:
       - name: Typecheck and build
         run: npm run build
 
-      - name: Normalize QA interception accounting
+      - name: Normalize QA interception accounting and key activation
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -78,6 +78,10 @@ jobs:
             (
               "    const view = 'compare_product_nutrition'; let once = false\n    c.setRule(view, () => { if (!once) { once = true; return { kind: 'fulfill', status: 503, body: { message: 'QA injected 503' }, label: 'mock_503' } } return { kind: 'continue' } })",
               "    const view = 'compare_product_nutrition'\n    c.setRule(view, () => ({ kind: 'fulfill', status: 503, body: { message: 'QA injected 503' }, label: 'mock_503' }))",
+            ),
+            (
+              "async function pressEnter(c) {\n  await c.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 })\n  await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 })\n}",
+              "async function pressEnter(c) {\n  await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\\r', unmodifiedText: '\\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 })\n  await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 })\n}",
             ),
           ]
           for old, new in replacements:

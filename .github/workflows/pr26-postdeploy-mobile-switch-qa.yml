@@ -1,0 +1,44 @@
+name: PR26 postdeploy mobile SWITCH QA
+
+on:
+  push:
+    branches:
+      - 'qa/pr26-postdeploy-mobile-switch-20260912'
+
+permissions:
+  contents: read
+
+jobs:
+  postdeploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_SHA: 963a3b6591965ef144294f0f1d9521033adeea95
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match deployed merge
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Confirm live project-site path
+        run: |
+          curl -fsSL https://osrm.github.io/catfood_web/ -o /tmp/live-index.html
+          grep -q '/catfood_web/assets/' /tmp/live-index.html
+      - name: Run narrow live browser QA
+        run: node .github/pr26-postdeploy-mobile-switch-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr26-postdeploy-mobile-switch-qa
+          path: qa-artifacts/
+          if-no-files-found: warn

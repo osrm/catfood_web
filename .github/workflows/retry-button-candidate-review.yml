@@ -1,0 +1,72 @@
+name: Retry button candidate review
+
+on:
+  push:
+    branches:
+      - qa/retry-button-candidate-20260912
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: e1eb0d7459f2ac6dabd5593e456bff8d72734e96
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify product sources match product head
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure public candidate environment
+        run: cp .env.example .env.local
+
+      - name: Run existing tests
+        run: npm test
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Start localhost candidate
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/catfood-preview.log 2>&1 &
+          echo $! >/tmp/catfood-preview.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/catfood-preview.log
+          exit 1
+
+      - name: Run candidate browser review
+        run: node .github/retry-button-candidate-review.mjs
+
+      - name: Upload review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-button-candidate-review
+          path: qa-artifacts/retry-button-candidate/
+          if-no-files-found: warn
+          retention-days: 90

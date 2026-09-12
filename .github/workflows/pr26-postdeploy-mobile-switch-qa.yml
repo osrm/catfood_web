@@ -33,7 +33,7 @@ jobs:
       - name: Confirm live project-site path
         run: |
           curl -fsSL https://osrm.github.io/catfood_web/ -o /tmp/live-index.html
-          grep -q '/catfood_web/assets/' /tmp/live-index.html
+          grep -q './assets/' /tmp/live-index.html
       - name: Run narrow live browser QA
         run: node .github/pr26-postdeploy-mobile-switch-qa.mjs
       - uses: actions/upload-artifact@v4

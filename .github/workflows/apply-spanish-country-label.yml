@@ -1,0 +1,41 @@
+name: Apply Spanish country label fix
+
+on:
+  push:
+    branches:
+      - qa/apply-spanish-country-label-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: af8b3d01689ab5e2985f1a89256a0bc1a8aef7c5
+      PRODUCT_BRANCH: fix/spanish-country-label-20260912
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Apply exact product change
+        run: |
+          git checkout -B "$PRODUCT_BRANCH" "$TARGET_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/ProductDetail.tsx')
+          text = path.read_text()
+          old = "const COUNTRY_LABELS: Record<string, string> = { KR: '한국', US: '미국', CA: '캐나다', GB: '영국', AU: '호주', NZ: '뉴질랜드', NL: '네덜란드', TH: '태국', DE: '독일', FR: '프랑스', IT: '이탈리아', CZ: '체코', AT: '오스트리아', JP: '일본' }"
+          new = "const COUNTRY_LABELS: Record<string, string> = { KR: '한국', US: '미국', CA: '캐나다', GB: '영국', AU: '호주', NZ: '뉴질랜드', NL: '네덜란드', TH: '태국', DE: '독일', FR: '프랑스', IT: '이탈리아', CZ: '체코', AT: '오스트리아', JP: '일본', ES: '스페인' }"
+          if text.count(old) != 1:
+              raise SystemExit('expected COUNTRY_LABELS line not found exactly once')
+          path.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "src/ProductDetail.tsx"
+          git diff -- src/ProductDetail.tsx
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/ProductDetail.tsx
+          git commit -m "fix: label Spain in product detail"
+          git push --force-with-lease origin HEAD:"$PRODUCT_BRANCH"

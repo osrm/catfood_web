@@ -1,0 +1,50 @@
+name: PR24 mobile compare QA
+
+on:
+  push:
+    branches:
+      - qa/pr24-mobile-compare-column-width-20260912
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    env:
+      TARGET_SHA: 430622a2fad1dc240e872f1c4828a057becc98ed
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match PR head
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - name: Install and build exact candidate
+        run: |
+          cp .env.example .env.local
+          npm ci
+          npm run build
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Start candidate preview
+        run: |
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr24-preview.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/catfood_web/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/pr24-preview.log
+          exit 1
+      - name: Run mobile compare regression QA
+        run: node .github/pr24-mobile-compare-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr24-mobile-compare-qa
+          path: qa-artifacts/
+          if-no-files-found: warn

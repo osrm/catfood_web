@@ -1,0 +1,54 @@
+name: Search input path review
+
+on:
+  push:
+    branches:
+      - qa/search-input-path-review-20260912
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: b5218c85269e25a2250de88d65a15a4f27fae98c
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify product sources match deployed main
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Confirm deployed Pages responds
+        run: |
+          curl -fsS https://osrm.github.io/catfood_web/ >/tmp/catfood-pages.html
+          grep -Eq '(src|href)="\./assets/' /tmp/catfood-pages.html
+
+      - name: Run browser input review
+        run: node .github/search-input-path-review.mjs
+
+      - name: Upload review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-input-path-review
+          path: qa-artifacts/search-input-path-review/
+          if-no-files-found: warn
+          retention-days: 90

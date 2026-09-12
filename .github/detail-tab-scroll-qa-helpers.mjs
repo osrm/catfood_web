@@ -164,5 +164,8 @@ export async function network(c) {
 export function cleanup(proc, dir, c) {
   c?.close()
   try { proc?.kill('SIGTERM') } catch {}
-  setTimeout(() => { try { if (proc?.exitCode == null) proc.kill('SIGKILL') } catch {}; rmSync(dir, { recursive: true, force: true }) }, 150)
+  setTimeout(() => {
+    try { if (proc?.exitCode == null) proc.kill('SIGKILL') } catch {}
+    try { rmSync(dir, { recursive: true, force: true }) } catch {}
+  }, 150)
 }

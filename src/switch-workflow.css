@@ -6,12 +6,6 @@
   font-size: 13px;
 }
 
-.switch-workflow-shell .research-brand:focus-visible,
-.switch-workflow-shell .mode-button:focus-visible {
-  outline: 3px solid rgba(22, 61, 53, 0.28);
-  outline-offset: 2px;
-}
-
 .switch-image-placeholder {
   display: flex;
   align-items: center;

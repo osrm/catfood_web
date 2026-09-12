@@ -52,7 +52,7 @@ jobs:
           cat /tmp/pr28-http.log
           exit 1
       - name: Run focused browser QA
-        run: node .github/pr28-mobile-explore-panel-qa.mjs
+        run: node .github/pr28-mobile-explore-panel-qa-v2.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -11,34 +11,42 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     env:
       TARGET_SHA: 430622a2fad1dc240e872f1c4828a057becc98ed
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Verify product sources match PR head
         run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
-      - name: Install and build exact candidate
-        run: |
-          cp .env.example .env.local
-          npm ci
-          npm run build
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - name: Install Korean font environment
         run: |
-          sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-cache -f
           fc-match ':lang=ko'
           /usr/bin/google-chrome --version
-      - name: Start candidate preview
+      - name: Build exact review candidate
+        run: npm run build
+      - name: Serve candidate under Pages base path
         run: |
-          nohup npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr24-preview.log 2>&1 &
-          for i in $(seq 1 60); do
+          mkdir -p qa-site/catfood_web
+          cp -R dist/. qa-site/catfood_web/
+          python3 -m http.server 4173 --directory qa-site >/tmp/pr24-http.log 2>&1 &
+          echo $! >/tmp/pr24-http.pid
+          for i in $(seq 1 50); do
             if curl -fsS http://127.0.0.1:4173/catfood_web/ >/dev/null; then exit 0; fi
-            sleep 1
+            sleep 0.1
           done
-          cat /tmp/pr24-preview.log
+          cat /tmp/pr24-http.log
           exit 1
       - name: Run mobile compare regression QA
         run: node .github/pr24-mobile-compare-qa.mjs

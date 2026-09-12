@@ -196,4 +196,8 @@
     max-height: 280px;
     word-break: break-word;
   }
+
+  .research-shell.is-browsing .research-workspace:has(.condition-actions) .research-filters {
+    max-height: none;
+  }
 }

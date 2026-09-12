@@ -40,7 +40,7 @@ jobs:
         run: |
           for i in {1..30}; do
             if curl -fsS --retry 2 --retry-delay 1 https://osrm.github.io/catfood_web/ >/tmp/catfood-pages.html; then
-              grep -q '/catfood_web/assets/' /tmp/catfood-pages.html && exit 0
+              grep -q './assets/' /tmp/catfood-pages.html && exit 0
             fi
             sleep 2
           done

@@ -295,11 +295,11 @@ function SwitchTopbar({
 }) {
   return (
     <header className="research-topbar">
-      <button className="research-brand" type="button" onClick={onHome}>FELINE ARCHIVE</button>
+      <button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={onHome}>FELINE ARCHIVE</button>
       <nav className="mode-nav" aria-label="탐색 모드">
         <button className="mode-button" type="button" onClick={() => onModeChange('explore')}>조건으로 찾기</button>
         <button className="mode-button" type="button" onClick={() => onModeChange('lookup')}>제품 찾기</button>
-        <button className="mode-button is-active" type="button">현재 사료</button>
+        <button className="mode-button is-active" type="button" aria-current="page">현재 사료</button>
       </nav>
       <div className="research-status">
         <span>{productCount || '—'} PRODUCTS</span>

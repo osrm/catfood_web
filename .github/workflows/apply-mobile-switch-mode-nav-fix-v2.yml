@@ -1,7 +1,7 @@
 name: Apply mobile SWITCH mode navigation fix v2
 
 on:
-  push:
+  pull_request:
     branches:
       - 'qa/apply-mobile-switch-mode-nav-fix-v2-20260912'
 
@@ -15,6 +15,7 @@ jobs:
     env:
       BASE_SHA: ff81a953ec67ae18e5f27d96b85b47109dd5ab30
       PRODUCT_BRANCH: fix/mobile-switch-mode-nav-accessibility-20260912
+      PATCH_BRANCH: qa/apply-mobile-switch-mode-nav-fix-v2-20260912
     steps:
       - uses: actions/checkout@v5
         with:
@@ -23,8 +24,10 @@ jobs:
       - name: Verify untouched product branch
         run: test "$(git rev-parse HEAD)" = "$BASE_SHA"
       - name: Apply approved three-file patch
-        run: python3 <(git show origin/qa/apply-mobile-switch-mode-nav-fix-v2-20260912:.github/apply-mobile-switch-mode-nav-fix-v2.py)
-        shell: bash
+        run: |
+          git fetch origin "$PATCH_BRANCH"
+          git show "FETCH_HEAD:.github/apply-mobile-switch-mode-nav-fix-v2.py" > /tmp/apply-mobile-switch-fix.py
+          python3 /tmp/apply-mobile-switch-fix.py
       - name: Verify patch scope
         run: |
           git diff --check

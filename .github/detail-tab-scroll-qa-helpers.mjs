@@ -13,6 +13,8 @@ export class Cdp {
     this.id = 1
     this.pending = new Map()
     this.requests = []
+    this.responses = []
+    this.loadingFailures = []
   }
   async connect() {
     this.ws = new WebSocket(this.url)
@@ -25,6 +27,23 @@ export class Cdp {
       const message = JSON.parse(event.data)
       if (message.method === 'Network.requestWillBeSent') {
         this.requests.push({ requestId: message.params.requestId, url: message.params.request.url, method: message.params.request.method })
+      }
+      if (message.method === 'Network.responseReceived') {
+        this.responses.push({
+          requestId: message.params.requestId,
+          url: message.params.response.url,
+          status: message.params.response.status,
+          mimeType: message.params.response.mimeType,
+          type: message.params.type,
+        })
+      }
+      if (message.method === 'Network.loadingFailed') {
+        this.loadingFailures.push({
+          requestId: message.params.requestId,
+          errorText: message.params.errorText,
+          canceled: Boolean(message.params.canceled),
+          type: message.params.type,
+        })
       }
       if (!message.id) return
       const pending = this.pending.get(message.id)
@@ -133,10 +152,32 @@ export async function setStageBottom(c) {
   return c.eval(`(()=>{const n=document.querySelector('.detail-stage');if(!n)return null;n.scrollTop=Math.max(0,n.scrollHeight-n.clientHeight);return{scrollTop:n.scrollTop,max:Math.max(0,n.scrollHeight-n.clientHeight)}})()`)
 }
 
+export async function waitForHttpResponse(c, urlFragment, timeoutMs = 30000) {
+  const end = Date.now() + timeoutMs
+  while (Date.now() < end) {
+    const response = c.responses.find((item) => item.url.includes(urlFragment))
+    if (response) return response
+    const request = c.requests.find((item) => item.url.includes(urlFragment))
+    if (request) {
+      const failure = c.loadingFailures.find((item) => item.requestId === request.requestId)
+      if (failure) throw new Error(`request failed ${urlFragment}: ${failure.errorText}`)
+    }
+    await sleep(100)
+  }
+  const observed = c.requests.filter((item) => item.url.includes(urlFragment))
+  throw new Error(`HTTP response not observed for ${urlFragment}; requests=${JSON.stringify(observed)}`)
+}
+
 export async function network(c) {
   const sentAnalytics = c.requests.filter((item) => item.url.includes('/functions/v1/decision-intake'))
   const sentWrites = c.requests.filter((item) => item.url.includes('gnosbstdatkytsyxuapt.supabase.co') && !['GET', 'HEAD', 'OPTIONS'].includes(item.method))
-  return { blocked: await c.eval(`({analytics:window.__qaBlockedAnalytics||0,writes:window.__qaBlockedWrites||0})`), sentAnalytics, sentWrites, publicReads: c.requests.filter((item) => item.url.includes('gnosbstdatkytsyxuapt.supabase.co') && item.method === 'GET').length }
+  return {
+    blocked: await c.eval(`({analytics:window.__qaBlockedAnalytics||0,writes:window.__qaBlockedWrites||0})`),
+    sentAnalytics,
+    sentWrites,
+    publicReads: c.requests.filter((item) => item.url.includes('gnosbstdatkytsyxuapt.supabase.co') && item.method === 'GET').length,
+    publicResponses: c.responses.filter((item) => item.url.includes('gnosbstdatkytsyxuapt.supabase.co')).map((item) => ({ url: item.url, status: item.status, type: item.type })),
+  }
 }
 
 export function cleanup(proc, dir, c) {

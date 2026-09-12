@@ -175,12 +175,10 @@ export async function pointer(c, selector, text = null, index = 0) {
 
 export async function typeInput(c, selector, value) {
   await pointer(c, selector)
-  await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers: 2 })
-  await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: 2 })
-  await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace' })
-  await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace' })
-  await c.send('Input.insertText', { text: value })
-  await sleep(300)
+  const actual = await c.eval(`(()=>{const n=document.querySelector(${js(selector)});if(!n)return null;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return null;setter.call(n,${js(value)});n.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${js(value)}}));n.dispatchEvent(new Event('change',{bubbles:true}));return n.value})()`)
+  assert.equal(actual, value, `input value mismatch for ${selector}`)
+  await c.wait(`document.querySelector(${js(selector)})?.value===${js(value)}`, `input state ${selector}`, 5000)
+  await sleep(350)
 }
 
 export async function wheelTo(c, targetY) {

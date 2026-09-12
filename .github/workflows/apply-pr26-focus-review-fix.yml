@@ -1,0 +1,42 @@
+name: Apply PR26 focus review fix
+
+on:
+  pull_request:
+    branches:
+      - 'qa/apply-mobile-switch-mode-nav-fix-v2-20260912'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_PRODUCT_SHA: e5156da66023029498006d89472dc482b98f17cd
+      PRODUCT_BRANCH: fix/mobile-switch-mode-nav-accessibility-20260912
+      PATCH_BRANCH: qa/apply-mobile-switch-mode-nav-fix-v2-20260912
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.PRODUCT_BRANCH }}
+          fetch-depth: 0
+      - name: Verify reviewed product head
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_PRODUCT_SHA"
+      - name: Remove low-contrast focus override
+        run: |
+          git fetch origin "$PATCH_BRANCH"
+          git show "FETCH_HEAD:.github/remove-pr26-focus-override.py" > /tmp/remove-pr26-focus-override.py
+          python3 /tmp/remove-pr26-focus-override.py
+      - name: Verify review-fix scope
+        run: |
+          git diff --check
+          test "$(git diff --name-only)" = 'src/switch-workflow.css'
+          git diff -- src/switch-workflow.css
+      - name: Commit product review fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/switch-workflow.css
+          git commit -m 'fix: preserve contrasting keyboard focus'
+          git push origin "HEAD:$PRODUCT_BRANCH"

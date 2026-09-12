@@ -49,7 +49,7 @@ async function waitDetailSettled(c, label = 'detail resources settled') {
 }
 
 async function catalogPreflight(c, product, selector) {
-  const response = await waitForHttpResponse(c, '/rest/v1/effective_product_catalog_summary', 30000)
+  const response = await waitForHttpResponse(c, '/rest/v1/effective_product_catalog_summary', 30000, 'GET')
   const request = c.requests.find((item) => item.requestId === response.requestId) ?? null
   assert.equal(request?.method, 'GET', `catalog request was not GET: ${JSON.stringify(request)}`)
   assert.equal(response.status, 200, `catalog GET failed with HTTP ${response.status}: ${response.url}`)
@@ -94,7 +94,8 @@ async function enterDetail(c, product, { waitForData = true, detailLatencyMs = 0
   await c.wait(`document.querySelector('.detail-stage')`, `detail stage ${product.id}`)
   await c.wait(`document.querySelector('#detail-tab-overview')?.getAttribute('aria-selected')==='true'`, `detail overview ${product.id}`)
   if (waitForData) await waitDetailSettled(c)
-  const detail = await c.eval(`(()=>({url:location.href,params:Object.fromEntries(new URLSearchParams(location.search)),loading:[...document.querySelectorAll('.detail-status-grid strong')].map(n=>(n.textContent||'').trim())}))()`)
+  const detail = await c.eval(`(()=>({title:document.querySelector('.detail-identity h1')?.textContent?.trim()??null,url:location.href,params:Object.fromEntries(new URLSearchParams(location.search)),loading:[...document.querySelectorAll('.detail-status-grid strong')].map(n=>(n.textContent||'').trim())}))()`)
+  assert.equal(detail.title, product.query, 'detail identity does not match selected product')
   assert.equal(detail.params.detail, product.id, 'detail URL missing product')
   assert.equal(detail.params.compare, COMPARE_IDS, 'detail entry lost compare selection')
   assert.equal(detail.params.compareOpen, undefined, 'detail entry unexpectedly opened compare view')
@@ -177,8 +178,7 @@ async function pointerScenario(width, height, product, mobile = true) {
       sameTab = { moved, before: beforeSame, after: afterSame }
     }
 
-    const net = await verifyNetwork(c, prefix)
-    return { width, height, mobile, product, chrome: launched.version, entry, initial, nutritionEntry, firstBottom, toIngredients, ingredientsBottom, toNutrition, sameTab, network: net }
+    return { width, height, mobile, product, chrome: launched.version, entry, initial, nutritionEntry, firstBottom, toIngredients, ingredientsBottom, toNutrition, sameTab, network: await verifyNetwork(c, prefix) }
   } finally {
     cleanup(launched.proc, launched.dir, c)
   }
@@ -193,43 +193,26 @@ async function keyboardScenario() {
     await setStageBottom(c)
     await c.eval(`document.querySelector('#detail-tab-nutrition').focus({preventScroll:true})`)
 
-    await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight' })
-    await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight' })
-    await c.wait(`document.querySelector('#detail-tab-ingredients')?.getAttribute('aria-selected')==='true'`, 'keyboard ArrowRight ingredients')
-    const arrowRight = await detailGeometry(c)
-    assertPanelStartVisible(arrowRight, 'keyboard ArrowRight nutrition -> ingredients')
-    assert.equal(arrowRight.activeElement, 'detail-tab-ingredients', 'keyboard ArrowRight did not keep focus on selected tab')
-    const arrowRightFile = `${OUT}/360x844-keyboard-arrowright-immediate.png`
-    await c.shot(arrowRightFile)
+    const results = {}
+    for (const step of [
+      ['ArrowRight', 'ArrowRight', 'ingredients', 'arrowRight'],
+      ['ArrowLeft', 'ArrowLeft', 'nutrition', 'arrowLeft'],
+      ['Home', 'Home', 'overview', 'home'],
+      ['End', 'End', 'context', 'end'],
+    ]) {
+      const [key, code, tab, name] = step
+      await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code })
+      await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code })
+      await c.wait(`document.querySelector('#detail-tab-${tab}')?.getAttribute('aria-selected')==='true'`, `keyboard ${key} ${tab}`)
+      const metric = await detailGeometry(c)
+      assertPanelStartVisible(metric, `keyboard ${key} -> ${tab}`)
+      assert.equal(metric.activeElement, `detail-tab-${tab}`, `keyboard ${key} did not keep focus on selected tab`)
+      const file = `${OUT}/360x844-keyboard-${name.toLowerCase()}-immediate.png`
+      await c.shot(file)
+      results[name] = { metric, file }
+    }
 
-    await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowLeft', code: 'ArrowLeft' })
-    await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowLeft', code: 'ArrowLeft' })
-    await c.wait(`document.querySelector('#detail-tab-nutrition')?.getAttribute('aria-selected')==='true'`, 'keyboard ArrowLeft nutrition')
-    const arrowLeft = await detailGeometry(c)
-    assertPanelStartVisible(arrowLeft, 'keyboard ArrowLeft ingredients -> nutrition')
-    assert.equal(arrowLeft.activeElement, 'detail-tab-nutrition', 'keyboard ArrowLeft did not keep focus on selected tab')
-    const arrowLeftFile = `${OUT}/360x844-keyboard-arrowleft-immediate.png`
-    await c.shot(arrowLeftFile)
-
-    await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Home', code: 'Home' })
-    await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Home', code: 'Home' })
-    await c.wait(`document.querySelector('#detail-tab-overview')?.getAttribute('aria-selected')==='true'`, 'keyboard Home overview')
-    const home = await detailGeometry(c)
-    assertPanelStartVisible(home, 'keyboard Home -> overview')
-    assert.equal(home.activeElement, 'detail-tab-overview', 'keyboard Home did not keep focus on selected tab')
-    const homeFile = `${OUT}/360x844-keyboard-home-immediate.png`
-    await c.shot(homeFile)
-
-    await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End' })
-    await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End' })
-    await c.wait(`document.querySelector('#detail-tab-context')?.getAttribute('aria-selected')==='true'`, 'keyboard End context')
-    const end = await detailGeometry(c)
-    assertPanelStartVisible(end, 'keyboard End -> context')
-    assert.equal(end.activeElement, 'detail-tab-context', 'keyboard End did not keep focus on selected tab')
-    const endFile = `${OUT}/360x844-keyboard-end-immediate.png`
-    await c.shot(endFile)
-
-    return { entry, nutritionEntry, arrowRight, arrowLeft, home, end, files: [arrowRightFile, arrowLeftFile, homeFile, endFile], network: await verifyNetwork(c, 'keyboard') }
+    return { entry, nutritionEntry, ...results, network: await verifyNetwork(c, 'keyboard') }
   } finally {
     cleanup(launched.proc, launched.dir, c)
   }
@@ -240,7 +223,6 @@ async function summaryButtonScenario() {
   const c = launched.c
   try {
     const entry = await enterDetail(c, GO, { waitForData: true })
-
     const nutritionButtonSource = await scrollSummaryButtonIntoView(c, '영양 정보 보기')
     await clickVisibleNoScroll(c, '.detail-status-action button', '영양 정보 보기')
     await c.wait(`document.querySelector('#detail-tab-nutrition')?.getAttribute('aria-selected')==='true'`, 'summary nutrition selected')
@@ -323,31 +305,33 @@ async function parentAndCompareScenario() {
     assert.equal(returnedQuickView.params.selected, GO.id, 'detail return lost selected product')
     assert.equal(returnedQuickView.params.detail, undefined, 'detail return retained detail product')
     assert.equal(returnedQuickView.params.detailTab, undefined, 'detail return retained detail tab')
-    assert.ok(returnedQuickView.quickView, `detail return did not restore selected-product quick view: ${JSON.stringify(returnedQuickView)}`)
+    assert.equal(returnedQuickView.quickView, GO.query, 'detail return did not restore selected-product quick view')
 
     const compareParentUrl = compareUrl()
     await c.nav(compareParentUrl)
     await c.wait(`document.querySelector('.compare-stage')`, 'compare parent stage')
     await c.wait(`document.querySelector('#compare-tab-ingredients')?.getAttribute('aria-selected')==='true'`, 'compare ingredients tab preserved')
-    const compareBeforeDetail = await c.eval(`(()=>({params:Object.fromEntries(new URLSearchParams(location.search)),activeTab:document.querySelector('.compare-tabs [aria-selected="true"]')?.id??null,detailLinks:document.querySelectorAll('.compare-detail-link').length,url:location.href}))()`)
+    const compareBeforeDetail = await c.eval(`(()=>({params:Object.fromEntries(new URLSearchParams(location.search)),activeTab:document.querySelector('.compare-tabs [aria-selected="true"]')?.id??null,firstProduct:document.querySelector('.compare-product-head .compare-product-copy strong')?.textContent?.trim()??null,detailLinks:document.querySelectorAll('.compare-detail-link').length,url:location.href}))()`)
     assert.equal(compareBeforeDetail.params.compareOpen, '1', 'compare parent was not open')
     assert.equal(compareBeforeDetail.params.compareTab, 'ingredients', 'compare parent tab was not ingredients')
     assert.equal(compareBeforeDetail.params.compare, COMPARE_IDS, 'compare parent lost selection')
+    assert.ok(compareBeforeDetail.firstProduct, 'compare parent first product identity missing')
     assert.ok(compareBeforeDetail.detailLinks >= 2, `compare detail links missing: ${JSON.stringify(compareBeforeDetail)}`)
 
     await clickVisibleNoScroll(c, '.compare-detail-link', '상세 보기')
     await c.wait(`document.querySelector('.detail-stage')`, 'detail opened from compare parent')
-    const compareDetailEntry = await c.eval(`Object.fromEntries(new URLSearchParams(location.search))`)
-    assert.equal(compareDetailEntry.compareOpen, '1', 'compare detail entry lost compare-open state')
-    assert.equal(compareDetailEntry.compareTab, 'ingredients', 'compare detail entry lost compare tab')
-    assert.equal(compareDetailEntry.compare, COMPARE_IDS, 'compare detail entry lost compare selection')
-    assert.equal(compareDetailEntry.detail, GO.id, 'compare detail entry opened unexpected product')
+    const compareDetailEntry = await c.eval(`(()=>({params:Object.fromEntries(new URLSearchParams(location.search)),title:document.querySelector('.detail-identity h1')?.textContent?.trim()??null,url:location.href}))()`)
+    assert.equal(compareDetailEntry.title, compareBeforeDetail.firstProduct, 'compare detail opened a product different from the clicked first comparison item')
+    assert.equal(compareDetailEntry.params.compareOpen, '1', 'compare-local detail changed compare-open URL state')
+    assert.equal(compareDetailEntry.params.compareTab, 'ingredients', 'compare-local detail changed compare tab URL state')
+    assert.equal(compareDetailEntry.params.compare, COMPARE_IDS, 'compare-local detail changed compare selection URL state')
+    assert.equal(compareDetailEntry.params.detail, undefined, 'compare-local detail unexpectedly wrote global detail URL state')
 
     const compareDetailTransition = await selectTabAndCapture(c, {
       from: 'overview',
       to: 'ingredients',
       file: `${OUT}/390x900-compare-parent-detail-ingredients-immediate.png`,
-      label: 'compare parent detail overview -> ingredients',
+      label: 'compare parent local detail overview -> ingredients',
     })
     await clickVisibleNoScroll(c, '.detail-topbar > button', '돌아가기')
     await c.wait(`!document.querySelector('.detail-stage')&&document.querySelector('.compare-stage')`, 'detail compare parent return')
@@ -356,8 +340,8 @@ async function parentAndCompareScenario() {
     assert.equal(returnedCompare.params.compareTab, 'ingredients', 'return to compare lost compare tab')
     assert.equal(returnedCompare.params.compare, COMPARE_IDS, 'return to compare lost selected products')
     assert.equal(returnedCompare.params.selected, GO.id, 'return to compare lost selected product')
-    assert.equal(returnedCompare.params.detail, undefined, 'return to compare retained detail product')
-    assert.equal(returnedCompare.params.detailTab, undefined, 'return to compare retained detail tab')
+    assert.equal(returnedCompare.params.detail, undefined, 'return to compare unexpectedly gained global detail product')
+    assert.equal(returnedCompare.params.detailTab, undefined, 'return to compare unexpectedly gained global detail tab')
     assert.equal(returnedCompare.activeTab, 'compare-tab-ingredients', 'compare UI did not restore ingredients tab')
 
     return {
@@ -371,6 +355,7 @@ async function parentAndCompareScenario() {
       compareDetailEntry,
       compareDetailTransition,
       returnedCompare,
+      compareDetailStateContract: 'CompareView detail is local component state; global URL remains compareOpen/compareTab/compare selections.',
       network: await verifyNetwork(c, 'parent/compare'),
     }
   } finally {

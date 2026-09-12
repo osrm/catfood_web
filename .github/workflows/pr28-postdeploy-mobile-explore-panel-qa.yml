@@ -1,0 +1,44 @@
+name: PR28 postdeploy mobile EXPLORE panel QA
+
+on:
+  push:
+    branches:
+      - 'qa/pr28-postdeploy-mobile-explore-panel-20260912'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_SHA: d7080165e1bffe4cbe93eb69f3dc2f85d90c42ae
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match deployed merge SHA
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Confirm live Pages path
+        run: |
+          curl -fsS --retry 5 --retry-delay 2 https://osrm.github.io/catfood_web/ >/tmp/pr28-live-index.html
+          grep -q './assets/' /tmp/pr28-live-index.html
+      - name: Run focused live browser QA
+        run: node .github/pr28-postdeploy-mobile-explore-panel-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr28-postdeploy-mobile-explore-panel-qa
+          path: qa-artifacts/
+          if-no-files-found: warn

@@ -6,6 +6,12 @@
   font-size: 13px;
 }
 
+.switch-workflow-shell .research-brand:focus-visible,
+.switch-workflow-shell .mode-button:focus-visible {
+  outline: 3px solid rgba(22, 61, 53, 0.28);
+  outline-offset: 2px;
+}
+
 .switch-image-placeholder {
   display: flex;
   align-items: center;
@@ -1026,18 +1032,42 @@
 }
 
 @media (max-width: 760px) {
-  .switch-workflow-shell {
+  .research-shell.switch-workflow-shell {
     min-height: 100vh;
     height: auto;
+    grid-template-rows: 104px minmax(0, 1fr);
   }
 
   .switch-workflow-shell .research-topbar {
+    min-height: 104px;
     grid-template-columns: 1fr auto;
+    grid-template-rows: 56px 48px;
+    gap: 0;
     padding: 0 18px;
   }
 
-  .switch-workflow-shell .mode-nav {
-    display: none;
+  .research-shell.switch-workflow-shell .research-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .research-shell.switch-workflow-shell .mode-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: stretch;
+    gap: 0;
+    min-width: 0;
+    overflow: visible;
+    border-top: 1px solid var(--research-line);
+  }
+
+  .research-shell.switch-workflow-shell .mode-button {
+    min-width: 0;
+    height: 48px;
+    padding: 0 6px;
+    white-space: nowrap;
   }
 
   .switch-workflow-shell .research-status {

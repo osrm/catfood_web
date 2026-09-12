@@ -51,6 +51,8 @@ jobs:
           done
           cat /tmp/pr26-http.log
           exit 1
+      - name: Prepare QA-only assertions
+        run: python3 .github/pr26-qa-hotfix.py
       - name: Run browser regression QA
         run: node .github/pr26-mobile-switch-mode-nav-qa.mjs
       - uses: actions/upload-artifact@v4

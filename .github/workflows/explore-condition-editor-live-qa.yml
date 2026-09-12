@@ -1,0 +1,44 @@
+name: EXPLORE condition editor live QA
+
+on:
+  push:
+    branches:
+      - 'qa/explore-condition-editor-review-20260912'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARGET_SHA: 963a3b6591965ef144294f0f1d9521033adeea95
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify product sources match deployed main
+        run: git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Confirm live Pages responds
+        run: |
+          curl -fsSL https://osrm.github.io/catfood_web/ -o /tmp/live-index.html
+          test -s /tmp/live-index.html
+      - name: Run focused live browser QA
+        run: node .github/explore-condition-editor-live-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: explore-condition-editor-live-qa
+          path: qa-artifacts/explore-condition-editor/
+          if-no-files-found: warn

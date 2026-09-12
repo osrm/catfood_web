@@ -41,7 +41,7 @@ const RECIPE_LABELS: Record<string, string> = {
   skipjack_tuna: '가다랑어(Skipjack tuna)', southern_blue_whiting: '남방청대구', tuna_roe: '참치알', wallaby: '왈라비',
   wild_boar: '야생 멧돼지',
 }
-const COUNTRY_LABELS: Record<string, string> = { KR: '한국', US: '미국', CA: '캐나다', GB: '영국', AU: '호주', NZ: '뉴질랜드', NL: '네덜란드', TH: '태국', DE: '독일', FR: '프랑스', IT: '이탈리아', CZ: '체코', AT: '오스트리아', JP: '일본' }
+const COUNTRY_LABELS: Record<string, string> = { KR: '한국', US: '미국', CA: '캐나다', GB: '영국', AU: '호주', NZ: '뉴질랜드', NL: '네덜란드', TH: '태국', DE: '독일', FR: '프랑스', IT: '이탈리아', CZ: '체코', AT: '오스트리아', JP: '일본', ES: '스페인' }
 const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = { calcium: '칼슘', phosphorus: '인', magnesium: '마그네슘', taurine: '타우린' }
 const BASIS_NUTRIENT_LABELS: Record<string, string> = { protein: '단백질', fat: '지방', fiber: '조섬유', moisture: '수분', ash: '조회분' }
 const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = { energy: '열량', protein: '조단백질', fat: '조지방', fiber: '조섬유', moisture: '수분', ash: '조회분', additional_nutrients: '추가 영양성분' }

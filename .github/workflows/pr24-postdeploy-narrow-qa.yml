@@ -32,7 +32,7 @@ jobs:
           fc-match ':lang=ko'
           /usr/bin/google-chrome --version
       - name: Run narrow live Pages review
-        run: node .github/pr24-postdeploy-narrow-qa.mjs
+        run: node .github/pr24-postdeploy-narrow-qa-v2.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

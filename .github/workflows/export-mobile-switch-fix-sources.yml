@@ -1,0 +1,24 @@
+name: Export mobile switch fix sources
+
+on:
+  push:
+    branches:
+      - qa/export-mobile-switch-fix-sources-20260912
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ff81a953ec67ae18e5f27d96b85b47109dd5ab30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-switch-fix-sources
+          path: |
+            src/App.tsx
+            src/SwitchFlow.tsx
+            src/switch-workflow.css

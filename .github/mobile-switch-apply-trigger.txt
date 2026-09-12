@@ -1,0 +1,1 @@
+Trigger the isolated QA apply workflow for the approved mobile SWITCH navigation patch.

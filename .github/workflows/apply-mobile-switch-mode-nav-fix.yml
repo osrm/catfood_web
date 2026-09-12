@@ -1,0 +1,108 @@
+name: Apply mobile switch navigation fix
+
+on:
+  push:
+    branches:
+      - qa/apply-mobile-switch-mode-nav-fix-20260912
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/mobile-switch-mode-nav-accessibility-20260912
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Apply minimal source changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app = Path('src/App.tsx')
+          text = app.read_text()
+          old = '<button className="research-brand" type="button" onClick={goHome}>FELINE ARCHIVE</button>'
+          new = '<button aria-label="CATFOOD 홈으로 이동" className="research-brand" type="button" onClick={goHome}>FELINE ARCHIVE</button>'
+          assert text.count(old) == 1, text.count(old)
+          app.write_text(text.replace(old, new))
+
+          switch = Path('src/SwitchFlow.tsx')
+          text = switch.read_text()
+          old_brand = '<button className="research-brand" type="button" onClick={onHome}>FELINE ARCHIVE</button>'
+          new_brand = '<button aria-label="CATFOOD 홈으로 이동" className="research-brand" type="button" onClick={onHome}>FELINE ARCHIVE</button>'
+          old_current = '<button className="mode-button is-active" type="button">현재 사료</button>'
+          new_current = '<button aria-current="page" className="mode-button is-active" type="button">현재 사료</button>'
+          assert text.count(old_brand) == 1, text.count(old_brand)
+          assert text.count(old_current) == 1, text.count(old_current)
+          text = text.replace(old_brand, new_brand).replace(old_current, new_current)
+          switch.write_text(text)
+
+          css = Path('src/switch-workflow.css')
+          text = css.read_text()
+          old = '''  .switch-workflow-shell {
+            min-height: 100vh;
+            height: auto;
+          }
+
+          .switch-workflow-shell .research-topbar {
+            grid-template-columns: 1fr auto;
+            padding: 0 18px;
+          }
+
+          .switch-workflow-shell .mode-nav {
+            display: none;
+          }
+'''
+          new = '''  .switch-workflow-shell {
+            min-height: 100vh;
+            height: auto;
+            grid-template-rows: auto minmax(0, 1fr);
+          }
+
+          .switch-workflow-shell .research-topbar {
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto auto;
+            padding: 10px 18px 0;
+          }
+
+          .switch-workflow-shell .mode-nav {
+            display: flex;
+            grid-column: 1 / -1;
+            width: 100%;
+            height: 48px;
+            justify-content: stretch;
+            gap: 0;
+          }
+
+          .switch-workflow-shell .mode-button {
+            min-width: 0;
+            height: 48px;
+            flex: 1 1 0;
+            padding: 0 4px;
+            white-space: nowrap;
+          }
+'''
+          assert text.count(old) == 1, text.count(old)
+          css.write_text(text.replace(old, new))
+          PY
+          git diff --check
+          git diff -- src/App.tsx src/SwitchFlow.tsx src/switch-workflow.css
+      - name: Validate existing frontend checks
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Commit fix branch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/App.tsx src/SwitchFlow.tsx src/switch-workflow.css
+          git commit -m "fix: expose mobile switch mode navigation"
+          git push origin HEAD:fix/mobile-switch-mode-nav-accessibility-20260912

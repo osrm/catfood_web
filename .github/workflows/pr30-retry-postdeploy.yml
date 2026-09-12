@@ -1,0 +1,60 @@
+name: PR30 retry postdeploy check
+
+on:
+  push:
+    branches:
+      - qa/pr30-retry-postdeploy-20260912
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-qa:
+    runs-on: ubuntu-latest
+    env:
+      MERGE_SHA: af8b3d01689ab5e2985f1a89256a0bc1a8aef7c5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify product sources match deployed merge
+        run: git diff --exit-code "$MERGE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Wait for deployed Pages UI
+        run: |
+          for i in {1..30}; do
+            if curl -fsS --retry 2 --retry-delay 1 https://osrm.github.io/catfood_web/ >/tmp/catfood-pages.html; then
+              grep -q '/catfood_web/assets/' /tmp/catfood-pages.html && exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/catfood-pages.html || true
+          exit 1
+
+      - name: Run deployed UI browser mock validation
+        run: node .github/pr30-retry-postdeploy.mjs
+
+      - name: Upload postdeploy review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr30-retry-postdeploy
+          path: qa-artifacts/pr30-retry-postdeploy/
+          if-no-files-found: warn
+          retention-days: 90

@@ -61,7 +61,9 @@ jobs:
         run: |
           set -euo pipefail
           sed -i "s/assert.equal(initial360.toggle.display, 'grid')/assert.notEqual(initial360.toggle.display, 'none')/" .github/pr33-mobile-explore-disclosure.mjs
+          sed -i "s/type: 'rawKeyDown'/type: 'keyDown'/" .github/pr33-mobile-explore-disclosure.mjs
           grep -F "assert.notEqual(initial360.toggle.display, 'none')" .github/pr33-mobile-explore-disclosure.mjs
+          grep -F "type: 'keyDown'" .github/pr33-mobile-explore-disclosure.mjs
           node .github/pr33-mobile-explore-disclosure.mjs
 
       - name: Upload review evidence

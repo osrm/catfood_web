@@ -57,7 +57,7 @@ function assertLayout(value,{width,active,mobile}){
 
 async function waitMode(c,mode){
   if(mode==='lookup') return c.wait(`document.querySelector('.lookup-input')`,'lookup')
-  if(mode==='explore') return c.wait(`document.querySelector('.research-workspace')&&!document.querySelector('.switch-find-stage,.switch-step-layout,.switch-results-stage')`,'explore')
+  if(mode==='explore') return c.wait(`document.querySelector('.research-workspace')&&document.querySelector('.condition-group-title')&&!document.querySelector('.lookup-input')&&!document.querySelector('.switch-find-stage,.switch-step-layout,.switch-results-stage')`,'explore')
   return c.wait(`document.querySelector('.switch-find-stage,.switch-step-layout,.switch-results-stage')`,'switch')
 }
 
@@ -65,8 +65,14 @@ async function route(c,label,mode){
   const click=await pointer(c,'.mode-nav .mode-button',label)
   await waitMode(c,mode)
   const state=await urlState(c)
-  assert.equal(new URLSearchParams(state.search).get('mode'),mode,`URL mode after ${label}`)
-  return{click,state}
+  const nav=await topbar(c)
+  const active=nav.buttons.filter(button=>button.ariaCurrent==='page')
+  assert.equal(active.length,1,`aria-current count after ${label}`)
+  assert.equal(active[0]?.text,label,`active mode after ${label}`)
+  const actualMode=new URLSearchParams(state.search).get('mode')
+  const expectedMode=mode==='explore'?null:mode
+  assert.equal(actualMode,expectedMode,`URL mode after ${label}`)
+  return{click,state,active:active[0],topbar:nav}
 }
 
 async function modeCycle(c,width,{shots=false}={}){

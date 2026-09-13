@@ -129,8 +129,14 @@ async function setupRealSwitchState(c){
   assert.ok(keepText,'KEEP choice unavailable')
   await pointer(c,'button.switch-choice.wide',keepText)
   const state=await readSwitch(c),visible=await visibleSwitch(c),url=await urlState(c)
-  assert.ok(state?.currentProductId,'real product id missing');assert.ok(state?.currentVariantId,'real variant id missing');assert.equal(state?.change?.brand,true,'CHANGE missing');assert.ok(visible.sku&&!visible.sku.includes('확인 중'),'real SKU missing')
-  return{product,skuOption,keepText,state,visible,url}
+  const variantId=state?.variantSelection?.kind==='variant'?state.variantSelection.variantId:null
+  const keepSelected=Boolean(state?.keepBrand||state?.keep?.feedType||state?.keep?.lifeStage||state?.keep?.grainFree||state?.keep?.officialTargets?.length||state?.keep?.features?.length||state?.keep?.recipeFamilies?.length)
+  assert.ok(state?.currentProductId,`real product id missing: ${JSON.stringify(state)}`)
+  assert.ok(variantId,`real variant id missing: ${JSON.stringify(state?.variantSelection)}`)
+  assert.equal(state?.changeBrand,true,`CHANGE brand selection missing: ${JSON.stringify(state)}`)
+  assert.ok(keepSelected,`KEEP selection missing: ${JSON.stringify(state?.keep)}`)
+  assert.ok(visible.sku&&!visible.sku.includes('확인 중'),'real SKU missing')
+  return{product,skuOption,keepText,state,visible,url,variantId}
 }
 
 async function roundtripState(c){

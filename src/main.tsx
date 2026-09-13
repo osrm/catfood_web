@@ -27,6 +27,7 @@ import './stitch-final-polish.css'
 import './stitch-final-polish-fixes.css'
 import './explore-package-polish.css'
 import './consumer-navigation.css'
+import './explore-condition-disclosure.css'
 
 function syncCompareScroll(event: Event) {
   const target = event.target

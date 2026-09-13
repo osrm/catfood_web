@@ -1,0 +1,201 @@
+name: PR33 final mobile EXPLORE review
+
+on:
+  push:
+    branches:
+      - qa/pr33-mobile-explore-final-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 5f390344aa93b8dd9a90650165d19dca6ddc4305
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: 'true'
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm QA branch only adds review harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$PRODUCT_SHA"..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/pr33-mobile-explore-disclosure.mjs'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/pr33-mobile-explore-final.yml'
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build candidate with analytics enabled but intercepted
+        run: |
+          npm run build
+          grep -Eq '(src|href)="\./assets/' dist/index.html
+          mkdir -p qa-server/catfood_web
+          cp -R dist/. qa-server/catfood_web/
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Patch stable helper for final review assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr33-mobile-explore-disclosure.mjs')
+          text = path.read_text()
+
+          def replace_once(old, new, label):
+              global text
+              if old not in text:
+                  raise SystemExit(f'missing patch target: {label}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "assert.equal(initial360.toggle.display, 'grid')",
+              "assert.notEqual(initial360.toggle.display, 'none')",
+              'mobile disclosure display',
+          )
+          replace_once(
+              "await c.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: keyName, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers })",
+              "await c.send('Input.dispatchKeyEvent', { type: keyName === 'Enter' ? 'keyDown' : 'rawKeyDown', key: keyName, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers, ...(keyName === 'Enter' ? { text: '\\r', unmodifiedText: '\\r' } : {}) })",
+              'native Enter keyboard event',
+          )
+          replace_once(
+              "ariaExpanded:toggle.getAttribute('aria-expanded'),text:",
+              "ariaExpanded:toggle.getAttribute('aria-expanded'),ariaControls:toggle.getAttribute('aria-controls'),text:",
+              'aria-controls measurement',
+          )
+          replace_once(
+              "desktopTitle:desktop?{display:getComputedStyle(desktop).display}:null",
+              "desktopTitle:desktop?{display:getComputedStyle(desktop).display,text:(desktop.textContent||'').replace(/\\\\s+/g,' ').trim(),smallDisplay:desktop.querySelector('small')?getComputedStyle(desktop.querySelector('small')).display:null}:null",
+              'additional meaning measurement',
+          )
+          replace_once(
+              "assert.match(initial360.toggle.text, /선택 없음/)",
+              "assert.match(initial360.toggle.text, /선택 없음/)\n  assert.equal(initial360.toggle.ariaControls, 'explore-additional-conditions')\n  assert.notEqual(initial360.desktopTitle.display, 'none')\n  assert.notEqual(initial360.desktopTitle.smallDisplay, 'none')\n  assert.match(initial360.desktopTitle.text, /미확인은 후보에 유지/)\n  assert.doesNotMatch(initial360.toggle.text, /미확인은 후보에 유지/)",
+              'initial mobile meaning assertions',
+          )
+          replace_once(
+              "return{className:a.className,text:(a.textContent||'').replace(/\\\\s+/g,' ').trim(),outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth}",
+              "return{className:a.className,text:(a.textContent||'').replace(/\\\\s+/g,' ').trim(),outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset}",
+              'focus computed style measurement',
+          )
+          replace_once(
+              "assert.notEqual(collapsedKeyboard.outlineStyle, 'none', 'keyboard-focused disclosure needs visible focus')",
+              "assert.equal(collapsedKeyboard.outlineStyle, 'solid', 'keyboard-focused disclosure uses global solid focus ring')\n  assert.equal(collapsedKeyboard.outlineWidth, '2px')\n  assert.equal(collapsedKeyboard.outlineColor, 'rgb(85, 121, 133)')\n  assert.equal(collapsedKeyboard.outlineOffset, '2px')\n  await c.shot(`${OUT}/02-360-keyboard-focus.png`)",
+              'global focus assertions',
+          )
+          replace_once(
+              "assert.ok(open360.panel.visibleButtons > 0)",
+              "assert.ok(open360.panel.visibleButtons > 0)\n  assert.notEqual(open360.desktopTitle.display, 'none')\n  assert.match(open360.desktopTitle.text, /미확인은 후보에 유지/)",
+              'expanded meaning assertion',
+          )
+          replace_once(
+              "`${OUT}/02-360-selected-collapsed.png`",
+              "`${OUT}/03-360-selected-collapsed.png`",
+              'selected screenshot name',
+          )
+          replace_once(
+              "`${OUT}/03-360-edit-restored-expanded.png`",
+              "`${OUT}/04-360-edit-restored-expanded.png`",
+              'restored screenshot name',
+          )
+          replace_once(
+              "await c.shot(`${OUT}/04-360-edit-restored-expanded.png`)",
+              "await c.shot(`${OUT}/04-360-edit-restored-expanded.png`)\n\n  const analyticsBeforeReset = (await networkState(c)).analytics\n  await pointer(c, '초기화')\n  await c.wait(`document.querySelector('.condition-draft-count')?.textContent.includes('0개')`, '360 reset draft count')\n  const reset360 = await measureEditor(c)\n  const reset360Params = new URL(reset360.href).searchParams\n  assert.equal(reset360.toggle.ariaExpanded, 'true', 'reset keeps disclosure state')\n  assert.equal(reset360.countText, '선택한 조건 0개')\n  assert.equal(reset360Params.get('feed'), '건식', 'reset leaves applied feed URL until apply')\n  assert.ok((reset360Params.get('targets') || '').includes('indoor'), 'reset leaves applied additional URL until apply')\n  assert.equal((await networkState(c)).analytics, analyticsBeforeReset, 'reset does not create a search run')",
+              'browser reset contract',
+          )
+          old_390 = """  await pointer(c, '건식')
+  const dry390 = await measureEditor(c)
+  assert.equal(dry390.toggle.ariaExpanded, 'false')
+  assert.equal(dry390.panel.visibleButtons, 0)
+  assert.ok(dry390.apply.minScrollForFull < OLD_APPLY_SCROLL, `390 apply scroll did not improve: ${JSON.stringify(dry390.apply)}`)
+  assertNoHorizontal(dry390, '390 dry collapsed')
+  await pointer(c, '이 조건으로 찾기')
+  await c.wait(`new URLSearchParams(location.search).get('applied')==='1'`, '390 dry apply without disclosure')
+  const dry390Params = new URL(await c.eval('location.href')).searchParams
+  assert.equal(dry390Params.get('feed'), '건식')
+  assert.equal(dry390Params.get('targets'), null)
+"""
+          new_390 = """  await pointer(c, '건식')
+  const dry390 = await measureEditor(c)
+  assert.equal(dry390.toggle.ariaExpanded, 'false')
+  assert.equal(dry390.panel.visibleButtons, 0)
+  assert.notEqual(dry390.desktopTitle.display, 'none')
+  assert.match(dry390.desktopTitle.text, /미확인은 후보에 유지/)
+  assert.ok(dry390.apply.minScrollForFull < OLD_APPLY_SCROLL, `390 apply scroll did not improve: ${JSON.stringify(dry390.apply)}`)
+  assertNoHorizontal(dry390, '390 dry collapsed')
+  await focus(c, '.mobile-additional-toggle')
+  await key(c, 'Enter')
+  await c.wait(`document.querySelector('.mobile-additional-toggle')?.getAttribute('aria-expanded')==='true'`, '390 disclosure open')
+  await pointer(c, '실내묘')
+  assert.equal((await networkState(c)).analytics, 0, '390 disclosure editing does not create analytics')
+  await focus(c, '.mobile-additional-toggle')
+  await key(c, 'Enter')
+  await c.wait(`document.querySelector('.mobile-additional-toggle')?.getAttribute('aria-expanded')==='false'`, '390 disclosure collapsed with selection')
+  const selected390 = await measureEditor(c)
+  assert.match(selected390.summary.text, /실내묘/)
+  assert.equal(selected390.panel.visibleButtons, 0)
+  assertNoHorizontal(selected390, '390 selected collapsed')
+  await pointer(c, '이 조건으로 찾기')
+  await c.wait(`new URLSearchParams(location.search).get('applied')==='1'`, '390 apply with additional condition')
+  const dry390Params = new URL(await c.eval('location.href')).searchParams
+  assert.equal(dry390Params.get('feed'), '건식')
+  assert.equal(dry390Params.get('targets'), 'indoor')
+  assert.equal((await networkState(c)).analytics, 1, '390 apply creates one blocked analytics search run')
+  await pointer(c, '조건 수정')
+  await c.wait(`document.querySelector('.mobile-additional-toggle')?.getAttribute('aria-expanded')==='true'`, '390 edit restore open')
+  const restored390 = await measureEditor(c)
+  assert.equal(restored390.countText, '선택한 조건 2개')
+  assert.equal(await c.eval(`document.querySelector('#explore-additional-conditions .choice[aria-pressed="true"]')?.textContent.trim()`), '실내묘')
+"""
+          replace_once(old_390, new_390, '390 complete mobile flow')
+          replace_once(
+              "assert.equal(value.desktopTitle.display, 'none')",
+              "assert.notEqual(value.desktopTitle.display, 'none')\n      assert.notEqual(value.desktopTitle.smallDisplay, 'none')\n      assert.match(value.desktopTitle.text, /미확인은 후보에 유지/)",
+              '760 meaning boundary',
+          )
+          replace_once(
+              "report.restored360 = restored360",
+              "report.restored360 = restored360\n  report.reset360 = reset360\n  report.focus360 = collapsedKeyboard\n  report.selected390 = selected390\n  report.restored390 = restored390",
+              'final report details',
+          )
+          path.write_text(text)
+          PY
+          grep -F "VITE_DECISION_INTAKE_ENABLED" .github/workflows/pr33-mobile-explore-final.yml
+          grep -F "rgb(85, 121, 133)" .github/pr33-mobile-explore-disclosure.mjs
+          grep -F "미확인은 후보에 유지" .github/pr33-mobile-explore-disclosure.mjs
+
+      - name: Review mobile EXPLORE condition editing
+        run: node .github/pr33-mobile-explore-disclosure.mjs
+
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr33-mobile-explore-final
+          path: qa-artifacts/pr33-mobile-explore-disclosure/
+          if-no-files-found: error
+          retention-days: 90

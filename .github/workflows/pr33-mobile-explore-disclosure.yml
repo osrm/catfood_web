@@ -1,0 +1,69 @@
+name: PR33 mobile EXPLORE review
+
+on:
+  push:
+    branches:
+      - qa/pr33-mobile-explore-disclosure-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 179dd0f076cb5de64de5e39bd7633e47ab370605
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm QA branch only adds review harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$PRODUCT_SHA"..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/pr33-mobile-explore-disclosure.mjs'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/pr33-mobile-explore-disclosure.yml'
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build candidate with Pages public API settings
+        run: |
+          npm run build
+          grep -Eq '(src|href)="\./assets/' dist/index.html
+          mkdir -p qa-server/catfood_web
+          cp -R dist/. qa-server/catfood_web/
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Review mobile EXPLORE condition editing
+        run: node .github/pr33-mobile-explore-disclosure.mjs
+
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr33-mobile-explore-disclosure
+          path: qa-artifacts/pr33-mobile-explore-disclosure/
+          if-no-files-found: error
+          retention-days: 90

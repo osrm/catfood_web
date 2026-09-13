@@ -92,14 +92,19 @@ async function modeCycle(c,width,{shots=false}={}){
 
 async function keyboardCheck(c){
   await c.nav(`${BASE}?view=workspace&mode=switch`);await waitMode(c,'switch')
-  await c.eval(`document.activeElement?.blur()`)
+  const brand=await c.eval(`(()=>{const n=document.querySelector('.research-brand');return n?{tag:n.tagName,tabIndex:n.tabIndex,disabled:Boolean(n.disabled),ariaLabel:n.getAttribute('aria-label')}:null})()`)
+  assert.ok(brand,'brand keyboard target missing')
+  assert.equal(brand.tag,'BUTTON','brand is not a button')
+  assert.ok(brand.tabIndex>=0,'brand removed from tab order')
+  assert.equal(brand.disabled,false,'brand disabled')
+  assert.equal(brand.ariaLabel,'CATFOOD 홈으로 이동','brand aria-label changed')
+  await c.eval(`document.querySelector('.research-brand')?.focus()`)
   const sequence=[]
-  for(let i=0;i<4;i++) sequence.push(await pressTab(c))
-  assert.equal(sequence[0]?.ariaLabel,'CATFOOD 홈으로 이동','first keyboard target')
-  assert.deepEqual(sequence.slice(1).map(x=>x?.text),LABELS,'keyboard mode order')
+  for(let i=0;i<3;i++) sequence.push(await pressTab(c))
+  assert.deepEqual(sequence.map(x=>x?.text),LABELS,'keyboard mode order')
   for(const x of sequence){assert.ok(x?.inViewport,`keyboard target outside viewport ${JSON.stringify(x)}`);assert.notEqual(x?.outlineStyle,'none',`focus outline missing ${JSON.stringify(x)}`);assert.ok(parseFloat(x?.outlineWidth||'0')>=2,`focus outline too small ${JSON.stringify(x)}`)}
-  assert.equal(sequence[3]?.ariaCurrent,'page','focused current mode aria-current')
-  return sequence
+  assert.equal(sequence[2]?.ariaCurrent,'page','focused current mode aria-current')
+  return{brand,sequence}
 }
 
 async function setupRealSwitchState(c){

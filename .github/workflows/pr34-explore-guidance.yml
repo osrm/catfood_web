@@ -1,0 +1,81 @@
+name: PR34 EXPLORE guidance QA
+
+on:
+  push:
+    branches:
+      - qa/pr34-explore-guidance-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 265dad2fa1479c9897f2678bf9b3eb4d7f9da5bd
+      QA_BASE: http://127.0.0.1:4173/
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm QA branch only adds browser harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$PRODUCT_SHA" HEAD
+          mapfile -t changed < <(git diff --name-only "$PRODUCT_SHA"..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/pr34-explore-guidance.mjs'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/pr34-explore-guidance.yml'
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build product head
+        shell: bash
+        run: |
+          cp .env.example .env.local
+          npm run build
+          rm -f .env.local
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Serve candidate build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/pr34-vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "$QA_BASE" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/pr34-vite.log
+          exit 1
+
+      - name: Review 360px EXPLORE guidance
+        run: node .github/pr34-explore-guidance.mjs
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr34-explore-guidance
+          path: qa-artifacts/pr34-explore-guidance/
+          if-no-files-found: error
+          retention-days: 90

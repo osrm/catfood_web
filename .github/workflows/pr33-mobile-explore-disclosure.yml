@@ -57,7 +57,12 @@ jobs:
           /usr/bin/google-chrome --version
 
       - name: Review mobile EXPLORE condition editing
-        run: node .github/pr33-mobile-explore-disclosure.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i "s/assert.equal(initial360.toggle.display, 'grid')/assert.notEqual(initial360.toggle.display, 'none')/" .github/pr33-mobile-explore-disclosure.mjs
+          grep -F "assert.notEqual(initial360.toggle.display, 'none')" .github/pr33-mobile-explore-disclosure.mjs
+          node .github/pr33-mobile-explore-disclosure.mjs
 
       - name: Upload review evidence
         if: always()

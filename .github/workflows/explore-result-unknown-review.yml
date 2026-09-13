@@ -1,0 +1,56 @@
+name: EXPLORE result unknown review
+
+on:
+  push:
+    branches:
+      - qa/explore-result-unknown-review-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_MAIN: 7fd488d226eba38080c73b95b6e4735f868a0bf7
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm QA branch only adds review harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_MAIN"..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/explore-result-unknown-review.mjs'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/explore-result-unknown-review.yml'
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Review live EXPLORE confirmed and unknown candidates
+        run: node .github/explore-result-unknown-review.mjs
+
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: explore-result-unknown-review
+          path: qa-artifacts/explore-result-unknown-review/
+          if-no-files-found: error
+          retention-days: 90

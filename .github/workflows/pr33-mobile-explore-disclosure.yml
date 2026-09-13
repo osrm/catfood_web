@@ -60,10 +60,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sed -i "s/assert.equal(initial360.toggle.display, 'grid')/assert.notEqual(initial360.toggle.display, 'none')/" .github/pr33-mobile-explore-disclosure.mjs
-          sed -i "s/type: 'rawKeyDown'/type: 'keyDown'/" .github/pr33-mobile-explore-disclosure.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr33-mobile-explore-disclosure.mjs')
+          text = path.read_text()
+          text = text.replace(
+              "assert.equal(initial360.toggle.display, 'grid')",
+              "assert.notEqual(initial360.toggle.display, 'none')",
+          )
+          old = "await c.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: keyName, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers })"
+          new = "await c.send('Input.dispatchKeyEvent', { type: keyName === 'Enter' ? 'keyDown' : 'rawKeyDown', key: keyName, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers, ...(keyName === 'Enter' ? { text: '\\r', unmodifiedText: '\\r' } : {}) })"
+          if old not in text:
+              raise SystemExit('expected keyboard helper source not found')
+          path.write_text(text.replace(old, new))
+          PY
           grep -F "assert.notEqual(initial360.toggle.display, 'none')" .github/pr33-mobile-explore-disclosure.mjs
-          grep -F "type: 'keyDown'" .github/pr33-mobile-explore-disclosure.mjs
+          grep -F "unmodifiedText" .github/pr33-mobile-explore-disclosure.mjs
           node .github/pr33-mobile-explore-disclosure.mjs
 
       - name: Upload review evidence

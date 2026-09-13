@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { after, before, test } from 'node:test'
+import { after, afterEach, before, beforeEach, test } from 'node:test'
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -7,7 +7,7 @@ import { build } from 'vite'
 import { JSDOM } from 'jsdom'
 import { act, createElement } from 'react'
 
-const dom = new JSDOM('<div id="root"></div>', { url: 'https://catfood.test/?view=workspace&applied=1' })
+const dom = new JSDOM('<div id="root"></div>', { url: 'https://catfood.test/' })
 globalThis.window = dom.window
 globalThis.document = dom.window.document
 globalThis.sessionStorage = dom.window.sessionStorage
@@ -101,32 +101,48 @@ async function waitForUi(predicate, message) {
   })
 }
 
+const searchRuns = () => requests.filter((request) => request.kind === 'search-run')
+const buttons = () => [...document.querySelectorAll('button')]
+const button = (text) => buttons().find((element) => element.textContent.includes(text))
+async function click(target) {
+  const element = typeof target === 'string' ? button(target) : target
+  assert.ok(element, `missing button: ${target}`)
+  assert.equal(element.disabled, false)
+  await act(async () => element.click())
+}
+
 before(async () => {
   await mkdir('node_modules/.cache', { recursive: true })
   temp = await mkdtemp(resolve('node_modules/.cache/catfood-restored-explore-'))
   app = await bundle()
+})
+beforeEach(() => {
+  sessionStorage.clear()
+  requests.length = 0
   installFetch()
+  document.body.innerHTML = '<div id="root"></div>'
+  root = createRoot(document.getElementById('root'))
+})
+afterEach(async () => {
+  if (root) await act(async () => root.unmount())
+  root = null
 })
 after(async () => {
-  if (root) await act(async () => root.unmount())
   globalThis.fetch = nativeFetch
   dom.window.close()
   await rm(temp, { recursive: true })
 })
 
 test('direct and popstate-restored applied explore results create analytics runs', async () => {
-  sessionStorage.clear()
-  requests.length = 0
-  document.body.innerHTML = '<div id="root"></div>'
-  root = createRoot(document.getElementById('root'))
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace&applied=1' })
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(
     () => document.querySelectorAll('.research-result-card').length === 40
-      && requests.filter((request) => request.kind === 'search-run').length === 1,
+      && searchRuns().length === 1,
     'direct applied explore results and first search run',
   )
 
-  const firstRun = requests.find((request) => request.kind === 'search-run')
+  const firstRun = searchRuns()[0]
   assert.equal(firstRun.body.mode, 'explore')
   assert.equal(firstRun.body.candidate_count, 45)
   assert.equal(firstRun.body.initial_presented_product_ids.length, 40)
@@ -139,7 +155,7 @@ test('direct and popstate-restored applied explore results create analytics runs
   )
   assert.equal(requests.find((request) => request.kind === 'consideration').body.search_run_id, 'run-1')
 
-  const lookupMode = [...document.querySelectorAll('button')].find((button) => button.textContent.includes('제품 찾기'))
+  const lookupMode = button('제품 찾기')
   assert.ok(lookupMode)
   await act(async () => lookupMode.click())
   await waitForUi(() => document.querySelector('.lookup-input') !== null, 'lookup mode opened')
@@ -148,12 +164,64 @@ test('direct and popstate-restored applied explore results create analytics runs
     window.history.back()
     await waitForUi(
       () => document.querySelectorAll('.research-result-card').length === 40
-        && requests.filter((request) => request.kind === 'search-run').length === 2,
+        && searchRuns().length === 2,
       'applied explore results and new search run restored by popstate',
     )
   })
-  const runs = requests.filter((request) => request.kind === 'search-run')
+  const runs = searchRuns()
   assert.equal(runs.length, 2)
   assert.equal(runs[1].body.mode, 'explore')
   assert.equal(runs[1].body.candidate_count, 45)
+})
+
+test('EXPLORE additional disclosure keeps draft state separate from applied search state', async () => {
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace' })
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => document.querySelector('.mobile-additional-toggle') !== null, 'condition editor rendered')
+
+  const toggle = document.querySelector('.mobile-additional-toggle')
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false', 'new editor starts with additional conditions collapsed')
+  assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 0개/)
+  assert.match(toggle.textContent, /선택 없음/)
+  assert.equal(searchRuns().length, 0)
+
+  const editingUrl = window.location.href
+  await click(toggle)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true')
+  assert.equal(window.location.href, editingUrl, 'disclosure alone does not change navigation')
+  assert.equal(searchRuns().length, 0, 'disclosure alone does not create a search run')
+
+  await click('실내묘')
+  assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 1개/)
+  assert.match(toggle.textContent, /1개 선택/)
+  assert.match(document.querySelector('.mobile-additional-summary').textContent, /실내묘/)
+  assert.equal(searchRuns().length, 0)
+
+  await click(toggle)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false')
+  assert.match(document.querySelector('.mobile-additional-summary').textContent, /실내묘/, 'collapsed summary keeps selected labels visible')
+  assert.equal(button('실내묘').getAttribute('aria-pressed'), 'true', 'collapsing does not clear the selected value')
+
+  await click('이 조건으로 찾기')
+  await waitForUi(() => searchRuns().length === 1 && document.querySelectorAll('.research-result-card').length === 40, 'additional condition applied')
+  const applied = new URL(window.location.href)
+  assert.equal(applied.searchParams.get('applied'), '1')
+  assert.equal(applied.searchParams.get('targets'), 'indoor')
+  assert.ok(searchRuns()[0].body.criteria_snapshot.some((criterion) => criterion.axis === 'official_target' && criterion.value === 'indoor'))
+
+  await click('조건 수정')
+  const restoredToggle = document.querySelector('.mobile-additional-toggle')
+  assert.equal(restoredToggle.getAttribute('aria-expanded'), 'true', 'editing an applied additional condition starts expanded')
+  assert.equal(button('실내묘').getAttribute('aria-pressed'), 'true')
+  assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 1개/)
+  assert.equal(new URL(window.location.href).searchParams.get('targets'), 'indoor')
+
+  const runsBeforeReset = searchRuns().length
+  await click('초기화')
+  assert.equal(restoredToggle.getAttribute('aria-expanded'), 'true', 'reset does not change disclosure state')
+  assert.equal(button('실내묘').getAttribute('aria-pressed'), 'false')
+  assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 0개/)
+  assert.match(restoredToggle.textContent, /선택 없음/)
+  assert.equal(new URL(window.location.href).searchParams.get('targets'), 'indoor', 'reset leaves the applied URL untouched until apply')
+  assert.equal(searchRuns().length, runsBeforeReset, 'reset and disclosure do not create search runs')
 })

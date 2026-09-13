@@ -92,6 +92,18 @@ function compactList(values: string[], labels: Record<string, string>, max = 3) 
   const shown = values.slice(0, max).map((value) => optionLabel(value, labels))
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
 }
+function countAdditionalConditions(search: SearchState) {
+  return search.officialTargets.length + search.features.length + search.recipeFamilies.length + Number(search.grainFree)
+}
+function additionalConditionLabels(search: SearchState) {
+  const values = [
+    ...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)),
+    ...search.features.map((value) => optionLabel(value, FEATURE_LABELS)),
+    ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)),
+  ]
+  if (search.grainFree) values.push('Grain-Free 표기')
+  return values
+}
 function packageOptionsLabel(product: CatalogProduct) {
   const labels = product.available_package_labels ?? []
   if (labels.length) return labels.join(' · ')
@@ -176,6 +188,7 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(initialNavigation.visibleCount)
   const [recipeSearch, setRecipeSearch] = useState('')
   const [mobileRefineOpen, setMobileRefineOpen] = useState(false)
+  const [mobileAdditionalOpen, setMobileAdditionalOpen] = useState(() => countAdditionalConditions(initialNavigation.search) > 0)
   const [compareIds, setCompareIds] = useState<string[]>(initialNavigation.compareIds)
   const [compareOpen, setCompareOpen] = useState(initialNavigation.compareOpen)
   const [compareTab, setCompareTab] = useState<CompareTab>(initialNavigation.compareTab)
@@ -270,6 +283,7 @@ export default function App() {
     setMode(next.mode); setScreen(next.screen); setLookupQuery(next.lookupQuery); setSearch(next.search); setDraftSearch(next.search); setRefine(next.refine)
     setEditingConditions(next.editingConditions); setSelectedId(next.selectedId); setVisibleCount(next.visibleCount); setCompareIds(next.compareIds)
     setCompareOpen(next.compareOpen); setCompareTab(next.compareTab); setDetailProductId(next.detailProductId); setDetailTab(next.detailTab)
+    setMobileAdditionalOpen(next.editingConditions && countAdditionalConditions(next.search) > 0)
     if (restore) pendingRestore.current = restore
   }
   function loadCatalog() {
@@ -496,18 +510,28 @@ export default function App() {
     beginExploreRun(nextSearch, INITIAL_REFINE)
     pushHistory(snapshot({ screen: 'workspace', mode: 'explore', search: nextSearch, refine: INITIAL_REFINE, editingConditions: false, selectedId: null, visibleCount: 40, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
   }
-  function editConditions() { setDraftSearch(search); setSelectedId(null); setEditingConditions(true); replaceHistory(snapshot({ selectedId: null, editingConditions: true })) }
+  function editConditions() {
+    setDraftSearch(search); setSelectedId(null); setEditingConditions(true)
+    setMobileAdditionalOpen(countAdditionalConditions(search) > 0)
+    replaceHistory(snapshot({ selectedId: null, editingConditions: true }))
+  }
   function resetDraft() { setDraftSearch(INITIAL_SEARCH) }
   function changeMode(nextMode: Mode) {
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
     setMode(nextMode); setScreen('workspace'); setVisibleCount(count); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null)
-    if (nextMode === 'explore') setEditingConditions(true)
+    if (nextMode === 'explore') {
+      setEditingConditions(true)
+      setMobileAdditionalOpen(countAdditionalConditions(search) > 0)
+    }
     pushHistory(snapshot({ mode: nextMode, screen: 'workspace', visibleCount: count, selectedId: null, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview', editingConditions: nextMode === 'explore' ? true : editingConditions, lookupQuery: nextMode === 'lookup' ? lookupQuery : '' }))
   }
   function startFromHome(nextMode: Mode, query = '') {
     if (nextMode === 'lookup') setLookupQuery(query)
     if (nextMode === 'switch' && query.trim()) commitSwitchSession((current) => ({ ...current, query }))
-    if (nextMode === 'explore') setEditingConditions(true)
+    if (nextMode === 'explore') {
+      setEditingConditions(true)
+      setMobileAdditionalOpen(countAdditionalConditions(search) > 0)
+    }
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
     setVisibleCount(count); setMode(nextMode); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setScreen('workspace')
     pushHistory(snapshot({ screen: 'workspace', mode: nextMode, lookupQuery: nextMode === 'lookup' ? query : '', editingConditions: nextMode === 'explore' ? true : editingConditions, selectedId: null, visibleCount: count, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
@@ -526,17 +550,29 @@ export default function App() {
     return values
   }
 
-  function renderConditionEditor() { return <>
-    <div className="condition-group-title"><span>기본 조건</span><small>확인된 불일치만 제외</small></div>
-    <FilterSection title="사료 형태" hint="선택 시 필수 조건"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
-    <FilterSection title="대상 연령" hint="제품 라벨 기준"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /><p className="field-note">고양이의 실제 나이를 자동 변환하지 않고 제품이 표시한 연령 구분을 사용합니다.</p></FilterSection>
-    <div className="condition-group-title secondary-group"><span>추가 조건</span><small>미확인은 후보에 유지</small></div>
-    <FilterSection title="제품 표기 대상" hint="여러 개 선택 가능"><FilterButtons options={TARGETS} selected={draftSearch.officialTargets} onToggle={(value) => toggleDraftArray('officialTargets', value)} /></FilterSection>
-    <FilterSection title="제품 특징" hint="제조사 공식 표기 기준"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
-    <FilterSection title="레시피 종류" hint="확인된 정보 기준"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
-    <FilterSection title="레시피 특성" hint="제품의 공식 표기만 확인"><button className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'} type="button" aria-pressed={draftSearch.grainFree} onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기</button><p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p></FilterSection>
-    <div className="condition-actions"><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button></div>
-  </> }
+  function renderConditionEditor() {
+    const additionalCount = countAdditionalConditions(draftSearch)
+    const additionalLabels = additionalConditionLabels(draftSearch)
+    return <>
+      <div className="condition-group-title"><span>기본 조건</span><small>확인된 불일치만 제외</small></div>
+      <FilterSection title="사료 형태" hint="선택 시 필수 조건"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
+      <FilterSection title="대상 연령" hint="제품 라벨 기준"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /><p className="field-note">고양이의 실제 나이를 자동 변환하지 않고 제품이 표시한 연령 구분을 사용합니다.</p></FilterSection>
+      <div className="condition-group-title secondary-group desktop-additional-title"><span>추가 조건</span><small>미확인은 후보에 유지</small></div>
+      <div className="mobile-additional-disclosure">
+        <button className="mobile-additional-toggle" type="button" aria-expanded={mobileAdditionalOpen} aria-controls="explore-additional-conditions" onClick={() => setMobileAdditionalOpen((current) => !current)}>
+          <span>추가 조건</span><small>{additionalCount ? `${additionalCount}개 선택` : '선택 없음'}</small><span className="mobile-additional-chevron" aria-hidden="true">{mobileAdditionalOpen ? '▴' : '▾'}</span>
+        </button>
+        {additionalLabels.length ? <div className="mobile-additional-summary" aria-label="선택한 추가 조건">{additionalLabels.map((value) => <span key={value}>{value}</span>)}</div> : null}
+      </div>
+      <div className={mobileAdditionalOpen ? 'additional-condition-sections is-open' : 'additional-condition-sections'} id="explore-additional-conditions">
+        <FilterSection title="제품 표기 대상" hint="여러 개 선택 가능"><FilterButtons options={TARGETS} selected={draftSearch.officialTargets} onToggle={(value) => toggleDraftArray('officialTargets', value)} /></FilterSection>
+        <FilterSection title="제품 특징" hint="제조사 공식 표기 기준"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
+        <FilterSection title="레시피 종류" hint="확인된 정보 기준"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
+        <FilterSection title="레시피 특성" hint="제품의 공식 표기만 확인"><button className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'} type="button" aria-pressed={draftSearch.grainFree} onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기</button><p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p></FilterSection>
+      </div>
+      <div className="condition-actions"><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button></div>
+    </>
+  }
   function renderConditionSummary() {
     const hasPrimary = countActiveConditions(search) > 0
     return <><div className="condition-summary">
@@ -600,5 +636,5 @@ export default function App() {
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
   const showMobileRefine = mobileRefineOpen && mode === 'explore' && !editingConditions && !selectedProduct && !compareOpen && !detailProductId
   const shellClassName = ['research-shell', selectedProduct ? 'is-inspecting' : 'is-browsing', showMobileRefine ? 'is-mobile-refining' : ''].filter(Boolean).join(' ')
-  return <div className={shellClassName}><header className="research-topbar"><button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span><span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span></div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span></div></div><div className="research-filter-scroll">{renderLeftPane()}</div></aside> : null}<section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div>{mode === 'explore' && !editingConditions && activeConditions > 0 ? <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span> : null}</div><div className="research-results-scroll">{renderResultList()}</div></section>{renderQuickView()}</main>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
+  return <div className={shellClassName}><header className="research-topbar"><button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span><span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span></div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span>{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{renderLeftPane()}</div></aside> : null}<section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div>{mode === 'explore' && !editingConditions && activeConditions > 0 ? <span className="research-results-context">조건과 확인된 제품 정보를 비교해 표시합니다.</span> : null}</div><div className="research-results-scroll">{renderResultList()}</div></section>{renderQuickView()}</main>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
 }

@@ -148,9 +148,39 @@
   .research-shell {
     grid-template-rows: auto auto minmax(0, 1fr);
   }
+
+  .research-shell .mode-nav,
+  .research-shell .mode-button {
+    height: 48px;
+  }
 }
 
 @media (max-width: 760px) {
+  .research-shell:not(.switch-workflow-shell) .research-topbar {
+    min-height: 104px;
+    grid-template-rows: 56px 48px;
+    gap: 0;
+  }
+
+  .research-shell .mode-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: 1 / -1;
+    align-self: stretch;
+    gap: 0;
+    min-width: 0;
+    height: 48px;
+    overflow: visible;
+    border-top: 1px solid var(--research-line);
+  }
+
+  .research-shell .mode-button {
+    min-width: 0;
+    height: 48px;
+    padding: 0 6px;
+    white-space: nowrap;
+  }
+
   .detail-status-grid .detail-fact {
     min-height: 88px;
   }

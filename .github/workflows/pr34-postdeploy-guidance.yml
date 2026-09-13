@@ -1,0 +1,56 @@
+name: PR34 postdeploy guidance QA
+
+on:
+  push:
+    branches:
+      - qa/pr34-postdeploy-guidance-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      MERGE_SHA: 361e96b430b1034aa3ef0ba311c32691c7b694bf
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm QA branch only adds postdeploy harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$MERGE_SHA"..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/pr34-postdeploy-guidance.mjs'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/pr34-postdeploy-guidance.yml'
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Verify deployed EXPLORE guidance
+        run: node .github/pr34-postdeploy-guidance.mjs
+
+      - name: Upload postdeploy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr34-postdeploy-guidance
+          path: qa-artifacts/pr34-postdeploy-guidance/
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,56 @@
+name: PR33 postdeploy narrow QA
+
+on:
+  push:
+    branches:
+      - qa/pr33-postdeploy-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      MERGE_SHA: 7fd488d226eba38080c73b95b6e4735f868a0bf7
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm QA branch only adds postdeploy harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$MERGE_SHA"..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/pr33-postdeploy.mjs'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/pr33-postdeploy.yml'
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Verify deployed mobile EXPLORE path
+        run: node .github/pr33-postdeploy.mjs
+
+      - name: Upload postdeploy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr33-postdeploy
+          path: qa-artifacts/pr33-postdeploy/
+          if-no-files-found: error
+          retention-days: 90

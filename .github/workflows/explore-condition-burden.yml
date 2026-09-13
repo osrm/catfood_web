@@ -1,0 +1,45 @@
+name: Mobile EXPLORE condition review
+
+on:
+  push:
+    branches:
+      - qa/explore-condition-burden-20260913
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_SHA: c6f67e8798e4086da3b947a0180fb3d3657949a9
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Measure deployed mobile EXPLORE flow
+        run: node .github/explore-condition-burden.mjs
+
+      - name: Upload review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: explore-condition-burden
+          path: qa-artifacts/explore-condition-burden/
+          if-no-files-found: error
+          retention-days: 90

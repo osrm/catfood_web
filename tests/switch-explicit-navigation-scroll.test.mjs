@@ -37,11 +37,7 @@ Object.defineProperty(window, 'cancelAnimationFrame', {
 function activeFrameIds() {
   return [...animationFrames.entries()].filter(([, frame]) => !frame.canceled).map(([id]) => id)
 }
-
-function frameState(id) {
-  return animationFrames.get(id) ?? null
-}
-
+function frameState(id) { return animationFrames.get(id) ?? null }
 function runFrame(id, { force = false } = {}) {
   const frame = animationFrames.get(id)
   if (!frame) return false
@@ -50,12 +46,17 @@ function runFrame(id, { force = false } = {}) {
   frame.callback(16)
   return true
 }
-
 function runNextActiveFrame() {
   const [id] = activeFrameIds()
   assert.ok(id, 'expected a scheduled animation frame')
   assert.equal(runFrame(id), true)
   return id
+}
+function drainActiveFrames() {
+  while (activeFrameIds().length) runNextActiveFrame()
+}
+function installDocumentTarget(className = 'switch-step-main') {
+  document.getElementById('root').innerHTML = `<main class="${className}"></main>`
 }
 
 before(async () => {
@@ -86,7 +87,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  for (const id of activeFrameIds()) runFrame(id)
+  drainActiveFrames()
   animationFrames.clear()
 })
 
@@ -115,7 +116,7 @@ test('explicit navigation is owned by SwitchFlow without global click or mutatio
 })
 
 test('mobile step, results, and compare targets reset the document scroll owner', () => {
-  document.getElementById('root').innerHTML = '<main class="switch-step-main"></main>'
+  installDocumentTarget()
   document.documentElement.scrollTop = 643
   assert.equal(helper.resetSwitchExplicitNavigationScroll('keep'), true)
   assert.equal(document.documentElement.scrollTop, 0)
@@ -125,7 +126,7 @@ test('mobile step, results, and compare targets reset the document scroll owner'
   assert.equal(helper.resetSwitchExplicitNavigationScroll('results'), true)
   assert.equal(document.documentElement.scrollTop, 0)
 
-  document.getElementById('root').innerHTML = '<main class="compare-stage"></main>'
+  installDocumentTarget('compare-stage')
   document.documentElement.scrollTop = 347
   assert.equal(helper.resetSwitchExplicitNavigationScroll('compare'), true)
   assert.equal(document.documentElement.scrollTop, 0)
@@ -144,60 +145,100 @@ test('desktop keeps an existing internal scroll owner instead of moving the docu
   assert.equal(document.documentElement.scrollTop, 91)
 })
 
-test('single history traversal keeps manual restoration through the reset frame then restores auto', () => {
+test('single traversal stabilizes the target in one frame and restores the original value in the following frame', () => {
+  installDocumentTarget()
   const traversal = helper.beginSwitchExplicitScrollIntent('change', true)
-  assert.equal(traversal.target, 'change')
   assert.equal(typeof traversal.restorationLeaseId, 'number')
   assert.equal(window.history.scrollRestoration, 'manual')
 
+  document.documentElement.scrollTop = 777
   helper.releaseSwitchExplicitScrollIntent(traversal)
+  assert.equal(activeFrameIds().length, 1)
+  runNextActiveFrame()
+  assert.equal(document.documentElement.scrollTop, 0, 'settle frame reasserts the destination start')
   assert.equal(window.history.scrollRestoration, 'manual')
   assert.equal(activeFrameIds().length, 1)
   runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'auto')
 })
 
-test('a second traversal before the first restore frame inherits the original value and invalidates the stale frame', () => {
+test('a second intent before the first settle frame inherits the original value and invalidates the stale frame', () => {
+  installDocumentTarget()
   const first = helper.beginSwitchExplicitScrollIntent('change', true)
   helper.releaseSwitchExplicitScrollIntent(first)
-  const [firstRestoreFrame] = activeFrameIds()
-  assert.ok(firstRestoreFrame)
-  assert.equal(window.history.scrollRestoration, 'manual')
+  const [staleSettleFrame] = activeFrameIds()
+  assert.ok(staleSettleFrame)
 
+  document.documentElement.scrollTop = 555
   const second = helper.beginSwitchExplicitScrollIntent('sku', true)
   assert.equal(second.restorationLeaseId, first.restorationLeaseId)
-  assert.equal(frameState(firstRestoreFrame)?.canceled, true)
+  assert.equal(frameState(staleSettleFrame)?.canceled, true)
   assert.equal(window.history.scrollRestoration, 'manual')
 
-  assert.equal(runFrame(firstRestoreFrame, { force: true }), true, 'force the stale callback to prove it is harmless')
+  assert.equal(runFrame(staleSettleFrame, { force: true }), true, 'force stale callback to prove generation guard')
+  assert.equal(document.documentElement.scrollTop, 555, 'stale settle frame cannot reset the replacement screen')
   assert.equal(window.history.scrollRestoration, 'manual')
 
   helper.releaseSwitchExplicitScrollIntent(second)
-  assert.equal(activeFrameIds().length, 1)
+  runNextActiveFrame()
+  assert.equal(document.documentElement.scrollTop, 0)
+  assert.equal(window.history.scrollRestoration, 'manual')
   runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'auto')
 })
 
 test('replacing a pending traversal with a direct intent keeps the shared lease until the replacement finishes', () => {
+  installDocumentTarget()
   const previous = helper.beginSwitchExplicitScrollIntent('change', true)
   helper.releaseSwitchExplicitScrollIntent(previous)
-  const [staleRestoreFrame] = activeFrameIds()
-  assert.ok(staleRestoreFrame)
+  const [staleSettleFrame] = activeFrameIds()
+  assert.ok(staleSettleFrame)
 
+  document.getElementById('root').innerHTML = '<main class="switch-results-stage"><div class="switch-candidate-list"></div></main>'
+  document.documentElement.scrollTop = 444
   const replacement = helper.beginSwitchExplicitScrollIntent('results', false)
   assert.equal(replacement.restorationLeaseId, previous.restorationLeaseId)
-  assert.equal(frameState(staleRestoreFrame)?.canceled, true)
-  assert.equal(window.history.scrollRestoration, 'manual')
+  assert.equal(frameState(staleSettleFrame)?.canceled, true)
 
-  assert.equal(runFrame(staleRestoreFrame, { force: true }), true)
+  assert.equal(runFrame(staleSettleFrame, { force: true }), true)
+  assert.equal(document.documentElement.scrollTop, 444)
   assert.equal(window.history.scrollRestoration, 'manual')
 
   helper.releaseSwitchExplicitScrollIntent(replacement)
   runNextActiveFrame()
+  assert.equal(document.documentElement.scrollTop, 0)
+  assert.equal(window.history.scrollRestoration, 'manual')
+  runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'auto')
 })
 
-test('releasing overlapping owners does not restore until the last owner finishes', () => {
+test('a replacement after the settle frame cancels the stale restore frame', () => {
+  installDocumentTarget()
+  const first = helper.beginSwitchExplicitScrollIntent('change', true)
+  helper.releaseSwitchExplicitScrollIntent(first)
+  runNextActiveFrame()
+  const [staleRestoreFrame] = activeFrameIds()
+  assert.ok(staleRestoreFrame)
+
+  document.getElementById('root').innerHTML = '<main class="switch-results-stage"><div class="switch-candidate-list"></div></main>'
+  document.documentElement.scrollTop = 333
+  const second = helper.beginSwitchExplicitScrollIntent('results', false)
+  assert.equal(second.restorationLeaseId, first.restorationLeaseId)
+  assert.equal(frameState(staleRestoreFrame)?.canceled, true)
+
+  assert.equal(runFrame(staleRestoreFrame, { force: true }), true)
+  assert.equal(window.history.scrollRestoration, 'manual', 'stale restore cannot release a new owner')
+  assert.equal(document.documentElement.scrollTop, 333)
+
+  helper.releaseSwitchExplicitScrollIntent(second)
+  runNextActiveFrame()
+  assert.equal(document.documentElement.scrollTop, 0)
+  runNextActiveFrame()
+  assert.equal(window.history.scrollRestoration, 'auto')
+})
+
+test('overlapping owners do not settle or restore until the final owner releases', () => {
+  installDocumentTarget()
   const first = helper.beginSwitchExplicitScrollIntent('change', true)
   const second = helper.beginSwitchExplicitScrollIntent('sku', true)
   assert.equal(second.restorationLeaseId, first.restorationLeaseId)
@@ -209,15 +250,17 @@ test('releasing overlapping owners does not restore until the last owner finishe
   helper.releaseSwitchExplicitScrollIntent(second)
   assert.equal(activeFrameIds().length, 1)
   runNextActiveFrame()
+  assert.equal(window.history.scrollRestoration, 'manual')
+  runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'auto')
 })
 
-test('an original manual scrollRestoration value remains manual after completion or cancellation', () => {
+test('an original manual scrollRestoration value remains manual after completion and direct navigation does not change it', () => {
+  installDocumentTarget()
   window.history.scrollRestoration = 'manual'
   const traversal = helper.beginSwitchExplicitScrollIntent('change', true)
-  assert.equal(window.history.scrollRestoration, 'manual')
-
   helper.releaseSwitchExplicitScrollIntent(traversal)
+  runNextActiveFrame()
   runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'manual')
 
@@ -228,11 +271,13 @@ test('an original manual scrollRestoration value remains manual after completion
   assert.equal(window.history.scrollRestoration, 'manual')
 })
 
-test('release is idempotent so unmount cleanup cannot double-release a restoration lease', () => {
+test('release is idempotent so cancellation or unmount cleanup cannot double-release a lease', () => {
+  installDocumentTarget()
   const traversal = helper.beginSwitchExplicitScrollIntent('change', true)
   helper.releaseSwitchExplicitScrollIntent(traversal)
   helper.releaseSwitchExplicitScrollIntent(traversal)
   assert.equal(activeFrameIds().length, 1)
+  runNextActiveFrame()
   runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'auto')
 })

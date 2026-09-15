@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { isDemoPreview, isRealVisualPreview, isStressPreview } from './preview-mode'
+import { installSwitchExplicitNavigationScroll } from './switch-explicit-navigation-scroll'
 import './styles.css'
 import './refinements.css'
 import './warm-editorial.css'
@@ -37,6 +38,7 @@ function syncCompareScroll(event: Event) {
 }
 
 document.addEventListener('scroll', syncCompareScroll, true)
+installSwitchExplicitNavigationScroll()
 
 async function start() {
   if (import.meta.env.DEV) {

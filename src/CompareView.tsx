@@ -183,7 +183,7 @@ function RelationSummary({ item }: { item: CompareItem }) {
   </div>
 }
 function BaselineSummary() {
-  return <div className="compare-baseline-summary"><strong>현재 사료 · 기준</strong><span>KEEP/CHANGE 조건 판정 대상이 아닙니다.</span></div>
+  return <div className="compare-baseline-summary"><strong>기준 제품</strong></div>
 }
 function CompareRow({ label, items, render, tone }: { label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
   return <div className={`compare-row${tone ? ` is-${tone}` : ''}`} style={{ '--compare-count': items.length } as CSSProperties}><div className="compare-row-label">{label}</div>{items.map((item) => <div className="compare-cell" key={item.product.product_id}>{render(item)}</div>)}</div>
@@ -303,18 +303,14 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ''}${switchOverview ? ' is-switch-overview' : ''}`
   const headerCopy = currentProduct
     ? tab === 'overview'
-      ? `현재 사료와 ${items.length}개 후보의 제품 정보를 비교합니다. 후보는 최대 5개까지 담을 수 있습니다.`
-      : `${items.length}개 후보끼리 비교합니다. 현재 사료는 이 탭의 표에 포함하지 않습니다.`
+      ? `현재 사료와 ${items.length}개 후보의 제품 정보를 같은 항목으로 비교합니다.`
+      : tab === 'nutrition'
+        ? `담아둔 ${items.length}개 후보의 영양 정보를 비교합니다. 현재 사료는 포함하지 않습니다.`
+        : `담아둔 ${items.length}개 후보의 원재료 정보를 비교합니다. 현재 사료는 포함하지 않습니다.`
     : `${items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.`
-  const scopeCopy = tab === 'overview'
-    ? '현재 사료와 후보의 제품 정보를 같은 항목으로 비교합니다.'
-    : tab === 'nutrition'
-      ? '담아둔 후보끼리 영양 정보를 비교합니다. 현재 사료는 이 표에 포함하지 않습니다.'
-      : '담아둔 후보끼리 원재료 정보를 비교합니다. 현재 사료는 이 표에 포함하지 않습니다.'
 
   return <main className={stageClassName}>
     <header className="compare-header"><div><span>COMPARE</span><h1>제품 비교</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>← 제품 목록으로</button></header>
-    {currentProduct ? <section className="compare-scope-note"><strong>{tab === 'overview' ? '개요' : tab === 'nutrition' ? '영양' : '원재료'}</strong><span>{scopeCopy}</span></section> : null}
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button
       key={key} id={`compare-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`compare-panel-${key}`} tabIndex={tab === key ? 0 : -1}
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}
@@ -329,8 +325,6 @@ export default function CompareView({ items, currentProduct, currentVariantText,
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
-          <CompareSection title="현재 사료와 후보 조건" note="현재 사료는 기준 제품이며 KEEP/CHANGE 조건 판정을 붙이지 않습니다." />
-          <SwitchOverviewRow label="조건 관계" currentProduct={currentProduct} items={items} currentValue={() => <BaselineSummary />} candidateValue={(item) => <RelationSummary item={item} />} />
           <CompareSection title="제품 기본 정보" note="제품에 표시된 기본 정보를 같은 항목으로 비교합니다." />
           <SwitchOverviewRow label="사료 형태" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'feedType')} candidateValue={(item) => overviewValue(item.product, 'feedType')} />
           <SwitchOverviewRow label="대상 연령" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'lifeStage')} candidateValue={(item) => overviewValue(item.product, 'lifeStage')} />
@@ -342,19 +336,19 @@ export default function CompareView({ items, currentProduct, currentVariantText,
           <SwitchOverviewRow label="Grain-Free 표기" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'grainFree')} candidateValue={(item) => overviewValue(item.product, 'grainFree')} />
           <SwitchOverviewRow label="판매 규격" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'packages')} candidateValue={(item) => overviewValue(item.product, 'packages')} />
           <SwitchOverviewRow label="제조국" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'country')} candidateValue={(item) => overviewValue(item.product, 'country')} />
+          <CompareSection title="선택한 조건" note="조건 확인 결과는 후보에만 표시합니다." />
+          <SwitchOverviewRow label="후보 조건 확인" currentProduct={currentProduct} items={items} currentValue={() => <BaselineSummary />} candidateValue={(item) => <RelationSummary item={item} />} />
         </div>
 
         {mobileCandidate ? <div className="compare-switch-mobile-overview">
-          <div className="compare-mobile-candidate-picker" role="group" aria-label="표시할 후보">
+          {items.length > 1 ? <div className="compare-mobile-candidate-picker" role="group" aria-label="표시할 후보">
             <span>표시할 후보</span>
-            <div>{items.map((item, index) => <button key={item.product.product_id} type="button" aria-pressed={mobileCandidate.product.product_id === item.product.product_id} className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''} onClick={() => setMobileCandidateId(item.product.product_id)} aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}>{index + 1}. {item.product.brand}</button>)}</div>
-          </div>
+            <div>{items.map((item, index) => <button key={item.product.product_id} data-product-id={item.product.product_id} type="button" aria-pressed={mobileCandidate.product.product_id === item.product.product_id} className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''} onClick={() => setMobileCandidateId(item.product.product_id)} aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}>{item.product.brand} · {item.product.canonical_name}</button>)}</div>
+          </div> : null}
           <div className="compare-mobile-head-grid">
             <MobileProductHead role="현재 사료 · 기준" product={currentProduct} variantText={currentVariantText || '사용 규격 모름'} />
             <MobileProductHead role="표시 중인 후보" product={mobileCandidate.product} onDetail={() => openDetail(mobileCandidate.product.product_id)} onRemove={() => removeComparedProduct(mobileCandidate.product.product_id)} />
           </div>
-          <CompareSection title="현재 사료와 후보 조건" note="현재 사료는 기준 제품이며 조건 판정을 붙이지 않습니다." />
-          <MobileOverviewRow label="조건 관계" current={<BaselineSummary />} candidate={<RelationSummary item={mobileCandidate} />} />
           <CompareSection title="제품 기본 정보" note="같은 항목의 두 값을 나란히 봅니다." />
           <MobileOverviewRow label="사료 형태" current={overviewValue(currentProduct, 'feedType')} candidate={overviewValue(mobileCandidate.product, 'feedType')} />
           <MobileOverviewRow label="대상 연령" current={overviewValue(currentProduct, 'lifeStage')} candidate={overviewValue(mobileCandidate.product, 'lifeStage')} />
@@ -366,6 +360,8 @@ export default function CompareView({ items, currentProduct, currentVariantText,
           <MobileOverviewRow label="Grain-Free 표기" current={overviewValue(currentProduct, 'grainFree')} candidate={overviewValue(mobileCandidate.product, 'grainFree')} />
           <MobileOverviewRow label="판매 규격" current={overviewValue(currentProduct, 'packages')} candidate={overviewValue(mobileCandidate.product, 'packages')} />
           <MobileOverviewRow label="제조국" current={overviewValue(currentProduct, 'country')} candidate={overviewValue(mobileCandidate.product, 'country')} />
+          <CompareSection title="선택한 조건" note="조건 확인 결과는 후보에만 표시합니다." />
+          <MobileOverviewRow label="후보 조건 확인" current={<BaselineSummary />} candidate={<RelationSummary item={mobileCandidate} />} />
         </div> : null}
       </> : <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>

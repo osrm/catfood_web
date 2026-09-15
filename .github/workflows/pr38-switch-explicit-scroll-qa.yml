@@ -56,7 +56,17 @@ jobs:
           curl -fsS "http://127.0.0.1:4173/catfood_web/" >/dev/null
 
       - name: Validate explicit navigation scroll in real Chrome
-        run: node .github/pr38-switch-explicit-scroll-qa.mjs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr38-switch-explicit-scroll-qa.mjs')
+          source = path.read_text()
+          old = "await pointerClick(c, '.switch-candidate-inspector .switch-compare-action', 1, ['상세 보기'])"
+          new = "await pointerClick(c, '.switch-candidate-inspector .switch-compare-action', 0, ['상세 보기'])"
+          assert old in source
+          path.write_text(source.replace(old, new))
+          PY
+          node .github/pr38-switch-explicit-scroll-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

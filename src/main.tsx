@@ -30,14 +30,6 @@ import './explore-package-polish.css'
 import './consumer-navigation.css'
 import './explore-condition-disclosure.css'
 
-function syncCompareScroll(event: Event) {
-  const target = event.target
-  if (!(target instanceof HTMLElement) || !target.classList.contains('compare-table-wrap')) return
-  target.style.setProperty('--compare-scroll-x', `${target.scrollLeft}px`)
-}
-
-document.addEventListener('scroll', syncCompareScroll, true)
-
 async function start() {
   if (import.meta.env.DEV) {
     if (isDemoPreview()) (await import('./demo-preview')).installDemoPreviewFetch()

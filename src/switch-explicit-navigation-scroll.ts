@@ -29,7 +29,7 @@ let pendingSettle: PendingSettle | null = null
 
 function cancelPendingSettle(): void {
   if (!pendingSettle) return
-  window.cancelAnimationFrame(pendingSettle.frame)
+  if (typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(pendingSettle.frame)
   pendingSettle = null
 }
 
@@ -77,6 +77,10 @@ export function resetSwitchExplicitNavigationScroll(target: SwitchExplicitScroll
 
   const current = activeIntent
   if (!current || current.target !== target) return true
+  if (typeof window.requestAnimationFrame !== 'function') {
+    activeIntent = null
+    return true
+  }
 
   cancelPendingSettle()
   const generation = current.generation

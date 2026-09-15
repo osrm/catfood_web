@@ -143,6 +143,8 @@ async function waitCompare(browser, mobile = false) {
   await browser.wait(`document.querySelector('.compare-stage')`, 'compare stage')
   if (mobile) await browser.wait(`getComputedStyle(document.querySelector('.compare-switch-mobile-overview')).display !== 'none'`, 'mobile overview')
   else await browser.wait(`document.querySelector('.compare-current-product-head')`, 'desktop current baseline')
+  const currentSelector = mobile ? '.compare-mobile-product-head.is-current' : '.compare-current-product-head'
+  await browser.wait(`document.querySelector(${js(currentSelector)})?.textContent.includes('사용 규격 · 1 kg')`, 'actual current SKU restored')
 }
 async function sessionState(browser) { return browser.eval(`(() => { const raw=sessionStorage.getItem(${js(STORAGE_KEY)}); return raw ? JSON.parse(raw).state : null })()`) }
 async function pointerClick(browser, selector, containsText = null) {
@@ -159,18 +161,17 @@ async function pointerClick(browser, selector, containsText = null) {
   assert.ok(events?.some((event) => event.type === 'click' && event.isTrusted), 'trusted click missing')
   return { target, events }
 }
-async function browserBack(browser) {
-  const before = await browser.eval('location.href')
+async function browserBack(browser, successExpression, label) {
   await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, nativeVirtualKeyCode: 18, modifiers: 1 })
   await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37, nativeVirtualKeyCode: 37, modifiers: 1 })
   await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37, nativeVirtualKeyCode: 37, modifiers: 1 })
   await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Alt', code: 'AltLeft', windowsVirtualKeyCode: 18, nativeVirtualKeyCode: 18 })
-  for (let i = 0; i < 60; i += 1) { if (await browser.eval(`location.href !== ${js(before)}`)) return 'Alt+Left'; await sleep(100) }
+  for (let i = 0; i < 60; i += 1) { if (await browser.eval(`Boolean(${successExpression})`)) return 'Alt+Left'; await sleep(100) }
   const history = await browser.send('Page.getNavigationHistory')
   const index = history.currentIndex - 1
-  assert.ok(index >= 0, 'browser history has no previous entry')
+  assert.ok(index >= 0, `browser history has no previous entry for ${label}`)
   await browser.send('Page.navigateToHistoryEntry', { entryId: history.entries[index].id })
-  await sleep(350)
+  await browser.wait(successExpression, label)
   return 'Page.navigateToHistoryEntry'
 }
 async function tabTo(browser, expression, label, max = 80) {
@@ -243,8 +244,7 @@ async function scenario360Two(ctx) {
 
     result.detailPointer = await pointerClick(browser, '.compare-mobile-head-actions button', '상세 보기')
     await browser.wait(`document.querySelector('.detail-stage')`, 'candidate detail')
-    result.backMethod = await browserBack(browser)
-    await browser.wait(`document.querySelector('.compare-stage') && !document.querySelector('.detail-stage')`, 'back to compare')
+    result.backMethod = await browserBack(browser, `document.querySelector('.compare-stage') && !document.querySelector('.detail-stage')`, 'back to compare')
     assert.equal((await mobileGeometry(browser)).candidateName, ctx.five[1].canonical_name, 'displayed candidate not preserved after detail roundtrip')
 
     result.removePointer = await pointerClick(browser, '.compare-mobile-head-actions button', '비교에서 제거')
@@ -253,8 +253,7 @@ async function scenario360Two(ctx) {
     assert.deepEqual(afterRemove.compareIds, [ids[0]])
     assert.equal((await mobileGeometry(browser)).candidateName, ctx.five[0].canonical_name)
 
-    result.removeBackMethod = await browserBack(browser)
-    await browser.wait(`document.querySelector('.switch-results-stage') && !document.querySelector('.compare-stage')`, 'back to results after removal')
+    result.removeBackMethod = await browserBack(browser, `document.querySelector('.switch-results-stage') && !document.querySelector('.compare-stage')`, 'back to results after removal')
     const afterBack = await sessionState(browser)
     assert.deepEqual(afterBack.compareIds, [ids[0]], 'removed candidate returned after browser back')
     result.network = await networkReport(browser, ctx.current.product_id)
@@ -286,7 +285,6 @@ async function scenario390Five(ctx) {
   const result = { ids, selected: [] }
   try {
     await waitCompare(browser, true)
-    assert.equal(document, document)
     for (let i = 0; i < 5; i += 1) {
       await pointerClick(browser, `.compare-mobile-candidate-picker button:nth-child(${i + 1})`)
       await browser.wait(`document.querySelector('.compare-mobile-candidate-picker button:nth-child(${i + 1})').getAttribute('aria-pressed')==='true'`, `candidate ${i + 1}`)
@@ -294,10 +292,10 @@ async function scenario390Five(ctx) {
     }
     assert.deepEqual(result.selected, ctx.five.map((row) => row.canonical_name))
     const longIndex = ctx.five.findIndex((row) => row.product_id === ctx.longId)
-    if (longIndex >= 0) await pointerClick(browser, `.compare-mobile-candidate-picker button:nth-child(${longIndex + 1})`)
-    const unknownIndex = ctx.five.findIndex((row) => row.product_id === ctx.unknownId)
-    if (unknownIndex >= 0 && longIndex < 0) await pointerClick(browser, `.compare-mobile-candidate-picker button:nth-child(${unknownIndex + 1})`)
+    assert.ok(longIndex >= 0, 'long candidate missing from five')
+    await pointerClick(browser, `.compare-mobile-candidate-picker button:nth-child(${longIndex + 1})`)
     result.geometry = await mobileGeometry(browser)
+    assert.equal(result.geometry.candidateName, ctx.five[longIndex].canonical_name)
     assert.ok(result.geometry.candidateScroll[0] <= result.geometry.candidateClient[0] + 1, 'long candidate horizontally clipped')
     assert.ok(result.geometry.candidateScroll[1] <= result.geometry.candidateClient[1] + 1, 'long candidate vertically clipped')
     assert.notEqual(result.geometry.candidateTextOverflow, 'ellipsis')
@@ -308,12 +306,11 @@ async function scenario390Five(ctx) {
     result.focusRemove = await tabTo(browser, `document.activeElement?.closest('.compare-mobile-head-actions') && document.activeElement.textContent.includes('비교에서 제거')`, 'remove button')
     result.capture = '390x900-five-long-focus.png'
     await browser.shot(`${OUT}/${result.capture}`)
-    const unknownButtonIndex = unknownIndex + 1
-    if (unknownIndex >= 0) {
-      await pointerClick(browser, `.compare-mobile-candidate-picker button:nth-child(${unknownButtonIndex})`)
-      result.unknownVisible = await browser.eval(`document.querySelector('.compare-switch-mobile-overview').textContent.includes('미확인')`)
-      assert.equal(result.unknownVisible, true, 'unknown candidate does not expose 미확인')
-    }
+    const unknownIndex = ctx.five.findIndex((row) => row.product_id === ctx.unknownId)
+    assert.ok(unknownIndex >= 0, 'unknown candidate missing from five')
+    await pointerClick(browser, `.compare-mobile-candidate-picker button:nth-child(${unknownIndex + 1})`)
+    result.unknownVisible = await browser.eval(`document.querySelector('.compare-switch-mobile-overview').textContent.includes('미확인')`)
+    assert.equal(result.unknownVisible, true, 'unknown candidate does not expose 미확인')
     result.network = await networkReport(browser, ctx.current.product_id)
   } finally { await cleanup(proc, dir, browser) }
   return result

@@ -69,7 +69,7 @@ jobs:
           done
 
       - name: Validate review fixes in real Chrome
-        run: node .github/pr37-review-fixes-final-qa.mjs
+        run: node .github/pr37-review-fixes-final2-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

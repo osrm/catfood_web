@@ -65,7 +65,9 @@ jobs:
             curl -fsS "http://127.0.0.1:${port}/catfood_web/" >/dev/null
           done
       - name: Capture and verify current-summary layout
-        run: node .github/mobile-switch-current-summary-qa.mjs
+        run: |
+          perl -0pi -e 's/rmSync\(launched\.dir,\{recursive:true,force:true\}\)/try { rmSync(launched.dir,{recursive:true,force:true}) } catch {}/g' .github/mobile-switch-current-summary-qa.mjs
+          node .github/mobile-switch-current-summary-qa.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

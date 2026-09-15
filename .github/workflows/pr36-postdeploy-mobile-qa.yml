@@ -1,0 +1,44 @@
+name: PR36 postdeploy mobile QA
+
+on:
+  push:
+    branches:
+      - qa/pr36-postdeploy-20260915
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      MERGE_SHA: de3a19774641a552117e2eff87fa100c2365bbf9
+      QA_PAGE: https://osrm.github.io/catfood_web/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify QA branch preserves deployed product sources
+        run: git diff --exit-code "$MERGE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Validate deployed 360x844 CHANGE path and pointer reselect
+        run: node .github/pr36-postdeploy-mobile-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr36-postdeploy-mobile-qa
+          path: qa-artifacts
+          if-no-files-found: warn

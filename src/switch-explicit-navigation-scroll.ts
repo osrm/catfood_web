@@ -12,6 +12,7 @@ type ScrollRestorationLease = {
   id: number
   original: ScrollRestoration
   owners: number
+  settleFrame: number | null
   restoreFrame: number | null
 }
 
@@ -31,10 +32,15 @@ function canControlScrollRestoration(): boolean {
   return 'scrollRestoration' in window.history
 }
 
-function cancelRestoreFrame(lease: ScrollRestorationLease): void {
-  if (lease.restoreFrame === null) return
-  window.cancelAnimationFrame(lease.restoreFrame)
-  lease.restoreFrame = null
+function cancelPendingFrames(lease: ScrollRestorationLease): void {
+  if (lease.settleFrame !== null) {
+    window.cancelAnimationFrame(lease.settleFrame)
+    lease.settleFrame = null
+  }
+  if (lease.restoreFrame !== null) {
+    window.cancelAnimationFrame(lease.restoreFrame)
+    lease.restoreFrame = null
+  }
 }
 
 export function switchScrollOwner(anchor: HTMLElement): HTMLElement {
@@ -63,13 +69,14 @@ export function beginSwitchExplicitScrollIntent(
       id: nextRestorationLeaseId++,
       original: window.history.scrollRestoration,
       owners: 0,
+      settleFrame: null,
       restoreFrame: null,
     }
     restorationLease = lease
   }
 
   if (lease) {
-    cancelRestoreFrame(lease)
+    cancelPendingFrames(lease)
     lease.owners += 1
     window.history.scrollRestoration = 'manual'
   }
@@ -85,17 +92,25 @@ export function releaseSwitchExplicitScrollIntent(intent: SwitchExplicitScrollIn
   const lease = restorationLease
   if (!lease || lease.id !== intent.restorationLeaseId) return
   lease.owners = Math.max(0, lease.owners - 1)
-  if (lease.owners > 0 || lease.restoreFrame !== null) return
+  if (lease.owners > 0 || lease.settleFrame !== null || lease.restoreFrame !== null) return
 
   const leaseId = lease.id
-  const frame = window.requestAnimationFrame(() => {
+  const settleFrame = window.requestAnimationFrame(() => {
     const activeLease = restorationLease
-    if (!activeLease || activeLease.id !== leaseId || activeLease.restoreFrame !== frame || activeLease.owners !== 0) return
-    activeLease.restoreFrame = null
-    window.history.scrollRestoration = activeLease.original
-    restorationLease = null
+    if (!activeLease || activeLease.id !== leaseId || activeLease.settleFrame !== settleFrame || activeLease.owners !== 0) return
+    activeLease.settleFrame = null
+    resetSwitchExplicitNavigationScroll(intent.target)
+
+    const restoreFrame = window.requestAnimationFrame(() => {
+      const currentLease = restorationLease
+      if (!currentLease || currentLease.id !== leaseId || currentLease.restoreFrame !== restoreFrame || currentLease.owners !== 0) return
+      currentLease.restoreFrame = null
+      window.history.scrollRestoration = currentLease.original
+      restorationLease = null
+    })
+    activeLease.restoreFrame = restoreFrame
   })
-  lease.restoreFrame = frame
+  lease.settleFrame = settleFrame
 }
 
 export function resetSwitchExplicitNavigationScroll(target: SwitchExplicitScrollTarget): boolean {

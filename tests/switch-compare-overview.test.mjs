@@ -70,14 +70,14 @@ const current = product('product_current', '현재브랜드', '현재 사료 이
   recipe_details: ['chicken'],
   manufacturing_country_codes: ['KR'],
 })
-const candidateA = product('product_candidate_a', '후보브랜드A', '첫 번째 후보 제품', {
+const candidateA = product('product_candidate_a', '같은후보브랜드', '첫 번째 후보 제품', {
   feed_type: '습식',
   life_stage: null,
   available_package_labels: ['85 g'],
   recipe_families: ['fish'],
   recipe_details: ['salmon'],
 })
-const candidateB = product('product_candidate_b', '후보브랜드B', '두 번째 후보 제품 이름이 조금 더 깁니다', {
+const candidateB = product('product_candidate_b', '같은후보브랜드', '두 번째 후보 제품 이름이 조금 더 깁니다', {
   feed_type: '습식',
   available_package_labels: ['70 g', '140 g'],
   official_targets: ['indoor'],
@@ -176,6 +176,8 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.equal(currentHead.querySelector('.compare-remove'), null)
   assert.equal(document.querySelectorAll('.compare-switch-overview-desktop .compare-remove').length, 2)
   assert.equal(document.querySelectorAll('.compare-switch-overview-desktop .compare-column-role').length, 3)
+  assert.equal(document.querySelector('.compare-scope-note'), null)
+  assert.match(document.querySelector('.compare-header p').textContent, /현재 사료와 2개 후보의 제품 정보를 같은 항목으로 비교합니다/)
 
   const productFilters = requests.map((url) => url.searchParams.get('product_id')).filter(Boolean)
   assert.ok(productFilters.length >= 4, `expected compare and variant requests, got ${requests.length}`)
@@ -183,14 +185,18 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.ok(productFilters.some((value) => value === 'in.(product_candidate_a,product_candidate_b)'))
 })
 
-test('mobile candidate display stays local, follows compare order, and falls back after selected removal', async () => {
+test('mobile candidate picker identifies same-brand products, preserves order, and falls back after selected removal', async () => {
   const { removed, detailed, baseProps } = await renderCompare()
   const pickerButtons = [...document.querySelectorAll('.compare-mobile-candidate-picker button')]
-  assert.deepEqual(pickerButtons.map((node) => node.textContent.trim()), ['1. 후보브랜드A', '2. 후보브랜드B'])
-  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /후보브랜드A.*첫 번째 후보 제품/s)
+  assert.deepEqual(pickerButtons.map((node) => node.textContent.trim()), [
+    '같은후보브랜드 · 첫 번째 후보 제품',
+    '같은후보브랜드 · 두 번째 후보 제품 이름이 조금 더 깁니다',
+  ])
+  assert.deepEqual(pickerButtons.map((node) => node.dataset.productId), [candidateA.product_id, candidateB.product_id])
+  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /같은후보브랜드.*첫 번째 후보 제품/s)
 
   await click(pickerButtons[1])
-  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /후보브랜드B.*두 번째 후보 제품 이름이 조금 더 깁니다/s)
+  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /같은후보브랜드.*두 번째 후보 제품 이름이 조금 더 깁니다/s)
 
   const detailButton = [...document.querySelectorAll('.compare-mobile-head-actions button')].find((node) => node.textContent.includes('상세 보기'))
   await click(detailButton)
@@ -201,7 +207,22 @@ test('mobile candidate display stays local, follows compare order, and falls bac
   assert.deepEqual(removed, [candidateB.product_id])
   await act(async () => root.render(createElement(app.CompareView, { ...baseProps, items: [items[0]] })))
   await settle()
-  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /후보브랜드A.*첫 번째 후보 제품/s)
+  assert.equal(document.querySelector('.compare-mobile-candidate-picker'), null, 'single candidate should not show a redundant picker')
+  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /같은후보브랜드.*첫 번째 후보 제품/s)
+})
+
+test('SWITCH overview presents product facts before candidate condition results without removing unknown meaning', async () => {
+  await renderCompare()
+  const mobileRows = [...document.querySelectorAll('.compare-switch-mobile-overview .compare-mobile-overview-row')]
+  const desktopRows = [...document.querySelectorAll('.compare-switch-overview-desktop .compare-switch-overview-row')]
+  assert.equal(mobileRows[0].querySelector('.compare-mobile-row-label').textContent.trim(), '사료 형태')
+  assert.equal(desktopRows[0].querySelector('.compare-row-label').textContent.trim(), '사료 형태')
+  assert.equal(mobileRows.at(-1).querySelector('.compare-mobile-row-label').textContent.trim(), '후보 조건 확인')
+  assert.equal(desktopRows.at(-1).querySelector('.compare-row-label').textContent.trim(), '후보 조건 확인')
+  assert.match(mobileRows.at(-1).textContent, /기준 제품/)
+  assert.match(mobileRows.at(-1).textContent, /미확인/)
+  assert.equal(document.body.textContent.includes('KEEP/CHANGE 조건 판정 대상이 아닙니다'), false)
+  assert.equal([...document.querySelectorAll('.compare-section-row')].filter((node) => node.textContent.includes('조건 확인 결과는 후보에만 표시합니다.')).length, 2)
 })
 
 test('nutrition and non-SWITCH compare keep candidate-only scope', async () => {
@@ -209,7 +230,8 @@ test('nutrition and non-SWITCH compare keep candidate-only scope', async () => {
   const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
   await click(nutritionTab)
   await settle()
-  assert.match(document.querySelector('.compare-scope-note').textContent, /현재 사료는 이 표에 포함하지 않습니다/)
+  assert.match(document.querySelector('.compare-header p').textContent, /담아둔 2개 후보의 영양 정보를 비교합니다.*현재 사료는 포함하지 않습니다/s)
+  assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.equal(document.querySelector('.compare-current-product-head'), null)
   assert.equal(document.querySelectorAll('.compare-product-head').length, 2)
 

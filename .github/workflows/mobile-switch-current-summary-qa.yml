@@ -1,0 +1,74 @@
+name: Mobile SWITCH current summary QA
+
+on:
+  push:
+    branches:
+      - qa/mobile-switch-current-summary-20260915
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BASE_SHA: 4ed9a30bc0fcc89a5aeaa122c086a895c892a051
+      PRODUCT_SHA: 0bf6da57580877b9e052e6dd8845d702ab76b30e
+      QA_BASELINE: http://127.0.0.1:4173/catfood_web/
+      QA_CANDIDATE: http://127.0.0.1:4174/catfood_web/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Prepare exact baseline and candidate worktrees
+        run: |
+          git worktree add --detach /tmp/catfood-baseline "$BASE_SHA"
+          git worktree add --detach /tmp/catfood-candidate "$PRODUCT_SHA"
+      - name: Build baseline
+        run: |
+          cd /tmp/catfood-baseline
+          npm ci
+          npm run build
+      - name: Build candidate
+        run: |
+          cd /tmp/catfood-candidate
+          npm ci
+          npm run build
+      - name: Serve baseline and candidate under Pages base path
+        run: |
+          mkdir -p /tmp/qa-baseline/catfood_web /tmp/qa-candidate/catfood_web
+          cp -R /tmp/catfood-baseline/dist/. /tmp/qa-baseline/catfood_web/
+          cp -R /tmp/catfood-candidate/dist/. /tmp/qa-candidate/catfood_web/
+          python3 -m http.server 4173 --directory /tmp/qa-baseline >/tmp/qa-baseline.log 2>&1 &
+          python3 -m http.server 4174 --directory /tmp/qa-candidate >/tmp/qa-candidate.log 2>&1 &
+          for port in 4173 4174; do
+            for i in $(seq 1 50); do
+              if curl -fsS "http://127.0.0.1:${port}/catfood_web/" >/dev/null; then break; fi
+              sleep 0.1
+            done
+            curl -fsS "http://127.0.0.1:${port}/catfood_web/" >/dev/null
+          done
+      - name: Capture and verify current-summary layout
+        run: node .github/mobile-switch-current-summary-qa.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-switch-current-summary-qa
+          path: qa-artifacts
+          if-no-files-found: warn

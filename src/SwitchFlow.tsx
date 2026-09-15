@@ -22,9 +22,11 @@ import {
 } from './switch-session'
 import {
   beginSwitchExplicitScrollIntent,
+  cancelSwitchExplicitScrollSettle,
   releaseSwitchExplicitScrollIntent,
   resetSwitchExplicitNavigationScroll,
   type SwitchExplicitScrollIntent,
+  type SwitchExplicitScrollSettleHandle,
   type SwitchExplicitScrollTarget,
 } from './switch-explicit-navigation-scroll'
 
@@ -658,12 +660,17 @@ export default function SwitchFlow({
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
-  const pendingExplicitScroll = useRef<{ source: SwitchExplicitScrollTarget; intent: SwitchExplicitScrollIntent } | null>(null)
+  const pendingExplicitScroll = useRef<{
+    source: SwitchExplicitScrollTarget
+    intent: SwitchExplicitScrollIntent
+    settle: SwitchExplicitScrollSettleHandle | null
+  } | null>(null)
 
   function releasePendingExplicitScroll() {
     const pending = pendingExplicitScroll.current
     if (!pending) return
     pendingExplicitScroll.current = null
+    if (pending.settle) cancelSwitchExplicitScrollSettle(pending.settle)
     releaseSwitchExplicitScrollIntent(pending.intent)
   }
   function requestExplicitScroll(target: SwitchExplicitScrollTarget, historyTraversal = false) {
@@ -671,6 +678,7 @@ export default function SwitchFlow({
     pendingExplicitScroll.current = {
       source: step,
       intent: beginSwitchExplicitScrollIntent(target, historyTraversal),
+      settle: null,
     }
   }
   function backToStep(nextStep: SwitchStep) {
@@ -871,10 +879,24 @@ export default function SwitchFlow({
       : step === 'results' && compareOpen && compareItems.length > 0
         ? 'compare'
         : step
+    if (pending.settle) {
+      if (renderedTarget !== pending.intent.target) releasePendingExplicitScroll()
+      return
+    }
     if (renderedTarget === pending.intent.target) {
-      pendingExplicitScroll.current = null
-      resetSwitchExplicitNavigationScroll(pending.intent.target)
-      releaseSwitchExplicitScrollIntent(pending.intent)
+      let settle: SwitchExplicitScrollSettleHandle | null = null
+      settle = resetSwitchExplicitNavigationScroll(pending.intent, () => {
+        const current = pendingExplicitScroll.current
+        if (current?.intent === pending.intent && current.settle === settle) {
+          pendingExplicitScroll.current = null
+        }
+      })
+      if (settle) {
+        pending.settle = settle
+      } else if (pendingExplicitScroll.current?.intent === pending.intent) {
+        pendingExplicitScroll.current = null
+        releaseSwitchExplicitScrollIntent(pending.intent)
+      }
       return
     }
     if (renderedTarget !== pending.source) releasePendingExplicitScroll()

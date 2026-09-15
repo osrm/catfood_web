@@ -52,14 +52,18 @@ jobs:
           text = path.read_text()
           old_desktop = """    await visible(c, '.switch-step-actions .switch-primary-action', 0, '.switch-step-main')\n    const before = await scrollInfo(c, '.switch-step-main')\n    assert.ok(before.top > 0, JSON.stringify(before))\n"""
           new_desktop = """    await visible(c, '.switch-step-actions .switch-primary-action', 0, '.switch-step-main')\n    await wheelOwner(c, '.switch-step-main', 120)\n    const before = await scrollInfo(c, '.switch-step-main')\n    assert.ok(before.top > 0, JSON.stringify(before))\n"""
+          old_keep = """    const keepStart = await sampleFrame(c, '.switch-step-main')\n    assert.ok(keepStart.immediate.owner.includes('switch-step-main') && keepStart.afterFrame.owner.includes('switch-step-main'), JSON.stringify(keepStart))\n    assert.ok(keepStart.immediate.top <= 1 && keepStart.afterFrame.top <= 1, JSON.stringify(keepStart))\n    assert.equal(keepStart.immediate.documentTop, 0)\n    assert.equal(keepStart.afterFrame.documentTop, 0)\n"""
+          new_keep = """    const readStepMain = () => c.eval(`(()=>{const n=document.querySelector('.switch-step-main');if(!n)return null;const s=getComputedStyle(n);return{owner:'.switch-step-main',top:n.scrollTop,max:n.scrollHeight-n.clientHeight,overflowY:s.overflowY,documentTop:document.scrollingElement?.scrollTop||0}})()`)\n    const keepImmediate = await readStepMain()\n    await nextFrame(c)\n    const keepAfterFrame = await readStepMain()\n    const keepStart = { immediate: keepImmediate, afterFrame: keepAfterFrame }\n    assert.ok(keepImmediate && keepAfterFrame, JSON.stringify(keepStart))\n    assert.ok(['auto','scroll'].includes(keepImmediate.overflowY) && ['auto','scroll'].includes(keepAfterFrame.overflowY), JSON.stringify(keepStart))\n    assert.ok(keepImmediate.top <= 1 && keepAfterFrame.top <= 1, JSON.stringify(keepStart))\n    assert.equal(keepImmediate.documentTop, 0)\n    assert.equal(keepAfterFrame.documentTop, 0)\n"""
           old_cleanup = """async function cleanup(handle) {\n  handle.c.close()\n  handle.proc.kill('SIGTERM')\n  await sleep(80)\n  if (handle.proc.exitCode == null) handle.proc.kill('SIGKILL')\n  rmSync(handle.dir, { recursive: true, force: true })\n}\n"""
           new_cleanup = """async function cleanup(handle) {\n  handle.c.close()\n  handle.proc.kill('SIGTERM')\n  await sleep(80)\n  if (handle.proc.exitCode == null) handle.proc.kill('SIGKILL')\n  for (let attempt = 0; attempt < 5; attempt++) {\n    try {\n      rmSync(handle.dir, { recursive: true, force: true })\n      return\n    } catch (error) {\n      if (attempt === 4) {\n        console.warn('QA cleanup warning:', String(error))\n        return\n      }\n      await sleep(80)\n    }\n  }\n}\n"""
-          if old_desktop not in text:
-              raise SystemExit('desktop QA patch target not found')
-          if old_cleanup not in text:
-              raise SystemExit('cleanup QA patch target not found')
-          text = text.replace(old_desktop, new_desktop, 1)
-          text = text.replace(old_cleanup, new_cleanup, 1)
+          for name, old, new in [
+              ('desktop', old_desktop, new_desktop),
+              ('keep', old_keep, new_keep),
+              ('cleanup', old_cleanup, new_cleanup),
+          ]:
+              if old not in text:
+                  raise SystemExit(f'{name} QA patch target not found')
+              text = text.replace(old, new, 1)
           path.write_text(text)
           PY
 

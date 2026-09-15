@@ -232,7 +232,7 @@ async function captureStage(c, number, slug) {
       compareCurrent,
       compareCandidate,
       picker,
-      bodyExcerpt: document.body.innerText.replace(/\n{3,}/g, '\n\n').slice(0, 1800),
+      bodyExcerpt: document.body.innerText.slice(0, 1800),
     }
   })()`)
   await c.shot(name)
@@ -333,7 +333,6 @@ try {
   const compareStage = await captureStage(c, 10, 'compare-first')
   report.stages.push(compareStage)
 
-  // Keep the requested deliverable to nine core images: remove the less informative current-selection preview image.
   rmSync(`${OUT}/03-current-product-selected-first.png`, { force: true })
   report.stages = report.stages.filter((stage) => stage.screenshot !== '03-current-product-selected-first.png')
 

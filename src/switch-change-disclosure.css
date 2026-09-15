@@ -1,0 +1,87 @@
+.switch-workflow-shell .switch-change-mobile-criteria {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-change-desktop-criteria {
+    display: none;
+  }
+
+  .switch-workflow-shell .switch-change-mobile-criteria {
+    display: block;
+    max-width: 980px;
+    margin-top: 20px;
+  }
+
+  .switch-workflow-shell .switch-change-additional-disclosure {
+    overflow: hidden;
+    border: 1px solid #e5e9e7;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .switch-workflow-shell .switch-change-additional-toggle {
+    width: 100%;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 0;
+    padding: 13px 15px;
+    background: #fff;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .switch-workflow-shell .switch-change-additional-toggle:hover {
+    background: #f7f9f8;
+  }
+
+  .switch-workflow-shell .switch-change-additional-toggle-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .switch-workflow-shell .switch-change-additional-toggle-copy strong {
+    color: var(--consumer-primary);
+    font-size: 13px;
+    font-weight: 820;
+  }
+
+  .switch-workflow-shell .switch-change-additional-toggle-copy small {
+    color: var(--consumer-dim);
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .switch-workflow-shell .switch-change-additional-state {
+    flex: 0 0 auto;
+    color: var(--consumer-primary-2);
+    font-size: 11px;
+    font-weight: 760;
+  }
+
+  .switch-workflow-shell .switch-change-additional-summary {
+    margin: 0;
+    border-top: 1px solid #edf0ee;
+    padding: 11px 15px 13px;
+    color: var(--consumer-muted);
+    font-size: 11px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+
+  .switch-workflow-shell .switch-change-additional-content {
+    border-top: 1px solid #edf0ee;
+    padding: 14px 14px 0;
+  }
+
+  .switch-workflow-shell .switch-change-additional-content .switch-criterion-section {
+    margin-bottom: 14px;
+  }
+}

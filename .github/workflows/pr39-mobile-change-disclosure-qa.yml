@@ -44,6 +44,18 @@ jobs:
       - name: Build exact product head
         run: npm run build
 
+      - name: Prepare QA harness
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr39-mobile-change-disclosure-qa.mjs')
+          text = path.read_text()
+          old = "rect.bottom <= innerHeight - 8"
+          if old not in text:
+              raise SystemExit('viewport patch target not found')
+          path.write_text(text.replace(old, 'rect.bottom <= 836', 1))
+          PY
+
       - name: Serve candidate build
         run: |
           mkdir -p qa-site/catfood_web

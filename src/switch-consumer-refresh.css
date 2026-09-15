@@ -847,3 +847,73 @@
     word-break: keep-all;
   }
 }
+
+/* Keep the shared current-food summary compact on phones without hiding any context. */
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-reference-rail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 0;
+    padding: 12px 14px;
+  }
+
+  .switch-workflow-shell .switch-reference-label {
+    flex: 0 0 100%;
+    margin: 0 0 4px;
+  }
+
+  .switch-workflow-shell .switch-reference-product {
+    flex: 0 0 100%;
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 10px;
+    padding: 4px 0 10px;
+    border-bottom: 0;
+  }
+
+  .switch-workflow-shell .switch-reference-image,
+  .switch-workflow-shell .switch-reference-product .switch-image-placeholder {
+    width: 48px;
+    height: 60px;
+  }
+
+  .switch-workflow-shell .switch-reference-product > div > span,
+  .switch-workflow-shell .switch-reference-product > div > small {
+    font-size: 10px;
+  }
+
+  .switch-workflow-shell .switch-reference-product > div > strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .switch-workflow-shell .switch-reference-sku {
+    min-width: 0;
+    flex: 1 1 150px;
+    gap: 3px;
+    padding: 8px 0;
+    border-bottom: 0;
+  }
+
+  .switch-workflow-shell .switch-change-current {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 8px 0;
+    white-space: nowrap;
+  }
+
+  .switch-workflow-shell .switch-progress {
+    flex: 0 0 100%;
+    width: 100%;
+    margin: 8px 0 0;
+    padding: 10px 0 0;
+  }
+
+  .switch-workflow-shell .switch-progress li {
+    min-height: 46px;
+  }
+}

@@ -1,0 +1,38 @@
+/* SWITCH overview desktop columns stay aligned while the item label and current-food baseline remain visible. */
+@media (min-width: 761px) {
+  .is-switch-overview .compare-switch-overview-desktop {
+    --switch-overview-label-width: 176px;
+    --switch-overview-value-width: 218px;
+    min-width: max(920px, calc(var(--switch-overview-label-width) + (var(--compare-count) * var(--switch-overview-value-width))));
+    overflow: visible;
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-head-row,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row {
+    grid-template-columns: var(--switch-overview-label-width) repeat(var(--compare-count), minmax(var(--switch-overview-value-width), 1fr));
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-head-row > .compare-corner,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-row-label {
+    position: sticky;
+    left: 0;
+    z-index: 6;
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-current-product-head,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-cell.is-current {
+    position: sticky;
+    left: var(--switch-overview-label-width);
+    z-index: 5;
+    min-width: var(--switch-overview-value-width);
+    box-shadow: 1px 0 0 var(--research-line), 10px 0 14px rgba(11, 44, 37, 0.06);
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-current-product-head {
+    background: #f3f7f5;
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-cell.is-current {
+    background: #f9fbfa;
+  }
+}

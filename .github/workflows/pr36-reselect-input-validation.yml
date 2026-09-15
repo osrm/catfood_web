@@ -1,0 +1,59 @@
+name: PR36 reselect real input validation
+
+on:
+  push:
+    branches:
+      - qa/pr36-reselect-input-validation-20260915
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      PRODUCT_SHA: e9640711f7ac79e97bf4cd6aab823c7c28914b83
+      QA_BASE: http://127.0.0.1:4173/catfood_web/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Build exact product head
+        run: npm run build
+      - name: Serve candidate under Pages base path
+        run: |
+          mkdir -p qa-site/catfood_web
+          cp -R dist/. qa-site/catfood_web/
+          python3 -m http.server 4173 --directory qa-site >/tmp/pr36-input-http.log 2>&1 &
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:4173/catfood_web/ >/dev/null; then exit 0; fi
+            sleep 0.1
+          done
+          cat /tmp/pr36-input-http.log
+          exit 1
+      - name: Validate real pointer and keyboard activation
+        run: node .github/pr36-reselect-input-validation.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr36-reselect-input-validation
+          path: qa-artifacts
+          if-no-files-found: warn

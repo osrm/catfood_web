@@ -41,9 +41,11 @@ export function beginSwitchExplicitScrollIntent(
 }
 
 export function releaseSwitchExplicitScrollIntent(intent: SwitchExplicitScrollIntent): void {
-  if (intent.previousScrollRestoration !== null && 'scrollRestoration' in window.history) {
-    window.history.scrollRestoration = intent.previousScrollRestoration
-  }
+  if (intent.previousScrollRestoration === null || !('scrollRestoration' in window.history)) return
+  const previous = intent.previousScrollRestoration
+  window.requestAnimationFrame(() => {
+    window.history.scrollRestoration = previous
+  })
 }
 
 export function resetSwitchExplicitNavigationScroll(target: SwitchExplicitScrollTarget): boolean {

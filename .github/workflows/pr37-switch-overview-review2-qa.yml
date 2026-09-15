@@ -66,6 +66,22 @@ jobs:
           cat /tmp/pr37-baseline-http.log || true
           exit 1
 
+      - name: Wait for async SKU in journey helper
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/pr37-switch-overview-review2-qa.mjs')
+          text = path.read_text()
+          old = """    await browser.wait(`document.querySelector('.switch-sku-list')`, 'SKU step')
+              await pointerClick(browser, '.switch-sku-option', { text: '1 kg' })"""
+          new = """    await browser.wait(`document.querySelector('.switch-sku-list')`, 'SKU step')
+              await browser.wait(`[...document.querySelectorAll('.switch-sku-option')].some((node)=>node.textContent?.includes('1 kg'))`, '1 kg SKU option')
+              await pointerClick(browser, '.switch-sku-option', { text: '1 kg' })"""
+          if old not in text:
+              raise SystemExit('expected SKU helper block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Validate real journey and focused layouts in Chrome
         run: node .github/pr37-switch-overview-review2-qa.mjs
 

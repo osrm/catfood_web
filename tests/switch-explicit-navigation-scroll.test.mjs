@@ -5,16 +5,20 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'vite'
 import { JSDOM } from 'jsdom'
+import { act, createElement, useState } from 'react'
 
 const dom = new JSDOM('<div id="root"></div>', { url: 'https://catfood.test/catfood_web/?view=workspace&mode=switch' })
 globalThis.window = dom.window
 globalThis.document = dom.window.document
 globalThis.HTMLElement = dom.window.HTMLElement
 globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window)
+globalThis.IS_REACT_ACT_ENVIRONMENT = true
 Object.defineProperty(document, 'scrollingElement', { configurable: true, value: document.documentElement })
 Object.defineProperty(window.history, 'scrollRestoration', { configurable: true, writable: true, value: 'auto' })
+const { createRoot } = await import('react-dom/client')
+const nativeFetch = globalThis.fetch
 
-let helper, temp, nextAnimationFrameId
+let helper, app, temp, root, nextAnimationFrameId
 const animationFrames = new Map()
 Object.defineProperty(window, 'requestAnimationFrame', {
   configurable: true,
@@ -65,22 +69,82 @@ function stepScreen(step) {
         : ''
   document.getElementById('root').innerHTML = `<main class="switch-step-main">${inner}</main>`
 }
+function product(id, name) {
+  return {
+    product_id: id,
+    brand: 'Test Brand',
+    canonical_name: name,
+    feed_type: '건식',
+    life_stage: 'adult',
+    display_image_url: null,
+    representative_variant_id: null,
+    representative_package_size_text: null,
+    representative_package_weight_g: null,
+    representative_units_per_sale: null,
+    representative_sale_total_weight_g: null,
+    variant_count: 0,
+    has_variants: false,
+    ingredient_declaration_count: 0,
+    full_ingredient_declaration_count: 0,
+    has_ingredient_details: false,
+    has_full_ingredient_declaration: false,
+    nutrition_panel_count: 0,
+    has_nutrition_details: false,
+    manufacturing_observation_count: 0,
+    has_manufacturing_details: false,
+    manufacturing_country_codes: [],
+    market_observation_count: 0,
+    has_market_details: false,
+    assessed_market_country_codes: [],
+    current_market_country_codes: [],
+    formula_match_market_country_codes: [],
+    ingredient_term_result_count: 0,
+    confirmed_present_ingredient_terms: [],
+    direct_evidence_ingredient_terms: [],
+    flavor_associated_ingredient_terms: [],
+    reviewed_not_found_ingredient_terms: [],
+    insufficient_evidence_ingredient_terms: [],
+    official_targets: [],
+    features: [],
+    recipe_families: [],
+    recipe_details: [],
+    official_recipe_traits: [],
+  }
+}
 
 before(async () => {
   await mkdir('node_modules/.cache', { recursive: true })
   temp = await mkdtemp(resolve('node_modules/.cache/catfood-switch-scroll-'))
-  const result = await build({
+
+  const helperResult = await build({
     configFile: false,
     logLevel: 'silent',
     build: { ssr: 'src/switch-explicit-navigation-scroll.ts', write: false, minify: false },
   })
-  const chunk = result.output.find((item) => item.type === 'chunk' && item.isEntry)
-  const file = resolve(temp, 'switch-explicit-navigation-scroll.mjs')
-  await writeFile(file, chunk.code)
-  helper = await import(pathToFileURL(file).href)
+  const helperChunk = helperResult.output.find((item) => item.type === 'chunk' && item.isEntry)
+  const helperFile = resolve(temp, 'switch-explicit-navigation-scroll.mjs')
+  await writeFile(helperFile, helperChunk.code)
+  helper = await import(pathToFileURL(helperFile).href)
+
+  const appResult = await build({
+    configFile: false,
+    logLevel: 'silent',
+    define: {
+      'import.meta.env.DEV': 'false',
+      'import.meta.env.VITE_DECISION_INTAKE_ENABLED': '"false"',
+      'import.meta.env.VITE_SUPABASE_URL': '"https://api.test"',
+      'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': '"test-key"',
+    },
+    build: { ssr: 'tests/entry.ts', write: false, minify: false },
+  })
+  const appChunk = appResult.output.find((item) => item.type === 'chunk' && item.isEntry)
+  const appFile = resolve(temp, 'switch-explicit-navigation-scroll-app.mjs')
+  await writeFile(appFile, appChunk.code)
+  app = await import(pathToFileURL(appFile).href)
 })
 
 after(async () => {
+  globalThis.fetch = nativeFetch
   dom.window.close()
   await rm(temp, { recursive: true })
 })
@@ -91,11 +155,17 @@ beforeEach(() => {
   window.history.scrollRestoration = 'auto'
   nextAnimationFrameId = 1
   animationFrames.clear()
+  globalThis.fetch = window.fetch = async () => Response.json([])
 })
 
-afterEach(() => {
+afterEach(async () => {
+  if (root) {
+    await act(async () => root.unmount())
+    root = null
+  }
   drainActiveFrames()
   animationFrames.clear()
+  globalThis.fetch = nativeFetch
 })
 
 test('explicit navigation remains owned by SwitchFlow and never installs global navigation observers', async () => {
@@ -110,8 +180,8 @@ test('explicit navigation remains owned by SwitchFlow and never installs global 
   assert.match(flow, /requestExplicitScroll\('results'\)/)
   assert.match(flow, /requestExplicitScroll\('compare'\)/)
   assert.match(flow, /requestExplicitScroll\(nextStep, Boolean\(onHistoryBack\)\)/)
-  assert.match(flow, /if \(renderedTarget === pending\.intent\.target\)/)
-  assert.match(flow, /if \(renderedTarget !== pending\.source\) releasePendingExplicitScroll\(\)/)
+  assert.match(flow, /settle: SwitchExplicitScrollSettleHandle \| null/)
+  assert.match(flow, /cancelSwitchExplicitScrollSettle\(pending\.settle\)/)
   assert.match(flow, /useEffect\(\(\) => \(\) => releasePendingExplicitScroll\(\), \[\]\)/)
 
   assert.doesNotMatch(main, /installSwitchExplicitNavigationScroll/)
@@ -122,21 +192,27 @@ test('explicit navigation remains owned by SwitchFlow and never installs global 
   assert.doesNotMatch(scrollHelper, /scrollRestoration\s*=/)
 })
 
-test('step identifiers resolve structural anchors and reset the actual mobile document owner', () => {
+test('step identifiers reset the actual mobile document owner', () => {
   stepScreen('change')
   document.documentElement.scrollTop = 643
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('change'), true)
+  const changeIntent = helper.beginSwitchExplicitScrollIntent('change', false)
+  const changeSettle = helper.resetSwitchExplicitNavigationScroll(changeIntent)
   assert.equal(document.documentElement.scrollTop, 0)
+  changeSettle?.cancel()
 
   stepScreen('keep')
   document.documentElement.scrollTop = 511
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('keep'), true)
+  const keepIntent = helper.beginSwitchExplicitScrollIntent('keep', false)
+  const keepSettle = helper.resetSwitchExplicitNavigationScroll(keepIntent)
   assert.equal(document.documentElement.scrollTop, 0)
+  keepSettle?.cancel()
 
   document.getElementById('root').innerHTML = '<main class="switch-results-stage"><div class="switch-candidate-list"></div></main>'
   document.documentElement.scrollTop = 422
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('results'), true)
+  const resultsIntent = helper.beginSwitchExplicitScrollIntent('results', false)
+  const resultsSettle = helper.resetSwitchExplicitNavigationScroll(resultsIntent)
   assert.equal(document.documentElement.scrollTop, 0)
+  resultsSettle?.cancel()
 })
 
 test('desktop keeps the existing internal step scroller and does not move the document', () => {
@@ -148,20 +224,22 @@ test('desktop keeps the existing internal step scroller and does not move the do
   main.scrollTop = 720
   document.documentElement.scrollTop = 91
 
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('change'), true)
+  const intent = helper.beginSwitchExplicitScrollIntent('change', false)
+  const settle = helper.resetSwitchExplicitNavigationScroll(intent)
   assert.equal(main.scrollTop, 0)
   assert.equal(document.documentElement.scrollTop, 91)
+  settle?.cancel()
 })
 
-test('a history traversal leaves native auto restoration untouched while the next frame stabilizes the destination', () => {
+test('a history traversal leaves native auto restoration untouched while the next frame stabilizes the same destination', () => {
   stepScreen('change')
   const intent = helper.beginSwitchExplicitScrollIntent('change', true)
   assert.equal(window.history.scrollRestoration, 'auto')
 
   document.documentElement.scrollTop = 700
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('change'), true)
+  const settle = helper.resetSwitchExplicitNavigationScroll(intent)
+  assert.ok(settle)
   assert.equal(document.documentElement.scrollTop, 0)
-  helper.releaseSwitchExplicitScrollIntent(intent)
   assert.equal(window.history.scrollRestoration, 'auto')
   assert.equal(activeFrameIds().length, 1)
 
@@ -174,8 +252,8 @@ test('a history traversal leaves native auto restoration untouched while the nex
 test('a second intent before the first settle frame cancels the stale frame and owns the next structural target', () => {
   stepScreen('change')
   const first = helper.beginSwitchExplicitScrollIntent('change', true)
-  helper.resetSwitchExplicitNavigationScroll('change')
-  helper.releaseSwitchExplicitScrollIntent(first)
+  const firstSettle = helper.resetSwitchExplicitNavigationScroll(first)
+  assert.ok(firstSettle)
   const [staleFrame] = activeFrameIds()
   assert.ok(staleFrame)
 
@@ -185,39 +263,54 @@ test('a second intent before the first settle frame cancels the stale frame and 
   assert.equal(frameState(staleFrame)?.canceled, true)
   assert.equal(window.history.scrollRestoration, 'auto')
 
-  assert.equal(runFrame(staleFrame, { force: true }), true, 'force stale callback to prove the generation guard')
+  assert.equal(runFrame(staleFrame, { force: true }), true, 'force stale callback to prove cancellation and generation guards')
   assert.equal(document.documentElement.scrollTop, 444, 'stale CHANGE frame cannot reset SKU')
 
-  helper.resetSwitchExplicitNavigationScroll('sku')
-  helper.releaseSwitchExplicitScrollIntent(second)
+  const secondSettle = helper.resetSwitchExplicitNavigationScroll(second)
+  assert.ok(secondSettle)
   document.documentElement.scrollTop = 333
   runNextActiveFrame()
   assert.equal(document.documentElement.scrollTop, 0)
 })
 
-test('canceling an intent before its destination renders leaves no stale frame for its replacement', () => {
-  const canceled = helper.beginSwitchExplicitScrollIntent('keep', true)
-  helper.releaseSwitchExplicitScrollIntent(canceled)
-  assert.equal(activeFrameIds().length, 0)
+test('canceling a scheduled settle prevents a forced stale callback from changing a replacement screen', () => {
+  stepScreen('keep')
+  const intent = helper.beginSwitchExplicitScrollIntent('keep', true)
+  const settle = helper.resetSwitchExplicitNavigationScroll(intent)
+  assert.ok(settle)
+  const [staleFrame] = activeFrameIds()
+  assert.ok(staleFrame)
 
-  document.getElementById('root').innerHTML = '<main class="switch-results-stage"><div class="switch-candidate-list"></div></main>'
-  document.documentElement.scrollTop = 321
-  const replacement = helper.beginSwitchExplicitScrollIntent('results', false)
-  helper.resetSwitchExplicitNavigationScroll('results')
-  helper.releaseSwitchExplicitScrollIntent(replacement)
-  document.documentElement.scrollTop = 222
-  runNextActiveFrame()
-  assert.equal(document.documentElement.scrollTop, 0)
-  assert.equal(window.history.scrollRestoration, 'auto')
+  helper.cancelSwitchExplicitScrollSettle(settle)
+  assert.equal(frameState(staleFrame)?.canceled, true)
+  stepScreen('keep')
+  document.documentElement.scrollTop = 287
+  assert.equal(runFrame(staleFrame, { force: true }), true)
+  assert.equal(document.documentElement.scrollTop, 287)
+})
+
+test('a same-selector replacement is not mistaken for the original destination anchor', () => {
+  stepScreen('keep')
+  const intent = helper.beginSwitchExplicitScrollIntent('keep', false)
+  const originalAnchor = document.querySelector('.switch-current-facts-strip')
+  const settle = helper.resetSwitchExplicitNavigationScroll(intent)
+  assert.ok(settle)
+  const [staleFrame] = activeFrameIds()
+
+  stepScreen('keep')
+  const replacementAnchor = document.querySelector('.switch-current-facts-strip')
+  assert.notEqual(replacementAnchor, originalAnchor)
+  document.documentElement.scrollTop = 391
+  assert.equal(runFrame(staleFrame, { force: true }), true)
+  assert.equal(document.documentElement.scrollTop, 391, 'settle must not query a same-selector replacement and reset it')
 })
 
 test('an original manual scrollRestoration value is never changed by explicit intents', () => {
   window.history.scrollRestoration = 'manual'
   stepScreen('change')
-  const first = helper.beginSwitchExplicitScrollIntent('change', true)
-  assert.equal(window.history.scrollRestoration, 'manual')
-  helper.resetSwitchExplicitNavigationScroll('change')
-  helper.releaseSwitchExplicitScrollIntent(first)
+  const intent = helper.beginSwitchExplicitScrollIntent('change', true)
+  const settle = helper.resetSwitchExplicitNavigationScroll(intent)
+  assert.ok(settle)
   assert.equal(window.history.scrollRestoration, 'manual')
   runNextActiveFrame()
   assert.equal(window.history.scrollRestoration, 'manual')
@@ -227,7 +320,51 @@ test('an original manual scrollRestoration value is never changed by explicit in
   assert.equal(window.history.scrollRestoration, 'manual')
 })
 
-test('release is idempotent so cancel and unmount cleanup cannot revive an old intent', () => {
+test('SwitchFlow unmount cancels its scheduled settle handle before a stale callback can touch a new screen', async () => {
+  const current = product('scroll_current', '현재 사료')
+  const initial = {
+    ...app.createInitialSwitchSession(),
+    currentProductId: current.product_id,
+    variantSelection: { kind: 'unknown', variantId: null },
+    noChangeIntent: true,
+    step: 'change',
+  }
+
+  function Harness() {
+    const [session, setSession] = useState(initial)
+    return createElement(app.SwitchFlow, {
+      products: [current],
+      loading: false,
+      error: null,
+      session,
+      onSessionChange: (update) => setSession((value) => typeof update === 'function' ? update(value) : update),
+      onHome: () => {},
+      onModeChange: () => {},
+      onRetryCatalog: () => {},
+    })
+  }
+
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(Harness)))
+  const next = [...document.querySelectorAll('.switch-step-actions .switch-primary-action')]
+    .find((node) => node.textContent.trim() === '다음 →')
+  assert.ok(next)
+  await act(async () => next.click())
+  assert.ok(document.querySelector('.switch-current-facts-strip'), 'KEEP destination rendered')
+  const [staleFrame] = activeFrameIds()
+  assert.ok(staleFrame, 'SwitchFlow keeps one settle frame pending after the synchronous reset')
+
+  await act(async () => root.unmount())
+  root = null
+  assert.equal(frameState(staleFrame)?.canceled, true, 'component cleanup cancels the owned settle frame')
+
+  document.body.innerHTML = '<div id="root"><main class="switch-step-main"><section class="switch-current-facts-strip"></section></main></div>'
+  document.documentElement.scrollTop = 463
+  assert.equal(runFrame(staleFrame, { force: true }), true, 'force the canceled callback to prove it is harmless')
+  assert.equal(document.documentElement.scrollTop, 463)
+})
+
+test('release is idempotent before a destination renders and cannot revive an old intent', () => {
   const intent = helper.beginSwitchExplicitScrollIntent('change', true)
   helper.releaseSwitchExplicitScrollIntent(intent)
   helper.releaseSwitchExplicitScrollIntent(intent)
@@ -235,14 +372,15 @@ test('release is idempotent so cancel and unmount cleanup cannot revive an old i
 
   stepScreen('change')
   document.documentElement.scrollTop = 431
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('change'), true)
-  assert.equal(document.documentElement.scrollTop, 0)
-  assert.equal(activeFrameIds().length, 0, 'released intent cannot schedule a later reset')
+  assert.equal(helper.resetSwitchExplicitNavigationScroll(intent), null)
+  assert.equal(document.documentElement.scrollTop, 431)
 })
 
 test('missing or different structural destination never moves the current position', () => {
   stepScreen('change')
   document.documentElement.scrollTop = 431
-  assert.equal(helper.resetSwitchExplicitNavigationScroll('keep'), false)
+  const intent = helper.beginSwitchExplicitScrollIntent('keep', false)
+  assert.equal(helper.resetSwitchExplicitNavigationScroll(intent), null)
   assert.equal(document.documentElement.scrollTop, 431)
+  helper.releaseSwitchExplicitScrollIntent(intent)
 })

@@ -50,11 +50,17 @@ jobs:
           from pathlib import Path
           path = Path('.github/pr38-scroll-restoration-final-qa.mjs')
           text = path.read_text()
-          old = """    await visible(c, '.switch-step-actions .switch-primary-action', 0, '.switch-step-main')\n    const before = await scrollInfo(c, '.switch-step-main')\n    assert.ok(before.top > 0, JSON.stringify(before))\n"""
-          new = """    await visible(c, '.switch-step-actions .switch-primary-action', 0, '.switch-step-main')\n    await wheelOwner(c, '.switch-step-main', 120)\n    const before = await scrollInfo(c, '.switch-step-main')\n    assert.ok(before.top > 0, JSON.stringify(before))\n"""
-          if old not in text:
+          old_desktop = """    await visible(c, '.switch-step-actions .switch-primary-action', 0, '.switch-step-main')\n    const before = await scrollInfo(c, '.switch-step-main')\n    assert.ok(before.top > 0, JSON.stringify(before))\n"""
+          new_desktop = """    await visible(c, '.switch-step-actions .switch-primary-action', 0, '.switch-step-main')\n    await wheelOwner(c, '.switch-step-main', 120)\n    const before = await scrollInfo(c, '.switch-step-main')\n    assert.ok(before.top > 0, JSON.stringify(before))\n"""
+          old_cleanup = """async function cleanup(handle) {\n  handle.c.close()\n  handle.proc.kill('SIGTERM')\n  await sleep(80)\n  if (handle.proc.exitCode == null) handle.proc.kill('SIGKILL')\n  rmSync(handle.dir, { recursive: true, force: true })\n}\n"""
+          new_cleanup = """async function cleanup(handle) {\n  handle.c.close()\n  handle.proc.kill('SIGTERM')\n  await sleep(80)\n  if (handle.proc.exitCode == null) handle.proc.kill('SIGKILL')\n  for (let attempt = 0; attempt < 5; attempt++) {\n    try {\n      rmSync(handle.dir, { recursive: true, force: true })\n      return\n    } catch (error) {\n      if (attempt === 4) {\n        console.warn('QA cleanup warning:', String(error))\n        return\n      }\n      await sleep(80)\n    }\n  }\n}\n"""
+          if old_desktop not in text:
               raise SystemExit('desktop QA patch target not found')
-          path.write_text(text.replace(old, new, 1))
+          if old_cleanup not in text:
+              raise SystemExit('cleanup QA patch target not found')
+          text = text.replace(old_desktop, new_desktop, 1)
+          text = text.replace(old_cleanup, new_cleanup, 1)
+          path.write_text(text)
           PY
 
       - name: Serve candidate build

@@ -4,7 +4,15 @@ export type SwitchExplicitScrollTarget = SwitchStep | 'compare'
 
 export type SwitchExplicitScrollIntent = {
   target: SwitchExplicitScrollTarget
-  previousScrollRestoration: ScrollRestoration | null
+  restorationLeaseId: number | null
+  released: boolean
+}
+
+type ScrollRestorationLease = {
+  id: number
+  original: ScrollRestoration
+  owners: number
+  restoreFrame: number | null
 }
 
 const TARGET_ANCHORS: Record<SwitchExplicitScrollTarget, string> = {
@@ -14,6 +22,19 @@ const TARGET_ANCHORS: Record<SwitchExplicitScrollTarget, string> = {
   keep: '.switch-step-main',
   results: '.switch-candidate-list',
   compare: '.compare-stage',
+}
+
+let nextRestorationLeaseId = 1
+let restorationLease: ScrollRestorationLease | null = null
+
+function canControlScrollRestoration(): boolean {
+  return 'scrollRestoration' in window.history
+}
+
+function cancelRestoreFrame(lease: ScrollRestorationLease): void {
+  if (lease.restoreFrame === null) return
+  window.cancelAnimationFrame(lease.restoreFrame)
+  lease.restoreFrame = null
 }
 
 export function switchScrollOwner(anchor: HTMLElement): HTMLElement {
@@ -32,20 +53,49 @@ export function beginSwitchExplicitScrollIntent(
   target: SwitchExplicitScrollTarget,
   historyTraversal = false,
 ): SwitchExplicitScrollIntent {
-  let previousScrollRestoration: ScrollRestoration | null = null
-  if (historyTraversal && 'scrollRestoration' in window.history) {
-    previousScrollRestoration = window.history.scrollRestoration
+  if (!canControlScrollRestoration()) {
+    return { target, restorationLeaseId: null, released: false }
+  }
+
+  let lease = restorationLease
+  if (!lease && historyTraversal) {
+    lease = {
+      id: nextRestorationLeaseId++,
+      original: window.history.scrollRestoration,
+      owners: 0,
+      restoreFrame: null,
+    }
+    restorationLease = lease
+  }
+
+  if (lease) {
+    cancelRestoreFrame(lease)
+    lease.owners += 1
     window.history.scrollRestoration = 'manual'
   }
-  return { target, previousScrollRestoration }
+
+  return { target, restorationLeaseId: lease?.id ?? null, released: false }
 }
 
 export function releaseSwitchExplicitScrollIntent(intent: SwitchExplicitScrollIntent): void {
-  if (intent.previousScrollRestoration === null || !('scrollRestoration' in window.history)) return
-  const previous = intent.previousScrollRestoration
-  window.requestAnimationFrame(() => {
-    window.history.scrollRestoration = previous
+  if (intent.released) return
+  intent.released = true
+  if (intent.restorationLeaseId === null || !canControlScrollRestoration()) return
+
+  const lease = restorationLease
+  if (!lease || lease.id !== intent.restorationLeaseId) return
+  lease.owners = Math.max(0, lease.owners - 1)
+  if (lease.owners > 0 || lease.restoreFrame !== null) return
+
+  const leaseId = lease.id
+  const frame = window.requestAnimationFrame(() => {
+    const activeLease = restorationLease
+    if (!activeLease || activeLease.id !== leaseId || activeLease.restoreFrame !== frame || activeLease.owners !== 0) return
+    activeLease.restoreFrame = null
+    window.history.scrollRestoration = activeLease.original
+    restorationLease = null
   })
+  lease.restoreFrame = frame
 }
 
 export function resetSwitchExplicitNavigationScroll(target: SwitchExplicitScrollTarget): boolean {

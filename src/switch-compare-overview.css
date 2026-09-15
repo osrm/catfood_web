@@ -1,0 +1,11 @@
+/* SWITCH overview desktop columns follow the compare scroller so the item label and current-food baseline stay visible. */
+@media (min-width: 761px) {
+  .is-switch-overview .compare-switch-overview-desktop .compare-head-row > .compare-corner,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-row-label,
+  .is-switch-overview .compare-switch-overview-desktop .compare-current-product-head,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-cell.is-current {
+    position: relative;
+    left: auto;
+    transform: translateX(var(--compare-scroll-x, 0px));
+  }
+}

@@ -182,7 +182,8 @@ async function installEventRecorder(browser) {
     window.__qaTargetEvents=[];
     const button=document.querySelector('.switch-change-current');
     if(!button) return false;
-    for(const type of ['pointerdown','pointerup','mousedown','mouseup','click','keydown','keyup']) button.addEventListener(type,(event)=>window.__qaTargetEvents.push({type,isTrusted:event.isTrusted,key:event.key||null,button:event.button??null,buttons:event.buttons??null}),true);
+    for(const type of ['pointerdown','pointerup','mousedown','mouseup','click']) button.addEventListener(type,(event)=>window.__qaTargetEvents.push({scope:'target',type,isTrusted:event.isTrusted,key:event.key||null,button:event.button??null,buttons:event.buttons??null}),true);
+    for(const type of ['keydown','keyup']) document.addEventListener(type,(event)=>window.__qaTargetEvents.push({scope:'document',type,isTrusted:event.isTrusted,key:event.key||null,activeTarget:document.activeElement===button}),true);
     return true;
   })()`)
 }
@@ -215,9 +216,9 @@ async function pointerPath(ctx) {
     await browser.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1, pointerType: 'mouse' })
     await waitState(browser, `s.step==='current'&&s.currentProductId===null`, 'pointer reset')
     result.events = await browser.eval(`window.__qaTargetEvents`)
-    assert.ok(result.events.some((event)=>event.type==='pointerdown'&&event.isTrusted), 'trusted pointerdown missing')
-    assert.ok(result.events.some((event)=>event.type==='pointerup'&&event.isTrusted), 'trusted pointerup missing')
-    assert.ok(result.events.some((event)=>event.type==='click'&&event.isTrusted), 'trusted pointer click missing')
+    assert.ok(result.events.some((event)=>event.scope==='target'&&event.type==='pointerdown'&&event.isTrusted), 'trusted pointerdown missing')
+    assert.ok(result.events.some((event)=>event.scope==='target'&&event.type==='pointerup'&&event.isTrusted), 'trusted pointerup missing')
+    assert.ok(result.events.some((event)=>event.scope==='target'&&event.type==='click'&&event.isTrusted), 'trusted pointer click missing')
     result.after = await state(browser)
     assertResetState(result.after, `${ctx.current.brand} ${ctx.current.canonical_name}`)
     result.network = await network(browser)
@@ -263,9 +264,9 @@ async function keyboardPath(ctx) {
     await pressKey(browser, 'Enter', 'Enter', 13, '\r')
     await waitState(browser, `s.step==='current'&&s.currentProductId===null`, 'keyboard reset')
     result.events = await browser.eval(`window.__qaTargetEvents`)
-    assert.ok(result.events.some((event)=>event.type==='keydown'&&event.key==='Enter'&&event.isTrusted), 'trusted Enter keydown missing')
-    assert.ok(result.events.some((event)=>event.type==='keyup'&&event.key==='Enter'&&event.isTrusted), 'trusted Enter keyup missing')
-    assert.ok(result.events.some((event)=>event.type==='click'&&event.isTrusted), 'trusted keyboard activation click missing')
+    assert.ok(result.events.some((event)=>event.scope==='document'&&event.type==='keydown'&&event.key==='Enter'&&event.activeTarget&&event.isTrusted), 'trusted Enter keydown on target missing')
+    assert.ok(result.events.some((event)=>event.scope==='document'&&event.type==='keyup'&&event.key==='Enter'&&event.isTrusted), 'trusted Enter keyup missing')
+    assert.ok(result.events.some((event)=>event.scope==='target'&&event.type==='click'&&event.isTrusted), 'trusted keyboard activation click missing')
     result.after = await state(browser)
     assertResetState(result.after, `${ctx.current.brand} ${ctx.current.canonical_name}`)
     result.network = await network(browser)

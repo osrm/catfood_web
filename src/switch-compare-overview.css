@@ -4,6 +4,7 @@
     --switch-overview-label-width: 176px;
     --switch-overview-value-width: 218px;
     min-width: max(920px, calc(var(--switch-overview-label-width) + (var(--compare-count) * var(--switch-overview-value-width))));
+    overflow: visible;
   }
 
   .is-switch-overview .compare-switch-overview-desktop .compare-head-row,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
 import {
@@ -20,6 +20,15 @@ import {
   type SwitchSessionUpdate,
   type SwitchStep,
 } from './switch-session'
+import {
+  beginSwitchExplicitScrollIntent,
+  cancelSwitchExplicitScrollSettle,
+  releaseSwitchExplicitScrollIntent,
+  resetSwitchExplicitNavigationScroll,
+  type SwitchExplicitScrollIntent,
+  type SwitchExplicitScrollSettleHandle,
+  type SwitchExplicitScrollTarget,
+} from './switch-explicit-navigation-scroll'
 
 const FEED_TYPES = [
   ['건식', '건식'],
@@ -651,8 +660,29 @@ export default function SwitchFlow({
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
+  const pendingExplicitScroll = useRef<{
+    source: SwitchExplicitScrollTarget
+    intent: SwitchExplicitScrollIntent
+    settle: SwitchExplicitScrollSettleHandle | null
+  } | null>(null)
 
+  function releasePendingExplicitScroll() {
+    const pending = pendingExplicitScroll.current
+    if (!pending) return
+    pendingExplicitScroll.current = null
+    if (pending.settle) cancelSwitchExplicitScrollSettle(pending.settle)
+    releaseSwitchExplicitScrollIntent(pending.intent)
+  }
+  function requestExplicitScroll(target: SwitchExplicitScrollTarget, historyTraversal = false) {
+    releasePendingExplicitScroll()
+    pendingExplicitScroll.current = {
+      source: step,
+      intent: beginSwitchExplicitScrollIntent(target, historyTraversal),
+      settle: null,
+    }
+  }
   function backToStep(nextStep: SwitchStep) {
+    requestExplicitScroll(nextStep, Boolean(onHistoryBack))
     const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
     if (onHistoryBack) onHistoryBack(fallback, fallback)
     else updateSession(fallback)
@@ -667,6 +697,7 @@ export default function SwitchFlow({
   }
   function openSwitchCompare() {
     if (!compareIds.length) return
+    requestExplicitScroll('compare')
     updateSession((current) => ({ ...current, compareOpen: true, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
   }
   function closeSwitchCompare() {
@@ -687,6 +718,8 @@ export default function SwitchFlow({
   }
   function changeSwitchCompareTab(nextTab: SwitchSessionState['compareTab']) { setSessionField('compareTab', nextTab) }
   function changeSwitchDetailTab(nextTab: SwitchSessionState['detailTab']) { setSessionField('detailTab', nextTab) }
+
+  useEffect(() => () => releasePendingExplicitScroll(), [])
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
@@ -838,6 +871,37 @@ export default function SwitchFlow({
       ingredientInsufficient: item.ingredientInsufficient,
     })), [compareIds, candidates])
 
+  useLayoutEffect(() => {
+    const pending = pendingExplicitScroll.current
+    if (!pending) return
+    const renderedTarget: SwitchExplicitScrollTarget | null = detailProduct && !compareOpen
+      ? null
+      : step === 'results' && compareOpen && compareItems.length > 0
+        ? 'compare'
+        : step
+    if (pending.settle) {
+      if (renderedTarget !== pending.intent.target) releasePendingExplicitScroll()
+      return
+    }
+    if (renderedTarget === pending.intent.target) {
+      let settle: SwitchExplicitScrollSettleHandle | null = null
+      settle = resetSwitchExplicitNavigationScroll(pending.intent, () => {
+        const current = pendingExplicitScroll.current
+        if (current?.intent === pending.intent && current.settle === settle) {
+          pendingExplicitScroll.current = null
+        }
+      })
+      if (settle) {
+        pending.settle = settle
+      } else if (pendingExplicitScroll.current?.intent === pending.intent) {
+        pendingExplicitScroll.current = null
+        releaseSwitchExplicitScrollIntent(pending.intent)
+      }
+      return
+    }
+    if (renderedTarget !== pending.source) releasePendingExplicitScroll()
+  }, [step, compareOpen, detailProductId, compareItems.length])
+
   function selectCurrentVariant(variantId: string | null) {
     setCurrentVariantId(variantId)
   }
@@ -910,6 +974,7 @@ export default function SwitchFlow({
   }
 
   function confirmCurrentProduct(product: CatalogProduct) {
+    requestExplicitScroll('sku')
     switchRunGeneration.current += 1
     switchRunTail.current = Promise.resolve(null)
     switchRunId.current = null
@@ -925,6 +990,7 @@ export default function SwitchFlow({
   }
 
   function resetCurrentProduct() {
+    requestExplicitScroll('current')
     switchRunGeneration.current += 1
     switchRunTail.current = Promise.resolve(null)
     switchRunId.current = null
@@ -1104,8 +1170,8 @@ export default function SwitchFlow({
             ))}
           </section>
           <div className="switch-step-actions">
-            <button className="switch-secondary-action" type="button" onClick={() => { setSessionField('variantSelection', { kind: 'unknown', variantId: null }); setStep('change', 'push', 'step') }}>사용 규격을 모르겠어요</button>
-            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => setStep('change', 'push', 'step')}>다음 →</button>
+            <button className="switch-secondary-action" type="button" onClick={() => { requestExplicitScroll('change'); setSessionField('variantSelection', { kind: 'unknown', variantId: null }); setStep('change', 'push', 'step') }}>사용 규격을 모르겠어요</button>
+            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => { requestExplicitScroll('change'); setStep('change', 'push', 'step') }}>다음 →</button>
           </div>
         </main>
       </div>
@@ -1229,7 +1295,7 @@ export default function SwitchFlow({
 
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => backToStep('sku')}>← 사용 규격</button>
-            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { setKeepConflictNotice(null); setStep('keep', 'push', 'step') }}>다음 →</button>
+            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { requestExplicitScroll('keep'); setKeepConflictNotice(null); setStep('keep', 'push', 'step') }}>다음 →</button>
           </div>
         </main>
       </div>
@@ -1298,6 +1364,7 @@ export default function SwitchFlow({
               className="switch-primary-action"
               type="button"
               onClick={() => {
+                requestExplicitScroll('results')
                 beginSwitchRun()
                 updateSession((current) => ({
                   ...current,
@@ -1354,7 +1421,7 @@ export default function SwitchFlow({
           <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
           <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
           <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '제약 없음'}</strong></div>
-          <button type="button" onClick={() => updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step')}>조건 수정</button>
+          <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
         </div>
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>

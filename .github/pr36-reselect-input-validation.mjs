@@ -13,6 +13,7 @@ mkdirSync(OUT, { recursive: true })
 assert.ok(SUPABASE_URL && SUPABASE_KEY, 'public Supabase read config missing')
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const js = (value) => JSON.stringify(value)
+let launchIndex = 0
 
 async function apiRows(view, params = {}) {
   const url = new URL(`${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${view}`)
@@ -85,7 +86,7 @@ class Browser {
 async function launch() {
   const chrome = '/usr/bin/google-chrome'
   assert.ok(existsSync(chrome), 'Chrome unavailable')
-  const port = 9700 + (process.pid % 100)
+  const port = 9700 + (process.pid % 100) + (launchIndex++ * 100)
   const dir = `/tmp/pr36-input-${process.pid}-${Math.random().toString(16).slice(2)}`
   rmSync(dir, { recursive: true, force: true })
   const proc = spawn(chrome, ['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-cache',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'], { stdio: 'ignore' })
@@ -229,8 +230,10 @@ async function pointerPath(ctx) {
   }
 }
 
-async function pressKey(browser, key, code, vk) {
-  await browser.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk })
+async function pressKey(browser, key, code, vk, text = '') {
+  const down = { type: text ? 'keyDown' : 'rawKeyDown', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk }
+  if (text) { down.text = text; down.unmodifiedText = text }
+  await browser.send('Input.dispatchKeyEvent', down)
   await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk })
   await sleep(120)
 }
@@ -257,7 +260,7 @@ async function keyboardPath(ctx) {
     assert.notEqual(result.focus.outlineStyle, 'none', 'focused button has no computed outline')
     result.capture = 'keyboard-focus-360x844.png'
     await browser.shot(`${OUT}/${result.capture}`)
-    await pressKey(browser, 'Enter', 'Enter', 13)
+    await pressKey(browser, 'Enter', 'Enter', 13, '\r')
     await waitState(browser, `s.step==='current'&&s.currentProductId===null`, 'keyboard reset')
     result.events = await browser.eval(`window.__qaTargetEvents`)
     assert.ok(result.events.some((event)=>event.type==='keydown'&&event.key==='Enter'&&event.isTrusted), 'trusted Enter keydown missing')

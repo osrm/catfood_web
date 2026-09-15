@@ -14,7 +14,15 @@ globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window)
 Object.defineProperty(document, 'scrollingElement', { configurable: true, value: document.documentElement })
 Object.defineProperty(window.history, 'scrollRestoration', { configurable: true, writable: true, value: 'auto' })
 
-let helper, temp
+let helper, temp, animationFrameCallback
+Object.defineProperty(window, 'requestAnimationFrame', {
+  configurable: true,
+  writable: true,
+  value: (callback) => {
+    animationFrameCallback = callback
+    return 1
+  },
+})
 
 before(async () => {
   await mkdir('node_modules/.cache', { recursive: true })
@@ -39,6 +47,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="root"></div>'
   document.documentElement.scrollTop = 0
   window.history.scrollRestoration = 'auto'
+  animationFrameCallback = null
 })
 
 test('explicit navigation is owned by SwitchFlow without global click or mutation observers', async () => {
@@ -94,13 +103,16 @@ test('desktop keeps an existing internal scroll owner instead of moving the docu
   assert.equal(document.documentElement.scrollTop, 91)
 })
 
-test('history traversal intent temporarily owns restoration and releases the original value', () => {
+test('history traversal keeps manual restoration through the reset frame, then restores the original value', () => {
   const traversal = helper.beginSwitchExplicitScrollIntent('change', true)
   assert.equal(traversal.target, 'change')
   assert.equal(traversal.previousScrollRestoration, 'auto')
   assert.equal(window.history.scrollRestoration, 'manual')
 
   helper.releaseSwitchExplicitScrollIntent(traversal)
+  assert.equal(window.history.scrollRestoration, 'manual')
+  assert.equal(typeof animationFrameCallback, 'function')
+  animationFrameCallback(0)
   assert.equal(window.history.scrollRestoration, 'auto')
 
   const direct = helper.beginSwitchExplicitScrollIntent('results', false)

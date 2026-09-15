@@ -50,10 +50,15 @@ jobs:
           from pathlib import Path
           path = Path('.github/pr39-mobile-change-disclosure-qa.mjs')
           text = path.read_text()
-          old = "rect.bottom <= innerHeight - 8"
-          if old not in text:
+          old_viewport = "rect.bottom <= innerHeight - 8"
+          if old_viewport not in text:
               raise SystemExit('viewport patch target not found')
-          path.write_text(text.replace(old, 'rect.bottom <= 836', 1))
+          text = text.replace(old_viewport, 'rect.bottom <= 836', 1)
+          old_keyboard = """    // Native keyboard operation: Enter closes, Space opens again.\n    await key(c, 'Enter', 'Enter', 13)\n    assert.equal(await c.eval(`document.querySelector('.switch-change-additional-toggle')?.getAttribute('aria-expanded')`), 'false')\n    await key(c, ' ', 'Space', 32)\n    assert.equal(await c.eval(`document.querySelector('.switch-change-additional-toggle')?.getAttribute('aria-expanded')`), 'true')\n"""
+          new_keyboard = """    // Native keyboard operation: reach the control with Tab, then use Enter and Space.\n    for (let i = 0; i < 24; i++) {\n      if (await c.eval(`document.activeElement===document.querySelector('.switch-change-additional-toggle')`)) break\n      await key(c, 'Tab', 'Tab', 9)\n    }\n    assert.equal(await c.eval(`document.activeElement===document.querySelector('.switch-change-additional-toggle')`), true)\n    await key(c, 'Enter', 'Enter', 13)\n    assert.equal(await c.eval(`document.querySelector('.switch-change-additional-toggle')?.getAttribute('aria-expanded')`), 'false')\n    await key(c, ' ', 'Space', 32)\n    assert.equal(await c.eval(`document.querySelector('.switch-change-additional-toggle')?.getAttribute('aria-expanded')`), 'true')\n"""
+          if old_keyboard not in text:
+              raise SystemExit('keyboard patch target not found')
+          path.write_text(text.replace(old_keyboard, new_keyboard, 1))
           PY
 
       - name: Serve candidate build

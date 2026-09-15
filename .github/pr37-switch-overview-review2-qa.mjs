@@ -281,7 +281,11 @@ async function runActualJourney(ctx) {
   const { browser } = handle
   try {
     await browser.navigate(`${CANDIDATE_BASE}?view=workspace&mode=switch`)
-    assert.equal(await browser.eval(`sessionStorage.getItem(${js(STORAGE_KEY)})`), null, 'journey must not inject SWITCH session before app use')
+    const initialJourneySession = await sessionState(browser)
+    assert.equal(initialJourneySession.currentProductId, null, 'journey unexpectedly started with injected current product')
+    assert.deepEqual(initialJourneySession.compareIds, [], 'journey unexpectedly started with injected compareIds')
+    assert.equal(initialJourneySession.compareOpen, false, 'journey unexpectedly started in compare')
+    assert.equal(initialJourneySession.step, 'current', 'journey did not start from app CURRENT step')
     await browser.wait(`document.querySelector('.switch-find-search input')`, 'current product search')
     await typeInto(browser, '.switch-find-search input', 'AATU 연어')
     await browser.wait(`document.querySelector('.switch-find-result')`, 'current product result')

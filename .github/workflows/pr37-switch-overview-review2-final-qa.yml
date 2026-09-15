@@ -1,0 +1,94 @@
+name: PR37 SWITCH overview review2 final QA
+
+on:
+  push:
+    branches:
+      - qa/pr37-switch-overview-review2-final-20260915
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    env:
+      PRODUCT_SHA: eae4633c494984ad416d6d8f10ad5492843f0fad
+      BASELINE_SHA: e7da1093db7893295ce0fe6401c1e4dfd6e1495a
+      QA_BASE: http://127.0.0.1:4173/catfood_web/
+      BASELINE_BASE: http://127.0.0.1:4174/catfood_web/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies and Korean font
+        run: |
+          npm ci
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Build exact candidate and review baseline
+        run: |
+          npm run build
+          git worktree add --detach /tmp/pr37-baseline "$BASELINE_SHA"
+          (
+            cd /tmp/pr37-baseline
+            npm ci
+            npm run build
+          )
+
+      - name: Serve candidate and baseline under Pages base path
+        run: |
+          mkdir -p qa-site/catfood_web baseline-site/catfood_web
+          cp -R dist/. qa-site/catfood_web/
+          cp -R /tmp/pr37-baseline/dist/. baseline-site/catfood_web/
+          python3 -m http.server 4173 --directory qa-site >/tmp/pr37-candidate-http.log 2>&1 &
+          python3 -m http.server 4174 --directory baseline-site >/tmp/pr37-baseline-http.log 2>&1 &
+          for i in $(seq 1 80); do
+            if curl -fsS "$QA_BASE" >/dev/null && curl -fsS "$BASELINE_BASE" >/dev/null; then exit 0; fi
+            sleep 0.1
+          done
+          cat /tmp/pr37-candidate-http.log || true
+          cat /tmp/pr37-baseline-http.log || true
+          exit 1
+
+      - name: Prepare reviewed browser helper
+        run: |
+          git show fcf2aff16d4bfe0e91b5abea8aa235d1b30a0941:.github/pr37-switch-overview-review2-qa.mjs > /tmp/pr37-switch-overview-review2-qa.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/pr37-switch-overview-review2-qa.mjs')
+          text = path.read_text()
+          old = """    await browser.wait(`document.querySelector('.switch-sku-list')`, 'SKU step')
+              await pointerClick(browser, '.switch-sku-option', { text: '1 kg' })"""
+          new = """    await browser.wait(`document.querySelector('.switch-sku-list')`, 'SKU step')
+              await browser.wait(`[...document.querySelectorAll('.switch-sku-option')].some((node)=>node.textContent?.includes('1 kg'))`, '1 kg SKU option')
+              await pointerClick(browser, '.switch-sku-option', { text: '1 kg' })"""
+          if old not in text:
+              raise SystemExit('expected SKU helper block not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Validate real journey and focused layouts in Chrome
+        run: node /tmp/pr37-switch-overview-review2-qa.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr37-switch-overview-review2-final-qa
+          path: qa-artifacts
+          if-no-files-found: warn

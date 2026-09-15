@@ -68,8 +68,8 @@ jobs:
             curl -fsS "http://127.0.0.1:${port}/catfood_web/" >/dev/null
           done
 
-      - name: Validate review fixes in real Chrome
-        run: node .github/pr37-review-fixes-final2-qa.mjs
+      - name: Capture desktop sticky geometry in real Chrome
+        run: node .github/pr37-desktop-sticky-diagnostic.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

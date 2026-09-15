@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+
+const BASE = 'https://osrm.github.io/catfood_web/'
+const OUT = 'qa-artifacts'
+const STORAGE = 'catfood.switch-session.v1'
+mkdirSync(OUT, { recursive: true })
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const q = (v) => JSON.stringify(v)
+let launchNo = 0
+
+class CDP {
+  constructor(ws) { this.url = ws; this.ws = null; this.i = 1; this.pending = new Map(); this.requests = [] }
+  async connect() {
+    this.ws = new WebSocket(this.url)
+    await new Promise((ok, no) => { const t = setTimeout(() => no(new Error('ws timeout')), 15000); this.ws.addEventListener('open', () => { clearTimeout(t); ok() }, { once: true }); this.ws.addEventListener('error', no, { once: true }) })
+    this.ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.method === 'Network.requestWillBeSent') this.requests.push({ url:m.params.request.url, method:m.params.request.method }); if (!m.id) return; const p=this.pending.get(m.id); if (!p) return; this.pending.delete(m.id); m.error?p.reject(new Error(m.error.message)):p.resolve(m.result) })
+    for (const d of ['Page.enable','Runtime.enable','Network.enable']) await this.send(d)
+    await this.send('Emulation.setLocaleOverride', { locale:'ko-KR' })
+  }
+  send(method, params={}) { const id=this.i++; return new Promise((resolve,reject)=>{ this.pending.set(id,{resolve,reject}); this.ws.send(JSON.stringify({id,method,params})) }) }
+  async eval(exp) { const r=await this.send('Runtime.evaluate',{expression:exp,returnByValue:true,awaitPromise:true}); if(r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description??r.exceptionDetails.text); return r.result?.value }
+  async wait(exp,label,ms=30000) { const end=Date.now()+ms; while(Date.now()<end){ if(await this.eval(`Boolean(${exp})`).catch(()=>false)) return; await sleep(100) } throw new Error(`timeout ${label}`) }
+  async nav(url) { await this.send('Page.navigate',{url}); await this.wait(`document.readyState==='complete'`,'ready'); await this.wait(`document.querySelector('#root')&&document.body.innerText.length`,'root'); await this.eval('document.fonts?.ready'); await sleep(350) }
+  async shot(name) { const r=await this.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false}); writeFileSync(`${OUT}/${name}`,Buffer.from(r.data,'base64')) }
+  close(){ try{this.ws?.close()}catch{} }
+}
+
+async function launch(width,height,mobile,snapshot=null){
+  const chrome='/usr/bin/google-chrome'; assert.ok(existsSync(chrome))
+  const port=9800+(process.pid%100)+launchNo++*70, dir=`/tmp/pr37-post-${process.pid}-${launchNo}`
+  rmSync(dir,{recursive:true,force:true})
+  const proc=spawn(chrome,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',`--remote-debugging-port=${port}`,`--user-data-dir=${dir}`,'about:blank'],{stdio:'ignore'})
+  for(let i=0;i<200;i++){
+    try{
+      const pages=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(); const page=pages.find(p=>p.type==='page'&&p.webSocketDebuggerUrl)
+      if(page){ const c=new CDP(page.webSocketDebuggerUrl); await c.connect(); await c.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile,screenWidth:width,screenHeight:height}); await c.send('Page.addScriptToEvaluateOnNewDocument',{source:`(()=>{const f=window.fetch.bind(window);window.__blocked={analytics:0,writes:0};window.fetch=(input,init={})=>{const u=typeof input==='string'?input:(input&&input.url)||'';const m=String(init.method||(input&&input.method)||'GET').toUpperCase();if(u.includes('/functions/v1/decision-intake')){window.__blocked.analytics++;return Promise.reject(new TypeError('blocked'))}if(u.includes('gnosbstdatkytsyxuapt.supabase.co')&&!['GET','HEAD','OPTIONS'].includes(m)){window.__blocked.writes++;return Promise.reject(new TypeError('blocked'))}return f(input,init)};${snapshot?`sessionStorage.setItem(${q(STORAGE)},${q(snapshot)});`:''}})();`}); return {c,proc,dir} }
+    }catch{}
+    await sleep(100)
+  }
+  throw new Error('chrome launch timeout')
+}
+async function cleanup(h){ h.c.close(); h.proc.kill('SIGTERM'); await sleep(100); if(h.proc.exitCode==null)h.proc.kill('SIGKILL'); rmSync(h.dir,{recursive:true,force:true}) }
+
+async function click(c,selector,{texts=[],index=0}={}){
+  const p=await c.eval(`(()=>{const ns=[...document.querySelectorAll(${q(selector)})].filter(n=>${q(texts)}.every(t=>n.textContent?.includes(t)));const n=ns[${index}];if(!n)return null;n.scrollIntoView({block:'center',inline:'center'});const r=n.getBoundingClientRect();window.__trustedClick=null;n.addEventListener('click',e=>window.__trustedClick=e.isTrusted,{once:true,capture:true});return{x:r.left+r.width/2,y:r.top+r.height/2,text:n.textContent.trim()}})()`)
+  assert.ok(p,`missing ${selector} ${texts.join('+')} ${index}`)
+  await c.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x,y:p.y,pointerType:'mouse'}); await c.send('Input.dispatchMouseEvent',{type:'mousePressed',x:p.x,y:p.y,button:'left',buttons:1,clickCount:1,pointerType:'mouse'}); await c.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x,y:p.y,button:'left',buttons:0,clickCount:1,pointerType:'mouse'}); await sleep(180); assert.equal(await c.eval('window.__trustedClick'),true); return p
+}
+async function type(c,selector,text){ await click(c,selector); await c.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Control',code:'ControlLeft',windowsVirtualKeyCode:17,modifiers:2}); await c.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2}); await c.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',windowsVirtualKeyCode:65,modifiers:2}); await c.send('Input.dispatchKeyEvent',{type:'keyUp',key:'Control',code:'ControlLeft',windowsVirtualKeyCode:17}); await c.send('Input.insertText',{text}); await c.wait(`document.querySelector(${q(selector)})?.value===${q(text)}`,'typed') }
+async function wheelRight(c,selector){
+  const p=await c.eval(`(()=>{const n=document.querySelector(${q(selector)});if(!n)return null;n.scrollIntoView({block:'center'});const r=n.getBoundingClientRect();window.__trustedWheel=null;n.addEventListener('wheel',e=>window.__trustedWheel=e.isTrusted,{once:true,capture:true});return{x:Math.max(r.left+8,Math.min(innerWidth-8,r.left+r.width/2)),y:Math.max(8,Math.min(innerHeight-8,r.top+Math.min(r.height,220)/2))}})()`); assert.ok(p)
+  for(let i=0;i<6;i++){ await c.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x,y:p.y,pointerType:'mouse'}); await c.send('Input.dispatchMouseEvent',{type:'mouseWheel',x:p.x,y:p.y,deltaX:700,deltaY:0,pointerType:'mouse'}); await sleep(100) }
+  assert.equal(await c.eval('window.__trustedWheel'),true)
+  await c.wait(`document.querySelector(${q(selector)})?.scrollLeft>0`,'horizontal scroll')
+}
+function network(c){ return { writes:c.requests.filter(r=>r.url.includes('gnosbstdatkytsyxuapt.supabase.co')&&!['GET','HEAD','OPTIONS'].includes(r.method)), analytics:c.requests.filter(r=>r.url.includes('/functions/v1/decision-intake')), publicGetCount:c.requests.filter(r=>r.method==='GET').length } }
+
+async function mobileJourney(){ const h=await launch(360,844,true); const c=h.c; try{
+  await c.nav(`${BASE}?view=workspace&mode=switch`); await c.wait(`document.querySelector('.switch-find-search input')`,'switch search')
+  await type(c,'.switch-find-search input','AATU 연어'); await c.wait(`[...document.querySelectorAll('.switch-find-result')].some(n=>n.textContent.includes('AATU')&&n.textContent.includes('연어'))`,'AATU result'); await click(c,'.switch-find-result',{texts:['AATU','연어']}); await c.wait(`document.querySelector('.switch-current-preview')`,'preview'); const current=await c.eval(`({brand:document.querySelector('.switch-current-preview .switch-current-brand')?.textContent.trim()||'AATU',name:document.querySelector('.switch-current-preview h2')?.textContent.trim()})`); assert.equal(current.name,'연어')
+  await click(c,'.switch-current-preview .switch-primary-action'); await c.wait(`document.querySelector('.switch-sku-list')`,'sku'); const skuButton=await c.eval(`[...document.querySelectorAll('.switch-sku-option')].find(n=>/1\s*kg/i.test(n.textContent))?.textContent.trim()||null`); assert.ok(skuButton); await click(c,'.switch-sku-option',{texts:['1','kg']});
+  await click(c,'.switch-step-actions .switch-primary-action'); await c.wait(`document.body.innerText.includes('무엇을 바꾸고 싶나요?')`,'change'); await click(c,'.switch-no-change'); await click(c,'.switch-step-actions .switch-primary-action'); await c.wait(`document.body.innerText.includes('무엇을 그대로 유지할까요?')`,'keep'); await click(c,'.switch-step-actions .switch-primary-action'); await c.wait(`document.querySelectorAll('.switch-candidate-row').length>=2`,'at least two candidates')
+  const available=await c.eval(`document.querySelectorAll('.switch-candidate-row').length`); const picked=[]
+  for(const index of [0,1]){ const ident=await c.eval(`(()=>{const r=document.querySelectorAll('.switch-candidate-row')[${index}];return{brand:r?.querySelector('.switch-candidate-identity>span')?.textContent.trim(),name:r?.querySelector('.switch-candidate-identity>strong')?.textContent.trim()}})()`); picked.push(ident); await click(c,'.switch-candidate-row',{index}); await c.wait(`document.querySelector('.switch-candidate-inspector')`,'inspector'); await click(c,'.switch-candidate-inspector .switch-compare-action',{texts:['비교에 추가']}); await click(c,'.switch-candidate-inspector .switch-preview-topline button'); await c.wait(`!document.querySelector('.switch-candidate-inspector')`,'inspector close') }
+  await click(c,'.switch-compare-dock > button',{texts:['비교 보기']}); await c.wait(`document.querySelectorAll('.compare-mobile-candidate-picker button').length>=2`,'compare picker'); const currentHeader=await c.eval(`document.querySelector('.compare-mobile-product-head.is-current')?.textContent.trim()`); const labels=await c.eval(`[...document.querySelectorAll('.compare-mobile-candidate-picker button')].map(b=>b.textContent.trim())`); await click(c,'.compare-mobile-candidate-picker button',{index:1}); const candidateHeader=await c.eval(`document.querySelector('.compare-mobile-product-head.is-candidate')?.textContent.trim()`); assert.ok(currentHeader.includes('현재 사료')); assert.ok(candidateHeader.includes(picked[1].name)); await c.shot('360x844-switch-overview-candidate2.png')
+  await click(c,'.compare-tabs button',{texts:['영양']}); await c.wait(`document.querySelector('.compare-table-wrap')`,'nutrition table'); await wheelRight(c,'.compare-table-wrap'); const nutrition=await c.eval(`(()=>{const w=document.querySelector('.compare-table-wrap');const label=document.querySelector('.compare-row-label');const heads=[...document.querySelectorAll('.compare-product-head')];const head=heads.at(-1),detail=head?.querySelector('.compare-detail-link');const R=n=>{const r=n.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};const hit=detail?document.elementFromPoint(...(()=>{const r=detail.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/2]})()):null;return{scrollLeft:w.scrollLeft,max:w.scrollWidth-w.clientWidth,cssScrollX:getComputedStyle(w).getPropertyValue('--compare-scroll-x').trim(),wrap:R(w),label:R(label),labelText:label?.textContent.trim(),lastHead:R(head),detail:detail?R(detail):null,hit:!!detail&&(hit===detail||detail.contains(hit))}})()`); assert.ok(nutrition.scrollLeft>0); assert.ok(nutrition.label.left>=nutrition.wrap.left-1&&nutrition.label.right<=nutrition.wrap.right+1,JSON.stringify(nutrition)); assert.equal(nutrition.hit,true,JSON.stringify(nutrition)); await c.shot('360x844-switch-nutrition-right-edge.png')
+  const raw=await c.eval(`sessionStorage.getItem(${q(STORAGE)})`); assert.ok(raw); const snap=JSON.parse(raw); snap.state.compareTab='overview'; const net=network(c); assert.equal(net.writes.length,0); assert.equal(net.analytics.length,0); return {current,skuButton,available,picked,labels,currentHeader,candidateHeader,nutrition,snapshot:JSON.stringify(snap),network:{writes:0,analytics:0,publicGetCount:net.publicGetCount}}
+ }finally{await cleanup(h)} }
+
+async function desktopOverview(snapshot){ const h=await launch(761,900,false,snapshot); const c=h.c; try{ await c.nav(`${BASE}?view=workspace&mode=switch`); await c.wait(`document.querySelector('.compare-switch-overview-desktop')&&getComputedStyle(document.querySelector('.compare-switch-overview-desktop')).display!=='none'`,'desktop overview'); await wheelRight(c,'.compare-table-wrap'); const g=await c.eval(`(()=>{const w=document.querySelector('.compare-table-wrap');const row=[...document.querySelectorAll('.compare-switch-overview-row')].find(n=>n.querySelector('.compare-row-label')?.textContent.trim()==='사료 형태');const label=row.querySelector('.compare-row-label'),cur=row.querySelector('.compare-cell.is-current'),last=[...row.querySelectorAll('.compare-cell:not(.is-current)')].at(-1);const head=[...document.querySelectorAll('.compare-switch-overview-desktop .compare-product-head:not(.compare-current-product-head)')].at(-1),detail=head.querySelector('.compare-detail-link');const R=n=>{const r=n.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};const dr=R(detail),hit=document.elementFromPoint(dr.left+dr.width/2,dr.top+dr.height/2);return{scrollLeft:w.scrollLeft,max:w.scrollWidth-w.clientWidth,wrap:R(w),label:R(label),current:R(cur),last:R(last),detail:dr,hit:hit===detail||detail.contains(hit),texts:{label:label.textContent.trim(),current:cur.textContent.trim(),last:last.textContent.trim()}}})()`); assert.ok(g.scrollLeft>0); assert.ok(g.label.left>=g.wrap.left-1&&g.label.right<=g.wrap.right+1,JSON.stringify(g)); assert.ok(g.current.left>=g.label.right-1&&g.current.right<=g.wrap.right+1,JSON.stringify(g)); assert.ok(g.last.left>=g.current.right-1&&g.last.right<=g.wrap.right+1,JSON.stringify(g)); assert.equal(g.hit,true,JSON.stringify(g)); await c.shot('761x900-switch-overview-right-edge.png'); const net=network(c); assert.equal(net.writes.length,0); assert.equal(net.analytics.length,0); return {geometry:g,network:{writes:0,analytics:0,publicGetCount:net.publicGetCount}} }finally{await cleanup(h)} }
+
+const report={mergeSha:process.env.MERGE_SHA,page:BASE,status:'running'}
+try{ report.mobile=await mobileJourney(); report.desktop761=await desktopOverview(report.mobile.snapshot); delete report.mobile.snapshot; report.status='pass'; writeFileSync(`${OUT}/report.json`,JSON.stringify(report,null,2)); console.log('PR37_POSTDEPLOY PASS',JSON.stringify({mobile:report.mobile.nutrition,desktop761:report.desktop761.geometry})) }catch(error){ report.status='fail'; report.error=String(error?.stack??error); writeFileSync(`${OUT}/report.json`,JSON.stringify(report,null,2)); throw error }

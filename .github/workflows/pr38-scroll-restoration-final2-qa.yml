@@ -1,0 +1,66 @@
+name: PR38 SWITCH scroll restoration final2 QA
+
+on:
+  push:
+    branches:
+      - qa/pr38-scroll-restoration-final2-20260915
+
+permissions:
+  contents: read
+
+env:
+  PRODUCT_SHA: b34e5526e4996a2d39246ecce86fd8e8772f9b0b
+  QA_BASE: http://127.0.0.1:4173/catfood_web/
+  VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+  VITE_DECISION_INTAKE_ENABLED: 'false'
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Build exact product head
+        run: npm run build
+
+      - name: Serve candidate build
+        run: |
+          mkdir -p qa-site/catfood_web
+          cp -R dist/. qa-site/catfood_web/
+          python3 -m http.server 4173 --directory qa-site >/tmp/pr38-restoration-final2-http.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:4173/catfood_web/" >/dev/null; then break; fi
+            sleep 0.1
+          done
+          curl -fsS "http://127.0.0.1:4173/catfood_web/" >/dev/null
+
+      - name: Validate final navigation scroll and restoration in real Chrome
+        run: node .github/pr38-scroll-restoration-final-qa.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr38-scroll-restoration-final2-qa
+          path: qa-artifacts
+          if-no-files-found: warn

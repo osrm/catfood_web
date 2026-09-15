@@ -1210,7 +1210,7 @@ export default function SwitchFlow({
               {renderIngredientAvoidance()}
             </div>
             <div>
-              <CriterionSection title="공식 대상" hint="현재 제품에 없는 조건">
+              <CriterionSection title="공식 대상" hint="현재 제품에서 확인되지 않은 표기">
                 <ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 고를 공식 대상이 없습니다." />
               </CriterionSection>
               <CriterionSection title="기능" hint="제품의 공식 표기 기준">

@@ -19,7 +19,7 @@ const TARGET_ANCHORS: Record<SwitchExplicitScrollTarget, string> = {
 export function switchScrollOwner(anchor: HTMLElement): HTMLElement {
   let element: HTMLElement | null = anchor
   while (element) {
-    const overflowY = getComputedStyle(element).overflowY
+    const overflowY = element.ownerDocument.defaultView?.getComputedStyle(element).overflowY ?? ''
     if ((overflowY === 'auto' || overflowY === 'scroll') && element.scrollHeight > element.clientHeight) {
       return element
     }

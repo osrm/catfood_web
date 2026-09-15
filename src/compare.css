@@ -603,6 +603,35 @@
   outline-offset: 2px;
 }
 
+@media (min-width: 761px) {
+  .is-switch-overview .compare-switch-overview-desktop {
+    --switch-overview-label-width: 176px;
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-head-row > .compare-corner,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-row-label {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-current-product-head,
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-cell.is-current {
+    position: sticky;
+    left: var(--switch-overview-label-width);
+    z-index: 4;
+    box-shadow: 1px 0 0 var(--research-line), 10px 0 14px rgba(11, 44, 37, 0.06);
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-current-product-head {
+    background: #f3f7f5;
+  }
+
+  .is-switch-overview .compare-switch-overview-desktop .compare-switch-overview-row > .compare-cell.is-current {
+    background: #f9fbfa;
+  }
+}
+
 @media (max-width: 760px) {
   .compare-scope-note {
     align-items: flex-start;
@@ -644,11 +673,15 @@
 
   .compare-mobile-candidate-picker > div {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 7px;
+    overflow-x: auto;
+    padding: 2px 1px 5px;
+    scrollbar-width: thin;
   }
 
   .compare-mobile-candidate-picker button {
+    flex: 0 0 auto;
     min-height: 36px;
     padding: 7px 10px;
     border: 1px solid #cbd5d1;
@@ -657,7 +690,7 @@
     color: #33413c;
     font-size: 10.5px;
     font-weight: 760;
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .compare-mobile-candidate-picker button.is-active {

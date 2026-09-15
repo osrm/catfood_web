@@ -70,6 +70,9 @@ function snapshot(ctx, compareIds) {
     },
   }
 }
+function parentSnapshot(compareSnapshot) {
+  return { version: 1, state: { ...compareSnapshot.state, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' } }
+}
 
 class Browser {
   constructor(url) { this.url = url; this.ws = null; this.id = 1; this.pending = new Map(); this.requests = [] }
@@ -115,8 +118,13 @@ async function launch(width, height, mobile, sessionSnapshot) {
         await browser.connect()
         await browser.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile, screenWidth: width, screenHeight: height })
         await browser.send('Emulation.setUserAgentOverride', { userAgent: mobile ? 'Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Mobile Safari/537.36' : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36', acceptLanguage: 'ko-KR,ko;q=0.9,en;q=0.8', platform: mobile ? 'Android' : 'Linux' })
+        const parent = parentSnapshot(sessionSnapshot)
         await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
-          try { sessionStorage.setItem(${js(STORAGE_KEY)}, ${js(JSON.stringify(sessionSnapshot))}) } catch {}
+          try {
+            sessionStorage.setItem(${js(STORAGE_KEY)}, ${js(JSON.stringify(sessionSnapshot))})
+            history.replaceState({catfoodSwitch:${js(parent)}}, '', location.href)
+            history.pushState({catfoodSwitch:${js(sessionSnapshot)},catfoodSwitchEntry:'compare'}, '', location.href)
+          } catch {}
           const nativeFetch = window.fetch.bind(window)
           window.__qaBlockedAnalytics = 0; window.__qaBlockedWrites = 0
           window.fetch = (input, init = {}) => {

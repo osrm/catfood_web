@@ -8,10 +8,19 @@ export type SwitchExplicitScrollIntent = {
   released: boolean
 }
 
-type PendingSettle = {
+export type SwitchExplicitScrollSettleHandle = {
   generation: number
+  cancel: () => void
+}
+
+type ActiveSettle = {
+  intent: SwitchExplicitScrollIntent
   target: SwitchExplicitScrollTarget
+  anchor: HTMLElement
+  owner: HTMLElement
   frame: number
+  canceled: boolean
+  handle: SwitchExplicitScrollSettleHandle
 }
 
 const TARGET_ANCHORS: Record<SwitchExplicitScrollTarget, string> = {
@@ -24,20 +33,28 @@ const TARGET_ANCHORS: Record<SwitchExplicitScrollTarget, string> = {
 }
 
 let nextGeneration = 1
-let activeIntent: { generation: number; target: SwitchExplicitScrollTarget } | null = null
-let pendingSettle: PendingSettle | null = null
+let activeIntent: SwitchExplicitScrollIntent | null = null
+let activeSettle: ActiveSettle | null = null
 
-function cancelPendingSettle(): void {
-  if (!pendingSettle) return
-  if (typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(pendingSettle.frame)
-  pendingSettle = null
+function finishIntent(intent: SwitchExplicitScrollIntent): void {
+  intent.released = true
+  if (activeIntent === intent) activeIntent = null
 }
 
-function resetTargetScroll(target: SwitchExplicitScrollTarget): boolean {
+function cancelSettle(settle: ActiveSettle): void {
+  if (settle.canceled) return
+  settle.canceled = true
+  if (typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(settle.frame)
+  if (activeSettle === settle) activeSettle = null
+  finishIntent(settle.intent)
+}
+
+function resetTargetScroll(target: SwitchExplicitScrollTarget): { anchor: HTMLElement; owner: HTMLElement } | null {
   const anchor = document.querySelector<HTMLElement>(TARGET_ANCHORS[target])
-  if (!anchor) return false
-  switchScrollOwner(anchor).scrollTop = 0
-  return true
+  if (!anchor) return null
+  const owner = switchScrollOwner(anchor)
+  owner.scrollTop = 0
+  return { anchor, owner }
 }
 
 export function switchScrollOwner(anchor: HTMLElement): HTMLElement {
@@ -57,41 +74,65 @@ export function beginSwitchExplicitScrollIntent(
   historyTraversal = false,
 ): SwitchExplicitScrollIntent {
   void historyTraversal
-  cancelPendingSettle()
-  const generation = nextGeneration++
-  activeIntent = { generation, target }
-  return { target, generation, released: false }
+  if (activeSettle) cancelSettle(activeSettle)
+  if (activeIntent) finishIntent(activeIntent)
+  const intent = { target, generation: nextGeneration++, released: false }
+  activeIntent = intent
+  return intent
+}
+
+export function cancelSwitchExplicitScrollSettle(handle: SwitchExplicitScrollSettleHandle): void {
+  handle.cancel()
 }
 
 export function releaseSwitchExplicitScrollIntent(intent: SwitchExplicitScrollIntent): void {
   if (intent.released) return
-  intent.released = true
-  if (activeIntent?.generation !== intent.generation) return
-  if (pendingSettle?.generation === intent.generation) return
-  activeIntent = null
+  if (activeSettle?.intent === intent) {
+    cancelSettle(activeSettle)
+    return
+  }
+  finishIntent(intent)
 }
 
-export function resetSwitchExplicitNavigationScroll(target: SwitchExplicitScrollTarget): boolean {
-  const didReset = resetTargetScroll(target)
-  if (!didReset) return false
+export function resetSwitchExplicitNavigationScroll(
+  intent: SwitchExplicitScrollIntent,
+  onSettled?: () => void,
+): SwitchExplicitScrollSettleHandle | null {
+  if (intent.released || activeIntent !== intent) return null
+  const reset = resetTargetScroll(intent.target)
+  if (!reset) return null
 
-  const current = activeIntent
-  if (!current || current.target !== target) return true
   if (typeof window.requestAnimationFrame !== 'function') {
-    activeIntent = null
-    return true
+    finishIntent(intent)
+    return null
   }
 
-  cancelPendingSettle()
-  const generation = current.generation
+  if (activeSettle) cancelSettle(activeSettle)
+  const { anchor, owner } = reset
+  let settle: ActiveSettle
+  const handle: SwitchExplicitScrollSettleHandle = {
+    generation: intent.generation,
+    cancel: () => cancelSettle(settle),
+  }
   const frame = window.requestAnimationFrame(() => {
-    const settle = pendingSettle
-    if (!settle || settle.frame !== frame || settle.generation !== generation) return
-    pendingSettle = null
-    if (activeIntent?.generation !== generation || activeIntent.target !== target) return
-    resetTargetScroll(target)
-    activeIntent = null
+    if (settle.canceled || activeSettle !== settle || intent.released || activeIntent !== intent) return
+    activeSettle = null
+    const currentAnchor = document.querySelector<HTMLElement>(TARGET_ANCHORS[intent.target])
+    if (currentAnchor === anchor && anchor.isConnected && switchScrollOwner(anchor) === owner) {
+      owner.scrollTop = 0
+    }
+    finishIntent(intent)
+    onSettled?.()
   })
-  pendingSettle = { generation, target, frame }
-  return true
+  settle = {
+    intent,
+    target: intent.target,
+    anchor,
+    owner,
+    frame,
+    canceled: false,
+    handle,
+  }
+  activeSettle = settle
+  return handle
 }

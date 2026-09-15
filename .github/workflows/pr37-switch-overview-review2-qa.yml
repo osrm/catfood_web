@@ -66,7 +66,7 @@ jobs:
           cat /tmp/pr37-baseline-http.log || true
           exit 1
 
-      - name: Wait for async SKU in journey helper
+      - name: Prepare focused QA helper timing and diagnostics
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -79,7 +79,14 @@ jobs:
               await pointerClick(browser, '.switch-sku-option', { text: '1 kg' })"""
           if old not in text:
               raise SystemExit('expected SKU helper block not found')
-          path.write_text(text.replace(old, new, 1))
+          text = text.replace(old, new, 1)
+          old_metric = """    assert.ok(metrics.label.left >= metrics.wrap.left - 1 && metrics.label.right <= metrics.wrap.right + 1, `${width}: label not visible`)"""
+          new_metric = """    console.log('DESKTOP_RIGHT_END_METRICS', width, JSON.stringify(metrics))
+              await browser.shot(`${OUT}/${width}x900-right-end-before-assert.png`)
+              assert.ok(metrics.label.left >= metrics.wrap.left - 1 && metrics.label.right <= metrics.wrap.right + 1, `${width}: label not visible`)"""
+          if old_metric not in text:
+              raise SystemExit('expected desktop metric assertion not found')
+          path.write_text(text.replace(old_metric, new_metric, 1))
           PY
 
       - name: Validate real journey and focused layouts in Chrome

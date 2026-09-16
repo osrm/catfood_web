@@ -1,0 +1,18 @@
+@media (max-width: 760px) {
+  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-product-head > span,
+  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-product-head > small {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-product-head > strong {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-head-actions button {
+    min-height: 44px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+}

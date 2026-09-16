@@ -26,6 +26,11 @@ jobs:
       - name: Verify QA branch preserves exact product sources
         run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
 
+      - name: Check QA script syntax
+        run: |
+          node --check .github/pr39-compare-readability-390-qa.mjs
+          node --check .github/pr39-load-more-dock-qa.mjs
+
       - name: Install Korean font environment
         run: |
           sudo apt-get update -qq
@@ -35,6 +40,9 @@ jobs:
 
       - name: Review deployed 390 mobile SWITCH compare readability in real Chrome
         run: node .github/pr39-compare-readability-390-qa.mjs
+
+      - name: Review load-more visibility with compare dock present
+        run: node .github/pr39-load-more-dock-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

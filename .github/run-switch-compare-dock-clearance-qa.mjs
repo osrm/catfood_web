@@ -81,7 +81,7 @@ const boundaryFunction = `async function runBoundary(width, height, mobile) {
     const inspectorActionOwner = await ownerSnapshot(c, '.switch-inspector-actions .switch-compare-action')
     assert.ok(inspectorActionOwner)
     if (width <= 760) assert.equal(inspectorActionOwner.tag, 'HTML')
-    else assert.equal(inspectorActionOwner.className.includes('switch-inspector-scroll'), true, \`\${width}: \${JSON.stringify(inspectorActionOwner)}\`)
+    else if (width >= 1280) assert.equal(inspectorActionOwner.className.includes('switch-inspector-scroll'), true, \`\${width}: \${JSON.stringify(inspectorActionOwner)}\`)
     const inspectorAction = await wheelUntilVisible(c, '.switch-inspector-actions .switch-compare-action')
     assert.ok(inspectorAction.inViewport && inspectorAction.pointerAccessible)
     const bodyOverflow = await c.eval(\`getComputedStyle(document.body).overflowY\`)

@@ -1,0 +1,52 @@
+name: PR40 postdeploy 390 QA
+
+on:
+  push:
+    branches:
+      - qa/pr40-postdeploy-390-20260916
+
+permissions:
+  contents: read
+
+env:
+  MERGE_SHA: 80d9f5854efce2de407124fe5828904dc0aea698
+  PAGE_URL: https://osrm.github.io/catfood_web/
+
+jobs:
+  postdeploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify QA branch preserves deployed product sources
+        run: git diff --exit-code "$MERGE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify deployed page and QA syntax
+        run: |
+          curl -fsS "$PAGE_URL" >/dev/null
+          node --check .github/pr40-postdeploy-390.mjs
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Run production 390 postdeploy QA
+        run: node .github/pr40-postdeploy-390.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr40-postdeploy-390
+          path: qa-artifacts-pr40-postdeploy
+          if-no-files-found: warn

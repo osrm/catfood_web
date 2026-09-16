@@ -1,4 +1,4 @@
-name: LOOKUP guidance candidate QA
+name: LOOKUP guidance exact-head checks
 
 on:
   push:
@@ -9,23 +9,17 @@ permissions:
   contents: read
 
 jobs:
-  qa:
+  check:
     runs-on: ubuntu-24.04
     env:
       PRODUCT_SHA: 9372f37c8bbf7279ac64ab7145ea15ddd6c2ed0f
-      PAGE_URL: http://127.0.0.1:4173/
-      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
-      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
-      VITE_DECISION_INTAKE_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Preserve QA helper and check out exact product head
+      - name: Check out exact product head
         run: |
-          cp .github/first-visit-review.mjs /tmp/lookup-guidance-review.mjs
-          sed -i "/EXPLORE initial state/d" /tmp/lookup-guidance-review.mjs
           git checkout "$PRODUCT_SHA"
           test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
 
@@ -35,37 +29,5 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - name: Build exact product head
-        run: npm run build
-
-      - name: Install Korean font environment
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq fonts-noto-cjk
-          fc-cache -f
-
-      - name: Start local preview
-        run: |
-          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/lookup-preview.log 2>&1 &
-          echo $! >/tmp/lookup-preview.pid
-          for i in $(seq 1 80); do
-            if curl -fsS "http://127.0.0.1:4173/" >/dev/null; then exit 0; fi
-            sleep 0.25
-          done
-          cat /tmp/lookup-preview.log
-          exit 1
-
-      - name: Run focused browser QA
-        run: node /tmp/lookup-guidance-review.mjs
-
-      - name: Stop local preview
-        if: always()
-        run: |
-          if test -f /tmp/lookup-preview.pid; then kill "$(cat /tmp/lookup-preview.pid)" 2>/dev/null || true; fi
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: lookup-guidance-candidate
-          path: qa-artifacts-lookup-guidance
-          if-no-files-found: ignore
+      - run: npm test
+      - run: npm run build

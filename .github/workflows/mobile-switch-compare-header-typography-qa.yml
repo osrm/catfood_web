@@ -16,6 +16,9 @@ jobs:
       PRODUCT_SHA: f03c547beae2c93f76cdec5493cb9a01dbaf2358
       BASELINE_BUILD_URL: http://127.0.0.1:4174/
       TARGET_BUILD_URL: http://127.0.0.1:4173/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v5
         with:

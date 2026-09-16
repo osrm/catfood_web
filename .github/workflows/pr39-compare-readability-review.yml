@@ -1,0 +1,46 @@
+name: PR39 SWITCH compare readability review
+
+on:
+  push:
+    branches:
+      - qa/pr39-compare-readability-review-20260916
+
+permissions:
+  contents: read
+
+env:
+  PRODUCT_SHA: b577926738955bf100e57fc179c0cfebae15824b
+  QA_BASE: https://osrm.github.io/catfood_web/
+  VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+  VITE_DECISION_INTAKE_ENABLED: "false"
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Review deployed mobile SWITCH compare readability in real Chrome
+        run: node .github/pr39-compare-readability-qa.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr39-switch-compare-readability-review
+          path: qa-artifacts
+          if-no-files-found: warn

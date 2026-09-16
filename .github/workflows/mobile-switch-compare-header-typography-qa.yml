@@ -12,9 +12,10 @@ jobs:
   qa:
     runs-on: ubuntu-24.04
     env:
+      BASE_SHA: 484d6d00435ec5c29285c8d9d6184460171183b0
       PRODUCT_SHA: f03c547beae2c93f76cdec5493cb9a01dbaf2358
-      BASELINE_URL: https://osrm.github.io/catfood_web/
-      TARGET_URL: http://127.0.0.1:4173/
+      BASELINE_BUILD_URL: http://127.0.0.1:4174/
+      TARGET_BUILD_URL: http://127.0.0.1:4173/
     steps:
       - uses: actions/checkout@v5
         with:
@@ -28,7 +29,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
+      - name: Install candidate dependencies
         run: npm ci
 
       - name: Run existing tests
@@ -37,27 +38,35 @@ jobs:
       - name: Typecheck and build exact candidate
         run: npm run build
 
+      - name: Build exact baseline
+        run: |
+          git worktree add /tmp/catfood-baseline "$BASE_SHA"
+          cd /tmp/catfood-baseline
+          npm ci
+          npm run build
+
       - name: Install Korean font environment
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq fonts-noto-cjk
           fc-cache -f
 
-      - name: Serve candidate build and run focused browser QA
+      - name: Serve exact builds and run deterministic layout QA
         run: |
-          sed -i 's/assert.match(texts.candidate, new RegExp(${JSON.stringify(EXPECTED.first)}))/assert.ok(texts.candidate.includes(EXPECTED.first))/' .github/mobile-switch-compare-header-seeded-qa.mjs
-          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
-          echo $! > /tmp/catfood-preview.pid
-          for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
-            sleep 1
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-candidate.log 2>&1 &
+          (cd /tmp/catfood-baseline && npm run preview -- --host 127.0.0.1 --port 4174 > /tmp/catfood-baseline.log 2>&1) &
+          for port in 4173 4174; do
+            for i in {1..60}; do
+              if curl -fsS "http://127.0.0.1:$port/" >/dev/null; then break; fi
+              sleep 1
+            done
+            curl -fsS "http://127.0.0.1:$port/" >/dev/null
           done
-          curl -fsS http://127.0.0.1:4173/ >/dev/null
-          node .github/mobile-switch-compare-header-seeded-qa.mjs
+          node .github/mobile-switch-compare-header-deterministic-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mobile-switch-compare-header-typography-qa
-          path: qa-artifacts
+          path: qa-artifacts-deterministic
           if-no-files-found: ignore

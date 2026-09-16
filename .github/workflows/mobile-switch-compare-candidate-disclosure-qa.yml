@@ -1,0 +1,66 @@
+name: Mobile SWITCH compare candidate disclosure QA
+
+on:
+  push:
+    branches:
+      - qa/mobile-switch-compare-candidate-disclosure-20260916
+
+permissions:
+  contents: read
+
+env:
+  PRODUCT_SHA: c59e097c491bb4122f866588e92e14f97542dde6
+  BASELINE_URL: https://osrm.github.io/catfood_web/
+  TARGET_URL: http://127.0.0.1:4173/catfood_web/
+  VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install and run existing checks
+        run: |
+          npm ci
+          npm test
+          npm run build
+          grep -Eq '(src|href)="\./assets/' dist/index.html
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk >/dev/null
+          google-chrome --version
+
+      - name: Serve exact candidate build and run focused real-Chrome QA
+        run: |
+          rm -rf serve qa-artifacts
+          mkdir -p serve/catfood_web
+          cp -R dist/. serve/catfood_web/
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory serve >/tmp/catfood-candidate-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in {1..50}; do
+            curl -fsS "$TARGET_URL" >/dev/null && break
+            sleep 0.2
+          done
+          curl -fsS "$TARGET_URL" >/dev/null
+          node --check .github/mobile-switch-compare-candidate-disclosure-qa.mjs
+          node .github/mobile-switch-compare-candidate-disclosure-qa.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-switch-compare-candidate-disclosure-qa
+          path: qa-artifacts
+          if-no-files-found: warn

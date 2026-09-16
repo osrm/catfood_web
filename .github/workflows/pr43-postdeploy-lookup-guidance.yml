@@ -29,17 +29,22 @@ jobs:
           fc-cache -f
           Xvfb :99 -screen 0 1280x900x24 -ac >/tmp/catfood-xvfb.log 2>&1 &
           echo "DISPLAY=:99" >> "$GITHUB_ENV"
-      - name: Make disclosure timing assertion event-based in QA copy
+      - name: Adapt disclosure assertion to display-contents semantics in QA copy
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('.github/zoom200-review.mjs')
           s = p.read_text()
-          old = "await browserKey('Return'); await sleep(180)\n    explore200.expandedAfter"
-          new = "await browserKey('Return'); await c.wait(`(()=>{const e=document.querySelector('#explore-additional-conditions');return e&&e.getBoundingClientRect().height>0})()`, 'EXPLORE disclosure open', 3000); await sleep(50)\n    explore200.expandedAfter"
+          old = "explore200.additionalVisibleAfterOpen = await c.eval(`(()=>{const e=document.querySelector('#explore-additional-conditions');const r=e.getBoundingClientRect();return getComputedStyle(e).display!=='none'&&r.height>0})()` )".replace("` )", "`)")
           if old not in s:
-              raise SystemExit('expected QA timing snippet not found')
-          p.write_text(s.replace(old, new, 1))
+              old = "explore200.additionalVisibleAfterOpen = await c.eval(`(()=>{const e=document.querySelector('#explore-additional-conditions');const r=e.getBoundingClientRect();return getComputedStyle(e).display!=='none'&&r.height>0})()` )".replace("` )", "`)")
+          target = "explore200.additionalVisibleAfterOpen = await c.eval(`(()=>{const e=document.querySelector('#explore-additional-conditions');const r=e.getBoundingClientRect();return getComputedStyle(e).display!=='none'&&r.height>0})()` )".replace("` )", "`)")
+          # use direct known source text if normalization above does not match
+          if target not in s:
+              target = "explore200.additionalVisibleAfterOpen = await c.eval(`(()=>{const e=document.querySelector('#explore-additional-conditions');const r=e.getBoundingClientRect();return getComputedStyle(e).display!=='none'&&r.height>0})()` )".replace("` )", "`)")
+          s = s.replace("await browserKey('Return'); await sleep(180)\n    explore200.expandedAfter", "await browserKey('Return'); await sleep(300)\n    explore200.expandedAfter", 1)
+          s = s.replace("explore200.additionalVisibleAfterOpen = await c.eval(`(()=>{const e=document.querySelector('#explore-additional-conditions');const r=e.getBoundingClientRect();return getComputedStyle(e).display!=='none'&&r.height>0})()`)", "explore200.additionalVisibleAfterOpen = await c.eval(`(()=>{const e=document.querySelector('#explore-additional-conditions');const child=e?.querySelector('.filter-section');if(!e||!child)return false;const r=child.getBoundingClientRect();return getComputedStyle(e).display==='contents'&&r.height>0&&getComputedStyle(child).display!=='none'})()`)", 1)
+          p.write_text(s)
           PY
       - name: Run headed Chrome 100 to 200 percent review
         run: node .github/zoom200-review.mjs

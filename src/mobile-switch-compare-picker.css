@@ -1,13 +1,9 @@
 @media (max-width: 760px) {
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] {
+  .compare-mobile-candidate-picker {
     gap: 0;
     padding: 0;
     overflow: visible;
     background: #f8f9f8;
-  }
-
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > span {
-    display: none;
   }
 
   .compare-mobile-candidate-toggle {
@@ -71,7 +67,7 @@
     transform: translateY(-50%) rotate(180deg);
   }
 
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options {
+  .compare-mobile-candidate-options {
     display: grid;
     gap: 6px;
     overflow: visible;
@@ -79,11 +75,11 @@
     scrollbar-width: auto;
   }
 
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options[hidden] {
+  .compare-mobile-candidate-options[hidden] {
     display: none !important;
   }
 
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options > button {
+  .compare-mobile-candidate-options > button {
     position: relative;
     width: 100%;
     min-height: 44px;
@@ -101,7 +97,7 @@
     line-height: 1.45;
   }
 
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options > button[aria-pressed="true"]::after {
+  .compare-mobile-candidate-options > button[aria-pressed="true"]::after {
     content: "선택 중";
     position: absolute;
     top: 50%;
@@ -113,7 +109,7 @@
     white-space: nowrap;
   }
 
-  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options > button[aria-pressed="true"] {
+  .compare-mobile-candidate-options > button[aria-pressed="true"] {
     border-color: #557985;
     background: #edf4f2;
     color: #163d34;

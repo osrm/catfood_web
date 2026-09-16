@@ -49,6 +49,32 @@ jobs:
 
       - name: Serve exact candidate build and run focused real-Chrome QA
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/mobile-switch-compare-react-disclosure-qa.mjs')
+          s = p.read_text()
+          old = """  async eval(expression) {
+              const result = await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+              if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text)
+              return result.result?.value
+            }"""
+          new = """  async eval(expression) {
+              let result
+              try {
+                result = await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+              } catch (error) {
+                throw new Error(`Runtime.evaluate failed for ${expression.slice(0, 280)} :: ${error instanceof Error ? error.message : String(error)}`)
+              }
+              if (result.exceptionDetails) throw new Error(`${result.exceptionDetails.exception?.description ?? result.exceptionDetails.text}; expression=${expression.slice(0, 280)}`)
+              return result.result?.value
+            }"""
+          if old not in s:
+              raise SystemExit('eval helper block not found')
+          s = s.replace(old, new, 1)
+          s = s.replace("await this.eval('document.fonts?.ready')", "await this.eval('document.fonts?.ready.then(()=>true)')")
+          p.write_text(s)
+          PY
+          node --check .github/mobile-switch-compare-react-disclosure-qa.mjs
           npx vite preview --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
           PREVIEW_PID=$!
           trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT

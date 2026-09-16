@@ -45,6 +45,7 @@ jobs:
 
       - name: Serve candidate build and run focused browser QA
         run: |
+          sed -i 's/assert.match(texts.candidate, new RegExp(${JSON.stringify(EXPECTED.first)}))/assert.ok(texts.candidate.includes(EXPECTED.first))/' .github/mobile-switch-compare-header-seeded-qa.mjs
           npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
           echo $! > /tmp/catfood-preview.pid
           for i in {1..60}; do

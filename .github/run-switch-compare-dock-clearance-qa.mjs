@@ -40,9 +40,8 @@ const headCss = `/* Keep bottom content reachable above the fixed SWITCH compare
 const sourcePath = new URL('./switch-compare-dock-clearance-qa.mjs', import.meta.url)
 let source = readFileSync(sourcePath, 'utf8')
 const originalSignature = 'async function enterResults(c, base) {'
-const replacementSignature = 'async function enterResults(c, base, applyHeadCss = false) {'
 assert.equal(source.includes(originalSignature), true)
-source = source.replace(originalSignature, replacementSignature)
+source = source.replace(originalSignature, 'async function enterResults(c, base, applyHeadCss = false) {')
 const originalNav = '  await c.nav(`${base}?view=workspace&mode=switch`)\n'
 const replacementNav = `${originalNav}  if (applyHeadCss) {\n    const css=${JSON.stringify(headCss)}\n    await c.eval(\`(()=>{const style=document.createElement('style');style.id='qa-head-dock-clearance';style.textContent=\${JSON.stringify(css)};document.head.appendChild(style);return style.textContent.length})()\`)\n  }\n`
 assert.equal(source.includes(originalNav), true)
@@ -51,11 +50,13 @@ const targetCall = 'await enterResults(c, TARGET)'
 const targetCalls = source.split(targetCall).length - 1
 assert.ok(targetCalls >= 2, `expected target calls, found ${targetCalls}`)
 source = source.replaceAll(targetCall, 'await enterResults(c, BASELINE, true)')
+const cleanupLine = "  rmSync(handle.dir, { recursive: true, force: true })\n"
+assert.equal(source.includes(cleanupLine), true)
+source = source.replace(cleanupLine, "  try { rmSync(handle.dir, { recursive: true, force: true }) } catch {}\n")
 
 const generated = new URL('./.generated-switch-compare-dock-clearance-qa.mjs', import.meta.url)
 writeFileSync(generated, source)
 
-// The helper computes some viewport coordinates in Node from browser-provided rects.
 globalThis.outerWidth = Number.MAX_SAFE_INTEGER
 globalThis.innerWidth = 760
 globalThis.innerHeight = Number.MAX_SAFE_INTEGER

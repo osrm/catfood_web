@@ -1,0 +1,62 @@
+name: Mobile SWITCH compare header typography QA
+
+on:
+  push:
+    branches:
+      - qa/mobile-switch-compare-header-typography-20260916
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    env:
+      PRODUCT_SHA: f03c547beae2c93f76cdec5493cb9a01dbaf2358
+      BASELINE_URL: https://osrm.github.io/catfood_web/
+      TARGET_URL: http://127.0.0.1:4173/
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify QA branch preserves exact product sources
+        run: git diff --exit-code "$PRODUCT_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run existing tests
+        run: npm test
+
+      - name: Typecheck and build exact candidate
+        run: npm run build
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          fc-cache -f
+
+      - name: Serve candidate build and run focused browser QA
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
+          echo $! > /tmp/catfood-preview.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          node .github/mobile-switch-compare-header-typography-qa.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-switch-compare-header-typography-qa
+          path: qa-artifacts
+          if-no-files-found: ignore

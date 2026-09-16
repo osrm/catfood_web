@@ -48,8 +48,8 @@ const adaptiveWheel = `async function wheelUntilVisible(c, selector, matcher = n
 source = source.slice(0, wheelStart) + adaptiveWheel + source.slice(wheelEnd)
 
 // Verify the reserved space against the measured dock footprint instead of the
-// CSS constants alone. Mobile reserves document space; desktop reserves space
-// inside the existing candidate/inspector scrollers.
+// CSS constants alone. Mobile reserves document space; wider layouts reserve
+// space from the candidate/inspector content so their existing owner can use it.
 const gapAssertion = "    assert.ok(maxEvidence.gap >= 16, `expected >=16px dock gap, got ${maxEvidence.gap}`)\n"
 assert.equal(source.includes(gapAssertion), true)
 source = source.replace(gapAssertion, `${gapAssertion}    const dockBottomOffset = height - maxEvidence.dockRect.bottom\n    const reservedClearance = width <= 760 ? Number.parseFloat(maxEvidence.stagePaddingBottom) - 22 : Number.parseFloat(maxEvidence.listAfter.height)\n    const requiredClearance = maxEvidence.dockRect.height + dockBottomOffset + 16\n    assert.ok(reservedClearance + 0.5 >= requiredClearance, \`reserved \${reservedClearance}px < measured requirement \${requiredClearance}px\`)\n`)
@@ -60,7 +60,7 @@ source = source.replace(targetReturn, '    return { candidate, owner, maxEvidenc
 const boundaryStart = source.indexOf('async function runBoundary(width, height, mobile) {')
 const boundaryEnd = source.indexOf('\nconst report = {', boundaryStart)
 assert.ok(boundaryStart >= 0 && boundaryEnd > boundaryStart)
-const boundaryFunction = `async function runBoundary(width, height, mobile) {
+const boundaryFunctions = `async function runBoundary(width, height, mobile) {
   const h = await launch(width, height, mobile); const c = h.c
   try {
     await enterResults(c, TARGET)
@@ -88,8 +88,32 @@ const boundaryFunction = `async function runBoundary(width, height, mobile) {
     return { owner, evidence, clearance: { dockHeight: evidence.dockRect.height, dockBottomOffset, reservedClearance, requiredClearance }, inspectorActionOwner, inspectorAction, bodyOverflow, network: await networkReport(c) }
   } finally { await cleanup(h) }
 }
+
+async function runBaselineBoundary(width, height, mobile) {
+  const h = await launch(width, height, mobile); const c = h.c
+  try {
+    await enterResults(c, BASELINE)
+    await addFirstCandidate(c)
+    const owner = await wheelToEnd(c, '.load-more')
+    const evidence = await inspectLoadMore(c)
+    const bodyOverflow = await c.eval(\`getComputedStyle(document.body).overflowY\`)
+    return { owner, evidence, bodyOverflow, network: await networkReport(c) }
+  } finally { await cleanup(h) }
+}
 `
-source = source.slice(0, boundaryStart) + boundaryFunction + source.slice(boundaryEnd)
+source = source.slice(0, boundaryStart) + boundaryFunctions + source.slice(boundaryEnd)
+
+const boundaryCalls = "  report.boundary760 = await runBoundary(760, 900, true)\n  report.boundary761 = await runBoundary(761, 900, false)\n"
+assert.equal(source.includes(boundaryCalls), true)
+source = source.replace(boundaryCalls, "  report.boundary760 = await runBoundary(760, 900, true)\n  report.baselineBoundary761 = await runBaselineBoundary(761, 900, false)\n  report.boundary761 = await runBoundary(761, 900, false)\n")
+
+const wrongBoundaryAssertion = "  assert.equal(report.boundary761.owner.className.includes('switch-candidate-list'), true)\n"
+assert.equal(source.includes(wrongBoundaryAssertion), true)
+source = source.replace(wrongBoundaryAssertion, "  assert.equal(report.boundary761.owner.tag, report.baselineBoundary761.owner.tag)\n  assert.equal(report.boundary761.owner.className, report.baselineBoundary761.owner.className)\n")
+
+const summaryBoundary = "    boundary760: report.boundary760.evidence.owner,\n    boundary761: report.boundary761.evidence.owner,\n"
+assert.equal(source.includes(summaryBoundary), true)
+source = source.replace(summaryBoundary, "    boundary760: report.boundary760.evidence.owner,\n    baselineBoundary761: report.baselineBoundary761.evidence.owner,\n    boundary761: report.boundary761.evidence.owner,\n")
 
 const generated = new URL('./.generated-switch-compare-dock-clearance-qa.mjs', import.meta.url)
 writeFileSync(generated, source)

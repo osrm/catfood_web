@@ -72,6 +72,7 @@ jobs:
               raise SystemExit('eval helper block not found')
           s = s.replace(old, new, 1)
           s = s.replace("await this.eval('document.fonts?.ready')", "await this.eval('document.fonts?.ready.then(()=>true)')")
+          s = s.replace("assert.ok(await handle.c.eval(`document.querySelector('.compare-mobile-product-head.is-candidate strong')`))", "assert.equal(await handle.c.eval(`Boolean(document.querySelector('.compare-mobile-product-head.is-candidate strong'))`), true)")
           p.write_text(s)
           PY
           node --check .github/mobile-switch-compare-react-disclosure-qa.mjs

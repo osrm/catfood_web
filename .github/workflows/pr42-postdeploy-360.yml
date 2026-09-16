@@ -25,6 +25,7 @@ jobs:
       - name: Preserve QA helper and check out exact product head
         run: |
           cp .github/first-visit-review.mjs /tmp/lookup-guidance-review.mjs
+          sed -i "/EXPLORE initial state/d" /tmp/lookup-guidance-review.mjs
           git checkout "$PRODUCT_SHA"
           test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
 

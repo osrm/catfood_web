@@ -44,6 +44,17 @@ jobs:
 
       - name: Serve exact candidate build and run focused real-Chrome QA
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/mobile-switch-compare-disclosure-qa.mjs')
+          s = p.read_text()
+          old = "outline:toggle?getComputedStyle(toggle).outlineStyle:null})"
+          new = "outline:toggle?getComputedStyle(toggle).outlineStyle:null}"
+          if old not in s:
+              raise SystemExit('expected QA snapshot typo not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          node --check .github/mobile-switch-compare-disclosure-qa.mjs
           npx vite preview --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
           PREVIEW_PID=$!
           trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT

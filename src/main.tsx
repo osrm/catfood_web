@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { installMobileSwitchComparePicker } from './mobile-switch-compare-picker'
 import { isDemoPreview, isRealVisualPreview, isStressPreview } from './preview-mode'
 import './styles.css'
 import './refinements.css'
@@ -41,6 +42,8 @@ function syncCompareScroll(event: Event) {
 document.addEventListener('scroll', syncCompareScroll, true)
 
 async function start() {
+  installMobileSwitchComparePicker()
+
   if (import.meta.env.DEV) {
     if (isDemoPreview()) (await import('./demo-preview')).installDemoPreviewFetch()
     if (isRealVisualPreview()) (await import('./real-visual-preview')).installRealVisualPreviewFetch()

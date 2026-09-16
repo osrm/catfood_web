@@ -1,4 +1,4 @@
-name: Apply lookup guidance patch
+name: LOOKUP guidance candidate QA
 
 on:
   push:
@@ -6,43 +6,65 @@ on:
       - qa/pr42-postdeploy-360-20260916
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
+  qa:
     runs-on: ubuntu-24.04
     env:
-      BASE_SHA: 83e4ca5acb8ac4f44b28c840260c63c679403195
-      PRODUCT_BRANCH: fix/lookup-results-initial-guidance-20260917
+      PRODUCT_SHA: 9372f37c8bbf7279ac64ab7145ea15ddd6c2ed0f
+      PAGE_URL: http://127.0.0.1:4173/catfood_web/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ env.PRODUCT_BRANCH }}
           fetch-depth: 0
 
-      - name: Verify exact product baseline
-        run: test "$(git rev-parse HEAD)" = "$BASE_SHA"
-
-      - name: Apply only the LOOKUP heading guidance branch
+      - name: Preserve QA helper and check out exact product head
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('src/App.tsx')
-          text = path.read_text()
-          old = "<span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span>"
-          new = "<span>{loading || waitingForConditions ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span>"
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one target, found {text.count(old)}')
-          path.write_text(text.replace(old, new, 1))
-          PY
-          git diff --check
-          test "$(git diff --name-only | tr -d '\n')" = "src/App.tsx"
-          git diff -- src/App.tsx
+          cp .github/first-visit-review.mjs /tmp/lookup-guidance-review.mjs
+          git checkout "$PRODUCT_SHA"
+          test "$(git rev-parse HEAD)" = "$PRODUCT_SHA"
 
-      - name: Commit product change
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - name: Build exact product head
+        run: npm run build
+
+      - name: Install Korean font environment
         run: |
-          git config user.name "osrm"
-          git config user.email "90407222+osrm@users.noreply.github.com"
-          git add src/App.tsx
-          git commit -m "fix: clarify lookup result guidance"
-          git push origin HEAD:"$PRODUCT_BRANCH"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          fc-cache -f
+
+      - name: Start local preview
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/lookup-preview.log 2>&1 &
+          echo $! >/tmp/lookup-preview.pid
+          for i in $(seq 1 80); do
+            if curl -fsS "http://127.0.0.1:4173/catfood_web/" >/dev/null; then exit 0; fi
+            sleep 0.25
+          done
+          cat /tmp/lookup-preview.log
+          exit 1
+
+      - name: Run focused browser QA
+        run: node /tmp/lookup-guidance-review.mjs
+
+      - name: Stop local preview
+        if: always()
+        run: |
+          if test -f /tmp/lookup-preview.pid; then kill "$(cat /tmp/lookup-preview.pid)" 2>/dev/null || true; fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lookup-guidance-candidate
+          path: qa-artifacts-lookup-guidance
+          if-no-files-found: ignore

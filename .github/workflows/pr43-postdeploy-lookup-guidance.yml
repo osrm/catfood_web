@@ -1,4 +1,4 @@
-name: PR43 Pages postdeploy guidance
+name: CATFOOD browser zoom 200 review
 
 on:
   push:
@@ -13,19 +13,27 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-      - name: Install Korean font environment
+      - name: Guard product source against reviewed main
+        run: |
+          git fetch origin 71104f8c322ac58c6ff45722e058c8c4bea8e0fb --depth=1
+          git diff --exit-code 71104f8c322ac58c6ff45722e058c8c4bea8e0fb -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - name: Install focused browser environment
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq fonts-noto-cjk
+          sudo apt-get install -y -qq fonts-noto-cjk xdotool xvfb
           fc-cache -f
-      - name: Run focused Pages postdeploy QA
-        run: node .github/pr43-postdeploy-review.mjs
+          Xvfb :99 -screen 0 1280x900x24 -ac >/tmp/catfood-xvfb.log 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+      - name: Run headed Chrome 100 to 200 percent review
+        run: node .github/zoom200-review.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pr43-postdeploy-lookup-guidance
-          path: qa-artifacts-pr43-postdeploy
+          name: catfood-browser-zoom200-review
+          path: qa-artifacts-zoom200
           if-no-files-found: ignore

@@ -1,0 +1,121 @@
+@media (max-width: 760px) {
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] {
+    gap: 0;
+    padding: 0;
+    overflow: visible;
+    background: #f8f9f8;
+  }
+
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > span {
+    display: none;
+  }
+
+  .compare-mobile-candidate-toggle {
+    position: relative;
+    width: 100%;
+    min-height: 64px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 12px;
+    align-items: center;
+    padding: 10px 40px 10px 12px;
+    border: 0;
+    border-bottom: 1px solid var(--research-line);
+    background: #f8f9f8;
+    color: var(--research-text);
+    text-align: left;
+  }
+
+  .compare-mobile-candidate-meta {
+    grid-column: 1;
+    color: var(--research-muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .compare-mobile-candidate-current {
+    grid-column: 1;
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .compare-mobile-candidate-brand {
+    color: #75634d;
+    font-size: 10.5px;
+    font-weight: 800;
+  }
+
+  .compare-mobile-candidate-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    color: #0b2c25;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 800;
+  }
+
+  .compare-mobile-candidate-chevron {
+    position: absolute;
+    top: 50%;
+    right: 13px;
+    transform: translateY(-50%);
+    color: var(--research-muted);
+    font-size: 18px;
+    line-height: 1;
+    transition: transform 120ms ease;
+  }
+
+  .compare-mobile-candidate-picker.is-open .compare-mobile-candidate-chevron {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options {
+    display: grid;
+    gap: 6px;
+    overflow: visible;
+    padding: 8px 10px 10px;
+    scrollbar-width: auto;
+  }
+
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options[hidden] {
+    display: none !important;
+  }
+
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options > button {
+    position: relative;
+    width: 100%;
+    min-height: 44px;
+    flex: 1 1 auto;
+    padding: 9px 72px 9px 10px;
+    border: 1px solid #cbd5d1;
+    border-radius: 7px;
+    background: #fff;
+    color: var(--research-text);
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 10.5px;
+    font-weight: 760;
+    line-height: 1.45;
+  }
+
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options > button[aria-pressed="true"]::after {
+    content: "선택 중";
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    color: #315e58;
+    font-size: 9.5px;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .compare-mobile-candidate-picker[data-mobile-disclosure="true"] > .compare-mobile-candidate-options > button[aria-pressed="true"] {
+    border-color: #557985;
+    background: #edf4f2;
+    color: #163d34;
+  }
+}

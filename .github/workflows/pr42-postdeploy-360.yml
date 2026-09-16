@@ -1,4 +1,4 @@
-name: First visit review capture
+name: Apply lookup guidance patch
 
 on:
   push:
@@ -6,34 +6,43 @@ on:
       - qa/pr42-postdeploy-360-20260916
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  qa:
+  apply:
     runs-on: ubuntu-24.04
     env:
-      MERGE_SHA: 83e4ca5acb8ac4f44b28c840260c63c679403195
-      PAGE_URL: https://osrm.github.io/catfood_web/
+      BASE_SHA: 83e4ca5acb8ac4f44b28c840260c63c679403195
+      PRODUCT_BRANCH: fix/lookup-results-initial-guidance-20260917
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ env.PRODUCT_BRANCH }}
           fetch-depth: 0
 
-      - name: Verify QA branch preserves deployed product sources
-        run: git diff --exit-code "$MERGE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - name: Verify exact product baseline
+        run: test "$(git rev-parse HEAD)" = "$BASE_SHA"
 
-      - name: Install Korean font environment
+      - name: Apply only the LOOKUP heading guidance branch
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq fonts-noto-cjk
-          fc-cache -f
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/App.tsx')
+          text = path.read_text()
+          old = "<span>{loading || waitingForConditions ? '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span>"
+          new = "<span>{loading || waitingForConditions ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span>"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one target, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+          test "$(git diff --name-only | tr -d '\n')" = "src/App.tsx"
+          git diff -- src/App.tsx
 
-      - name: Capture home and first-purpose screens
-        run: node .github/first-visit-review.mjs
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: first-visit-review
-          path: qa-artifacts-first-visit-review
-          if-no-files-found: ignore
+      - name: Commit product change
+        run: |
+          git config user.name "osrm"
+          git config user.email "90407222+osrm@users.noreply.github.com"
+          git add src/App.tsx
+          git commit -m "fix: clarify lookup result guidance"
+          git push origin HEAD:"$PRODUCT_BRANCH"

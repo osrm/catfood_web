@@ -12,7 +12,9 @@ env:
   PRODUCT_SHA: 6e94c53352ffa8e5fde13ec5242abbd24a2d10e2
   BASE_SHA: b577926738955bf100e57fc179c0cfebae15824b
   BASELINE_URL: https://osrm.github.io/catfood_web/
-  TARGET_URL: https://osrm.github.io/catfood_web/
+  TARGET_URL: http://127.0.0.1:4173/catfood_web/
+  VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
   VITE_DECISION_INTAKE_ENABLED: "false"
 
 jobs:
@@ -33,11 +35,29 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Verify public catalog configuration and current product
+        run: |
+          status=$(curl -sS -o /tmp/catalog-product.json -w '%{http_code}' \
+            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
+            -H 'Accept-Profile: api' \
+            --get "$VITE_SUPABASE_URL/rest/v1/effective_product_catalog_summary" \
+            --data-urlencode 'select=product_id,brand,canonical_name' \
+            --data-urlencode 'product_id=eq.product_d99406c26240b263' \
+            --data-urlencode 'limit=1')
+          test "$status" = 200
+          python3 - <<'PY'
+          import json
+          rows = json.load(open('/tmp/catalog-product.json', encoding='utf-8'))
+          assert rows and rows[0]['product_id'] == 'product_d99406c26240b263', rows
+          print('PUBLIC_CATALOG_PRODUCT', rows[0])
+          PY
+
       - name: Install and run existing checks
         run: |
           npm ci
           npm test
           npm run build
+          grep -Eq '(src|href)="\./assets/' dist/index.html
 
       - name: Install Korean font environment
         run: |
@@ -46,8 +66,23 @@ jobs:
           fc-match ':lang=ko'
           /usr/bin/google-chrome --version
 
-      - name: Run focused real-Chrome QA
-        run: node .github/run-switch-compare-dock-clearance-qa.mjs
+      - name: Serve exact candidate build and run focused real-Chrome QA
+        run: |
+          mkdir -p qa-site/catfood_web
+          cp -R dist/. qa-site/catfood_web/
+          python3 -m http.server 4173 --directory qa-site >/tmp/switch-dock-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 60); do
+            if curl -fsS "$TARGET_URL" >/dev/null; then ready=1; break; fi
+            sleep 0.1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/switch-dock-http.log
+            exit 1
+          fi
+          node .github/run-switch-compare-dock-clearance-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

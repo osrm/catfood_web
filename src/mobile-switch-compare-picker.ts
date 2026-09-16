@@ -32,6 +32,10 @@ function identity(button: HTMLButtonElement | null) {
   return { brand: text.slice(0, separator), name: text.slice(separator + 3) }
 }
 
+function setText(node: HTMLElement, value: string) {
+  if (node.textContent !== value) node.textContent = value
+}
+
 function setOpen(state: PickerState, open: boolean) {
   state.list.hidden = !open
   state.toggle.setAttribute('aria-expanded', String(open))
@@ -43,9 +47,9 @@ function refresh(state: PickerState) {
   const active = activeButton(buttons)
   const index = active ? buttons.indexOf(active) : -1
   const current = identity(active)
-  state.meta.textContent = `후보 ${buttons.length}개 · ${Math.max(index + 1, 1)}/${Math.max(buttons.length, 1)}`
-  state.brand.textContent = current.brand
-  state.name.textContent = current.name
+  setText(state.meta, `후보 ${buttons.length}개 · ${Math.max(index + 1, 1)}/${Math.max(buttons.length, 1)}`)
+  setText(state.brand, current.brand)
+  setText(state.name, current.name)
 }
 
 function enhance(picker: HTMLElement) {

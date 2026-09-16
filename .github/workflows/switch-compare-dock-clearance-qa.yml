@@ -39,16 +39,6 @@ jobs:
           npm test
           npm run build
 
-      - name: Start candidate preview
-        run: |
-          nohup npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
-          for i in $(seq 1 60); do
-            if curl -fsS "$TARGET_URL" >/dev/null; then exit 0; fi
-            sleep 1
-          done
-          cat /tmp/catfood-preview.log
-          exit 1
-
       - name: Install Korean font environment
         run: |
           sudo apt-get update -qq
@@ -57,7 +47,20 @@ jobs:
           /usr/bin/google-chrome --version
 
       - name: Run focused real-Chrome QA
-        run: node .github/run-switch-compare-dock-clearance-qa.mjs
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 60); do
+            if curl -fsS "$TARGET_URL" >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/catfood-preview.log
+            exit 1
+          fi
+          node .github/run-switch-compare-dock-clearance-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

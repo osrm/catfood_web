@@ -12,7 +12,7 @@ env:
   PRODUCT_SHA: 6e94c53352ffa8e5fde13ec5242abbd24a2d10e2
   BASE_SHA: b577926738955bf100e57fc179c0cfebae15824b
   BASELINE_URL: https://osrm.github.io/catfood_web/
-  TARGET_URL: http://127.0.0.1:4173/catfood_web/
+  TARGET_URL: http://127.0.0.1:4173/
   VITE_DECISION_INTAKE_ENABLED: "false"
 
 jobs:

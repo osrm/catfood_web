@@ -36,7 +36,7 @@ const FEATURE_LABELS: Record<string, string> = {
 }
 const RECIPE_LABELS: Record<string, string> = {
   poultry: '가금류', poultry_unspecified: '가금류(종류 미상)', meat: '육류', fish: '생선', chicken: '닭',
-  duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추라기', beef: '소', lamb: '양', goat: '염소',
+  duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추리', beef: '소', lamb: '양', goat: '염소',
   boar: '멧돼지', rabbit: '토끼', salmon: '연어', tuna: '참치', herring: '청어', mackerel: '고등어',
   trout: '송어', cod: '대구', sardine: '정어리', anchovy: '멸치', menhaden: '멘헤이든', whitefish: '흰살생선',
   pork: '돼지', venison: '사슴', egg: '계란', beef_liver: '소 간', bonito: '보니토(Bonito)', bream: '도미류(Bream)',
@@ -49,7 +49,7 @@ const RECIPE_LABELS: Record<string, string> = {
 }
 const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = { calcium: '칼슘', phosphorus: '인', magnesium: '마그네슘', taurine: '타우린' }
 const BASIS_NUTRIENT_LABELS: Record<string, string> = { protein: '단백질', fat: '지방', fiber: '조섬유', moisture: '수분', ash: '조회분' }
-const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = {
+const SUPPLEMENTAL_NUTRIENT_LABELS: Record<string, string> = {
   energy: '열량', protein: '조단백질', fat: '조지방', fiber: '조섬유', moisture: '수분', ash: '조회분', additional_nutrients: '추가 영양성분',
 }
 const ADDITIONAL_NUTRIENT_ORDER = ['calcium', 'phosphorus', 'magnesium', 'taurine']

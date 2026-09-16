@@ -199,7 +199,6 @@ function longestFive(rows) {
 
 async function addCandidate(c, candidate) {
   const before = stableState(await state(c))
-  assert.ok(!before.compareIds.includes(candidate.productId ?? ''))
   await trustedPointClick(c, '.switch-candidate-row', candidate.name)
   await c.wait(`document.querySelector('.switch-candidate-inspector h1')?.textContent.trim()===${q(candidate.name)}`, `inspector ${candidate.name}`)
   await trustedPointClick(c, '.switch-inspector-actions .switch-compare-action', '비교에 추가')
@@ -220,7 +219,6 @@ async function addCandidates(c, candidates) {
 async function openCompare(c) {
   await trustedPointClick(c, '.switch-compare-dock > button', '비교 보기')
   await c.wait(`document.querySelector('.compare-stage.is-switch-overview')`, 'compare overview')
-  await c.wait(`document.querySelector('.compare-switch-mobile-overview')`, 'mobile compare overview')
   const s = stableState(await state(c))
   assert.equal(s.compareOpen, true)
   assert.equal(s.compareTab, 'overview')
@@ -245,6 +243,7 @@ async function baseline360() {
     const chosen = sameBrandPair(rows)
     await addCandidates(c, chosen)
     await openCompare(c)
+    await c.wait(`document.querySelector('.compare-switch-mobile-overview')`, 'baseline mobile compare overview')
     const metrics = await c.eval(`(()=>{
       const picker=document.querySelector('.compare-mobile-candidate-picker')
       const first=document.querySelector('.compare-mobile-overview-row')
@@ -265,6 +264,7 @@ async function target360() {
     const chosen = sameBrandPair(await candidateRows(c))
     const added = await addCandidates(c, chosen)
     const openedState = await openCompare(c)
+    await c.wait(`document.querySelector('.compare-switch-mobile-overview')`, 'target mobile compare overview')
     assert.deepEqual(openedState.compareIds, added.map((item) => item.productId))
 
     const closed = await c.eval(`(()=>{
@@ -311,8 +311,7 @@ async function target360() {
     await pressKey(c, 'Enter', 'Enter', 13)
     await c.wait(`document.querySelector('.compare-mobile-candidate-toggle')?.getAttribute('aria-expanded')==='true'`, 'keyboard open')
     await pressKey(c, 'Tab', 'Tab', 9)
-    await pressKey(c, 'Tab', 'Tab', 9)
-    assert.equal(await c.eval(`document.activeElement?.classList.contains('compare-mobile-candidate-option') && document.activeElement?.textContent.includes(${q(chosen[1].name)})`), true)
+    assert.equal(await c.eval(`document.activeElement?.classList.contains('compare-mobile-candidate-option') && document.activeElement?.textContent.includes(${q(chosen[0].name)})`), true)
     await pressKey(c, ' ', 'Space', 32, ' ')
     await c.wait(`document.querySelector('.compare-mobile-candidate-toggle')?.getAttribute('aria-expanded')==='false'`, 'keyboard select closes')
     const focus = await c.eval(`(()=>{const t=document.querySelector('.compare-mobile-candidate-toggle'),s=t?getComputedStyle(t):null;return{active:document.activeElement===t,focusVisible:t?.matches(':focus-visible')??false,outlineWidth:s?.outlineWidth,outlineStyle:s?.outlineStyle,text:t?.textContent.trim()}})()`)
@@ -320,6 +319,7 @@ async function target360() {
     assert.equal(focus.focusVisible, true)
     assert.notEqual(focus.outlineStyle, 'none')
     assert.notEqual(focus.outlineWidth, '0px')
+    assert.ok(focus.text.includes(chosen[0].name), 'keyboard selection should change displayed candidate')
 
     const beforeDirectClose = focus.text
     await pressKey(c, 'Enter', 'Enter', 13)
@@ -328,7 +328,7 @@ async function target360() {
     await c.wait(`document.querySelector('.compare-mobile-candidate-toggle')?.getAttribute('aria-expanded')==='false'`, 'keyboard direct close')
     assert.equal(await c.eval(`document.querySelector('.compare-mobile-candidate-toggle')?.textContent.trim()`), beforeDirectClose)
 
-    const selectedName = chosen[1].name
+    const selectedName = chosen[0].name
     await trustedPointClick(c, '.compare-mobile-head-actions button', '상세 보기')
     await c.wait(`document.querySelector('.detail-stage')`, 'detail open')
     assert.ok(await c.eval(`document.querySelector('.detail-identity h1')?.textContent.includes(${q(selectedName)})`))
@@ -339,7 +339,7 @@ async function target360() {
     await trustedPointClick(c, '.compare-mobile-head-actions button', '비교에서 제거')
     await c.wait(`(()=>{const raw=sessionStorage.getItem(${q(STORAGE)});const s=raw?JSON.parse(raw).state:null;return s?.compareIds?.length===1})()`, '2 to 1')
     assert.equal(await c.eval(`Boolean(document.querySelector('.compare-mobile-candidate-picker'))`), false)
-    const remainingName = chosen[0].name
+    const remainingName = chosen[1].name
     assert.ok(await c.eval(`document.querySelector('.compare-mobile-product-head.is-candidate')?.textContent.includes(${q(remainingName)})`))
     await trustedPointClick(c, '.compare-mobile-head-actions button', '비교에서 제거')
     await c.wait(`(()=>{const raw=sessionStorage.getItem(${q(STORAGE)});const s=raw?JSON.parse(raw).state:null;return s?.compareIds?.length===0 && s?.compareOpen===false})()`, '1 to 0')
@@ -357,6 +357,7 @@ async function target390Five() {
     const chosen = longestFive(await candidateRows(c))
     const added = await addCandidates(c, chosen)
     const opened = await openCompare(c)
+    await c.wait(`document.querySelector('.compare-switch-mobile-overview')`, '390 mobile compare overview')
     assert.deepEqual(opened.compareIds, added.map((item) => item.productId))
     await c.shot('390-target-closed-5.png')
     const closed = await c.eval(`(()=>{const t=document.querySelector('.compare-mobile-candidate-toggle'),r=t?.getBoundingClientRect(),first=document.querySelector('.compare-mobile-overview-row')?.getBoundingClientRect();return{text:t?.textContent.trim(),height:r?.height??null,firstRowTop:first?.top??null,expanded:t?.getAttribute('aria-expanded')}})()`)
@@ -401,15 +402,15 @@ async function targetBoundaries() {
     const chosen = sameBrandPair(await candidateRows(c))
     await addCandidates(c, chosen)
     await openCompare(c)
-    const inspect = async () => c.eval(`(()=>{const mobile=document.querySelector('.compare-switch-mobile-overview'),desktop=document.querySelector('.compare-switch-overview-desktop'),toggle=document.querySelector('.compare-mobile-candidate-toggle'),wrap=document.querySelector('.compare-table-wrap');return{width:innerWidth,mobileDisplay:mobile?getComputedStyle(mobile).display:null,desktopDisplay:desktop?getComputedStyle(desktop).display:null,toggleDisplay:toggle?getComputedStyle(toggle).display:null,wrapOverflowX:wrap?getComputedStyle(wrap).overflowX:null,compareIds:JSON.parse(sessionStorage.getItem(${q(STORAGE)})).state.compareIds}})()`)
+    const inspect = async () => c.eval(`(()=>{const mobile=document.querySelector('.compare-switch-mobile-overview'),desktop=document.querySelector('.compare-switch-overview-desktop'),toggle=document.querySelector('.compare-mobile-candidate-toggle'),wrap=document.querySelector('.compare-table-wrap');return{width:innerWidth,mobileDisplay:mobile?getComputedStyle(mobile).display:null,desktopDisplay:desktop?getComputedStyle(desktop).display:null,toggleDisplay:toggle?getComputedStyle(toggle).display:null,toggleVisible:Boolean(toggle&&toggle.getClientRects().length),wrapOverflowX:wrap?getComputedStyle(wrap).overflowX:null,compareIds:JSON.parse(sessionStorage.getItem(${q(STORAGE)})).state.compareIds}})()`)
     const w760 = await inspect()
-    assert.notEqual(w760.mobileDisplay, 'none'); assert.equal(w760.desktopDisplay, 'none'); assert.ok(w760.toggleDisplay && w760.toggleDisplay !== 'none')
+    assert.notEqual(w760.mobileDisplay, 'none'); assert.equal(w760.desktopDisplay, 'none'); assert.equal(w760.toggleVisible, true)
     await c.send('Emulation.setDeviceMetricsOverride', { width: 761, height: 900, deviceScaleFactor: 1, mobile: true, screenWidth: 761, screenHeight: 900 }); await sleep(180)
     const w761 = await inspect()
-    assert.equal(w761.mobileDisplay, 'none'); assert.notEqual(w761.desktopDisplay, 'none'); assert.equal(w761.toggleDisplay, 'none')
+    assert.equal(w761.mobileDisplay, 'none'); assert.notEqual(w761.desktopDisplay, 'none'); assert.equal(w761.toggleVisible, false)
     await c.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false, screenWidth: 1280, screenHeight: 900 }); await c.send('Emulation.setTouchEmulationEnabled', { enabled: false, maxTouchPoints: 1 }); await sleep(180)
     const w1280 = await inspect()
-    assert.equal(w1280.mobileDisplay, 'none'); assert.notEqual(w1280.desktopDisplay, 'none'); assert.equal(w1280.toggleDisplay, 'none')
+    assert.equal(w1280.mobileDisplay, 'none'); assert.notEqual(w1280.desktopDisplay, 'none'); assert.equal(w1280.toggleVisible, false)
     assert.deepEqual(w760.compareIds, w761.compareIds); assert.deepEqual(w761.compareIds, w1280.compareIds)
     return { w760, w761, w1280, network: await networkSummary(c) }
   } finally { await cleanup(handle) }

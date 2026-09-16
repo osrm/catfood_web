@@ -1,0 +1,31 @@
+name: PR43 Pages postdeploy guidance
+
+on:
+  push:
+    branches:
+      - qa/pr43-postdeploy-lookup-guidance-20260917
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          fc-cache -f
+      - name: Run focused Pages postdeploy QA
+        run: node .github/pr43-postdeploy-review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr43-postdeploy-lookup-guidance
+          path: qa-artifacts-pr43-postdeploy
+          if-no-files-found: ignore

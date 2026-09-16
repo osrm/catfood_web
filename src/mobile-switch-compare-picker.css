@@ -1,12 +1,12 @@
 @media (max-width: 760px) {
-  .compare-mobile-candidate-picker {
+  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-candidate-picker {
     gap: 0;
     padding: 0;
     overflow: visible;
     background: #f8f9f8;
   }
 
-  .compare-mobile-candidate-toggle {
+  .compare-mobile-candidate-picker > .compare-mobile-candidate-toggle {
     position: relative;
     width: 100%;
     min-height: 64px;
@@ -14,12 +14,15 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 5px 12px;
     align-items: center;
+    flex: none;
     padding: 10px 40px 10px 12px;
     border: 0;
     border-bottom: 1px solid var(--research-line);
+    border-radius: 0;
     background: #f8f9f8;
     color: var(--research-text);
     text-align: left;
+    white-space: normal;
   }
 
   .compare-mobile-candidate-meta {
@@ -67,19 +70,20 @@
     transform: translateY(-50%) rotate(180deg);
   }
 
-  .compare-mobile-candidate-options {
+  .compare-mobile-candidate-picker > .compare-mobile-candidate-options {
     display: grid;
+    flex-wrap: initial;
     gap: 6px;
     overflow: visible;
     padding: 8px 10px 10px;
     scrollbar-width: auto;
   }
 
-  .compare-mobile-candidate-options[hidden] {
+  .compare-mobile-candidate-picker > .compare-mobile-candidate-options[hidden] {
     display: none !important;
   }
 
-  .compare-mobile-candidate-options > button {
+  .compare-mobile-candidate-picker > .compare-mobile-candidate-options > button {
     position: relative;
     width: 100%;
     min-height: 44px;
@@ -97,7 +101,7 @@
     line-height: 1.45;
   }
 
-  .compare-mobile-candidate-options > button[aria-pressed="true"]::after {
+  .compare-mobile-candidate-picker > .compare-mobile-candidate-options > button[aria-pressed="true"]::after {
     content: "선택 중";
     position: absolute;
     top: 50%;
@@ -109,7 +113,7 @@
     white-space: nowrap;
   }
 
-  .compare-mobile-candidate-options > button[aria-pressed="true"] {
+  .compare-mobile-candidate-picker > .compare-mobile-candidate-options > button[aria-pressed="true"] {
     border-color: #557985;
     background: #edf4f2;
     color: #163d34;

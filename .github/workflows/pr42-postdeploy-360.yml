@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       PRODUCT_SHA: 9372f37c8bbf7279ac64ab7145ea15ddd6c2ed0f
-      PAGE_URL: http://127.0.0.1:4173/catfood_web/
+      PAGE_URL: http://127.0.0.1:4173/
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
       VITE_DECISION_INTAKE_ENABLED: 'false'
@@ -48,7 +48,7 @@ jobs:
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/lookup-preview.log 2>&1 &
           echo $! >/tmp/lookup-preview.pid
           for i in $(seq 1 80); do
-            if curl -fsS "http://127.0.0.1:4173/catfood_web/" >/dev/null; then exit 0; fi
+            if curl -fsS "http://127.0.0.1:4173/" >/dev/null; then exit 0; fi
             sleep 0.25
           done
           cat /tmp/lookup-preview.log

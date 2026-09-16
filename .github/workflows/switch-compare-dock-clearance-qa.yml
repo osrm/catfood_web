@@ -12,7 +12,7 @@ env:
   PRODUCT_SHA: 6e94c53352ffa8e5fde13ec5242abbd24a2d10e2
   BASE_SHA: b577926738955bf100e57fc179c0cfebae15824b
   BASELINE_URL: https://osrm.github.io/catfood_web/
-  TARGET_URL: http://127.0.0.1:4173/
+  TARGET_URL: https://osrm.github.io/catfood_web/
   VITE_DECISION_INTAKE_ENABLED: "false"
 
 jobs:
@@ -47,20 +47,7 @@ jobs:
           /usr/bin/google-chrome --version
 
       - name: Run focused real-Chrome QA
-        run: |
-          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/catfood-preview.log 2>&1 &
-          preview_pid=$!
-          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
-          ready=0
-          for i in $(seq 1 60); do
-            if curl -fsS "$TARGET_URL" >/dev/null; then ready=1; break; fi
-            sleep 1
-          done
-          if [ "$ready" -ne 1 ]; then
-            cat /tmp/catfood-preview.log
-            exit 1
-          fi
-          node .github/run-switch-compare-dock-clearance-qa.mjs
+        run: node .github/run-switch-compare-dock-clearance-qa.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()

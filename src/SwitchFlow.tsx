@@ -384,6 +384,17 @@ function criteriaLabels(criteria: SearchState): string[] {
   return values
 }
 
+function additionalChangeLabels(criteria: SearchState, ingredientAvoidTerms: string[]): string[] {
+  const values: string[] = []
+  if (criteria.lifeStage) values.push(optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS))
+  values.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+  values.push(...criteria.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)))
+  values.push(...criteria.features.map((value) => optionLabel(value, FEATURE_LABELS)))
+  values.push(...criteria.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
+  if (criteria.grainFree) values.push('Grain-Free 표기')
+  return values
+}
+
 function buildConditions({
   change,
   keep,
@@ -655,6 +666,8 @@ export default function SwitchFlow({
   const [variantError, setVariantError] = useState<string | null>(null)
   const [keepConflictNotice, setKeepConflictNotice] = useState<string | null>(null)
   const [ingredientSearch, setIngredientSearch] = useState('')
+  const [changeAdditionalOpen, setChangeAdditionalOpen] = useState(() => step === 'change' && additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
+  const previousChangeDisclosureStep = useRef(step)
   const switchRunId = useRef<string | null>(null)
   const switchRunGeneration = useRef(0)
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
@@ -720,6 +733,13 @@ export default function SwitchFlow({
   function changeSwitchDetailTab(nextTab: SwitchSessionState['detailTab']) { setSessionField('detailTab', nextTab) }
 
   useEffect(() => () => releasePendingExplicitScroll(), [])
+  useEffect(() => {
+    const previousStep = previousChangeDisclosureStep.current
+    if (step === 'change' && previousStep !== 'change') {
+      setChangeAdditionalOpen(additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
+    }
+    previousChangeDisclosureStep.current = step
+  }, [step])
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
@@ -859,6 +879,7 @@ export default function SwitchFlow({
   const visibleCandidates = candidates.slice(0, visibleCandidateCount)
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
+  const changeAdditionalLabels = additionalChangeLabels(change, ingredientAvoidTerms)
   const compareItems = useMemo<CompareItem[]>(() => compareIds
     .map((productId) => candidates.find((item) => item.product.product_id === productId))
     .filter((item): item is SwitchEvaluation => Boolean(item))
@@ -1233,6 +1254,33 @@ export default function SwitchFlow({
     const recipeHint = currentRecipeFamilies.length > 0
       ? `현재 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
       : '현재 레시피 정보 없음 · 원하는 방향 선택'
+    const additionalControlsId = 'switch-change-additional-controls'
+
+    const renderLifeStage = () => (
+      <CriterionSection title="생애주기" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
+        <ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
+      </CriterionSection>
+    )
+    const renderOfficialTargets = () => (
+      <CriterionSection title="공식 대상" hint="현재 제품에서 확인되지 않은 표기">
+        <ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 고를 공식 대상이 없습니다." />
+      </CriterionSection>
+    )
+    const renderFeatures = () => (
+      <CriterionSection title="기능" hint="제품의 공식 표기 기준">
+        <ChoiceButtons options={featureOptions} selected={change.features} onToggle={(value) => toggleChangeArray('features', value)} />
+      </CriterionSection>
+    )
+    const renderRecipeFamilies = () => (
+      <CriterionSection title="레시피 계열" hint={recipeHint}>
+        <ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} />
+      </CriterionSection>
+    )
+    const renderRecipeTraits = () => !currentIsGrainFree ? (
+      <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length > 0 ? '현재 제품의 공식 표기 기준' : '현재 제품 표기 미확인'}>
+        <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 표기</button>
+      </CriterionSection>
+    ) : null
 
     return (
       <div className="switch-step-layout">
@@ -1262,7 +1310,7 @@ export default function SwitchFlow({
             <span>지금 사료와 비슷한 후보를 보고, 다음 단계에서 꼭 유지할 조건만 고릅니다.</span>
           </button>
 
-          <div className="switch-criteria-columns">
+          <div className="switch-criteria-columns switch-change-desktop-criteria">
             <div>
               <CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}>
                 <button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button>
@@ -1270,27 +1318,51 @@ export default function SwitchFlow({
               <CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}>
                 <ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} />
               </CriterionSection>
-              <CriterionSection title="생애주기" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
-                <ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
-              </CriterionSection>
+              {renderLifeStage()}
               {renderIngredientAvoidance()}
             </div>
             <div>
-              <CriterionSection title="공식 대상" hint="현재 제품에서 확인되지 않은 표기">
-                <ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 고를 공식 대상이 없습니다." />
-              </CriterionSection>
-              <CriterionSection title="기능" hint="제품의 공식 표기 기준">
-                <ChoiceButtons options={featureOptions} selected={change.features} onToggle={(value) => toggleChangeArray('features', value)} />
-              </CriterionSection>
-              <CriterionSection title="레시피 계열" hint={recipeHint}>
-                <ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} />
-              </CriterionSection>
-              {!currentIsGrainFree ? (
-                <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length > 0 ? '현재 제품의 공식 표기 기준' : '현재 제품 표기 미확인'}>
-                  <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 표기</button>
-                </CriterionSection>
-              ) : null}
+              {renderOfficialTargets()}
+              {renderFeatures()}
+              {renderRecipeFamilies()}
+              {renderRecipeTraits()}
             </div>
+          </div>
+
+          <div className="switch-change-mobile-criteria">
+            <div className="switch-change-mobile-basic">
+              <CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}>
+                <button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button>
+              </CriterionSection>
+              <CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}>
+                <ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} />
+              </CriterionSection>
+            </div>
+
+            <section className="switch-change-additional-disclosure">
+              <button
+                className="switch-change-additional-toggle"
+                type="button"
+                aria-expanded={changeAdditionalOpen}
+                aria-controls={additionalControlsId}
+                onClick={() => setChangeAdditionalOpen((value) => !value)}
+              >
+                <span className="switch-change-additional-toggle-copy">
+                  <strong>추가 변경 조건</strong>
+                  <small>{changeAdditionalLabels.length > 0 ? `${changeAdditionalLabels.length}개 선택` : '필요할 때만 선택하세요.'}</small>
+                </span>
+                <span className="switch-change-additional-state" aria-hidden="true">{changeAdditionalOpen ? '접기 ↑' : '펼치기 ↓'}</span>
+              </button>
+              {changeAdditionalLabels.length > 0 ? <p className="switch-change-additional-summary">{changeAdditionalLabels.join(' · ')}</p> : null}
+              <div id={additionalControlsId} className="switch-change-additional-content" hidden={!changeAdditionalOpen}>
+                {renderLifeStage()}
+                {renderIngredientAvoidance()}
+                {renderOfficialTargets()}
+                {renderFeatures()}
+                {renderRecipeFamilies()}
+                {renderRecipeTraits()}
+              </div>
+            </section>
           </div>
 
           <div className="switch-step-actions">

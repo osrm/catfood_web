@@ -1,0 +1,36 @@
+/* Keep bottom content reachable above the fixed SWITCH compare dock.
+   The reserved scroll space is the dock footprint plus its viewport offset
+   and a small clearance. It only exists while the dock is rendered. */
+.switch-results-stage:has(> .switch-compare-dock) {
+  --switch-compare-dock-height: 66px;
+  --switch-compare-dock-bottom: 18px;
+  --switch-compare-dock-gap: 16px;
+  --switch-compare-dock-clearance: calc(
+    var(--switch-compare-dock-height) +
+    var(--switch-compare-dock-bottom) +
+    var(--switch-compare-dock-gap)
+  );
+}
+
+.switch-results-stage:has(> .switch-compare-dock) > .switch-compare-dock {
+  min-height: var(--switch-compare-dock-height);
+  bottom: var(--switch-compare-dock-bottom);
+}
+
+/* Desktop/tablet results keep their existing internal scroll owners. */
+@media (min-width: 761px) {
+  .switch-results-stage:has(> .switch-compare-dock) .switch-candidate-list::after,
+  .switch-results-stage:has(> .switch-compare-dock) .switch-inspector-scroll::after {
+    content: "";
+    display: block;
+    height: var(--switch-compare-dock-clearance);
+    pointer-events: none;
+  }
+}
+
+/* Phones use the document as the scroll owner, so add real document-end space. */
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-results-stage:has(> .switch-compare-dock) {
+    padding-bottom: calc(22px + var(--switch-compare-dock-clearance));
+  }
+}

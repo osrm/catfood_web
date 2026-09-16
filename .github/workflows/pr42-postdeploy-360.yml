@@ -1,4 +1,4 @@
-name: PR42 postdeploy mobile header QA
+name: First visit review capture
 
 on:
   push:
@@ -28,12 +28,12 @@ jobs:
           sudo apt-get install -y -qq fonts-noto-cjk
           fc-cache -f
 
-      - name: Run live 360 postdeploy QA
-        run: node .github/pr42-postdeploy-360.mjs
+      - name: Capture home and first-purpose screens
+        run: node .github/first-visit-review.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pr42-postdeploy-360
-          path: qa-artifacts-pr42-postdeploy
+          name: first-visit-review
+          path: qa-artifacts-first-visit-review
           if-no-files-found: ignore

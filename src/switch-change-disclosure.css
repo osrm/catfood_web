@@ -14,7 +14,7 @@
   }
 
   .switch-workflow-shell .switch-change-additional-disclosure {
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid #e5e9e7;
     border-radius: 10px;
     background: #fff;

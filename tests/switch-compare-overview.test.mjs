@@ -12,6 +12,8 @@ const dom = new JSDOM('<div id="root"></div>', { url: BASE })
 globalThis.window = dom.window
 globalThis.document = dom.window.document
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+globalThis.requestAnimationFrame = (callback) => setTimeout(() => callback(Date.now()), 0)
+globalThis.cancelAnimationFrame = (handle) => clearTimeout(handle)
 const { createRoot } = await import('react-dom/client')
 const nativeFetch = globalThis.fetch
 let app, root, temp
@@ -162,6 +164,7 @@ async function renderCompare(props = {}) {
 async function click(node) {
   assert.ok(node)
   await act(async () => node.click())
+  await settle()
 }
 
 test('SWITCH overview keeps current food as a non-removable baseline and excludes it from compare API requests', async () => {
@@ -185,18 +188,54 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.ok(productFilters.some((value) => value === 'in.(product_candidate_a,product_candidate_b)'))
 })
 
-test('mobile candidate picker identifies same-brand products, preserves order, and falls back after selected removal', async () => {
-  const { removed, detailed, baseProps } = await renderCompare()
-  const pickerButtons = [...document.querySelectorAll('.compare-mobile-candidate-picker button')]
-  assert.deepEqual(pickerButtons.map((node) => node.textContent.trim()), [
+test('mobile candidate disclosure opens, selects a candidate, closes, and restores toggle focus', async () => {
+  await renderCompare()
+  const toggle = document.querySelector('.compare-mobile-candidate-toggle')
+  const options = document.querySelector('.compare-mobile-candidate-options')
+  assert.ok(toggle)
+  assert.ok(options)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false')
+  assert.equal(options.hidden, true)
+  assert.match(toggle.textContent, /후보 2개 · 1\/2/)
+  assert.match(toggle.textContent, /같은후보브랜드.*첫 번째 후보 제품/s)
+
+  await click(toggle)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true')
+  assert.equal(options.hidden, false)
+  const optionButtons = [...options.querySelectorAll('button[data-product-id]')]
+  assert.deepEqual(optionButtons.map((node) => node.dataset.productId), [candidateA.product_id, candidateB.product_id])
+  assert.deepEqual(optionButtons.map((node) => node.getAttribute('aria-pressed')), ['true', 'false'])
+  assert.deepEqual(optionButtons.map((node) => node.textContent.trim()), [
     '같은후보브랜드 · 첫 번째 후보 제품',
     '같은후보브랜드 · 두 번째 후보 제품 이름이 조금 더 깁니다',
   ])
-  assert.deepEqual(pickerButtons.map((node) => node.dataset.productId), [candidateA.product_id, candidateB.product_id])
-  assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /같은후보브랜드.*첫 번째 후보 제품/s)
 
-  await click(pickerButtons[1])
+  await click(optionButtons[1])
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false')
+  assert.equal(options.hidden, true)
   assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /같은후보브랜드.*두 번째 후보 제품 이름이 조금 더 깁니다/s)
+  assert.match(toggle.textContent, /후보 2개 · 2\/2/)
+  assert.equal(document.activeElement, toggle)
+})
+
+test('mobile candidate disclosure direct close keeps the selected candidate unchanged', async () => {
+  await renderCompare()
+  const toggle = document.querySelector('.compare-mobile-candidate-toggle')
+  const before = document.querySelector('.compare-mobile-product-head.is-candidate').textContent
+  await click(toggle)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true')
+  await click(toggle)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false')
+  assert.equal(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, before)
+  assert.match(toggle.textContent, /후보 2개 · 1\/2/)
+})
+
+test('mobile candidate removal falls back and omits the picker with one candidate', async () => {
+  const { removed, detailed, baseProps } = await renderCompare()
+  const toggle = document.querySelector('.compare-mobile-candidate-toggle')
+  await click(toggle)
+  const candidateBButton = document.querySelector(`.compare-mobile-candidate-options button[data-product-id="${candidateB.product_id}"]`)
+  await click(candidateBButton)
 
   const detailButton = [...document.querySelectorAll('.compare-mobile-head-actions button')].find((node) => node.textContent.includes('상세 보기'))
   await click(detailButton)
@@ -205,10 +244,16 @@ test('mobile candidate picker identifies same-brand products, preserves order, a
   const removeButton = [...document.querySelectorAll('.compare-mobile-head-actions button')].find((node) => node.textContent.includes('비교에서 제거'))
   await click(removeButton)
   assert.deepEqual(removed, [candidateB.product_id])
+
   await act(async () => root.render(createElement(app.CompareView, { ...baseProps, items: [items[0]] })))
   await settle()
   assert.equal(document.querySelector('.compare-mobile-candidate-picker'), null, 'single candidate should not show a redundant picker')
   assert.match(document.querySelector('.compare-mobile-product-head.is-candidate').textContent, /같은후보브랜드.*첫 번째 후보 제품/s)
+
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, items: [] })))
+  await settle()
+  assert.equal(document.querySelector('.compare-mobile-candidate-picker'), null)
+  assert.equal(document.querySelector('.compare-mobile-product-head.is-candidate'), null)
 })
 
 test('SWITCH overview presents product facts before candidate condition results without removing unknown meaning', async () => {
@@ -229,7 +274,6 @@ test('nutrition and non-SWITCH compare keep candidate-only scope', async () => {
   await renderCompare()
   const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
   await click(nutritionTab)
-  await settle()
   assert.match(document.querySelector('.compare-header p').textContent, /담아둔 2개 후보의 영양 정보를 비교합니다.*현재 사료는 포함하지 않습니다/s)
   assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.equal(document.querySelector('.compare-current-product-head'), null)

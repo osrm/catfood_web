@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail from './ProductDetail'
+import './mobile-switch-compare-picker.css'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -223,8 +224,11 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const [ingredientsError, setIngredientsError] = useState<string | null>(null)
   const [localDetailProductId, setLocalDetailProductId] = useState<string | null>(null)
   const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(() => items[0]?.product.product_id ?? null)
+  const [mobileCandidatePickerOpen, setMobileCandidatePickerOpen] = useState(false)
   const detailProductId = controlledDetailProductId === undefined ? localDetailProductId : controlledDetailProductId
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
+  const mobileCandidateOptionsId = useId()
 
   useEffect(() => { setTab(initialTab) }, [initialTab])
   function selectTab(next: CompareTab, focus = false) {
@@ -256,9 +260,11 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const hasBasisSpecificNutrition = useMemo(() => nutrition.some((row) => row.basis_specific_nutrition_values?.some((value) => value.amount != null)), [nutrition])
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
   const mobileCandidate = items.find((item) => item.product.product_id === mobileCandidateId) ?? items[0] ?? null
+  const mobileCandidateIndex = mobileCandidate ? items.findIndex((item) => item.product.product_id === mobileCandidate.product.product_id) : -1
 
   useEffect(() => {
     setMobileCandidateId((current) => current && productIds.includes(current) ? current : productIds[0] ?? null)
+    setMobileCandidatePickerOpen(false)
   }, [productIds.join('|')])
 
   useEffect(() => {
@@ -285,11 +291,17 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     if (onDetailOpen) onDetailOpen(productId)
     else setLocalDetailProductId(productId)
   }
+  function selectMobileCandidate(productId: string) {
+    setMobileCandidateId(productId)
+    setMobileCandidatePickerOpen(false)
+    requestAnimationFrame(() => mobileCandidateToggleRef.current?.focus({ preventScroll: true }))
+  }
   function removeComparedProduct(productId: string) {
     if (mobileCandidateId === productId) {
       const index = items.findIndex((item) => item.product.product_id === productId)
       const fallback = items[index + 1] ?? items[index - 1] ?? null
       setMobileCandidateId(fallback?.product.product_id ?? null)
+      setMobileCandidatePickerOpen(false)
     }
     onRemove(productId)
   }
@@ -341,9 +353,33 @@ export default function CompareView({ items, currentProduct, currentVariantText,
         </div>
 
         {mobileCandidate ? <div className="compare-switch-mobile-overview">
-          {items.length > 1 ? <div className="compare-mobile-candidate-picker" role="group" aria-label="표시할 후보">
-            <span>표시할 후보</span>
-            <div>{items.map((item, index) => <button key={item.product.product_id} data-product-id={item.product.product_id} type="button" aria-pressed={mobileCandidate.product.product_id === item.product.product_id} className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''} onClick={() => setMobileCandidateId(item.product.product_id)} aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}>{item.product.brand} · {item.product.canonical_name}</button>)}</div>
+          {items.length > 1 ? <div className={`compare-mobile-candidate-picker${mobileCandidatePickerOpen ? ' is-open' : ''}`} role="group" aria-label="표시할 후보">
+            <button
+              ref={mobileCandidateToggleRef}
+              className="compare-mobile-candidate-toggle"
+              type="button"
+              aria-expanded={mobileCandidatePickerOpen}
+              aria-controls={mobileCandidateOptionsId}
+              onClick={() => setMobileCandidatePickerOpen((open) => !open)}
+            >
+              <span className="compare-mobile-candidate-meta">후보 {items.length}개 · {Math.max(mobileCandidateIndex + 1, 1)}/{items.length}</span>
+              <span className="compare-mobile-candidate-current">
+                <span className="compare-mobile-candidate-brand">{mobileCandidate.product.brand}</span>
+                <strong className="compare-mobile-candidate-name">{mobileCandidate.product.canonical_name}</strong>
+              </span>
+              <span className="compare-mobile-candidate-chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div id={mobileCandidateOptionsId} className="compare-mobile-candidate-options" hidden={!mobileCandidatePickerOpen}>
+              {items.map((item, index) => <button
+                key={item.product.product_id}
+                data-product-id={item.product.product_id}
+                type="button"
+                aria-pressed={mobileCandidate.product.product_id === item.product.product_id}
+                className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''}
+                onClick={() => selectMobileCandidate(item.product.product_id)}
+                aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}
+              >{item.product.brand} · {item.product.canonical_name}</button>)}
+            </div>
           </div> : null}
           <div className="compare-mobile-head-grid">
             <MobileProductHead role="현재 사료 · 기준" product={currentProduct} variantText={currentVariantText || '사용 규격 모름'} />

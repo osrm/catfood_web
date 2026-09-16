@@ -36,7 +36,7 @@ const FEATURE_LABELS: Record<string, string> = {
 }
 const RECIPE_LABELS: Record<string, string> = {
   poultry: '가금류', poultry_unspecified: '가금류(종류 미상)', meat: '육류', fish: '생선', chicken: '닭',
-  duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추리', beef: '소', lamb: '양', goat: '염소',
+  duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추라기', beef: '소', lamb: '양', goat: '염소',
   boar: '멧돼지', rabbit: '토끼', salmon: '연어', tuna: '참치', herring: '청어', mackerel: '고등어',
   trout: '송어', cod: '대구', sardine: '정어리', anchovy: '멸치', menhaden: '멘헤이든', whitefish: '흰살생선',
   pork: '돼지', venison: '사슴', egg: '계란', beef_liver: '소 간', bonito: '보니토(Bonito)', bream: '도미류(Bream)',
@@ -223,8 +223,10 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const [ingredientsError, setIngredientsError] = useState<string | null>(null)
   const [localDetailProductId, setLocalDetailProductId] = useState<string | null>(null)
   const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(() => items[0]?.product.product_id ?? null)
+  const [mobileCandidatePickerOpen, setMobileCandidatePickerOpen] = useState(false)
   const detailProductId = controlledDetailProductId === undefined ? localDetailProductId : controlledDetailProductId
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => { setTab(initialTab) }, [initialTab])
   function selectTab(next: CompareTab, focus = false) {
@@ -256,9 +258,12 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const hasBasisSpecificNutrition = useMemo(() => nutrition.some((row) => row.basis_specific_nutrition_values?.some((value) => value.amount != null)), [nutrition])
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
   const mobileCandidate = items.find((item) => item.product.product_id === mobileCandidateId) ?? items[0] ?? null
+  const mobileCandidateIndex = mobileCandidate ? items.findIndex((item) => item.product.product_id === mobileCandidate.product.product_id) : -1
+  const mobileCandidateOptionsId = 'compare-mobile-candidate-options'
 
   useEffect(() => {
     setMobileCandidateId((current) => current && productIds.includes(current) ? current : productIds[0] ?? null)
+    if (productIds.length <= 1) setMobileCandidatePickerOpen(false)
   }, [productIds.join('|')])
 
   useEffect(() => {
@@ -284,6 +289,11 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   function openDetail(productId: string) {
     if (onDetailOpen) onDetailOpen(productId)
     else setLocalDetailProductId(productId)
+  }
+  function selectMobileCandidate(productId: string) {
+    setMobileCandidateId(productId)
+    setMobileCandidatePickerOpen(false)
+    mobileCandidateToggleRef.current?.focus({ preventScroll: true })
   }
   function removeComparedProduct(productId: string) {
     if (mobileCandidateId === productId) {
@@ -341,9 +351,39 @@ export default function CompareView({ items, currentProduct, currentVariantText,
         </div>
 
         {mobileCandidate ? <div className="compare-switch-mobile-overview">
-          {items.length > 1 ? <div className="compare-mobile-candidate-picker" role="group" aria-label="표시할 후보">
-            <span>표시할 후보</span>
-            <div>{items.map((item, index) => <button key={item.product.product_id} data-product-id={item.product.product_id} type="button" aria-pressed={mobileCandidate.product.product_id === item.product.product_id} className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''} onClick={() => setMobileCandidateId(item.product.product_id)} aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}>{item.product.brand} · {item.product.canonical_name}</button>)}</div>
+          {items.length > 1 ? <div className={`compare-mobile-candidate-picker${mobileCandidatePickerOpen ? ' is-open' : ''}`} role="group" aria-label="표시할 후보">
+            <button
+              ref={mobileCandidateToggleRef}
+              className="compare-mobile-candidate-toggle"
+              type="button"
+              aria-expanded={mobileCandidatePickerOpen}
+              aria-controls={mobileCandidateOptionsId}
+              onClick={() => setMobileCandidatePickerOpen((open) => !open)}
+            >
+              <span className="compare-mobile-candidate-summary">
+                <small>후보 {items.length}개 · {mobileCandidateIndex + 1}/{items.length}</small>
+                <span>{mobileCandidate.product.brand}</span>
+                <strong>{mobileCandidate.product.canonical_name}</strong>
+              </span>
+              <span className="compare-mobile-candidate-toggle-state" aria-hidden="true">{mobileCandidatePickerOpen ? '▴' : '▾'}</span>
+            </button>
+            {mobileCandidatePickerOpen ? <div id={mobileCandidateOptionsId} className="compare-mobile-candidate-options">
+              {items.map((item, index) => {
+                const selected = mobileCandidate.product.product_id === item.product.product_id
+                return <button
+                  key={item.product.product_id}
+                  className={`compare-mobile-candidate-option${selected ? ' is-active' : ''}`}
+                  data-product-id={item.product.product_id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => selectMobileCandidate(item.product.product_id)}
+                  aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}
+                >
+                  <span className="compare-mobile-candidate-option-copy"><small>{item.product.brand}</small><strong>{item.product.canonical_name}</strong></span>
+                  {selected ? <span className="compare-mobile-candidate-option-state" aria-hidden="true">선택됨</span> : null}
+                </button>
+              })}
+            </div> : null}
           </div> : null}
           <div className="compare-mobile-head-grid">
             <MobileProductHead role="현재 사료 · 기준" product={currentProduct} variantText={currentVariantText || '사용 규격 모름'} />

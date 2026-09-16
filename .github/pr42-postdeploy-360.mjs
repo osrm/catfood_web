@@ -114,6 +114,7 @@ class CDP {
       if (!request.url.includes('gnosbstdatkytsyxuapt.supabase.co')) continue
       const response = this.responses.get(requestId) ?? null
       const failure = this.failures.get(requestId) ?? null
+      if (failure?.canceled) continue
       if (!(failure || (response && response.status >= 400))) continue
       let body = null
       if (response) {

@@ -12,7 +12,7 @@ jobs:
   qa:
     runs-on: ubuntu-24.04
     env:
-      PRODUCT_SHA: 89a79776bd65b2659091f3f16577a13c78b885be
+      PRODUCT_SHA: 86687bb6ec1fa8e2cf2b9e75a80f5494a058bd8c
       BASELINE_URL: https://osrm.github.io/catfood_web/
       TARGET_URL: http://127.0.0.1:4173/
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co

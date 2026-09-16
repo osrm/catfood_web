@@ -1,0 +1,39 @@
+name: PR42 postdeploy mobile header QA
+
+on:
+  push:
+    branches:
+      - qa/pr42-postdeploy-360-20260916
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    env:
+      MERGE_SHA: 83e4ca5acb8ac4f44b28c840260c63c679403195
+      PAGE_URL: https://osrm.github.io/catfood_web/
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify QA branch preserves deployed product sources
+        run: git diff --exit-code "$MERGE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          fc-cache -f
+
+      - name: Run live 360 postdeploy QA
+        run: node .github/pr42-postdeploy-360.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr42-postdeploy-360
+          path: qa-artifacts-pr42-postdeploy
+          if-no-files-found: ignore

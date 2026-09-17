@@ -1,0 +1,99 @@
+name: PR44 mobile detail summary review
+
+on:
+  push:
+    branches:
+      - qa/pr44-mobile-detail-summary-20260917
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    env:
+      BASE_SHA: 71104f8c322ac58c6ff45722e058c8c4bea8e0fb
+      TARGET_SHA: 114998bc81b8e3f35b4116da480580f7c3f63989
+      CANDIDATE_ORIGIN: http://127.0.0.1:4173/
+      BASE_ORIGIN: http://127.0.0.1:4174/
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Guard product sources against exact candidate
+        run: |
+          git fetch origin "$TARGET_SHA" "$BASE_SHA" --depth=1
+          git diff --exit-code "$TARGET_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run existing tests
+        run: npm test
+
+      - name: Typecheck and build exact candidate
+        run: npm run build
+
+      - name: Reuse existing detail browser helper
+        run: |
+          git fetch origin qa/detail-tab-scroll-position-candidate-20260912 --depth=1
+          git show FETCH_HEAD:.github/detail-tab-scroll-qa-helpers.mjs > .github/detail-tab-scroll-qa-helpers.mjs
+
+      - name: Build exact base in isolated worktree
+        run: |
+          git worktree add --detach /tmp/catfood-pr44-base "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" /tmp/catfood-pr44-base/node_modules
+          (cd /tmp/catfood-pr44-base && npm run build)
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Start candidate and base previews
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/pr44-candidate-preview.log 2>&1 &
+          echo $! >/tmp/pr44-candidate-preview.pid
+          (cd /tmp/catfood-pr44-base && npm run preview -- --host 127.0.0.1 --port 4174 >/tmp/pr44-base-preview.log 2>&1 & echo $! >/tmp/pr44-base-preview.pid)
+          for port in 4173 4174; do
+            ok=0
+            for i in $(seq 1 80); do
+              if curl -fsS "http://127.0.0.1:${port}/" >/dev/null; then ok=1; break; fi
+              sleep 0.25
+            done
+            if [ "$ok" -ne 1 ]; then
+              cat /tmp/pr44-candidate-preview.log || true
+              cat /tmp/pr44-base-preview.log || true
+              exit 1
+            fi
+          done
+
+      - name: Run focused before-after browser QA
+        run: node .github/pr44-mobile-detail-summary-review.mjs
+
+      - name: Stop previews
+        if: always()
+        run: |
+          kill "$(cat /tmp/pr44-candidate-preview.pid 2>/dev/null)" 2>/dev/null || true
+          kill "$(cat /tmp/pr44-base-preview.pid 2>/dev/null)" 2>/dev/null || true
+
+      - name: Upload review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr44-mobile-detail-summary-review
+          path: qa-artifacts/pr44-mobile-detail-summary/
+          if-no-files-found: warn
+          retention-days: 90

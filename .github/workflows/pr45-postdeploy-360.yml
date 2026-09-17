@@ -1,0 +1,57 @@
+name: PR45 postdeploy 360 check
+
+on:
+  push:
+    branches:
+      - qa/pr45-postdeploy-360-20260917
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    env:
+      MERGE_SHA: 3d3a90a46f0ae9400179158dc67e21ee8b5d5e92
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Guard product sources against deployed merge
+        run: |
+          git fetch origin "$MERGE_SHA" --depth=1
+          git diff --exit-code "$MERGE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reuse existing browser helper
+        run: |
+          git fetch origin qa/detail-tab-scroll-position-candidate-20260912 --depth=1
+          git show FETCH_HEAD:.github/detail-tab-scroll-qa-helpers.mjs > .github/detail-tab-scroll-qa-helpers.mjs
+
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+
+      - name: Run narrow live Pages QA
+        run: node .github/pr45-postdeploy-360.mjs
+
+      - name: Upload originals
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr45-postdeploy-360
+          path: qa-artifacts/pr45-postdeploy-360/
+          if-no-files-found: warn
+          retention-days: 90

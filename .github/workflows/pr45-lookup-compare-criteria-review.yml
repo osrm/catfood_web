@@ -1,0 +1,78 @@
+name: PR45 lookup compare criteria review
+
+on:
+  push:
+    branches:
+      - qa/pr45-lookup-compare-criteria-20260917
+
+permissions:
+  contents: read
+
+env:
+  BASE_SHA: 8391c76965b8ec94ce25856dad611c7b0f306aac
+  CANDIDATE_SHA: 5f7b84a1165330564af77164b804c568b46f3471
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Guard product sources against exact candidate
+        run: |
+          git fetch origin "$CANDIDATE_SHA" --depth=1
+          git diff --exit-code "$CANDIDATE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Reuse existing browser helper
+        run: |
+          git fetch origin qa/detail-tab-scroll-position-candidate-20260912 --depth=1
+          git show FETCH_HEAD:.github/detail-tab-scroll-qa-helpers.mjs > .github/detail-tab-scroll-qa-helpers.mjs
+      - name: Build exact candidate and base
+        run: |
+          npx vite build --outDir "$RUNNER_TEMP/candidate-dist"
+          git worktree add "$RUNNER_TEMP/base-worktree" "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/base-worktree/node_modules"
+          (cd "$RUNNER_TEMP/base-worktree" && "$GITHUB_WORKSPACE/node_modules/.bin/vite" build --outDir "$RUNNER_TEMP/base-dist")
+      - name: Install Korean font environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk
+          fc-cache -f
+          fc-match ':lang=ko'
+          /usr/bin/google-chrome --version
+      - name: Start base and candidate previews
+        run: |
+          npx vite preview --host 127.0.0.1 --port 4173 --outDir "$RUNNER_TEMP/base-dist" > "$RUNNER_TEMP/base-preview.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/base-preview.pid"
+          npx vite preview --host 127.0.0.1 --port 4174 --outDir "$RUNNER_TEMP/candidate-dist" > "$RUNNER_TEMP/candidate-preview.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/candidate-preview.pid"
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:4173/catfood_web/ >/dev/null && curl -fsS http://127.0.0.1:4174/catfood_web/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/base-preview.log" || true
+          cat "$RUNNER_TEMP/candidate-preview.log" || true
+          exit 1
+      - name: Run focused before-after browser QA
+        env:
+          BASE_URL: http://127.0.0.1:4173/catfood_web/
+          CANDIDATE_URL: http://127.0.0.1:4174/catfood_web/
+        run: node .github/pr45-lookup-compare-criteria-qa.mjs
+      - name: Stop previews
+        if: always()
+        run: |
+          kill "$(cat "$RUNNER_TEMP/base-preview.pid" 2>/dev/null)" 2>/dev/null || true
+          kill "$(cat "$RUNNER_TEMP/candidate-preview.pid" 2>/dev/null)" 2>/dev/null || true
+      - name: Upload review material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr45-lookup-compare-criteria-review
+          path: qa-artifacts/pr45-lookup-compare-criteria/
+          if-no-files-found: warn

@@ -1,0 +1,43 @@
+name: Apply focused compare criteria fix
+
+on:
+  push:
+    branches:
+      - fix/lookup-empty-compare-criteria-20260917
+    paths:
+      - .github/workflows/apply-lookup-empty-compare-criteria.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/lookup-empty-compare-criteria-20260917
+      - name: Apply exact CompareView change
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/CompareView.tsx')
+          text = path.read_text()
+          old = """function RelationSummary({ item }: { item: CompareItem }) {\n  const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []\n  if (![confirmed, keep, change, unknown, reviewed, insufficient].some((values) => values.length)) return <span className=\"compare-muted\">비교할 검색 조건 없음</span>\n"""
+          new = """function hasRelationData(item: CompareItem) {\n  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.unknowns, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)\n}\nfunction RelationSummary({ item }: { item: CompareItem }) {\n  const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []\n  if (!hasRelationData(item)) return <span className=\"compare-muted\">비교할 검색 조건 없음</span>\n"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected relation snippet once, found {text.count(old)}')
+          text = text.replace(old, new, 1)
+          old_render = """        {tab === 'overview' ? <>\n          <CompareSection title=\"선택한 조건과 비교\" note=\"선택한 조건과 각 제품이 어떻게 맞는지 확인합니다.\" />\n          <CompareRow label=\"선택한 조건과 비교\" items={items} render={(item) => <RelationSummary item={item} />} />\n          <CompareSection title=\"제품 기본 정보\" note=\"제품에 표시된 기본 정보를 나란히 봅니다.\" />\n"""
+          new_render = """        {tab === 'overview' ? <>\n          {items.some(hasRelationData) ? <>\n            <CompareSection title=\"선택한 조건과 비교\" note=\"선택한 조건과 각 제품이 어떻게 맞는지 확인합니다.\" />\n            <CompareRow label=\"선택한 조건과 비교\" items={items} render={(item) => <RelationSummary item={item} />} />\n          </> : null}\n          <CompareSection title=\"제품 기본 정보\" note=\"제품에 표시된 기본 정보를 나란히 봅니다.\" />\n"""
+          if text.count(old_render) != 1:
+              raise SystemExit(f'expected overview snippet once, found {text.count(old_render)}')
+          path.write_text(text.replace(old_render, new_render, 1))
+          PY
+          rm .github/workflows/apply-lookup-empty-compare-criteria.yml
+          git config user.name osrm
+          git config user.email 90407222+osrm@users.noreply.github.com
+          git add src/CompareView.tsx .github/workflows/apply-lookup-empty-compare-criteria.yml
+          git diff --cached --check
+          git commit -m "fix: omit empty compare criteria"
+          git push origin HEAD:fix/lookup-empty-compare-criteria-20260917

@@ -171,9 +171,12 @@ function MobileProductHead({ role, product, variantText, onDetail, onRemove }: {
     {onDetail || onRemove ? <div className="compare-mobile-head-actions">{onDetail ? <button type="button" onClick={onDetail}>상세 보기 →</button> : null}{onRemove ? <button type="button" onClick={onRemove}>비교에서 제거</button> : null}</div> : null}
   </div>
 }
+function hasRelationData(item: CompareItem) {
+  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.unknowns, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
+}
 function RelationSummary({ item }: { item: CompareItem }) {
   const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []
-  if (![confirmed, keep, change, unknown, reviewed, insufficient].some((values) => values.length)) return <span className="compare-muted">비교할 검색 조건 없음</span>
+  if (!hasRelationData(item)) return <span className="compare-muted">비교할 검색 조건 없음</span>
   return <div className="compare-relations">
     {confirmed.length ? <p className="is-confirmed"><span>확인됨</span><strong>{confirmed.join(' · ')}</strong></p> : null}
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
@@ -402,8 +405,10 @@ export default function CompareView({ items, currentProduct, currentVariantText,
       </> : <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
-          <CompareSection title="선택한 조건과 비교" note="선택한 조건과 각 제품이 어떻게 맞는지 확인합니다." />
-          <CompareRow label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
+          {items.some(hasRelationData) ? <>
+            <CompareSection title="선택한 조건과 비교" note="선택한 조건과 각 제품이 어떻게 맞는지 확인합니다." />
+            <CompareRow label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
+          </> : null}
           <CompareSection title="제품 기본 정보" note="제품에 표시된 기본 정보를 나란히 봅니다." />
           <CompareRow label="사료 형태" items={items} render={(item) => overviewValue(item.product, 'feedType')} />
           <CompareRow label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />

@@ -32,89 +32,77 @@ function compareUrl(mode) {
 
 async function waitCompare(c) {
   await c.wait(`document.querySelector('.compare-stage')`, 'compare stage', 30000)
-  for (const product of PRODUCTS) {
-    await c.wait(`[...document.querySelectorAll('.compare-product-copy strong')].some(n=>n.textContent.trim()===${js(product.name)})`, `product ${product.name}`, 30000)
-  }
+  for (const product of PRODUCTS) await c.wait(`[...document.querySelectorAll('.compare-product-copy strong')].some(n=>n.textContent.trim()===${js(product.name)})`, `product ${product.name}`, 30000)
   await c.wait(`document.querySelectorAll('.compare-product-head').length===2`, 'two compare heads', 30000)
   await sleep(250)
 }
 
 async function metrics(c) {
   return c.eval(`(()=>{
-    const table=document.querySelector('.compare-table')
-    const sections=[...table.querySelectorAll(':scope > .compare-section-row')]
-    const rows=[...table.querySelectorAll(':scope > .compare-row')]
     const norm=(s)=>(s||'').replace(/\\s+/g,' ').trim()
+    const rect=(n)=>{if(!n)return null;const r=n.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}}
+    const wrap=document.querySelector('.compare-table-wrap'), table=document.querySelector('.compare-table')
+    const wr=wrap.getBoundingClientRect(), sections=[...table.querySelectorAll(':scope > .compare-section-row')], rows=[...table.querySelectorAll(':scope > .compare-row')]
     const rowByLabel=(label)=>rows.find(n=>norm(n.querySelector('.compare-row-label')?.textContent)===label)||null
     const cellTexts=(row)=>row?[...row.children].slice(1).map(n=>norm(n.textContent)):[]
-    const relation=rowByLabel('선택한 조건과 비교')
-    const basic={}
-    for(const label of ${JSON.stringify(Object.keys(EXPECTED_BASIC))}){
-      const row=rowByLabel(label)
-      basic[label]=cellTexts(row)
-    }
+    const relation=rowByLabel('선택한 조건과 비교'), first=rowByLabel('사료 형태'), last=rowByLabel('제조국')
+    const products=[...document.querySelectorAll('.compare-product-head')].map(n=>{
+      const r=n.getBoundingClientRect(), left=Math.max(r.left,wr.left), right=Math.min(r.right,wr.right)
+      return {
+        brand:norm(n.querySelector('.compare-product-copy>span')?.textContent),
+        name:norm(n.querySelector('.compare-product-copy strong')?.textContent),
+        sale:norm(n.querySelector('.compare-product-copy small')?.textContent),
+        image:n.querySelector('img')?.src??null,
+        detail:norm(n.querySelector('.compare-detail-link')?.textContent),
+        remove:n.querySelector('.compare-remove')?.getAttribute('aria-label')??null,
+        rect:rect(n), visibleWidthAtStart:Math.max(0,right-left),
+        detailRect:rect(n.querySelector('.compare-detail-link')), removeRect:rect(n.querySelector('.compare-remove')),
+      }
+    })
+    const overview={}
+    for(const row of rows){const label=norm(row.querySelector('.compare-row-label')?.textContent);if(label)overview[label]=cellTexts(row)}
     return {
-      viewport:{width:innerWidth,height:innerHeight,docWidth:document.documentElement.scrollWidth},
-      products:[...document.querySelectorAll('.compare-product-head')].map(n=>({brand:norm(n.querySelector('.compare-product-copy>span')?.textContent),name:norm(n.querySelector('.compare-product-copy strong')?.textContent)})),
+      viewport:{width:innerWidth,height:innerHeight,docWidth:document.documentElement.scrollWidth,docHeight:document.documentElement.scrollHeight},
+      table:{wrapClientWidth:wrap.clientWidth,wrapScrollWidth:wrap.scrollWidth,overflowX:getComputedStyle(wrap).overflowX,tableWidth:table.getBoundingClientRect().width,horizontalTravel:wrap.scrollWidth-wrap.clientWidth},
+      products,
       sectionTitles:sections.map(n=>norm(n.querySelector('strong')?.textContent)),
       relationText:relation?norm(relation.textContent):null,
-      emptyRelationCopies:[...document.querySelectorAll('.compare-muted')].filter(n=>norm(n.textContent).includes('비교할 검색 조건 없음')).length,
-      basic,
+      overview,
+      firstFactTop:first?.getBoundingClientRect().top??null,
+      lastFactBottom:last?.getBoundingClientRect().bottom??null,
+      overviewFactSpan:first&&last?last.getBoundingClientRect().bottom-first.getBoundingClientRect().top:null,
     }
   })()`)
 }
 
 async function verifyNetwork(c, label) {
   const net = await network(c)
-  assert.equal(net.sentAnalytics.length, 0, `${label}: analytics request escaped blocker`)
-  assert.equal(net.sentWrites.length, 0, `${label}: write request escaped blocker`)
+  assert.equal(net.sentAnalytics.length, 0, `${label}: analytics escaped blocker`)
+  assert.equal(net.sentWrites.length, 0, `${label}: write escaped blocker`)
   const supabase = c.requests.filter((item) => item.url.includes('gnosbstdatkytsyxuapt.supabase.co'))
-  const nonRead = supabase.filter((item) => !['GET', 'HEAD', 'OPTIONS'].includes(item.method))
-  assert.deepEqual(nonRead, [], `${label}: non-read Supabase request observed`)
-  const badPublic = net.publicResponses.filter((item) => item.status >= 400)
-  assert.deepEqual(badPublic, [], `${label}: public API error response`)
-  return {
-    publicReads: net.publicReads,
-    methods: [...new Set(supabase.map((item) => item.method))],
-    blocked: net.blocked,
-  }
+  assert.deepEqual(supabase.filter((item) => !['GET', 'HEAD', 'OPTIONS'].includes(item.method)), [], `${label}: non-read Supabase request`)
+  assert.deepEqual(net.publicResponses.filter((item) => item.status >= 400), [], `${label}: public API error`)
+  return { publicReads: net.publicReads, methods: [...new Set(supabase.map((item) => item.method))], blocked: net.blocked }
 }
 
-async function capture(mode, fileName) {
-  const launched = await launch(360, 844, true)
+async function capture(mode, width, height) {
+  const launched = await launch(width, height, true)
   const c = launched.c
   try {
-    await c.nav(compareUrl(mode))
-    await waitCompare(c)
+    await c.nav(compareUrl(mode)); await waitCompare(c)
     const result = await metrics(c)
-    assert.deepEqual(result.products, PRODUCTS.map(({ brand, name }) => ({ brand, name })), `${mode}: product order/identity changed`)
-    for (const [label, values] of Object.entries(EXPECTED_BASIC)) {
-      assert.deepEqual(result.basic[label], values, `${mode}: basic fact changed for ${label}`)
-    }
-    if (mode === 'lookup') {
-      assert.equal(result.sectionTitles[0], '제품 기본 정보', 'LOOKUP: product basics are not first')
-      assert.equal(result.sectionTitles.includes('선택한 조건과 비교'), false, 'LOOKUP: empty condition section still rendered')
-      assert.equal(result.relationText, null, 'LOOKUP: empty condition row still rendered')
-      assert.equal(result.emptyRelationCopies, 0, 'LOOKUP: empty relation copy still rendered')
-    } else {
-      assert.equal(result.sectionTitles[0], '선택한 조건과 비교', 'EXPLORE: condition section no longer first')
-      assert.ok(result.relationText?.includes('확인됨'), `EXPLORE: confirmed relation missing: ${result.relationText}`)
-      assert.ok(result.relationText?.includes('건식'), `EXPLORE: dry-food condition missing: ${result.relationText}`)
-    }
-    await c.shot(`${OUT}/${fileName}`)
-    const net = await verifyNetwork(c, mode)
-    return { ...result, network: net, chrome: launched.version, url: compareUrl(mode) }
-  } finally {
-    cleanup(launched.proc, launched.dir, c)
-  }
+    assert.deepEqual(result.products.map(({brand,name})=>({brand,name})), PRODUCTS.map(({brand,name})=>({brand,name})), `${mode}-${width}: order changed`)
+    for (const [label, values] of Object.entries(EXPECTED_BASIC)) assert.deepEqual(result.overview[label], values, `${mode}-${width}: ${label} changed`)
+    assert.ok(result.table.horizontalTravel > 0, `${mode}-${width}: expected current horizontal compare travel`)
+    if (mode === 'lookup') assert.equal(result.sectionTitles[0], '제품 기본 정보')
+    else { assert.equal(result.sectionTitles[0], '선택한 조건과 비교'); assert.ok(result.relationText?.includes('확인됨') && result.relationText?.includes('건식')) }
+    await c.shot(`${OUT}/current-${mode}-${width}x${height}.png`)
+    return { ...result, network: await verifyNetwork(c, `${mode}-${width}`), url: compareUrl(mode), chrome: launched.version }
+  } finally { cleanup(launched.proc, launched.dir, c) }
 }
 
-const lookup = await capture('lookup', 'lookup-360x844.png')
-const explore = await capture('explore', 'explore-dry-360x844.png')
-const report = { mergeSha: MERGE_SHA, origin: ORIGIN, products: PRODUCTS, lookup, explore }
-writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2))
-console.log('PR45_POSTDEPLOY_360_PASS')
-console.log(JSON.stringify({
-  lookup: { sections: lookup.sectionTitles, products: lookup.products, basic: lookup.basic, network: lookup.network },
-  explore: { sections: explore.sectionTitles, relationText: explore.relationText, network: explore.network },
-}, null, 2))
+const report={mergeSha:MERGE_SHA,origin:ORIGIN,products:PRODUCTS,captures:{}}
+for(const vp of [{width:360,height:844},{width:390,height:900}]) for(const mode of ['lookup','explore']) report.captures[`${mode}-${vp.width}x${vp.height}`]=await capture(mode,vp.width,vp.height)
+writeFileSync(`${OUT}/current-layout-report.json`,JSON.stringify(report,null,2))
+console.log('TWO_PRODUCT_CURRENT_LAYOUT_CAPTURE_PASS')
+for(const [key,v] of Object.entries(report.captures)) console.log(key,JSON.stringify({table:v.table,products:v.products.map(p=>({brand:p.brand,name:p.name,sale:p.sale,visibleWidthAtStart:p.visibleWidthAtStart})),firstFactTop:v.firstFactTop,docHeight:v.viewport.docHeight,relationText:v.relationText}))

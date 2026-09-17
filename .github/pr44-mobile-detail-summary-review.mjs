@@ -99,6 +99,7 @@ async function capture(origin, label, width, height) {
     assert.match(metrics.identityText.meta || '', /·/, `${label}: feed/life-stage identity missing`)
     assert.ok(metrics.identityText.image?.width > 0 && metrics.identityText.image?.height > 0, `${label}: product image identity missing`)
     assert.deepEqual(metrics.tabNames, TAB_NAMES, `${label}: detail tabs changed`)
+    assert.ok(metrics.tabRects.every((rect) => rect && rect.left >= -1 && rect.right <= metrics.viewport.width + 1), `${label}: a tab name is not fully visible at initial position: ${JSON.stringify(metrics.tabRects)}`)
     assert.equal(metrics.firstHeadingText, '제품 기본 정보', `${label}: overview no longer starts with product basics`)
     assert.ok(metrics.viewport.docWidth <= metrics.viewport.width + 1, `${label}: horizontal document overflow`)
     const file = `${OUT}/${label}-${width}x${height}.png`
@@ -114,6 +115,8 @@ function compareLayout(base, candidate) {
   assert.equal(candidate.metrics.status?.display, 'none', `${candidate.label}: candidate status cards still visible`)
   assert.ok(candidate.metrics.tabs.top < base.metrics.tabs.top, `${candidate.label}: tabs did not move earlier`)
   assert.ok(candidate.metrics.firstHeading.top < base.metrics.firstHeading.top, `${candidate.label}: basic facts did not move earlier`)
+  assert.equal(candidate.metrics.variantRows, base.metrics.variantRows, `${candidate.label}: package rows changed when summary cards were hidden`)
+  assert.equal(candidate.metrics.ingredientCountText, base.metrics.ingredientCountText, `${candidate.label}: ingredient count fact changed when summary cards were hidden`)
   return {
     identityHeightBefore: base.metrics.identity.height,
     identityHeightAfter: candidate.metrics.identity.height,
@@ -127,6 +130,10 @@ function compareLayout(base, candidate) {
     firstFactTopBefore: base.metrics.firstFact?.top ?? null,
     firstFactTopAfter: candidate.metrics.firstFact?.top ?? null,
     firstFactTopDelta: base.metrics.firstFact && candidate.metrics.firstFact ? candidate.metrics.firstFact.top - base.metrics.firstFact.top : null,
+    variantRowsBefore: base.metrics.variantRows,
+    variantRowsAfter: candidate.metrics.variantRows,
+    ingredientCountBefore: base.metrics.ingredientCountText,
+    ingredientCountAfter: candidate.metrics.ingredientCountText,
     tabScrollBefore: base.metrics.tabScroll,
     tabScrollAfter: candidate.metrics.tabScroll,
   }
@@ -201,10 +208,13 @@ async function interactionReview() {
     await clickVisibleNoScroll(c, '.quick-view-actions button', '상세 보기')
     await waitDetail(c)
     await clickVisibleNoScroll(c, '.detail-topbar button', '제품 목록')
-    await c.wait(`!document.querySelector('.detail-stage')&&document.querySelector('.research-results')`, 'parent product list restored')
-    const parentReturn = await c.eval(`({url:location.href,query:document.querySelector('.lookup-input')?.value??null,selected:new URLSearchParams(location.search).get('selected'),detail:new URLSearchParams(location.search).get('detail')})`)
-    assert.equal(parentReturn.query, PRODUCT.query, 'parent return lost lookup query')
+    await c.wait(`!document.querySelector('.detail-stage')&&(document.querySelector('.research-quick-view')||document.querySelector('.research-results'))`, 'detail parent restored')
+    const parentReturn = await c.eval(`(()=>{const p=new URLSearchParams(location.search);return{url:location.href,q:p.get('q'),mode:p.get('mode'),selected:p.get('selected'),detail:p.get('detail'),quickView:Boolean(document.querySelector('.research-quick-view')),results:Boolean(document.querySelector('.research-results'))}})()`)
+    assert.equal(parentReturn.q, PRODUCT.query, 'parent return URL lost lookup query')
+    assert.equal(parentReturn.mode, 'lookup', 'parent return changed lookup mode')
+    assert.equal(parentReturn.selected, PRODUCT.id, 'parent return did not restore selected quick-view product')
     assert.equal(parentReturn.detail, null, 'parent return retained detail URL state')
+    assert.equal(parentReturn.quickView, true, 'parent return did not restore quick view parent')
 
     return {
       initial,

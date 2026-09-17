@@ -11,17 +11,20 @@ permissions:
 env:
   BASE_SHA: 8391c76965b8ec94ce25856dad611c7b0f306aac
   CANDIDATE_SHA: 5f7b84a1165330564af77164b804c568b46f3471
+  VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+  VITE_DECISION_INTAKE_ENABLED: 'false'
 
 jobs:
   qa:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Guard product sources against exact candidate
         run: |
-          git fetch origin "$CANDIDATE_SHA" --depth=1
+          git fetch origin "$CANDIDATE_SHA" "$BASE_SHA" --depth=1
           git diff --exit-code "$CANDIDATE_SHA" -- src tests package.json package-lock.json vite.config.ts tsconfig.json index.html
       - uses: actions/setup-node@v5
         with:
@@ -35,10 +38,10 @@ jobs:
           git show FETCH_HEAD:.github/detail-tab-scroll-qa-helpers.mjs > .github/detail-tab-scroll-qa-helpers.mjs
       - name: Build exact candidate and base
         run: |
-          npx vite build --outDir "$RUNNER_TEMP/candidate-dist"
-          git worktree add "$RUNNER_TEMP/base-worktree" "$BASE_SHA"
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/base-worktree/node_modules"
-          (cd "$RUNNER_TEMP/base-worktree" && "$GITHUB_WORKSPACE/node_modules/.bin/vite" build --outDir "$RUNNER_TEMP/base-dist")
+          npm run build
+          git worktree add --detach /tmp/catfood-pr45-base "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" /tmp/catfood-pr45-base/node_modules
+          (cd /tmp/catfood-pr45-base && npm run build)
       - name: Install Korean font environment
         run: |
           sudo apt-get update -qq
@@ -48,27 +51,31 @@ jobs:
           /usr/bin/google-chrome --version
       - name: Start base and candidate previews
         run: |
-          npx vite preview --host 127.0.0.1 --port 4173 --outDir "$RUNNER_TEMP/base-dist" > "$RUNNER_TEMP/base-preview.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/base-preview.pid"
-          npx vite preview --host 127.0.0.1 --port 4174 --outDir "$RUNNER_TEMP/candidate-dist" > "$RUNNER_TEMP/candidate-preview.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/candidate-preview.pid"
-          for i in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:4173/catfood_web/ >/dev/null && curl -fsS http://127.0.0.1:4174/catfood_web/ >/dev/null && exit 0
-            sleep 1
+          npm run preview -- --host 127.0.0.1 --port 4174 >/tmp/pr45-candidate-preview.log 2>&1 &
+          echo $! >/tmp/pr45-candidate-preview.pid
+          (cd /tmp/catfood-pr45-base && npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/pr45-base-preview.log 2>&1 & echo $! >/tmp/pr45-base-preview.pid)
+          for port in 4173 4174; do
+            ok=0
+            for i in $(seq 1 80); do
+              if curl -fsS "http://127.0.0.1:${port}/" >/dev/null; then ok=1; break; fi
+              sleep 0.25
+            done
+            if [ "$ok" -ne 1 ]; then
+              cat /tmp/pr45-candidate-preview.log || true
+              cat /tmp/pr45-base-preview.log || true
+              exit 1
+            fi
           done
-          cat "$RUNNER_TEMP/base-preview.log" || true
-          cat "$RUNNER_TEMP/candidate-preview.log" || true
-          exit 1
       - name: Run focused before-after browser QA
         env:
-          BASE_URL: http://127.0.0.1:4173/catfood_web/
-          CANDIDATE_URL: http://127.0.0.1:4174/catfood_web/
+          BASE_URL: http://127.0.0.1:4173/
+          CANDIDATE_URL: http://127.0.0.1:4174/
         run: node .github/pr45-lookup-compare-criteria-qa.mjs
       - name: Stop previews
         if: always()
         run: |
-          kill "$(cat "$RUNNER_TEMP/base-preview.pid" 2>/dev/null)" 2>/dev/null || true
-          kill "$(cat "$RUNNER_TEMP/candidate-preview.pid" 2>/dev/null)" 2>/dev/null || true
+          kill "$(cat /tmp/pr45-candidate-preview.pid 2>/dev/null)" 2>/dev/null || true
+          kill "$(cat /tmp/pr45-base-preview.pid 2>/dev/null)" 2>/dev/null || true
       - name: Upload review material
         if: always()
         uses: actions/upload-artifact@v4
@@ -76,3 +83,4 @@ jobs:
           name: pr45-lookup-compare-criteria-review
           path: qa-artifacts/pr45-lookup-compare-criteria/
           if-no-files-found: warn
+          retention-days: 90

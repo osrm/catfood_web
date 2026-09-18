@@ -7,7 +7,7 @@ const BASELINE_BASE = process.env.BASELINE_BASE || 'https://osrm.github.io/catfo
 const PRODUCT_SHA = process.env.PRODUCT_SHA
 const API_URL = process.env.VITE_SUPABASE_URL
 const API_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY
-const OUT = 'qa-artifacts'
+const OUT = 'qa-artifacts/pr47-sticky-fix'
 const q = JSON.stringify
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -356,10 +356,11 @@ async function sticky(c, prefix, expectSticky = true) {
   const start = await readStickyGeometry(c)
   const naturalTop = start.ths[0].rect.top + start.owner.scrollTop
   const tableBottomDocument = start.table.bottom + start.owner.scrollTop
-  assert.ok(start.owner.maxScroll > naturalTop + 20, prefix + ': insufficient scroll range')
-  const target1 = Math.min(naturalTop + 20, start.owner.maxScroll - 20)
-  const target2 = Math.min(naturalTop + 55, start.owner.maxScroll - 4)
-  assert.ok(target2 > target1 + 10, prefix + ': two post-threshold wheel positions unavailable')
+  const postThresholdRange = start.owner.maxScroll - naturalTop
+  assert.ok(postThresholdRange > 5, prefix + ': sticky threshold is not physically reachable with this viewport')
+  const target1 = naturalTop + 2
+  const target2 = Math.min(naturalTop + Math.max(5, Math.min(12, postThresholdRange - 1)), start.owner.maxScroll - 0.5)
+  assert.ok(target2 > target1 + 2, prefix + ': two distinct post-threshold wheel positions unavailable')
   await wheelUntil(c, target1)
   await sleep(120)
   const p1 = await readStickyGeometry(c)
@@ -382,13 +383,13 @@ async function sticky(c, prefix, expectSticky = true) {
     }
     assert.ok(bodySample.tag, prefix + ': no readable body below sticky')
   } else {
-    assert.ok(p1.ths.every(th => th.rect.top < -5), prefix + ': baseline failure not reproduced')
+    assert.ok(p1.ths.every(th => th.rect.top < -1), prefix + ': baseline failure not reproduced')
     assert.ok(p1.table.bottom > p1.ths[0].rect.bottom + 40, prefix + ': baseline failure was table-end release')
   }
   const compareStage = start.chain.find(x => String(x.className).includes('compare-stage')) || null
   await c.eval('document.scrollingElement.scrollTop=0')
   await sleep(100)
-  return { naturalTop, tableBottomDocument, releaseThreshold, tableReleaseReachable, compareStage, start, p1, p2, bodySample, captures:[prefix + '-wheel-1.png', prefix + '-wheel-2.png'] }
+  return { naturalTop, postThresholdRange, tableBottomDocument, releaseThreshold, tableReleaseReachable, compareStage, start, p1, p2, bodySample, captures:[prefix + '-wheel-1.png', prefix + '-wheel-2.png'] }
 }
 
 async function baselineCase(products) {

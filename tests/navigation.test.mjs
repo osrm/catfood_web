@@ -99,7 +99,7 @@ async function renderApp(url) {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(
     () => !document.body.textContent.includes('제품 데이터를 불러오는 중입니다.')
-      && (document.querySelector('.detail-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
+      && (document.querySelector('.detail-stage') !== null || document.querySelector('.compare-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
     'catalog-backed screen rendered',
   )
 }

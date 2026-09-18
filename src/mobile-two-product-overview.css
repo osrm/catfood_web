@@ -1,0 +1,207 @@
+.compare-mobile-two-product-overview {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .compare-table-wrap.is-mobile-two-product-overview {
+    overflow-x: visible;
+    padding: 18px 16px 28px;
+  }
+
+  .compare-table-wrap.is-mobile-two-product-overview .compare-two-product-overview-desktop {
+    display: none;
+  }
+
+  .compare-mobile-two-product-overview {
+    display: block;
+    min-width: 0;
+    border: 1px solid var(--research-line);
+    background: #fff;
+  }
+
+  .compare-mobile-two-product-heads {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid var(--research-line);
+  }
+
+  .compare-mobile-two-product-head {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .compare-mobile-two-product-head + .compare-mobile-two-product-head {
+    border-left: 1px solid var(--research-line);
+  }
+
+  .compare-mobile-two-product-identity {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+  }
+
+  .compare-mobile-two-product-identity img,
+  .compare-mobile-two-product-identity .compare-image-placeholder {
+    width: 52px;
+    height: 68px;
+    border: 0;
+    border-radius: 6px;
+    object-fit: contain;
+    background: #f4f6f4;
+  }
+
+  .compare-mobile-two-product-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 1px;
+  }
+
+  .compare-mobile-two-product-slot {
+    color: #50605a;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: 0.025em;
+  }
+
+  .compare-mobile-two-product-brand {
+    color: #75634d;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+
+  .compare-mobile-two-product-name {
+    margin: 0;
+    color: #0b2c25;
+    font-size: 14px;
+    line-height: 1.42;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+
+  .compare-mobile-two-product-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+    margin-top: auto;
+  }
+
+  .compare-mobile-two-product-actions button {
+    min-width: 0;
+    min-height: 44px;
+    padding: 6px 4px;
+    border: 1px solid #c7d2ce;
+    border-radius: 5px;
+    background: #fff;
+    color: var(--research-accent);
+    font-size: 10px;
+    line-height: 1.25;
+    font-weight: 780;
+  }
+
+  .compare-mobile-two-product-actions button:last-child {
+    color: #6d4b45;
+  }
+
+  .compare-mobile-two-product-key {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-bottom: 1px solid #d9dfdc;
+    background: rgba(248, 249, 248, 0.98);
+    box-shadow: 0 7px 12px rgba(11, 44, 37, 0.06);
+    backdrop-filter: blur(5px);
+  }
+
+  .compare-mobile-two-product-key > div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    padding: 7px 10px 8px;
+  }
+
+  .compare-mobile-two-product-key > div + div {
+    border-left: 1px solid #e2e7e5;
+  }
+
+  .compare-mobile-two-product-key span {
+    color: #50605a;
+    font-size: 8.5px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+
+  .compare-mobile-two-product-key strong {
+    color: #1d312b;
+    font-size: 10.5px;
+    line-height: 1.35;
+    font-weight: 780;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+
+  .compare-mobile-two-product-overview .compare-section-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 10px 10px 8px;
+  }
+
+  .compare-mobile-two-product-overview .compare-section-row span {
+    display: none;
+  }
+
+  .compare-mobile-two-product-row {
+    border-bottom: 1px solid #e7ebe9;
+  }
+
+  .compare-mobile-two-product-row-label {
+    display: block;
+    padding: 9px 10px 6px;
+    background: #f8f9f8;
+    color: #4e5a55;
+    font-size: 10.5px;
+    line-height: 1.4;
+    font-weight: 800;
+  }
+
+  .compare-mobile-two-product-values {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .compare-mobile-two-product-value {
+    min-width: 0;
+    padding: 9px 10px 11px;
+    color: #303a36;
+    font-size: 11.5px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+
+  .compare-mobile-two-product-value + .compare-mobile-two-product-value {
+    border-left: 1px solid #edf0ee;
+  }
+
+  .compare-mobile-two-product-value .compare-relations p {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .compare-mobile-two-product-value .compare-relations strong {
+    font-size: 10.5px;
+  }
+}

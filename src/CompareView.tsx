@@ -199,27 +199,34 @@ function SwitchOverviewRow({ label, currentProduct, items, currentValue, candida
 function MobileOverviewRow({ label, current, candidate }: { label: string; current: ReactNode; candidate: ReactNode }) {
   return <div className="compare-mobile-overview-row"><strong className="compare-mobile-row-label">{label}</strong><div className="compare-mobile-pair"><div><span>현재 사료</span><div>{current}</div></div><div><span>후보</span><div>{candidate}</div></div></div></div>
 }
-function MobileTwoProductOverviewRow({ fieldKey, label, items, render }: { fieldKey: string; label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode }) {
+function MobileTwoProductOverviewField({ fieldKey, label, items, render }: { fieldKey: string; label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode }) {
   const labelId = `compare-mobile-two-row-${fieldKey}`
-  return <div className="compare-mobile-two-product-row" role="group" aria-labelledby={labelId}>
-    <strong className="compare-mobile-two-product-row-label" id={labelId}>{label}</strong>
-    <div className="compare-mobile-two-product-values">
+  return <tbody className="compare-mobile-two-product-field">
+    <tr className="compare-mobile-two-product-label-row">
+      <th className="compare-mobile-two-product-row-label" id={labelId} colSpan={2}>{label}</th>
+    </tr>
+    <tr className="compare-mobile-two-product-values">
       {items.map((item, index) => {
-        const ownerId = `compare-mobile-two-owner-${index + 1}-${item.product.product_id}`
-        return <div className="compare-mobile-two-product-value" key={item.product.product_id} aria-labelledby={`${labelId} ${ownerId}`}>{render(item)}</div>
+        const productHeaderId = `compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`
+        return <td className="compare-mobile-two-product-value" key={item.product.product_id} headers={`${labelId} ${productHeaderId}`}>{render(item)}</td>
       })}
-    </div>
-  </div>
+    </tr>
+  </tbody>
+}
+
+function MobileTwoProductSection({ title }: { title: string }) {
+  return <tbody className="compare-mobile-two-product-section">
+    <tr><th colSpan={2}>{title}</th></tr>
+  </tbody>
 }
 
 function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: CompareItem[]; onDetail: (productId: string) => void; onRemove: (productId: string) => void }) {
-  return <div className="compare-mobile-two-product-overview" aria-label="2개 제품 개요 비교">
+  return <div className="compare-mobile-two-product-overview">
     <div className="compare-mobile-two-product-heads">
       {items.map((item, index) => {
         const product = item.product
-        const ownerId = `compare-mobile-two-owner-${index + 1}-${product.product_id}`
-        return <article className="compare-mobile-two-product-head" key={product.product_id}>
-          <span className="compare-mobile-two-product-a11y-name" id={ownerId}>{`제품 ${index + 1} · ${product.brand} · ${product.canonical_name}`}</span>
+        const nameId = `compare-mobile-two-product-name-${index + 1}-${product.product_id}`
+        return <article className="compare-mobile-two-product-head" key={product.product_id} aria-labelledby={nameId}>
           <div className="compare-mobile-two-product-identity">
             {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
             <div className="compare-mobile-two-product-meta">
@@ -227,7 +234,7 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
               <span className="compare-mobile-two-product-brand">{product.brand}</span>
             </div>
           </div>
-          <strong className="compare-mobile-two-product-name">{product.canonical_name}</strong>
+          <strong className="compare-mobile-two-product-name" id={nameId}>{product.canonical_name}</strong>
           <div className="compare-mobile-two-product-actions">
             <button type="button" aria-label={`${product.brand} ${product.canonical_name} 상세 보기`} onClick={() => onDetail(product.product_id)}>상세 보기</button>
             <button type="button" aria-label={`${product.brand} ${product.canonical_name} 비교에서 제거`} onClick={() => onRemove(product.product_id)}>제거</button>
@@ -236,27 +243,39 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
       })}
     </div>
 
-    <div className="compare-mobile-two-product-key" aria-hidden="true">
-      {items.map((item, index) => <div key={item.product.product_id}><span>제품 {index + 1}</span><strong>{item.product.canonical_name}</strong></div>)}
-    </div>
+    <table className="compare-mobile-two-product-table">
+      <caption className="compare-mobile-two-product-visually-hidden">2개 제품 개요 비교</caption>
+      <thead className="compare-mobile-two-product-key">
+        <tr>
+          {items.map((item, index) => {
+            const headerId = `compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`
+            return <th key={item.product.product_id} id={headerId} scope="col">
+              <span>제품 {index + 1}</span>
+              <strong>{item.product.canonical_name}</strong>
+              <span className="compare-mobile-two-product-visually-hidden">{item.product.brand}</span>
+            </th>
+          })}
+        </tr>
+      </thead>
 
-    {items.some(hasRelationData) ? <>
-      <CompareSection title="선택한 조건과 비교" />
-      <MobileTwoProductOverviewRow fieldKey="relation" label="조건 확인" items={items} render={(item) => <RelationSummary item={item} />} />
-    </> : null}
+      {items.some(hasRelationData) ? <>
+        <MobileTwoProductSection title="선택한 조건과 비교" />
+        <MobileTwoProductOverviewField fieldKey="relation" label="조건 확인" items={items} render={(item) => <RelationSummary item={item} />} />
+      </> : null}
 
-    <CompareSection title="제품 기본 정보" />
-    <MobileTwoProductOverviewRow fieldKey="feed-type" label="사료 형태" items={items} render={(item) => overviewValue(item.product, 'feedType')} />
-    <MobileTwoProductOverviewRow fieldKey="life-stage" label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
-    <MobileTwoProductOverviewRow fieldKey="targets" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} />
-    <MobileTwoProductOverviewRow fieldKey="features" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} />
+      <MobileTwoProductSection title="제품 기본 정보" />
+      <MobileTwoProductOverviewField fieldKey="feed-type" label="사료 형태" items={items} render={(item) => overviewValue(item.product, 'feedType')} />
+      <MobileTwoProductOverviewField fieldKey="life-stage" label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
+      <MobileTwoProductOverviewField fieldKey="targets" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} />
+      <MobileTwoProductOverviewField fieldKey="features" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} />
 
-    <CompareSection title="레시피 · 판매 정보" />
-    <MobileTwoProductOverviewRow fieldKey="recipe-families" label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
-    <MobileTwoProductOverviewRow fieldKey="recipe-details" label="주요 레시피" items={items} render={(item) => overviewValue(item.product, 'recipeDetails')} />
-    <MobileTwoProductOverviewRow fieldKey="grain-free" label="Grain-Free 표기" items={items} render={(item) => overviewValue(item.product, 'grainFree')} />
-    <MobileTwoProductOverviewRow fieldKey="packages" label="판매 규격" items={items} render={(item) => overviewValue(item.product, 'packages')} />
-    <MobileTwoProductOverviewRow fieldKey="country" label="제조국" items={items} render={(item) => overviewValue(item.product, 'country')} />
+      <MobileTwoProductSection title="레시피 · 판매 정보" />
+      <MobileTwoProductOverviewField fieldKey="recipe-families" label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
+      <MobileTwoProductOverviewField fieldKey="recipe-details" label="주요 레시피" items={items} render={(item) => overviewValue(item.product, 'recipeDetails')} />
+      <MobileTwoProductOverviewField fieldKey="grain-free" label="Grain-Free 표기" items={items} render={(item) => overviewValue(item.product, 'grainFree')} />
+      <MobileTwoProductOverviewField fieldKey="packages" label="판매 규격" items={items} render={(item) => overviewValue(item.product, 'packages')} />
+      <MobileTwoProductOverviewField fieldKey="country" label="제조국" items={items} render={(item) => overviewValue(item.product, 'country')} />
+    </table>
   </div>
 }
 function CompareSection({ title, note }: { title: string; note?: string }) { return <div className="compare-section-row"><strong>{title}</strong>{note ? <span>{note}</span> : null}</div> }

@@ -203,7 +203,7 @@ function MobileTwoProductOverviewField({ fieldKey, label, items, render }: { fie
   const labelId = `compare-mobile-two-row-${fieldKey}`
   return <tbody className="compare-mobile-two-product-field">
     <tr className="compare-mobile-two-product-label-row">
-      <th className="compare-mobile-two-product-row-label" id={labelId} colSpan={2}>{label}</th>
+      <th className="compare-mobile-two-product-row-label" id={labelId} colSpan={2} scope="rowgroup">{label}</th>
     </tr>
     <tr className="compare-mobile-two-product-values">
       {items.map((item, index) => {
@@ -216,7 +216,7 @@ function MobileTwoProductOverviewField({ fieldKey, label, items, render }: { fie
 
 function MobileTwoProductSection({ title }: { title: string }) {
   return <tbody className="compare-mobile-two-product-section">
-    <tr><th colSpan={2}>{title}</th></tr>
+    <tr><th colSpan={2} scope="rowgroup">{title}</th></tr>
   </tbody>
 }
 

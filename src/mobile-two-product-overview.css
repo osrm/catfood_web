@@ -117,8 +117,8 @@
     border-radius: 5px;
     background: #fff;
     color: var(--research-accent);
-    font-size: 10px;
-    line-height: 1.25;
+    font-size: 11px;
+    line-height: 1.3;
     font-weight: 780;
   }
 
@@ -158,8 +158,8 @@
 
   .compare-mobile-two-product-key strong {
     color: #1d312b;
-    font-size: 10.5px;
-    line-height: 1.35;
+    font-size: 11px;
+    line-height: 1.38;
     font-weight: 780;
     overflow-wrap: anywhere;
     word-break: keep-all;

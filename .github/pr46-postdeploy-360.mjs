@@ -337,21 +337,21 @@ async function snapshot(c, products, packages, mode) {
 }
 
 async function sticky(c, prefix) {
-  const result = {}
-  for (const item of [['mid',0.5],['lower',0.92]]) {
-    const label = item[0], fraction = item[1]
-    await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();owner.scrollTop=Math.max(0,owner.scrollHeight-owner.clientHeight)*" + fraction + ";return true})()")
-    await sleep(180)
-    const m = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const kr=key.getBoundingClientRect(),or=owner.getBoundingClientRect(),x=Math.max(4,Math.min(innerWidth-4,kr.left+kr.width/2)),y=Math.min(or.bottom-4,kr.bottom+4),hit=document.elementFromPoint(x,y);return{owner:{className:owner.className,scrollTop:owner.scrollTop,maxScroll:owner.scrollHeight-owner.clientHeight,top:or.top,bottom:or.bottom},sticky:{top:kr.top,bottom:kr.bottom,height:kr.height},below:{tag:hit?.tagName,className:typeof hit?.className==='string'?hit.className:'',text:hit?.textContent?.replace(/\\s+/g,' ').trim().slice(0,100)||''}}})()")
-    assert.ok(m.owner.maxScroll > 0, 'scroll owner has no range: ' + JSON.stringify(m.owner))
-    assert.ok(m.sticky.bottom < m.owner.bottom - 4, 'sticky consumes viewport: ' + JSON.stringify(m))
-    result[label] = m
-    await c.shot(prefix + '-' + label + '.png')
-  }
-  await c.eval("document.querySelector('.compare-stage').scrollTop=0")
+  const setup = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const r=key.getBoundingClientRect(),s=getComputedStyle(key);return{position:s.position,naturalTop:r.top+owner.scrollTop,maxScroll:owner.scrollHeight-owner.clientHeight,ownerTag:owner.tagName,ownerClass:owner.className||''}})()")
+  assert.equal(setup.position, 'sticky', 'computed sticky position missing')
+  assert.ok(setup.maxScroll > setup.naturalTop + 10, 'not enough scroll range to test sticky threshold: ' + JSON.stringify(setup))
+  await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();owner.scrollTop=" + (""+0) + ";return true})()")
+  await c.eval(`(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();owner.scrollTop=${setup.naturalTop + 20};return owner.scrollTop})()`)
+  await sleep(180)
+  const probe = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const r=key.getBoundingClientRect();return{scrollTop:owner.scrollTop,top:r.top,bottom:r.bottom,height:r.height,names:[...document.querySelectorAll('.compare-mobile-two-product-key th strong')].map(n=>n.textContent.trim()),ownerTag:owner.tagName,ownerClass:owner.className||''}})()")
+  await c.shot(prefix + '-sticky-probe.png')
+  assert.deepEqual(probe.names, ['연어','카니보 치킨&칠면조&오리'], 'sticky identities changed')
+  assert.ok(Math.abs(probe.top) <= 1.5, 'sticky identity row did not pin to viewport top: ' + JSON.stringify({setup,probe}))
+  const result = { setup, probe }
+  await c.eval("document.scrollingElement.scrollTop=0")
+  await sleep(100)
   return result
 }
-
 async function visualCase(mode, width, height, products, packages, options) {
   const h = await launch(width, height)
   const prefix = options.name

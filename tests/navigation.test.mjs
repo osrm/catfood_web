@@ -216,6 +216,60 @@ test('comparison removals survive returning to the list history entry', async ()
   assert.equal(new URL(window.location.href).searchParams.get('compare'), products[1].product_id)
 })
 
+
+test('two-product overview exposes paired mobile structure and removal falls back to existing layouts', async () => {
+  const first = products[0], second = products[1]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}&compareOpen=1`)
+
+  const mobile = document.querySelector('.compare-mobile-two-product-overview')
+  assert.ok(mobile)
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-head').length, 2)
+  assert.match(mobile.textContent, /Product 000/)
+  assert.match(mobile.textContent, /Product 001/)
+  assert.doesNotMatch(mobile.textContent, /선택한 조건과 비교/)
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-actions button').length, 4)
+  assert.ok(mobile.querySelector(`button[aria-label="Test Brand Product 000 상세 보기"]`))
+  assert.ok(mobile.querySelector(`button[aria-label="Test Brand Product 001 비교에서 제거"]`))
+
+  const packageRow = mobile.querySelector('[aria-labelledby="compare-mobile-two-row-packages"]')
+  assert.ok(packageRow)
+  assert.match(packageRow.textContent, /1 kg/)
+
+  const feedValues = mobile.querySelectorAll('.compare-mobile-two-product-row .compare-mobile-two-product-value')
+  assert.ok([...feedValues].some((cell) => (cell.getAttribute('aria-labelledby') ?? '').includes('compare-mobile-two-owner-1-')))
+  assert.ok([...feedValues].some((cell) => (cell.getAttribute('aria-labelledby') ?? '').includes('compare-mobile-two-owner-2-')))
+
+  const removeFirst = mobile.querySelector(`button[aria-label="Test Brand Product 000 비교에서 제거"]`)
+  await act(async () => removeFirst.click())
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-table'), 'one product returns to the existing comparison table')
+
+  const removeLast = document.querySelector(`button[aria-label="Product 001 비교에서 제거"]`)
+  assert.ok(removeLast)
+  await act(async () => removeLast.click())
+  assert.equal(document.querySelector('.compare-stage'), null)
+  assert.ok(document.querySelector('.research-results'))
+})
+
+test('two-product overview preserves EXPLORE relation semantics and stays scoped away from other tabs/counts', async () => {
+  const first = products[0], second = products[1], third = products[2]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=%EA%B1%B4%EC%8B%9D&compare=${first.product_id}%2C${second.product_id}&compareOpen=1`)
+  let mobile = document.querySelector('.compare-mobile-two-product-overview')
+  assert.ok(mobile)
+  assert.match(mobile.textContent, /선택한 조건과 비교/)
+  assert.match(mobile.textContent, /확인됨/)
+  assert.match(mobile.textContent, /건식/)
+
+  await click('영양')
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-table'))
+
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}%2C${third.product_id}&compareOpen=1`)
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-table'))
+})
+
+
 test('detail tablist supports arrow-key focus movement', async () => {
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${products[0].product_id}`)
   const overview = document.getElementById('detail-tab-overview')

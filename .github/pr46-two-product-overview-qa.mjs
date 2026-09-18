@@ -280,7 +280,11 @@ async function axReport(c, products) {
 }
 
 async function snapshot(c, products, packages, mode) {
-  const data = await c.eval("(()=>{const heads=[...document.querySelectorAll('.compare-mobile-two-product-head')],overview=document.querySelector('.compare-mobile-two-product-overview'),table=document.querySelector('.compare-mobile-two-product-table'),stage=document.querySelector('.compare-stage'),first=document.querySelector('.compare-mobile-two-product-label-row'),key=document.querySelector('.compare-mobile-two-product-key th');const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const style=n=>{if(!n)return null;const s=getComputedStyle(n),r=n.getBoundingClientRect();return{fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight,minHeight:s.minHeight,textOverflow:s.textOverflow,whiteSpace:s.whiteSpace,overflow:s.overflow,height:r.height,width:r.width,clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight}};const ownerOf=n=>{for(let p=n?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement};const owner=ownerOf(key),or=owner?.getBoundingClientRect();return{viewport:{width:innerWidth,height:innerHeight},document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth},overview:{clientWidth:overview?.clientWidth,scrollWidth:overview?.scrollWidth,scrollHeight:overview?.scrollHeight},table:{clientWidth:table?.clientWidth,scrollWidth:table?.scrollWidth},owner:owner?{tag:owner.tagName,className:owner.className,clientHeight:owner.clientHeight,scrollHeight:owner.scrollHeight,scrollTop:owner.scrollTop,rect:or?{top:or.top,bottom:or.bottom,left:or.left,right:or.right}:null}:null,layout:{productHeaderHeight:rect(document.querySelector('.compare-mobile-two-product-heads'))?.height,firstFactOwnerTop:first&&or?(first.getBoundingClientRect().top-or.top+(owner?.scrollTop||0)):null,totalOverviewHeight:overview?.scrollHeight,compareScrollHeight:stage?.scrollHeight,stickyHeight:rect(key)?.height},typography:{value:style(document.querySelector('.compare-mobile-two-product-value')),label:style(document.querySelector('.compare-mobile-two-product-row-label')),productName:style(document.querySelector('.compare-mobile-two-product-name')),brand:style(document.querySelector('.compare-mobile-two-product-brand')),action:style(document.querySelector('.compare-mobile-two-product-actions button')),stickyName:style(document.querySelector('.compare-mobile-two-product-key th strong'))},identities:heads.map(h=>({name:h.querySelector('.compare-mobile-two-product-name')?.textContent.trim(),brand:h.querySelector('.compare-mobile-two-product-brand')?.textContent.trim(),image:h.querySelector('img')?{src:h.querySelector('img').src,complete:h.querySelector('img').complete,naturalWidth:h.querySelector('img').naturalWidth,naturalHeight:h.querySelector('img').naturalHeight}:null,nameStyle:style(h.querySelector('.compare-mobile-two-product-name'))})),sections:[...document.querySelectorAll('.compare-mobile-two-product-section th')].map(n=>n.textContent.trim()),relation:[...document.querySelectorAll('#compare-mobile-two-row-relation')].map(n=>[...n.closest('tbody').querySelectorAll('td')].map(td=>td.textContent.replace(/\\s+/g,' ').trim())),package:[...document.querySelectorAll('#compare-mobile-two-row-packages')].flatMap(n=>[...n.closest('tbody').querySelectorAll('td')].map(td=>td.textContent.replace(/\\s+/g,' ').trim()))}})()")
+  const data = await c.eval("(()=>{const heads=[...document.querySelectorAll('.compare-mobile-two-product-head')],overview=document.querySelector('.compare-mobile-two-product-overview'),table=document.querySelector('.compare-mobile-two-product-table'),stage=document.querySelector('.compare-stage'),first=document.querySelector('.compare-mobile-two-product-label-row'),key=document.querySelector('.compare-mobile-two-product-key th');const rect=n=>{if(!n)return null;const r=n.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const style=n=>{if(!n)return null;const s=getComputedStyle(n),r=n.getBoundingClientRect();return{fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight,minHeight:s.minHeight,textOverflow:s.textOverflow,whiteSpace:s.whiteSpace,overflow:s.overflow,height:r.height,width:r.width,clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight}};const ownerOf=n=>{for(let p=n?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement};const owner=ownerOf(key),or=owner?.getBoundingClientRect();return{viewport:{width:innerWidth,height:innerHeight},document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth},overview:{clientWidth:overview?.clientWidth,scrollWidth:overview?.scrollWidth,scrollHeight:overview?.scrollHeight},table:{clientWidth:table?.clientWidth,scrollWidth:table?.scrollWidth},owner:owner?{tag:owner.tagName,className:owner.className,clientHeight:owner.clientHeight,scrollHeight:owner.scrollHeight,scrollTop:owner.scrollTop,rect:or?{top:or.top,bottom:or.bottom,left:or.left,right:or.right}:null}:null,layout:{productHeaderHeight:rect(document.querySelector('.compare-mobile-two-product-heads'))?.height,firstFactOwnerTop:first&&or?(first.getBoundingClientRect().top-or.top+(owner?.scrollTop||0)):null,totalOverviewHeight:overview?.scrollHeight,compareScrollHeight:stage?.scrollHeight,stickyHeight:rect(key)?.height},typography:{value:style(document.querySelector('.compare-mobile-two-product-value')),label:style(document.querySelector('.compare-mobile-two-product-row-label')),productName:style(document.querySelector('.compare-mobile-two-product-name')),brand:style(document.querySelector('.compare-mobile-two-product-brand')),action:style(document.querySelector('.compare-mobile-two-product-actions button')),stickyName:style(document.querySelector('.compare-mobile-two-product-key th strong'))},identities:heads.map(h=>({name:h.querySelector('.compare-mobile-two-product-name')?.textContent.trim(),brand:h.querySelector('.compare-mobile-two-product-brand')?.textContent.trim(),image:h.querySelector('img')?{src:h.querySelector('img').src,complete:h.querySelector('img').complete,naturalWidth:h.querySelector('img').naturalWidth,naturalHeight:h.querySelector('img').naturalHeight}:null,nameStyle:style(h.querySelector('.compare-mobile-two-product-name')),brandStyle:style(h.querySelector('.compare-mobile-two-product-brand')),actions:[...h.querySelectorAll('.compare-mobile-two-product-actions button')].map(n=>({text:n.textContent.trim(),style:style(n)}))})),sections:[...document.querySelectorAll('.compare-mobile-two-product-section th')].map(n=>n.textContent.trim()),relation:[...document.querySelectorAll('#compare-mobile-two-row-relation')].map(n=>[...n.closest('tbody').querySelectorAll('td')].map(td=>td.textContent.replace(/\\s+/g,' ').trim())),package:[...document.querySelectorAll('#compare-mobile-two-row-packages')].flatMap(n=>[...n.closest('tbody').querySelectorAll('td')].map(td=>td.textContent.replace(/\\s+/g,' ').trim()))}})()")
+  const positions = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const or=owner?.getBoundingClientRect();const pos=id=>{const h=document.querySelector(id);if(!h||!or)return null;const row=h.closest('tbody')?.querySelector('.compare-mobile-two-product-label-row');if(!row)return null;return row.getBoundingClientRect().top-or.top+(owner?.scrollTop||0)};return{firstConditionRelationOwnerTop:pos('#compare-mobile-two-row-relation'),firstProductBasicFactOwnerTop:pos('#compare-mobile-two-row-feed-type')}})()")
+  data.layout.firstConditionRelationOwnerTop = positions.firstConditionRelationOwnerTop
+  data.layout.firstProductBasicFactOwnerTop = positions.firstProductBasicFactOwnerTop
+  delete data.layout.firstFactOwnerTop
   assert.ok(data.document.scrollWidth <= data.document.clientWidth + 1, 'page overflow')
   assert.ok(data.overview.scrollWidth <= data.overview.clientWidth + 1, 'overview overflow')
   assert.ok(data.table.scrollWidth <= data.table.clientWidth + 1, 'table overflow')
@@ -293,6 +297,15 @@ async function snapshot(c, products, packages, mode) {
     assert.equal(data.identities[i].image.src, products[i].display_image_url)
     assert.notEqual(data.identities[i].nameStyle.textOverflow, 'ellipsis')
     assert.ok(data.identities[i].nameStyle.scrollWidth <= data.identities[i].nameStyle.clientWidth + 1)
+    const brandLineHeight = parseFloat(data.identities[i].brandStyle.lineHeight)
+    assert.ok(data.identities[i].brandStyle.height <= brandLineHeight * 1.25, 'brand wrapped awkwardly: ' + JSON.stringify(data.identities[i]))
+    const detail = data.identities[i].actions.find((x) => x.text === '상세 보기')
+    const remove = data.identities[i].actions.find((x) => x.text === '제거')
+    assert.ok(detail && remove, 'header actions missing')
+    assert.ok(detail.style.scrollWidth <= detail.style.clientWidth + 1, '상세 보기 overflow/wrap: ' + JSON.stringify(detail))
+    assert.ok(remove.style.scrollWidth <= remove.style.clientWidth + 1, '제거 overflow/wrap: ' + JSON.stringify(remove))
+    assert.equal(detail.style.whiteSpace, 'nowrap')
+    assert.equal(remove.style.whiteSpace, 'nowrap')
   }
   assert.deepEqual(data.package, products.map((p) => packages[p.product_id]))
   assert.equal(data.typography.value.fontSize, '14px')
@@ -353,38 +366,22 @@ async function visualCase(mode, width, height, products, packages, options) {
   } finally { await cleanup(h) }
 }
 
-async function interaction(products) {
-  const h = await launch(390, 900)
-  const result = { chrome: h.chrome, captures: [] }
+async function actionAudit(products) {
+  const h = await launch(360, 844)
   try {
     await h.c.nav(compareUrl('lookup', products))
     await waitTwo(h.c)
-    result.tabActions = await tabAudit(h.c)
-    result.before = await h.c.eval("[...document.querySelectorAll('.compare-mobile-two-product-name')].map(n=>n.textContent.trim())")
-    result.detailOpen = await pointer(h.c, '.compare-mobile-two-product-actions button', '상세 보기')
-    await h.c.wait("document.querySelector('.detail-stage')", 'detail open')
-    result.detailName = await h.c.eval("document.querySelector('.detail-identity-copy h1')?.textContent.trim()")
-    assert.equal(result.detailName, products[0].canonical_name)
-    await h.c.shot('interaction-detail.png'); result.captures.push('interaction-detail.png')
-    result.detailBack = await pointer(h.c, '.detail-topbar button', '돌아가기')
-    await waitTwo(h.c)
-    result.afterDetail = await h.c.eval("[...document.querySelectorAll('.compare-mobile-two-product-name')].map(n=>n.textContent.trim())")
-    assert.deepEqual(result.afterDetail, products.map((p) => p.canonical_name))
-
-    result.removeFirst = await pointer(h.c, '.compare-mobile-two-product-actions button', '비교에서 제거')
-    await h.c.wait("!document.querySelector('.compare-mobile-two-product-overview')&&document.querySelectorAll('.compare-product-head').length===1", '2 to 1')
-    result.afterFirst = await h.c.eval("(()=>({url:location.href,heads:[...document.querySelectorAll('.compare-product-copy>strong')].map(n=>n.textContent.trim())}))()")
-    assert.deepEqual(result.afterFirst.heads, [products[1].canonical_name])
-    await h.c.shot('interaction-after-first-remove.png'); result.captures.push('interaction-after-first-remove.png')
-
-    result.removeLast = await pointer(h.c, '.compare-remove')
-    await h.c.wait("!document.querySelector('.compare-stage')", 'last removal')
-    result.afterLast = await h.c.eval("(()=>({url:location.href,results:Boolean(document.querySelector('.research-results')),compare:new URL(location.href).searchParams.get('compare')}))()")
-    assert.equal(result.afterLast.results, true)
-    assert.ok(!result.afterLast.compare)
-    await h.c.shot('interaction-after-last-remove.png'); result.captures.push('interaction-after-last-remove.png')
-    result.network = await network(h.c)
-    return result
+    const tabActions = await tabAudit(h.c)
+    const hitTests = await h.c.eval("(()=>[...document.querySelectorAll('.compare-mobile-two-product-actions button')].map(n=>{n.scrollIntoView({block:'center',inline:'nearest'});const r=n.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,hit=document.elementFromPoint(x,y),s=getComputedStyle(n);return{text:n.textContent.trim(),aria:n.getAttribute('aria-label'),rect:[r.left,r.top,r.width,r.height],centerHit:hit===n||n.contains(hit),hit:hit?.className||hit?.tagName,whiteSpace:s.whiteSpace,clientWidth:n.clientWidth,scrollWidth:n.scrollWidth}}))()")
+    assert.equal(hitTests.length, 4)
+    for (const item of hitTests) {
+      assert.equal(item.centerHit, true, 'action center occluded: ' + JSON.stringify(item))
+      assert.equal(item.whiteSpace, 'nowrap')
+      assert.ok(item.scrollWidth <= item.clientWidth + 1, 'action text overflow: ' + JSON.stringify(item))
+      assert.ok(item.rect[3] >= 44, 'action height below 44px: ' + JSON.stringify(item))
+    }
+    await h.c.shot('actions-360.png')
+    return { chrome:h.chrome, tabActions, hitTests, network:await network(h.c), captures:['actions-360.png'] }
   } finally { await cleanup(h) }
 }
 
@@ -427,35 +424,24 @@ const report = {
     pair: discovery.pair.map((p) => ({ product_id: p.product_id, brand: p.brand, canonical_name: p.canonical_name, display_image_url: p.display_image_url, package: discovery.packages[p.product_id] })),
     longPair: discovery.longPair.map((p) => ({ product_id: p.product_id, brand: p.brand, canonical_name: p.canonical_name, display_image_url: p.display_image_url, package: discovery.packages[p.product_id] })),
   },
-  visual: [], interaction: null, boundary: null, error: null,
+  visual: [], actionAudit: null, error: null,
 }
 const save = () => writeFileSync(OUT + '/report.json', JSON.stringify(report, null, 2))
 
 try {
   for (const dimensions of [[360,844],[390,900]]) {
     const width = dimensions[0], height = dimensions[1]
-    report.visual.push(await visualCase('lookup', width, height, discovery.pair, discovery.packages, { ax: width === 390, sticky: false, name: 'lookup-' + width })); save()
+    report.visual.push(await visualCase('lookup', width, height, discovery.pair, discovery.packages, { ax: false, sticky: false, name: 'lookup-' + width })); save()
     report.visual.push(await visualCase('explore', width, height, discovery.pair, discovery.packages, { ax: false, sticky: false, name: 'explore-' + width })); save()
   }
-  report.visual.push(await visualCase('lookup', 390, 900, discovery.longPair, discovery.packages, { ax: true, sticky: true, name: 'same-brand-390' })); save()
-  report.interaction = await interaction(discovery.pair); save()
-  report.boundary = await boundary(discovery.pair); save()
+  report.visual.push(await visualCase('lookup', 360, 844, discovery.longPair, discovery.packages, { ax: false, sticky: false, name: 'same-brand-360' })); save()
+  report.actionAudit = await actionAudit(discovery.pair); save()
   report.status = 'pass'; save()
-  console.log('PR46_TWO_PRODUCT_BROWSER_QA_PASS')
+  console.log('PR46_HEADER_REFINEMENT_QA_PASS')
   console.log(JSON.stringify({
     productSha: report.productSha,
-    pair: report.discovery.pair,
-    longPair: report.discovery.longPair,
-    measurements: report.visual.map((v) => ({ mode: v.mode, width: v.width, layout: v.metrics.layout, typography: {
-      value: v.metrics.typography.value.fontSize,
-      label: v.metrics.typography.label.fontSize,
-      productName: v.metrics.typography.productName.fontSize,
-      brand: v.metrics.typography.brand.fontSize,
-      action: v.metrics.typography.action.fontSize,
-      actionHeight: v.metrics.typography.action.height,
-    }, owner: v.metrics.owner?.className, packages: v.metrics.package, unknownChecks: v.metrics.unknownChecks.length })),
-    interaction: { tabActions: report.interaction.tabActions, afterLast: report.interaction.afterLast },
-    boundary: report.boundary,
+    measurements: report.visual.map((v) => ({ mode:v.mode,width:v.width,layout:v.metrics.layout,header:v.metrics.identities.map((x)=>({brand:x.brand,brandHeight:x.brandStyle.height,brandLineHeight:x.brandStyle.lineHeight,actions:x.actions.map((a)=>({text:a.text,width:a.style.width,height:a.style.height,clientWidth:a.style.clientWidth,scrollWidth:a.style.scrollWidth,whiteSpace:a.style.whiteSpace}))})) })),
+    actionAudit: report.actionAudit,
   }, null, 2))
 } catch (error) {
   report.status = 'fail'

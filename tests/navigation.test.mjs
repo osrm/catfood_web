@@ -231,13 +231,28 @@ test('two-product overview exposes paired mobile structure and removal falls bac
   assert.ok(mobile.querySelector(`button[aria-label="Test Brand Product 000 상세 보기"]`))
   assert.ok(mobile.querySelector(`button[aria-label="Test Brand Product 001 비교에서 제거"]`))
 
-  const packageRow = mobile.querySelector('[aria-labelledby="compare-mobile-two-row-packages"]')
-  assert.ok(packageRow)
-  assert.match(packageRow.textContent, /1 kg/)
+  const productHeaders = [...mobile.querySelectorAll('.compare-mobile-two-product-key th[scope="col"]')]
+  assert.equal(productHeaders.length, 2)
+  assert.match(productHeaders[0].textContent, /Test Brand/)
+  assert.match(productHeaders[0].textContent, /Product 000/)
+  assert.match(productHeaders[1].textContent, /Test Brand/)
+  assert.match(productHeaders[1].textContent, /Product 001/)
 
-  const feedValues = mobile.querySelectorAll('.compare-mobile-two-product-row .compare-mobile-two-product-value')
-  assert.ok([...feedValues].some((cell) => (cell.getAttribute('aria-labelledby') ?? '').includes('compare-mobile-two-owner-1-')))
-  assert.ok([...feedValues].some((cell) => (cell.getAttribute('aria-labelledby') ?? '').includes('compare-mobile-two-owner-2-')))
+  const packageHeader = mobile.querySelector('#compare-mobile-two-row-packages')
+  assert.ok(packageHeader)
+  const packageValues = [...packageHeader.closest('tbody').querySelectorAll('td')]
+  assert.equal(packageValues.length, 2)
+  assert.ok(packageValues.every((cell) => /1 kg/.test(cell.textContent)))
+  assert.ok(packageValues[0].getAttribute('headers').includes('compare-mobile-two-row-packages'))
+  assert.ok(packageValues[0].getAttribute('headers').includes('compare-mobile-two-product-column-1-'))
+  assert.ok(packageValues[1].getAttribute('headers').includes('compare-mobile-two-product-column-2-'))
+
+  const feedHeader = mobile.querySelector('#compare-mobile-two-row-feed-type')
+  assert.ok(feedHeader)
+  const feedValues = [...feedHeader.closest('tbody').querySelectorAll('td')]
+  assert.equal(feedValues.length, 2)
+  assert.ok(feedValues[0].getAttribute('headers').includes(feedHeader.id))
+  assert.ok(feedValues[1].getAttribute('headers').includes(feedHeader.id))
 
   const removeFirst = mobile.querySelector(`button[aria-label="Test Brand Product 000 비교에서 제거"]`)
   await act(async () => removeFirst.click())

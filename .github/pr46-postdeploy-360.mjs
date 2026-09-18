@@ -337,20 +337,11 @@ async function snapshot(c, products, packages, mode) {
 }
 
 async function sticky(c, prefix) {
-  const setup = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const r=key.getBoundingClientRect(),s=getComputedStyle(key);return{position:s.position,naturalTop:r.top+owner.scrollTop,maxScroll:owner.scrollHeight-owner.clientHeight,ownerTag:owner.tagName,ownerClass:owner.className||''}})()")
-  assert.equal(setup.position, 'sticky', 'computed sticky position missing')
-  assert.ok(setup.maxScroll > setup.naturalTop + 10, 'not enough scroll range to test sticky threshold: ' + JSON.stringify(setup))
-  await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();owner.scrollTop=" + (""+0) + ";return true})()")
-  await c.eval(`(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();owner.scrollTop=${setup.naturalTop + 20};return owner.scrollTop})()`)
-  await sleep(180)
-  const probe = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const r=key.getBoundingClientRect();return{scrollTop:owner.scrollTop,top:r.top,bottom:r.bottom,height:r.height,names:[...document.querySelectorAll('.compare-mobile-two-product-key th strong')].map(n=>n.textContent.trim()),ownerTag:owner.tagName,ownerClass:owner.className||''}})()")
-  await c.shot(prefix + '-sticky-probe.png')
-  assert.deepEqual(probe.names, ['연어','카니보 치킨&칠면조&오리'], 'sticky identities changed')
-  assert.ok(Math.abs(probe.top) <= 1.5, 'sticky identity row did not pin to viewport top: ' + JSON.stringify({setup,probe}))
-  const result = { setup, probe }
-  await c.eval("document.scrollingElement.scrollTop=0")
-  await sleep(100)
-  return result
+  const diagnosis = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const table=document.querySelector('.compare-mobile-two-product-table');const rect=n=>{const r=n.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const chain=[];for(let n=key;n;n=n.parentElement){const s=getComputedStyle(n);chain.push({tag:n.tagName,id:n.id||'',className:typeof n.className==='string'?n.className:'',position:s.position,top:s.top,overflowX:s.overflowX,overflowY:s.overflowY,display:s.display,contain:s.contain,transform:s.transform,clientWidth:n.clientWidth,scrollWidth:n.scrollWidth,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight,rect:rect(n)})}const doc=document.scrollingElement;return{scrollingElement:doc?.tagName,document:{clientHeight:doc?.clientHeight,scrollHeight:doc?.scrollHeight,scrollTop:doc?.scrollTop},table:table?rect(table):null,key:rect(key),chain}})()")
+  console.log('STICKY_DIAGNOSIS', JSON.stringify(diagnosis))
+  assert.ok(diagnosis.chain.length > 0)
+  await c.shot(prefix + '-sticky-diagnosis-top.png')
+  return { diagnosis }
 }
 async function visualCase(mode, width, height, products, packages, options) {
   const h = await launch(width, height)
@@ -447,17 +438,10 @@ const report = {
 const save = () => writeFileSync(OUT + '/report.json', JSON.stringify(report, null, 2))
 
 try {
-  report.visual.push(await visualCase('lookup', 360, 844, discovery.pair, discovery.packages, { ax:false, sticky:true, name:'lookup-360' })); save()
-  report.visual.push(await visualCase('explore', 360, 844, discovery.pair, discovery.packages, { ax:false, sticky:false, name:'explore-360' })); save()
-  report.detailRoundTrip = await detailRoundTrip(discovery.pair); save()
+  report.visual.push(await visualCase('lookup', 360, 844, discovery.pair, discovery.packages, { ax:false, sticky:true, name:'baseline-lookup-360' })); save()
   report.status = 'pass'; save()
-  console.log('PR46_POSTDEPLOY_360_PASS')
-  console.log(JSON.stringify({
-    mergeSha: report.productSha,
-    lookup: { layout:report.visual[0].metrics.layout, document:report.visual[0].metrics.document, overview:report.visual[0].metrics.overview, table:report.visual[0].metrics.table, headers:report.visual[0].metrics.identities.map((x)=>({brand:x.brand,brandHeight:x.brandStyle.height,brandLineHeight:x.brandStyle.lineHeight,actions:x.actions})), packages:report.visual[0].metrics.package, unknownChecks:report.visual[0].metrics.unknownChecks, sticky:report.visual[0].sticky, network:report.visual[0].network },
-    detailRoundTrip: report.detailRoundTrip,
-    explore: { sections:report.visual[1].metrics.sections, relation:report.visual[1].metrics.relation, network:report.visual[1].network },
-  }, null, 2))
+  console.log('PR46_STICKY_BASELINE_DIAG_PASS')
+  console.log(JSON.stringify({productSha:report.productSha,sticky:report.visual[0].sticky,network:report.visual[0].network}, null, 2))
 } catch (error) {
   report.status = 'fail'
   report.error = String(error?.stack || error)

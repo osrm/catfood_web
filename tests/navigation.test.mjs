@@ -249,6 +249,8 @@ test('two-product overview exposes paired mobile structure and removal falls bac
 
   const feedHeader = mobile.querySelector('#compare-mobile-two-row-feed-type')
   assert.ok(feedHeader)
+  assert.equal(feedHeader.getAttribute('scope'), 'rowgroup')
+  assert.ok(productHeaders.every((header) => header.getAttribute('scope') === 'col'))
   const feedValues = [...feedHeader.closest('tbody').querySelectorAll('td')]
   assert.equal(feedValues.length, 2)
   assert.ok(feedValues[0].getAttribute('headers').includes(feedHeader.id))

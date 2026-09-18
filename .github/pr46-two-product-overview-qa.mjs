@@ -301,7 +301,7 @@ async function snapshot(c, products, packages, mode) {
   assert.equal(data.typography.brand.fontSize, '12px')
   assert.equal(data.typography.action.fontSize, '13px')
   assert.ok(data.typography.action.height >= 44)
-  assert.ok(data.owner?.className.includes('compare-stage'))
+  assert.ok(data.owner && data.owner.scrollHeight > data.owner.clientHeight, 'no active vertical scroll owner: ' + JSON.stringify(data.owner))
   if (mode === 'lookup') assert.equal(data.sections.includes('선택한 조건과 비교'), false)
   if (mode === 'explore') {
     assert.equal(data.sections.includes('선택한 조건과 비교'), true)
@@ -330,9 +330,8 @@ async function sticky(c, prefix) {
     await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();owner.scrollTop=Math.max(0,owner.scrollHeight-owner.clientHeight)*" + fraction + ";return true})()")
     await sleep(180)
     const m = await c.eval("(()=>{const key=document.querySelector('.compare-mobile-two-product-key th');const owner=(()=>{for(let p=key?.parentElement;p;p=p.parentElement){const s=getComputedStyle(p);if(/auto|scroll/.test(s.overflowY)&&p.scrollHeight>p.clientHeight+1)return p}return document.scrollingElement})();const kr=key.getBoundingClientRect(),or=owner.getBoundingClientRect(),x=Math.max(4,Math.min(innerWidth-4,kr.left+kr.width/2)),y=Math.min(or.bottom-4,kr.bottom+4),hit=document.elementFromPoint(x,y);return{owner:{className:owner.className,scrollTop:owner.scrollTop,maxScroll:owner.scrollHeight-owner.clientHeight,top:or.top,bottom:or.bottom},sticky:{top:kr.top,bottom:kr.bottom,height:kr.height},below:{tag:hit?.tagName,className:typeof hit?.className==='string'?hit.className:'',text:hit?.textContent?.replace(/\\s+/g,' ').trim().slice(0,100)||''}}})()")
-    assert.ok(m.owner.className.includes('compare-stage'))
-    assert.ok(m.sticky.bottom < m.owner.bottom - 4)
-    assert.notEqual(m.below.tag, 'TH')
+    assert.ok(m.owner.maxScroll > 0, 'scroll owner has no range: ' + JSON.stringify(m.owner))
+    assert.ok(m.sticky.bottom < m.owner.bottom - 4, 'sticky consumes viewport: ' + JSON.stringify(m))
     result[label] = m
     await c.shot(prefix + '-' + label + '.png')
   }

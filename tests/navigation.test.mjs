@@ -99,7 +99,7 @@ async function renderApp(url) {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(
     () => !document.body.textContent.includes('제품 데이터를 불러오는 중입니다.')
-      && (document.querySelector('.detail-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
+      && (document.querySelector('.detail-stage') !== null || document.querySelector('.compare-stage') !== null || document.querySelector('.research-results') !== null || document.querySelector('.home-shell') !== null),
     'catalog-backed screen rendered',
   )
 }
@@ -215,6 +215,77 @@ test('comparison removals survive returning to the list history entry', async ()
   assert.match(dockText, /Product 001/)
   assert.equal(new URL(window.location.href).searchParams.get('compare'), products[1].product_id)
 })
+
+
+test('two-product overview exposes paired mobile structure and removal falls back to existing layouts', async () => {
+  const first = products[0], second = products[1]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}&compareOpen=1`)
+
+  const mobile = document.querySelector('.compare-mobile-two-product-overview')
+  assert.ok(mobile)
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-head').length, 2)
+  assert.match(mobile.textContent, /Product 000/)
+  assert.match(mobile.textContent, /Product 001/)
+  assert.doesNotMatch(mobile.textContent, /선택한 조건과 비교/)
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-actions button').length, 4)
+  assert.ok(mobile.querySelector(`button[aria-label="Test Brand Product 000 상세 보기"]`))
+  assert.ok(mobile.querySelector(`button[aria-label="Test Brand Product 001 비교에서 제거"]`))
+
+  const productHeaders = [...mobile.querySelectorAll('.compare-mobile-two-product-key th[scope="col"]')]
+  assert.equal(productHeaders.length, 2)
+  assert.match(productHeaders[0].textContent, /Test Brand/)
+  assert.match(productHeaders[0].textContent, /Product 000/)
+  assert.match(productHeaders[1].textContent, /Test Brand/)
+  assert.match(productHeaders[1].textContent, /Product 001/)
+
+  const packageHeader = mobile.querySelector('#compare-mobile-two-row-packages')
+  assert.ok(packageHeader)
+  const packageValues = [...packageHeader.closest('tbody').querySelectorAll('td')]
+  assert.equal(packageValues.length, 2)
+  assert.ok(packageValues.every((cell) => /1 kg/.test(cell.textContent)))
+  assert.ok(packageValues[0].getAttribute('headers').includes('compare-mobile-two-row-packages'))
+  assert.ok(packageValues[0].getAttribute('headers').includes('compare-mobile-two-product-column-1-'))
+  assert.ok(packageValues[1].getAttribute('headers').includes('compare-mobile-two-product-column-2-'))
+
+  const feedHeader = mobile.querySelector('#compare-mobile-two-row-feed-type')
+  assert.ok(feedHeader)
+  assert.equal(feedHeader.getAttribute('scope'), 'rowgroup')
+  assert.ok(productHeaders.every((header) => header.getAttribute('scope') === 'col'))
+  const feedValues = [...feedHeader.closest('tbody').querySelectorAll('td')]
+  assert.equal(feedValues.length, 2)
+  assert.ok(feedValues[0].getAttribute('headers').includes(feedHeader.id))
+  assert.ok(feedValues[1].getAttribute('headers').includes(feedHeader.id))
+
+  const removeFirst = mobile.querySelector(`button[aria-label="Test Brand Product 000 비교에서 제거"]`)
+  await act(async () => removeFirst.click())
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-table'), 'one product returns to the existing comparison table')
+
+  const removeLast = document.querySelector(`button[aria-label="Product 001 비교에서 제거"]`)
+  assert.ok(removeLast)
+  await act(async () => removeLast.click())
+  assert.equal(document.querySelector('.compare-stage'), null)
+  assert.ok(document.querySelector('.research-results'))
+})
+
+test('two-product overview preserves EXPLORE relation semantics and stays scoped away from other tabs/counts', async () => {
+  const first = products[0], second = products[1], third = products[2]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=%EA%B1%B4%EC%8B%9D&compare=${first.product_id}%2C${second.product_id}&compareOpen=1`)
+  let mobile = document.querySelector('.compare-mobile-two-product-overview')
+  assert.ok(mobile)
+  assert.match(mobile.textContent, /선택한 조건과 비교/)
+  assert.match(mobile.textContent, /확인됨/)
+  assert.match(mobile.textContent, /건식/)
+
+  await click('영양')
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-table'))
+
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}%2C${third.product_id}&compareOpen=1`)
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-table'))
+})
+
 
 test('detail tablist supports arrow-key focus movement', async () => {
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${products[0].product_id}`)

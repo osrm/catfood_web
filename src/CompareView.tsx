@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail from './ProductDetail'
 import './mobile-switch-compare-picker.css'
+import './mobile-two-product-overview.css'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -198,6 +199,85 @@ function SwitchOverviewRow({ label, currentProduct, items, currentValue, candida
 function MobileOverviewRow({ label, current, candidate }: { label: string; current: ReactNode; candidate: ReactNode }) {
   return <div className="compare-mobile-overview-row"><strong className="compare-mobile-row-label">{label}</strong><div className="compare-mobile-pair"><div><span>현재 사료</span><div>{current}</div></div><div><span>후보</span><div>{candidate}</div></div></div></div>
 }
+function MobileTwoProductOverviewField({ fieldKey, label, items, render }: { fieldKey: string; label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode }) {
+  const labelId = `compare-mobile-two-row-${fieldKey}`
+  return <tbody className="compare-mobile-two-product-field">
+    <tr className="compare-mobile-two-product-label-row">
+      <th className="compare-mobile-two-product-row-label" id={labelId} colSpan={2} scope="rowgroup">{label}</th>
+    </tr>
+    <tr className="compare-mobile-two-product-values">
+      {items.map((item, index) => {
+        const productHeaderId = `compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`
+        return <td className="compare-mobile-two-product-value" key={item.product.product_id} headers={`${labelId} ${productHeaderId}`}>{render(item)}</td>
+      })}
+    </tr>
+  </tbody>
+}
+
+function MobileTwoProductSection({ title }: { title: string }) {
+  return <tbody className="compare-mobile-two-product-section">
+    <tr><th colSpan={2} scope="rowgroup">{title}</th></tr>
+  </tbody>
+}
+
+function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: CompareItem[]; onDetail: (productId: string) => void; onRemove: (productId: string) => void }) {
+  return <div className="compare-mobile-two-product-overview">
+    <div className="compare-mobile-two-product-heads">
+      {items.map((item, index) => {
+        const product = item.product
+        const nameId = `compare-mobile-two-product-name-${index + 1}-${product.product_id}`
+        return <article className="compare-mobile-two-product-head" key={product.product_id} aria-labelledby={nameId}>
+          <div className="compare-mobile-two-product-identity">
+            {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+            <div className="compare-mobile-two-product-meta">
+              <span className="compare-mobile-two-product-slot">제품 {index + 1}</span>
+              <span className="compare-mobile-two-product-brand">{product.brand}</span>
+            </div>
+          </div>
+          <strong className="compare-mobile-two-product-name" id={nameId}>{product.canonical_name}</strong>
+          <div className="compare-mobile-two-product-actions">
+            <button type="button" aria-label={`${product.brand} ${product.canonical_name} 상세 보기`} onClick={() => onDetail(product.product_id)}>상세 보기</button>
+            <button type="button" aria-label={`${product.brand} ${product.canonical_name} 비교에서 제거`} onClick={() => onRemove(product.product_id)}>제거</button>
+          </div>
+        </article>
+      })}
+    </div>
+
+    <table className="compare-mobile-two-product-table">
+      <caption className="compare-mobile-two-product-visually-hidden">2개 제품 개요 비교</caption>
+      <thead className="compare-mobile-two-product-key">
+        <tr>
+          {items.map((item, index) => {
+            const headerId = `compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`
+            return <th key={item.product.product_id} id={headerId} scope="col">
+              <span>제품 {index + 1}</span>
+              <strong>{item.product.canonical_name}</strong>
+              <span className="compare-mobile-two-product-visually-hidden">{item.product.brand}</span>
+            </th>
+          })}
+        </tr>
+      </thead>
+
+      {items.some(hasRelationData) ? <>
+        <MobileTwoProductSection title="선택한 조건과 비교" />
+        <MobileTwoProductOverviewField fieldKey="relation" label="조건 확인" items={items} render={(item) => <RelationSummary item={item} />} />
+      </> : null}
+
+      <MobileTwoProductSection title="제품 기본 정보" />
+      <MobileTwoProductOverviewField fieldKey="feed-type" label="사료 형태" items={items} render={(item) => overviewValue(item.product, 'feedType')} />
+      <MobileTwoProductOverviewField fieldKey="life-stage" label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
+      <MobileTwoProductOverviewField fieldKey="targets" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} />
+      <MobileTwoProductOverviewField fieldKey="features" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} />
+
+      <MobileTwoProductSection title="레시피 · 판매 정보" />
+      <MobileTwoProductOverviewField fieldKey="recipe-families" label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
+      <MobileTwoProductOverviewField fieldKey="recipe-details" label="주요 레시피" items={items} render={(item) => overviewValue(item.product, 'recipeDetails')} />
+      <MobileTwoProductOverviewField fieldKey="grain-free" label="Grain-Free 표기" items={items} render={(item) => overviewValue(item.product, 'grainFree')} />
+      <MobileTwoProductOverviewField fieldKey="packages" label="판매 규격" items={items} render={(item) => overviewValue(item.product, 'packages')} />
+      <MobileTwoProductOverviewField fieldKey="country" label="제조국" items={items} render={(item) => overviewValue(item.product, 'country')} />
+    </table>
+  </div>
+}
 function CompareSection({ title, note }: { title: string; note?: string }) { return <div className="compare-section-row"><strong>{title}</strong>{note ? <span>{note}</span> : null}</div> }
 
 export default function CompareView({ items, currentProduct, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
@@ -315,6 +395,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const tabId = `compare-tab-${tab}`
   const switchCompare = Boolean(currentProduct)
   const switchOverview = Boolean(currentProduct && tab === 'overview')
+  const twoProductOverview = !switchCompare && tab === 'overview' && items.length === 2
   const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ''}${switchOverview ? ' is-switch-overview' : ''}`
   const headerCopy = currentProduct
     ? tab === 'overview'
@@ -336,7 +417,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     {tab === 'nutrition' && nutritionLoading ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
-    <section className="compare-table-wrap" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
+    <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
@@ -402,7 +483,9 @@ export default function CompareView({ items, currentProduct, currentVariantText,
           <CompareSection title="선택한 조건" note="조건 확인 결과는 후보에만 표시합니다." />
           <MobileOverviewRow label="후보 조건 확인" current={<BaselineSummary />} candidate={<RelationSummary item={mobileCandidate} />} />
         </div> : null}
-      </> : <div className="compare-table" style={{ '--compare-count': items.length } as CSSProperties}>
+      </> : <>
+        {twoProductOverview ? <MobileTwoProductOverview items={items} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
+        <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           {items.some(hasRelationData) ? <>
@@ -445,7 +528,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
           <CompareRow label="향미 연관 원료" items={items} render={(item) => labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
           <CompareRow label="출처 원문" items={items} render={(item) => { const row = ingredientsByProduct.get(item.product.product_id); if (!row) return <span className="compare-muted">확인된 목록 없음</span>; const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', '); const supplementalText = row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.join(', '); return <div><span className="compare-muted">대표 확인 자료 · 출처 원문</span><p className="compare-ingredient-text">{primaryText || '확인된 목록 없음'}</p>{supplementalText ? <><span className="compare-muted">현재 확인 배합 전체 목록 · 출처 원문</span><p className="compare-ingredient-text">{supplementalText}</p></> : null}</div> }} />
         </> : null}
-      </div>}
+      </div></>}
     </section>
     {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 표시값과 한정자·단위를 그대로 보존합니다. 기준이 다른 자료는 환산하지 않고 별도 표시합니다.</p> : null}
     {tab === 'ingredients' ? <p className="compare-footnote">정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다.</p> : null}

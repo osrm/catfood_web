@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  PRODUCT_SHA: 69d639b1afede36cb85c0a79539f2eca59fc55af
+  PRODUCT_SHA: 652c4200b197b71b65bc9a27d9f8bbded0760ab5
   QA_BASE: http://127.0.0.1:4173/catfood_web/
   VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
   VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV

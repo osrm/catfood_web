@@ -193,7 +193,8 @@ async function waitTwo(c) {
   await c.wait("document.querySelectorAll('.compare-mobile-two-product-head').length===2", 'two heads')
   await c.wait("getComputedStyle(document.querySelector('.compare-mobile-two-product-overview')).display!=='none'", 'mobile overview')
   await c.wait("!document.body.innerText.includes('제품 데이터를 불러오는 중입니다.')", 'catalog')
-  await sleep(160)
+  await c.wait("[...document.querySelectorAll('.compare-mobile-two-product-head img')].length===2&&[...document.querySelectorAll('.compare-mobile-two-product-head img')].every(img=>img.complete&&img.naturalWidth>0)", 'product images decoded', 20000)
+  await sleep(120)
 }
 
 async function network(c) {

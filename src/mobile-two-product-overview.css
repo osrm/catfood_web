@@ -68,14 +68,12 @@
   }
 
   .compare-mobile-two-product-meta {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-top: 1px;
+    display: contents;
   }
 
   .compare-mobile-two-product-slot {
+    align-self: start;
+    padding-top: 1px;
     color: #50605a;
     font-size: 10px;
     line-height: 1.35;
@@ -84,6 +82,7 @@
   }
 
   .compare-mobile-two-product-brand {
+    grid-column: 1 / -1;
     color: #75634d;
     font-size: 12px;
     line-height: 1.4;
@@ -105,7 +104,7 @@
 
   .compare-mobile-two-product-actions {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(72px, 1fr) minmax(44px, max-content);
     gap: 7px;
     margin-top: auto;
     font-size: 13px;
@@ -116,6 +115,7 @@
   .compare-mobile-two-product-actions button {
     min-width: 0;
     min-height: 44px;
+    white-space: nowrap;
     padding: 7px 5px;
     border: 1px solid #c7d2ce;
     border-radius: 5px;

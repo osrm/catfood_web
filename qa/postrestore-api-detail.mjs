@@ -74,6 +74,7 @@ const report = {
 }
 
 for (const e of endpoints) report.api.push(await apiGet(e))
+console.log('CATFOOD_POSTRESTORE_API=' + JSON.stringify(report.api))
 for (const e of report.api) assert.equal(e.status,200,e.view + ' GET must succeed')
 report.profileProbes.push(await profileProbe('public'))
 report.profileProbes.push(await profileProbe('graphql_public'))

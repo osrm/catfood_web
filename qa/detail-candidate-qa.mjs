@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { chromium } from 'playwright-core'
+import { chromium, request as playwrightRequest } from 'playwright-core'
 
 const BASE = 'http://127.0.0.1:4173/'
 const GO = 'product_31bc515d78d43d5d'
@@ -69,10 +69,17 @@ await mkdir(outDir, { recursive: true })
 
 const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome'
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox'] })
+const liveApi = await playwrightRequest.newContext({
+  extraHTTPHeaders: {
+    apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
+    'Accept-Profile': 'api',
+  },
+})
 const report = {
   sourceSha: process.env.EXPECTED_SHA,
   blockedWrites: [],
   blockedAnalytics: [],
+  liveApiRequests: [],
   liveApi: [],
   fixture: [],
   breakpoints: [],
@@ -115,6 +122,28 @@ async function makePage(width, height, { mockApi = true } = {}) {
     try { pathname = new URL(url).pathname } catch {}
     const key = pathname.split('/').at(-1) || pathname
     const isRest = url.includes('/rest/v1/')
+    if (!mockApi && isRest && method === 'OPTIONS') {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+          'access-control-allow-headers': 'apikey, accept-profile, content-type',
+        },
+        body: '',
+      })
+      return
+    }
+    if (!mockApi && isRest && ['GET', 'HEAD'].includes(method)) {
+      report.liveApiRequests.push({ method, key })
+      const response = method === 'HEAD' ? await liveApi.head(url) : await liveApi.get(url)
+      await route.fulfill({
+        status: response.status(),
+        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+        body: method === 'HEAD' ? '' : await response.body(),
+      })
+      return
+    }
     if (!mockApi) {
       await route.continue()
       return
@@ -416,4 +445,5 @@ mode.variantDelayMs = 1200
 assert.equal(report.blockedWrites.length, 0, 'candidate attempted no POST/PUT/PATCH/DELETE requests with decision intake disabled')
 await writeFile(`${outDir}/report.json`, JSON.stringify(report, null, 2))
 console.log('CATFOOD_DETAIL_QA_REPORT=' + JSON.stringify(report))
+await liveApi.dispose()
 await browser.close()

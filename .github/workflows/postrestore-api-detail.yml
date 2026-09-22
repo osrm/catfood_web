@@ -1,0 +1,85 @@
+name: Post-restore live API and detail QA
+
+on:
+  push:
+    branches:
+      - qa/postrestore-api-detail-20260922
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_SHA: 84103bd1922d2b2e89b709478b6f36a7f84767ab
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 84103bd1922d2b2e89b709478b6f36a7f84767ab
+          path: candidate
+          persist-credentials: false
+
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: \${{ github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Guard exact candidate
+        run: test "$(git -C candidate rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: candidate/.nvmrc
+          cache: npm
+          cache-dependency-path: candidate/package-lock.json
+
+      - name: Build exact candidate
+        working-directory: candidate
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/catfood-postrestore
+          cp harness/qa/postrestore-api-detail.mjs /tmp/catfood-postrestore/
+          cd /tmp/catfood-postrestore
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Run read-only post-restore QA
+        run: |
+          cd candidate
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/catfood-preview.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" || true' EXIT
+          for i in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          OUT_DIR="$GITHUB_WORKSPACE/qa-output" node /tmp/catfood-postrestore/postrestore-api-detail.mjs
+
+      - name: Upload report and original screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postrestore-live-api-detail-qa
+          path: qa-output
+          if-no-files-found: warn
+          retention-days: 7

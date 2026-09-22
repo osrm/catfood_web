@@ -94,6 +94,10 @@ async function waitDetail(page) {
   )
   assert.equal(await page.locator('.detail-state.is-error').count(), 0, 'no detail load error')
   await page.evaluate(() => document.fonts?.ready)
+  await page.waitForFunction(() => {
+    const image = document.querySelector('.detail-product-image')
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+  }, null, { timeout: 30000 })
 }
 
 async function mouseClick(page, selector) {

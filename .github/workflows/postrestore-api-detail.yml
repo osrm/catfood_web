@@ -27,7 +27,7 @@ jobs:
       - name: Checkout QA harness
         uses: actions/checkout@v5
         with:
-          ref: \${{ github.sha }}
+          ref: ${{ github.sha }}
           path: harness
           persist-credentials: false
 

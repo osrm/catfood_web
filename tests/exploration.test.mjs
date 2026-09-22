@@ -238,8 +238,8 @@ for (const mode of ['explore', 'switch']) {
     await click('상세 보기')
     assert.equal(considerations().length, 1, '41st product detail and compare must not be sent')
     if (mode === 'explore') {
-      const closeDetailButton = button('돌아가기')
-      assert.ok(closeDetailButton)
+      const closeDetailButton = document.querySelector('.detail-topbar button')
+      assert.ok(closeDetailButton, 'detail return action is available')
       await act(async () => {
         closeDetailButton.click()
         await waitForUi(
@@ -252,7 +252,9 @@ for (const mode of ['explore', 'switch']) {
       assert.equal(rows(selector).length, 80, 'history restoration must finish before pagination becomes interactive')
       assert.equal(document.activeElement?.dataset.productId, products[40].product_id, 'focus returns to the product that opened detail')
     } else {
-      await click('돌아가기')
+      const closeDetailButton = document.querySelector('.detail-topbar button')
+      assert.ok(closeDetailButton, 'detail return action is available')
+      await act(async () => closeDetailButton.click())
     }
     await click('제품 더 보기')
     assert.equal(rows(selector).length, 85, 'pagination after restoration must not be overwritten by late history state')

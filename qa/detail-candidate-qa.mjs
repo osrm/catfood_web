@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright-core'
 
 const BASE = 'http://127.0.0.1:4173/'
@@ -413,6 +413,7 @@ mode.nutritionFirstFailure = true
   await page.waitForSelector('.detail-stage')
   await page.waitForSelector('.detail-state.is-error', { timeout: 20000 })
   const errorText = await page.locator('.detail-state.is-error').innerText()
+  await page.screenshot({ path: `${outDir}/mock-error-390.png`, fullPage: false })
   assert.match(errorText, /영양 정보를 불러오지 못했습니다/)
   assert.match(errorText, /다시 시도/)
   assert.doesNotMatch(await page.locator('.detail-body').innerText(), /확인된 영양 정보가 없습니다/)
@@ -490,4 +491,13 @@ mode.variantDelayMs = 1200
 assert.equal(report.blockedWrites.length, 0, 'candidate attempted no POST/PUT/PATCH/DELETE requests with decision intake disabled')
 await writeFile(`${outDir}/report.json`, JSON.stringify(report, null, 2))
 console.log('CATFOOD_DETAIL_QA_REPORT=' + JSON.stringify(report))
+for (const name of [
+  'fixture-go-overview-390.png',
+  'fixture-go-overview-1440.png',
+  'fixture-monge-ingredients-390.png',
+  'mock-error-390.png',
+]) {
+  const data = await readFile(`${outDir}/${name}`)
+  console.log(`CATFOOD_DETAIL_QA_IMAGE=${name}:${data.toString('base64')}`)
+}
 await browser.close()

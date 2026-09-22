@@ -1,30 +1,48 @@
 import { chromium } from 'playwright-core'
-import { spawn } from 'node:child_process'
-import { writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { readFile, writeFile } from 'node:fs/promises'
+import { extname, join, normalize } from 'node:path'
 
 const pagesUrl = 'https://osrm.github.io/catfood_web/'
 const baselineUrl = 'http://127.0.0.1:4173/'
 const candidateUrl = 'http://127.0.0.1:4174/'
 const apiPath = '/rest/v1/effective_product_catalog_summary'
 
-function startPreview(cwd, port) {
-  const child = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(port)], {
-    cwd,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: process.env,
-  })
-  return child
+function contentType(path) {
+  const ext = extname(path)
+  if (ext === '.js') return 'text/javascript'
+  if (ext === '.css') return 'text/css'
+  if (ext === '.svg') return 'image/svg+xml'
+  if (ext === '.webp') return 'image/webp'
+  if (ext === '.png') return 'image/png'
+  return 'text/html; charset=utf-8'
 }
 
-async function waitHttp(url) {
-  for (let i = 0; i < 40; i += 1) {
+async function startStatic(root, port) {
+  const server = createServer(async (request, response) => {
     try {
-      const response = await fetch(url)
-      if (response.ok) return
-    } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 500))
-  }
-  throw new Error(`preview did not start: ${url}`)
+      const pathname = new URL(request.url || '/', 'http://127.0.0.1').pathname
+      const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '')
+      const normalized = normalize(relative)
+      if (normalized.startsWith('..')) {
+        response.writeHead(400)
+        response.end('bad path')
+        return
+      }
+      const target = join(root, normalized)
+      const data = await readFile(target)
+      response.writeHead(200, { 'content-type': contentType(target) })
+      response.end(data)
+    } catch {
+      response.writeHead(404)
+      response.end('not found')
+    }
+  })
+  await new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', resolve)
+  })
+  return server
 }
 
 async function probe(browser, label, url) {
@@ -77,12 +95,11 @@ async function probe(browser, label, url) {
   return result
 }
 
-const baseline = startPreview(process.env.BASELINE_DIR, 4173)
-const candidate = startPreview(process.env.CANDIDATE_DIR, 4174)
-const processes = [baseline, candidate]
+const baseline = await startStatic(join(process.env.BASELINE_DIR, 'dist'), 4173)
+const candidate = await startStatic(join(process.env.CANDIDATE_DIR, 'dist'), 4174)
+const servers = [baseline, candidate]
 
 try {
-  await Promise.all([waitHttp(baselineUrl), waitHttp(candidateUrl)])
   const browser = await chromium.launch({
     headless: true,
     executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
@@ -126,5 +143,5 @@ try {
     await browser.close()
   }
 } finally {
-  for (const child of processes) child.kill('SIGTERM')
+  await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))))
 }

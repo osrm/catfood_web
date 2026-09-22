@@ -74,10 +74,11 @@ const report = {
 }
 
 for (const e of endpoints) report.api.push(await apiGet(e))
-console.log('CATFOOD_POSTRESTORE_API=' + JSON.stringify(report.api))
-for (const e of report.api) assert.equal(e.status,200,e.view + ' GET must succeed')
 report.profileProbes.push(await profileProbe('public'))
 report.profileProbes.push(await profileProbe('graphql_public'))
+console.log('CATFOOD_POSTRESTORE_API=' + JSON.stringify(report.api))
+console.log('CATFOOD_POSTRESTORE_PROFILES=' + JSON.stringify(report.profileProbes))
+for (const e of report.api) assert.equal(e.status,200,e.view + ' GET must succeed')
 for (const p of report.profileProbes) {
   assert.equal(p.status,406,p.profile + ' PostgREST profile must remain unexposed')
   assert.match(p.body,/Invalid schema/i)

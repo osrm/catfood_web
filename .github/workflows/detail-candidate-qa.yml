@@ -47,6 +47,10 @@ jobs:
         working-directory: candidate
         run: npm ci
 
+      - name: Build exact product candidate
+        working-directory: candidate
+        run: npm run build
+
       - name: Install QA browser driver outside product source
         run: |
           mkdir -p /tmp/catfood-detail-qa
@@ -59,7 +63,7 @@ jobs:
       - name: Run exact candidate browser QA
         run: |
           cd candidate
-          npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/catfood-vite.log 2>&1 &
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/catfood-vite.log 2>&1 &
           VITE_PID=$!
           trap 'kill "$VITE_PID" || true' EXIT
           for i in $(seq 1 40); do

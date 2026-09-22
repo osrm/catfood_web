@@ -207,7 +207,7 @@ async function metrics(page) {
 async function captureAllTabs(id, query, productTag, width, height) {
   resetMode()
   const page = await makePage(width, height)
-  await page.goto(detailUrl(id, query), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.goto(detailUrl(id, query), { waitUntil: 'commit', timeout: 20000 })
   await waitDetail(page)
   const initial = await metrics(page)
   assert.equal(initial.horizontalOverflow, false, `${productTag} ${width}: no horizontal overflow`)
@@ -255,7 +255,7 @@ for (const product of [
 for (const width of [360, 768, 959, 961, 1024]) {
   resetMode()
   const page = await makePage(width, width === 360 ? 800 : 900)
-  await page.goto(detailUrl(GO, 'GO!'), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.goto(detailUrl(GO, 'GO!'), { waitUntil: 'commit', timeout: 20000 })
   await waitDetail(page)
   const result = await metrics(page)
   assert.equal(result.horizontalOverflow, false, `GO ${width}: no horizontal overflow`)
@@ -269,7 +269,7 @@ for (const width of [360, 768, 959, 961, 1024]) {
 resetMode()
 {
   const page = await makePage(390, 844)
-  await page.goto(detailUrl(GO, 'GO!'), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.goto(detailUrl(GO, 'GO!'), { waitUntil: 'commit', timeout: 20000 })
   await waitDetail(page)
 
   await page.focus('#detail-tab-overview')
@@ -322,7 +322,7 @@ resetMode()
 mode.nutritionFirstFailure = true
 {
   const page = await makePage(390, 844)
-  await page.goto(detailUrl(GO, 'GO!', 'nutrition'), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.goto(detailUrl(GO, 'GO!', 'nutrition'), { waitUntil: 'commit', timeout: 20000 })
   await page.waitForSelector('.detail-stage')
   await page.waitForSelector('.detail-state.is-error', { timeout: 20000 })
   const errorText = await page.locator('.detail-state.is-error').innerText()
@@ -345,7 +345,7 @@ resetMode()
 mode.ingredientEmpty = true
 {
   const page = await makePage(390, 844)
-  await page.goto(detailUrl(MONGE, '몬지', 'ingredients'), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.goto(detailUrl(MONGE, '몬지', 'ingredients'), { waitUntil: 'commit', timeout: 20000 })
   await waitDetail(page)
   const text = await page.locator('.detail-body').innerText()
   assert.match(text, /확인된 원재료 정보가 없습니다/)
@@ -359,7 +359,7 @@ resetMode()
 mode.variantDelayMs = 1200
 {
   const page = await makePage(390, 844)
-  const nav = page.goto(detailUrl(GO, 'GO!', 'overview'), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  const nav = page.goto(detailUrl(GO, 'GO!', 'overview'), { waitUntil: 'commit', timeout: 20000 })
   await page.waitForSelector('.detail-stage', { timeout: 20000 })
   await page.waitForFunction(() => document.body.textContent?.includes('판매 규격을 불러오는 중입니다.'), null, { timeout: 5000 })
   const loadingText = await page.locator('.detail-body').innerText()
@@ -374,7 +374,7 @@ mode.variantDelayMs = 1200
 
 {
   const page = await makePage(390, 844)
-  await page.goto(detailUrl(MONGE, '몬지', 'ingredients'), { waitUntil: 'domcontentloaded', timeout: 20000 })
+  await page.goto(detailUrl(MONGE, '몬지', 'ingredients'), { waitUntil: 'commit', timeout: 20000 })
   await waitDetail(page)
   const raw = await page.evaluate(() => {
     const el = document.querySelector('.detail-ingredient-copy')

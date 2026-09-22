@@ -113,6 +113,14 @@ async function makePage(width, height, { mockApi = true } = {}) {
       await route.abort('blockedbyclient')
       return
     }
+    if (mockApi && url.includes('/storage/v1/object/public/')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="640" viewBox="0 0 480 640"><rect width="480" height="640" fill="#ebe8df"/><rect x="130" y="90" width="220" height="460" rx="10" fill="#d8d4c9"/><text x="240" y="330" text-anchor="middle" font-family="sans-serif" font-size="30" fill="#57554f">PRODUCT</text></svg>',
+      })
+      return
+    }
     let pathname = ''
     try { pathname = new URL(url).pathname } catch {}
     const key = pathname.split('/').at(-1) || pathname

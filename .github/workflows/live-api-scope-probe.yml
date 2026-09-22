@@ -1,0 +1,98 @@
+name: Live API scope probe
+
+on:
+  push:
+    branches:
+      - qa/live-api-scope-probe-20260922
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deployed baseline
+        uses: actions/checkout@v5
+        with:
+          ref: 22bf366d6a6cb4753afd679d2f780053c04b851d
+          path: baseline
+          persist-credentials: false
+
+      - name: Checkout reviewed candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 84103bd1922d2b2e89b709478b6f36a7f84767ab
+          path: candidate
+          persist-credentials: false
+
+      - name: Checkout probe harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: probe
+          persist-credentials: false
+
+      - name: Guard exact sources
+        run: |
+          test "$(git -C baseline rev-parse HEAD)" = "22bf366d6a6cb4753afd679d2f780053c04b851d"
+          test "$(git -C candidate rev-parse HEAD)" = "84103bd1922d2b2e89b709478b6f36a7f84767ab"
+          test "$(git -C baseline hash-object src/api.ts)" = "$(git -C candidate hash-object src/api.ts)"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: baseline/.nvmrc
+          cache: npm
+          cache-dependency-path: baseline/package-lock.json
+
+      - name: Install and build baseline and candidate with Pages public target
+        run: |
+          set -euo pipefail
+          PAGES_FILE="baseline/.github/workflows/pages.yml"
+          export VITE_SUPABASE_URL="$(sed -n 's/^[[:space:]]*VITE_SUPABASE_URL:[[:space:]]*//p' "$PAGES_FILE" | head -n1)"
+          export VITE_SUPABASE_PUBLISHABLE_KEY="$(sed -n 's/^[[:space:]]*VITE_SUPABASE_PUBLISHABLE_KEY:[[:space:]]*//p' "$PAGES_FILE" | head -n1)"
+          test -n "$VITE_SUPABASE_URL"
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
+          npm ci --prefix baseline
+          npm ci --prefix candidate
+          npm --prefix baseline run build
+          npm --prefix candidate run build
+
+      - name: Install browser probe dependency
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/catfood-live-probe
+          cp probe/qa/live-api-scope-probe.mjs /tmp/catfood-live-probe/
+          cd /tmp/catfood-live-probe
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Observe Pages, baseline and candidate API requests
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          BASELINE_DIR="$GITHUB_WORKSPACE/baseline" \
+          CANDIDATE_DIR="$GITHUB_WORKSPACE/candidate" \
+          PAGES_SHA="22bf366d6a6cb4753afd679d2f780053c04b851d" \
+          BASELINE_SHA="22bf366d6a6cb4753afd679d2f780053c04b851d" \
+          CANDIDATE_SHA="84103bd1922d2b2e89b709478b6f36a7f84767ab" \
+          API_BLOB_MATCH="true" \
+          REPORT_PATH="$GITHUB_WORKSPACE/live-api-scope-report.json" \
+          node /tmp/catfood-live-probe/live-api-scope-probe.mjs
+
+      - name: Upload probe report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-api-scope-report
+          path: live-api-scope-report.json
+          if-no-files-found: warn
+          retention-days: 7

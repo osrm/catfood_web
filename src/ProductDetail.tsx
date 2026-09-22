@@ -120,6 +120,11 @@ function weightLabel(value: number | null) {
   const numeric = Number(value)
   return numeric >= 1000 ? `${Number((numeric / 1000).toFixed(3)).toLocaleString('ko-KR')} kg` : `${numeric.toLocaleString('ko-KR')} g`
 }
+function variantSaleDetail(variant: ProductVariant) {
+  const units = variant.units_per_sale != null ? `${variant.units_per_sale}개` : '판매 단위 미확인'
+  const total = variant.sale_total_weight_g != null ? `총 ${weightLabel(variant.sale_total_weight_g)}` : '총중량 미확인'
+  return `${units} · ${total}`
+}
 function evidenceContext(detail: CompareNutrition | CompareIngredients | null, variants: ProductVariant[], variantFailed = false, variantLoading = false) {
   if (!detail) return '확인 근거 없음'
   const market = detail.market_code === 'KR' ? '한국 확인' : detail.market_code ? `${countryLabel(detail.market_code)} 확인` : ''
@@ -147,10 +152,10 @@ function supplementalIngredientContext(detail: CompareIngredients | null) {
 }
 function ProductImage({ product }: { product: CatalogProduct }) {
   if (!product.display_image_url) return <div className="detail-image-placeholder">이미지 없음</div>
-  return <img className="detail-product-image" src={product.display_image_url} alt="" />
+  return <img className="detail-product-image" src={product.display_image_url} alt={`${product.brand} ${product.canonical_name} 제품 포장`} />
 }
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
-function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message} 잠시 후 다시 시도해 주세요.</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
+function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
 export default function ProductDetail({ product, onClose, initialTab = 'overview', onTabChange }: {
   product: CatalogProduct
@@ -253,7 +258,7 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
   const directIngredientLabel = product.direct_evidence_ingredient_terms.length ? listLabel(product.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
   const flavorIngredientLabel = product.flavor_associated_ingredient_terms.length ? listLabel(product.flavor_associated_ingredient_terms, RECIPE_LABELS) : null
   const missingManufacturingFields = manufacturing ? [!manufacturing.manufacturer?.trim() ? '제조 업체' : null, !manufacturing.plant?.trim() ? '공장' : null].filter(Boolean) : []
-  const contextStatus = loading.manufacturing || loading.markets ? '불러오는 중' : errors.manufacturing && errors.markets ? '조회 실패' : errors.manufacturing || errors.markets ? '일부 조회 실패' : manufacturing || markets.length ? '확인된 정보 있음' : '확인된 정보 없음'
+  const ingredientCoverageNeedsNotice = ingredients?.completeness_status !== 'full'
   const standardRows = [
     ['조단백질', 'protein', nutrition?.protein_pct ?? null, nutrition?.protein_qualifier ?? null],
     ['조지방', 'fat', nutrition?.fat_pct ?? null, nutrition?.fat_qualifier ?? null],
@@ -261,36 +266,104 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     ['수분', 'moisture', nutrition?.moisture_pct ?? null, nutrition?.moisture_qualifier ?? null],
     ['조회분', 'ash', nutrition?.ash_pct ?? null, nutrition?.ash_qualifier ?? null],
   ] as const
-  const confirmedStandardRows = standardRows.filter(([, , value]) => value != null)
-  const unavailableStandardRows = standardRows.filter(([, , value]) => value == null)
   const panelId = `detail-panel-${tab}`
   const tabId = `detail-tab-${tab}`
 
   return <main className="detail-stage" ref={stageRef}>
-    <header className="detail-topbar" ref={topbarRef}><button type="button" onClick={onClose}>← 돌아가기 · 제품 목록</button><span>PRODUCT DETAIL</span></header>
-    <section className="detail-identity">
-      <ProductImage product={product} />
-      <div className="detail-identity-copy"><span>{product.brand}</span><h1>{product.canonical_name}</h1><p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p></div>
-      <div className="detail-status-grid">
-        <Fact label="판매 규격" value={loading.variants ? '불러오는 중' : errors.variants ? '조회 실패' : variants.length ? `${variants.length}개 확인` : '미확인'} />
-        <div className="detail-fact detail-status-action"><span>영양</span><strong>{loading.nutrition ? '불러오는 중' : errors.nutrition ? '조회 실패' : nutritionStructured ? '확인된 정보 있음' : '확인된 수치 없음'}</strong><button type="button" onClick={() => selectTab('nutrition')}>영양 정보 보기</button></div>
-        <div className="detail-fact detail-status-action"><span>원재료</span><strong>{loading.ingredients ? '불러오는 중' : errors.ingredients ? '조회 실패' : ingredients ? completenessLabel(ingredients.completeness_status) : '확인 정보 없음'}</strong><button type="button" onClick={() => selectTab('ingredients')}>원재료 보기</button></div>
-        <div className="detail-fact detail-status-action"><span>제조 · 유통</span><strong>{contextStatus}</strong><button type="button" onClick={() => selectTab('context')}>제조 · 유통 보기</button></div>
+    <header className="detail-topbar" ref={topbarRef}>
+      <div className="detail-topbar-inner"><span className="detail-wordmark">CATFOOD</span><button type="button" onClick={onClose}>← 제품 목록</button></div>
+    </header>
+    <div className="detail-layout">
+      <aside className="detail-identity">
+        <div className="detail-identity-copy"><span>{product.brand}</span><h1>{product.canonical_name}</h1><p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p></div>
+        <ProductImage product={product} />
+      </aside>
+      <div className="detail-reading">
+        <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist" ref={tabsRef}>
+          {TABS.map(([key, label], index) => <button key={key} id={`detail-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`detail-panel-${key}`} tabIndex={tab === key ? 0 : -1} className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}>{label}</button>)}
+        </nav>
+        {TABS.filter(([key]) => key !== tab).map(([key]) => <div key={`hidden-${key}`} id={`detail-panel-${key}`} role="tabpanel" aria-labelledby={`detail-tab-${key}`} hidden />)}
+        <div className="detail-body" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0} ref={panelRef}>
+          {tab === 'overview' ? <>
+            <section className="detail-section">
+              <div className="detail-section-heading"><h2>기본 정보</h2></div>
+              <div className="detail-fact-table"><Fact label="사료 형태" value={product.feed_type ?? '미확인'} /><Fact label="대상 연령" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />{product.features.length ? <Fact label="제품 특징" value={listLabel(product.features, FEATURE_LABELS)} /> : null}{product.official_targets.length ? <Fact label="제품 표기 대상" value={listLabel(product.official_targets, TARGET_LABELS)} /> : null}{product.recipe_families.length ? <Fact label="레시피 종류" value={listLabel(product.recipe_families, RECIPE_LABELS)} /> : null}{product.recipe_details.length ? <Fact label="주요 레시피" value={listLabel(product.recipe_details, RECIPE_LABELS)} /> : null}{product.official_recipe_traits.includes('grain_free') ? <Fact label="Grain-Free" value="제품에 표기됨" /> : null}</div>
+            </section>
+            <section className="detail-section">
+              <div className="detail-section-heading"><h2>한국 판매 규격</h2></div>
+              {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
+              {errors.variants ? <LoadError message={errors.variants} onRetry={retry} /> : null}
+              {!loading.variants && !errors.variants && variants.length ? <>
+                <div className="detail-packs">{variants.map((variant) => <span className="detail-pack" key={variant.variant_id}>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</span>)}</div>
+                <details className="detail-disclosure"><summary>판매 단위와 총중량</summary><div className="detail-fact-table is-compact">{variants.map((variant) => <Fact key={`sale-${variant.variant_id}`} label={`${variantSizeLabel(variant) ?? '규격 표기 미확인'} 규격`} value={variantSaleDetail(variant)} />)}</div></details>
+              </> : null}
+              {!loading.variants && !errors.variants && variants.length === 0 ? <div className="detail-empty">확인된 판매 규격이 없습니다.</div> : null}
+            </section>
+            <section className="detail-section">
+              <div className="detail-section-heading"><h2>원재료 요약</h2></div>
+              {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
+              {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
+              {!loading.ingredients && !errors.ingredients && ingredients ? <div className="detail-ingredient-summary">
+                <span className="detail-status">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</span>
+                {directIngredientLabel ? <><p className="detail-kicker">직접 확인 원료</p><p className="detail-ingredient-summary-text">{directIngredientLabel}</p></> : null}
+                {flavorIngredientLabel ? <><p className="detail-kicker">향미 연관 원료</p><p className="detail-ingredient-summary-text is-secondary">{flavorIngredientLabel}</p></> : null}
+                {hasSupplementalFullIngredients ? <p className="detail-supplement-line">보조 전체 목록 · {supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'}</p> : null}
+                {ingredientCoverageNeedsNotice ? <p className="detail-note is-coverage">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
+                <button className="detail-read-link" type="button" onClick={() => selectTab('ingredients')}>{ingredients.completeness_status === 'full' ? '전체 원재료와 출처 원문' : '확인된 원재료와 출처 원문'} <span aria-hidden="true">→</span></button>
+              </div> : null}
+              {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
+            </section>
+          </> : null}
+          {tab === 'nutrition' ? <section className="detail-section">
+            <div className="detail-section-heading"><h2>영양 · 열량</h2></div>
+            {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : null}
+            {errors.nutrition ? <LoadError message={errors.nutrition} onRetry={retry} /> : null}
+            {!loading.nutrition && !errors.nutrition && nutrition && nutritionStructured ? <>
+              <div className="detail-energy"><span>열량</span><strong className={energyValue(nutrition) === '미확인' ? 'is-unknown' : ''}>{energyValue(nutrition)}</strong>{nutritionSupplementContext ? <p>{nutritionSupplementContext}</p> : null}</div>
+              <table className="detail-nutrition-table"><caption>{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</caption><tbody>
+                {standardRows.map(([label, key, value, qualifier]) => <tr key={key}><th scope="row">{label}</th><td className={value == null ? 'is-unknown' : ''}>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}</td></tr>)}
+                {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <tr key={`additional-${value.nutrient_key}-${index}`}><th scope="row">{additionalNutrientLabel(value)}</th><td>{additionalNutrientValue(value)}</td></tr>)}
+              </tbody></table>
+              {alternateNutritionValues.length ? <div className="detail-basis-block"><h3>{basisLabel(nutrition)}</h3><p>일반 표시값과 기준이 달라 별도로 표시합니다.</p><table className="detail-nutrition-table is-basis"><tbody>{alternateNutritionValues.map((value, index) => <tr key={`basis-${value.nutrient_key}-${index}`}><th scope="row">{BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value)}</th><td>{additionalNutrientValue(value)}</td></tr>)}</tbody></table></div> : null}
+              <details className="detail-disclosure"><summary>자료 기준과 보완 범위</summary><div className="detail-disclosure-copy"><p>{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</p>{nutritionSupplementContext ? <p>보완 근거 · {nutritionSupplementContext}</p> : null}<p>최소·최대·평균과 단위를 출처 표기대로 보존합니다.</p></div></details>
+            </> : null}
+            {!loading.nutrition && !errors.nutrition && (!nutrition || !nutritionStructured) ? <div className="detail-empty">확인된 영양 정보가 없습니다.</div> : null}
+          </section> : null}
+          {tab === 'ingredients' ? <section className="detail-section">
+            <div className="detail-section-heading"><h2>원재료</h2></div>
+            {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
+            {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
+            {!loading.ingredients && !errors.ingredients && ingredients ? <>
+              {directIngredientLabel || flavorIngredientLabel ? <div className="detail-ingredient-summary is-tab">{directIngredientLabel ? <><p className="detail-kicker">직접 확인 원료 · 한국어 요약</p><p className="detail-ingredient-summary-text">{directIngredientLabel}</p></> : null}{flavorIngredientLabel ? <><p className="detail-kicker">향미 연관 원료</p><p className="detail-ingredient-summary-text is-secondary">{flavorIngredientLabel}</p></> : null}</div> : null}
+              {ingredientCoverageNeedsNotice ? <div className="detail-partial-notice"><strong>{completenessLabel(ingredients.completeness_status)}</strong><p>목록에 없는 원료도 포함될 수 있습니다.</p></div> : null}
+              <details className="detail-disclosure" open={ingredientCoverageNeedsNotice}><summary>출처 원문</summary><div className="detail-disclosure-copy"><p className="detail-source-line">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p><p className="detail-raw">{ingredients.raw_text?.trim() || '출처 원문이 확인되지 않았습니다.'}</p></div></details>
+              {ingredients.ingredient_names.length ? <details className="detail-disclosure"><summary>정규화 원재료 목록 <span className="detail-count">{ingredients.ingredient_names.length}개</span></summary><ol className="detail-ingredient-list">{ingredients.ingredient_names.map((ingredient, index) => <li key={`primary-${ingredient}-${index}`}>{ingredient}</li>)}</ol></details> : null}
+              {hasSupplementalFullIngredients ? <div className="detail-supplemental">
+                <h3>보조 전체 목록</h3><p className="detail-source-line">{ingredientSupplementContext}</p>
+                {ingredients.supplemental_full_raw_text?.trim() ? <details className="detail-disclosure"><summary>보조 출처 원문</summary><p className="detail-raw">{ingredients.supplemental_full_raw_text.trim()}</p></details> : null}
+                {supplementalIngredientNames.length ? <details className="detail-disclosure"><summary>보조 정규화 목록 <span className="detail-count">{ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개</span></summary><ol className="detail-ingredient-list">{supplementalIngredientNames.map((ingredient, index) => <li key={`supplemental-${ingredient}-${index}`}>{ingredient}</li>)}</ol></details> : null}
+              </div> : null}
+            </> : null}
+            {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
+          </section> : null}
+          {tab === 'context' ? <>
+            <section className="detail-section">
+              <div className="detail-section-heading"><h2>제조 정보</h2></div>
+              {loading.manufacturing ? <div className="detail-state">제조 정보를 불러오는 중입니다.</div> : null}
+              {errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={retry} /> : null}
+              {!loading.manufacturing && !errors.manufacturing && manufacturing ? <><div className="detail-fact-table"><Fact label="제조국" value={countryLabel(manufacturing.country_code)} />{manufacturing.manufacturer?.trim() ? <Fact label="제조 업체" value={manufacturing.manufacturer} /> : null}{manufacturing.plant?.trim() ? <Fact label="제조 공장" value={manufacturing.plant} /> : null}</div>{missingManufacturingFields.length ? <p className="detail-note">{missingManufacturingFields.join('와 ')} 정보는 확인하지 못했습니다.</p> : null}{manufacturing.observation_scope === 'variant' ? <p className="detail-note is-important">제조국은 확인한 포장을 기준으로 안내합니다. 구매할 제품의 포장도 확인해 주세요.</p> : null}</> : null}
+              {!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">확인된 제조 정보가 없습니다.</div> : null}
+            </section>
+            <section className="detail-section">
+              <div className="detail-section-heading"><h2>해외 판매 · 배합 확인</h2></div>
+              {loading.markets ? <div className="detail-state">유통 정보를 불러오는 중입니다.</div> : null}
+              {errors.markets ? <LoadError message={errors.markets} onRetry={retry} /> : null}
+              {!loading.markets && !errors.markets && markets.length ? <div className="detail-market-list">{markets.map((market) => <article className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}><header><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 미기재'}</span></header><Fact label="유통" value={distributionLabel(market.distribution_status)} /><Fact label="한국 제품과의 배합 비교" value={formulaMarketLabel(market.formula_correspondence_status)} />{market.counterpart_name ? <Fact label="현지 제품명" value={market.counterpart_name} /> : null}</article>)}</div> : null}
+              {!loading.markets && !errors.markets && markets.length === 0 ? <div className="detail-empty">확인된 해외 유통 정보가 없습니다.</div> : null}
+            </section>
+          </> : null}
+        </div>
       </div>
-    </section>
-    <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist" ref={tabsRef}>
-      {TABS.map(([key, label], index) => <button key={key} id={`detail-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`detail-panel-${key}`} tabIndex={tab === key ? 0 : -1} className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}>{label}</button>)}
-    </nav>
-    {TABS.filter(([key]) => key !== tab).map(([key]) => <div key={`hidden-${key}`} id={`detail-panel-${key}`} role="tabpanel" aria-labelledby={`detail-tab-${key}`} hidden />)}
-    <div className="detail-body" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0} ref={panelRef}>
-      {tab === 'overview' ? <>
-        <section className="detail-section"><div className="detail-section-heading"><span>01</span><div><h2>제품 기본 정보</h2><p>제품에 표시된 대상 연령과 특징입니다.</p></div></div><div className="detail-fact-table"><Fact label="사료 형태" value={product.feed_type ?? '미확인'} /><Fact label="대상 연령" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />{product.features.length ? <Fact label="제품 특징" value={listLabel(product.features, FEATURE_LABELS)} /> : null}{product.official_targets.length ? <Fact label="제품 표기 대상" value={listLabel(product.official_targets, TARGET_LABELS)} /> : null}{product.recipe_families.length ? <Fact label="레시피 종류" value={listLabel(product.recipe_families, RECIPE_LABELS)} /> : null}{product.recipe_details.length ? <Fact label="주요 레시피" value={listLabel(product.recipe_details, RECIPE_LABELS)} /> : null}{product.official_recipe_traits.includes('grain_free') ? <Fact label="Grain-Free" value="제품에 표기됨" /> : null}</div></section>
-        <section className="detail-section"><div className="detail-section-heading"><span>02</span><div><h2>원재료 요약</h2><p>확인된 원료를 한국어로 요약합니다. 출처 원문은 원재료 탭에서 확인할 수 있습니다.</p></div></div>{loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}{errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}{!loading.ingredients && !errors.ingredients && ingredients ? <div className="detail-fact-table"><Fact label="원재료 목록" value={completenessLabel(ingredients.completeness_status)} />{ingredients.ingredient_count > 0 ? <Fact label="확인된 원재료" value={`${ingredients.ingredient_count}개`} /> : null}{directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}{flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}{hasSupplementalFullIngredients ? <Fact label="전체 목록 보완" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}</div> : null}{!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 공개 화면에서 확인할 수 있는 원재료 목록이 없습니다.</div> : null}</section>
-        <section className="detail-section"><div className="detail-section-heading"><span>03</span><div><h2>한국 판매 규격</h2><p>현재 확인된 용량과 포장 단위입니다.</p></div></div>{loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}{errors.variants ? <LoadError message={errors.variants} onRetry={retry} /> : null}{!loading.variants && !errors.variants && variants.length ? <div className="detail-variant-list">{variants.map((variant) => <div className="detail-variant-row" key={variant.variant_id}><div><strong>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</strong><span>{variant.units_per_sale && variant.units_per_sale > 1 ? `${variant.units_per_sale}개 구성` : '단일 판매 규격'}</span></div><div><span>판매 단위</span><strong>{variant.units_per_sale != null ? `${variant.units_per_sale}개` : '미확인'}</strong></div><div><span>총 판매 중량</span><strong>{weightLabel(variant.sale_total_weight_g)}</strong></div></div>)}</div> : null}{!loading.variants && !errors.variants && variants.length === 0 ? <div className="detail-empty">현재 확인된 판매 규격이 없습니다.</div> : null}</section>
-      </> : null}
-      {tab === 'nutrition' ? <section className="detail-section"><div className="detail-section-heading"><span>N</span><div><h2>영양 · 열량</h2><p>확인된 일반 표시값과 기준이 다른 영양자료를 분리해 보여줍니다.</p></div></div>{loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : null}{errors.nutrition ? <LoadError message={errors.nutrition} onRetry={retry} /> : null}{!loading.nutrition && !errors.nutrition && nutrition ? <><div className="detail-evidence-context">{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</div>{nutritionSupplementContext ? <div className="detail-evidence-context">일부 미기재 값 보완 · {nutritionSupplementContext}</div> : null}{nutritionStructured ? <><div className="detail-nutrition-subheading"><strong>일반 표시 영양정보</strong><span>출처에서 같은 기준으로 확인된 값입니다.</span></div><div className="detail-nutrition-grid"><Fact label="열량" value={energyValue(nutrition)} />{confirmedStandardRows.map(([label, , value, qualifier]) => <Fact key={label} label={label} value={nutrientValue(value, qualifier)} />)}{(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <Fact key={`${value.nutrient_key}-${index}`} label={additionalNutrientLabel(value)} value={additionalNutrientValue(value)} />)}</div>{unavailableStandardRows.length ? <div className="detail-nutrition-status"><strong>일반 표시값이 확인되지 않은 항목</strong><dl>{unavailableStandardRows.map(([label, key, value]) => <div key={key}><dt>{label}</dt><dd>{standardStatus(nutrition, key, value)}</dd></div>)}</dl></div> : null}{alternateNutritionValues.length ? <><div className="detail-nutrition-subheading is-basis"><strong>{basisLabel(nutrition)} 자료</strong><span>수분을 제거한 기준의 영양자료만 확인됐습니다. 일반 표시값과 기준이 달라 합치거나 환산하지 않습니다.</span></div><div className="detail-nutrition-grid">{alternateNutritionValues.map((value, index) => <Fact key={`basis-${value.nutrient_key}-${index}`} label={`${BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value)} · ${basisLabel(nutrition)}`} value={additionalNutrientValue(value)} />)}</div></> : null}<p className="detail-note">표시되지 않은 값은 추정해 채우지 않습니다. 최소·최대·평균 등 출처의 한정자와 단위를 그대로 보존합니다.</p></> : <div className="detail-empty">현재 이 제품에 적용할 수 있는 영양 수치를 확인하지 못했습니다.</div>}</> : null}{!loading.nutrition && !errors.nutrition && !nutrition ? <div className="detail-empty">현재 확인된 영양 정보가 없습니다.</div> : null}</section> : null}
-      {tab === 'ingredients' ? <section className="detail-section"><div className="detail-section-heading"><span>I</span><div><h2>원재료</h2><p>한국어 요약과 출처 원문을 구분해 보여줍니다.</p></div></div>{loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}{errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}{!loading.ingredients && !errors.ingredients && ingredients ? <>{directIngredientLabel || flavorIngredientLabel ? <div className="detail-fact-table">{directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}{flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}</div> : null}<div className="detail-evidence-context">대표 확인 자료 · 출처 원문 · {evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</div><div className="detail-ingredient-copy">{ingredients.raw_text?.trim() || ingredients.ingredient_names.join(', ') || '확인된 원재료 목록 없음'}</div>{ingredients.ingredient_names.length ? <div className="detail-ingredient-list">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}</div> : null}{hasSupplementalFullIngredients ? <><div className="detail-evidence-context">현재 확인 배합 전체 목록 · 출처 원문 · {ingredientSupplementContext}</div><div className="detail-ingredient-copy">{ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}</div>{supplementalIngredientNames.length ? <div className="detail-ingredient-list">{supplementalIngredientNames.map((ingredient, index) => <span key={`supplemental-${ingredient}-${index}`}>{index + 1}. {ingredient}</span>)}</div> : null}</> : null}<p className="detail-note">일부 목록만 확인된 경우 표시되지 않은 원료가 들어 있지 않다는 뜻은 아닙니다.</p></> : null}{!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">현재 확인된 원재료 목록이 없습니다.</div> : null}</section> : null}
-      {tab === 'context' ? <><section className="detail-section"><div className="detail-section-heading"><span>M</span><div><h2>제조 정보</h2><p>제조국, 제조 업체, 공장 정보는 서로 구분해 표시합니다.</p></div></div>{loading.manufacturing ? <div className="detail-state">제조 정보를 불러오는 중입니다.</div> : null}{errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={retry} /> : null}{!loading.manufacturing && !errors.manufacturing && manufacturing ? <><div className="detail-fact-table"><Fact label="제조국" value={countryLabel(manufacturing.country_code)} />{manufacturing.manufacturer?.trim() ? <Fact label="제조 업체" value={manufacturing.manufacturer} /> : null}{manufacturing.plant?.trim() ? <Fact label="제조 공장" value={manufacturing.plant} /> : null}</div>{missingManufacturingFields.length ? <p className="detail-note">{missingManufacturingFields.join('와 ')} 정보는 확인하지 못했습니다.</p> : null}{manufacturing.observation_scope === 'variant' ? <p className="detail-note">제조국은 확인한 포장을 기준으로 안내합니다. 구매할 제품의 포장도 확인해 주세요.</p> : null}</> : null}{!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">현재 확정된 제조 정보가 없습니다.</div> : null}</section><section className="detail-section"><div className="detail-section-heading"><span>G</span><div><h2>해외 판매 · 배합 확인</h2><p>해외 판매 여부와 한국 제품과 같은 배합인지 여부를 따로 확인합니다.</p></div></div>{loading.markets ? <div className="detail-state">유통 정보를 불러오는 중입니다.</div> : null}{errors.markets ? <LoadError message={errors.markets} onRetry={retry} /> : null}{!loading.markets && !errors.markets && markets.length ? <div className="detail-market-list">{markets.map((market) => <div className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}><div><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 미기재'}</span></div><div><span>유통</span><strong>{distributionLabel(market.distribution_status)}</strong></div><div><span>한국 제품과의 배합 비교</span><strong>{formulaMarketLabel(market.formula_correspondence_status)}</strong></div>{market.counterpart_name ? <div><span>현지 제품명</span><strong>{market.counterpart_name}</strong></div> : null}</div>)}</div> : null}{!loading.markets && !errors.markets && markets.length === 0 ? <div className="detail-empty">현재 확정된 해외 유통 정보가 없습니다.</div> : null}</section></> : null}
     </div>
   </main>
 }

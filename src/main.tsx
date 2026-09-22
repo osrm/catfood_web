@@ -23,7 +23,6 @@ import './input-focus-fix.css'
 import './switch-consumer-refresh.css'
 import './switch-change-disclosure.css'
 import './demo-preview.css'
-import './detail-consumer-refresh.css'
 import './document-scroll-fix.css'
 import './stitch-final-polish.css'
 import './stitch-final-polish-fixes.css'
@@ -32,6 +31,7 @@ import './consumer-navigation.css'
 import './explore-condition-disclosure.css'
 import './switch-compare-dock-clearance.css'
 import './mobile-switch-compare-header.css'
+import './detail-consumer-refresh.css'
 
 function syncCompareScroll(event: Event) {
   const target = event.target

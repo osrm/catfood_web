@@ -1,0 +1,79 @@
+name: Product detail candidate QA
+
+on:
+  push:
+    branches:
+      - qa/product-detail-editorial-b-20260922
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-qa:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_SHA: a83102521dc3fefd0a8e37325c590d9c8025bf7d
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+    steps:
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
+        with:
+          ref: a83102521dc3fefd0a8e37325c590d9c8025bf7d
+          path: candidate
+          persist-credentials: false
+
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          path: harness
+          persist-credentials: false
+
+      - name: Guard exact product source
+        run: |
+          test "$(git -C candidate rev-parse HEAD)" = "$EXPECTED_SHA"
+          test ! -e candidate/qa/detail-candidate-qa.mjs
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: candidate/.nvmrc
+          cache: npm
+          cache-dependency-path: candidate/package-lock.json
+
+      - name: Install candidate dependencies
+        working-directory: candidate
+        run: npm ci
+
+      - name: Install QA browser driver outside product source
+        run: |
+          mkdir -p /tmp/catfood-detail-qa
+          cp harness/qa/detail-candidate-qa.mjs /tmp/catfood-detail-qa/
+          cd /tmp/catfood-detail-qa
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV";           elif command -v chromium >/dev/null; then echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV";           else exit 1; fi
+
+      - name: Run exact candidate browser QA
+        run: |
+          cd candidate
+          npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/catfood-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" || true' EXIT
+          for i in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4173/ >/dev/null
+          node /tmp/catfood-detail-qa/detail-candidate-qa.mjs
+
+      - name: Upload QA report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-detail-candidate-qa
+          path: candidate/qa-output
+          if-no-files-found: warn
+          retention-days: 7

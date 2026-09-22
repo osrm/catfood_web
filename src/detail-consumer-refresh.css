@@ -799,4 +799,9 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .detail-stage .detail-state.is-error > p {
+    flex: 0 1 auto;
+    width: 100%;
+  }
 }

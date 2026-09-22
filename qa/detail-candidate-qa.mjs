@@ -1,21 +1,74 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { chromium, request as playwrightRequest } from 'playwright-core'
+import { chromium } from 'playwright-core'
 
 const BASE = 'http://127.0.0.1:4173/'
 const GO = 'product_31bc515d78d43d5d'
 const MONGE = 'product_11dc2e0bf60b0874'
+
+const PRODUCTS = [
+  {
+    product_id: MONGE, brand: '몬지', canonical_name: '몬지 비와일드 그레인프리 어덜트 연어', feed_type: '건식', life_stage: 'adult',
+    display_image_url: 'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_11dc2e0bf60b0874.webp',
+    representative_variant_id: 'variant_a7e54c1a2d10a1ba', representative_package_size_text: '1.5 kg', representative_package_weight_g: 1500,
+    representative_units_per_sale: 1, representative_sale_total_weight_g: 1500, variant_count: 2, has_variants: true,
+    ingredient_declaration_count: 2, full_ingredient_declaration_count: 1, has_ingredient_details: true, has_full_ingredient_declaration: true,
+    nutrition_panel_count: 2, has_nutrition_details: true, manufacturing_observation_count: 1, has_manufacturing_details: true,
+    manufacturing_country_codes: ['IT'], market_observation_count: 5, has_market_details: true,
+    assessed_market_country_codes: ['AU','CA','IT','NZ','US'], current_market_country_codes: ['IT'], formula_match_market_country_codes: ['IT'],
+    ingredient_term_result_count: 23, confirmed_present_ingredient_terms: ['chicken','salmon'], direct_evidence_ingredient_terms: ['chicken','salmon'],
+    flavor_associated_ingredient_terms: [], reviewed_not_found_ingredient_terms: [],
+    insufficient_evidence_ingredient_terms: ['anchovy','beef','boar','cod','duck','egg','goat','goose','herring','lamb','mackerel','menhaden','pork','quail','rabbit','sardine','trout','tuna','turkey','venison','whitefish'],
+    official_targets: [], features: [], recipe_families: ['fish'], recipe_details: ['salmon'], official_recipe_traits: ['grain_free'],
+  },
+  {
+    product_id: GO, brand: 'GO! SOLUTIONS', canonical_name: '카니보 치킨&칠면조&오리', feed_type: '건식', life_stage: 'all_life_stages',
+    display_image_url: 'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_31bc515d78d43d5d.webp',
+    representative_variant_id: 'variant_84846bb9f583a35b', representative_package_size_text: '1.36 kg', representative_package_weight_g: 1360,
+    representative_units_per_sale: 1, representative_sale_total_weight_g: 1360, variant_count: 3, has_variants: true,
+    ingredient_declaration_count: 2, full_ingredient_declaration_count: 1, has_ingredient_details: true, has_full_ingredient_declaration: true,
+    nutrition_panel_count: 2, has_nutrition_details: true, manufacturing_observation_count: 1, has_manufacturing_details: true,
+    manufacturing_country_codes: ['CA'], market_observation_count: 6, has_market_details: true,
+    assessed_market_country_codes: ['AU','CA','FR','GB','NZ','US'], current_market_country_codes: ['CA','FR','NZ','US'], formula_match_market_country_codes: ['CA','FR','NZ','US'],
+    ingredient_term_result_count: 23, confirmed_present_ingredient_terms: ['chicken','duck','egg','salmon','trout','turkey'],
+    direct_evidence_ingredient_terms: ['chicken','duck','egg','salmon','trout','turkey'], flavor_associated_ingredient_terms: [],
+    reviewed_not_found_ingredient_terms: ['anchovy','beef','boar','cod','goat','goose','herring','lamb','mackerel','menhaden','pork','quail','rabbit','sardine','tuna','venison','whitefish'],
+    insufficient_evidence_ingredient_terms: [], official_targets: [], features: [], recipe_families: ['poultry'], recipe_details: ['chicken','duck','turkey'], official_recipe_traits: ['grain_free'],
+  },
+]
+
+const VARIANTS = [
+  { product_id:MONGE, variant_id:'variant_a7e54c1a2d10a1ba', package_size_text:'1.5 kg', package_weight_g:1500, units_per_sale:1, sale_total_weight_g:1500, sales_bundle_status:'not_a_bundle', display_rank:1, variant_count:2, formula_evidence_status:'confirmed', recipe_families:['fish'], recipe_details:['salmon'], official_recipe_traits:['grain_free'], ingredient_term_result_count:23, confirmed_present_ingredient_terms:['chicken','salmon'], direct_evidence_ingredient_terms:['chicken','salmon'], flavor_associated_ingredient_terms:[], reviewed_not_found_ingredient_terms:[], insufficient_evidence_ingredient_terms:[] },
+  { product_id:MONGE, variant_id:'variant_851777873ef16719', package_size_text:'10 kg', package_weight_g:10000, units_per_sale:1, sale_total_weight_g:10000, sales_bundle_status:'not_a_bundle', display_rank:2, variant_count:2, formula_evidence_status:'confirmed', recipe_families:['fish'], recipe_details:['salmon'], official_recipe_traits:['grain_free'], ingredient_term_result_count:23, confirmed_present_ingredient_terms:[], direct_evidence_ingredient_terms:[], flavor_associated_ingredient_terms:[], reviewed_not_found_ingredient_terms:[], insufficient_evidence_ingredient_terms:[] },
+  { product_id:GO, variant_id:'variant_84846bb9f583a35b', package_size_text:'1.36 kg', package_weight_g:1360, units_per_sale:1, sale_total_weight_g:1360, sales_bundle_status:'not_a_bundle', display_rank:1, variant_count:3, formula_evidence_status:'confirmed', recipe_families:['poultry'], recipe_details:['chicken','duck','turkey'], official_recipe_traits:['grain_free'], ingredient_term_result_count:23, confirmed_present_ingredient_terms:['chicken','duck','egg','salmon','trout','turkey'], direct_evidence_ingredient_terms:['chicken','duck','egg','salmon','trout','turkey'], flavor_associated_ingredient_terms:[], reviewed_not_found_ingredient_terms:[], insufficient_evidence_ingredient_terms:[] },
+  { product_id:GO, variant_id:'variant_ef17fc65c5430cca', package_size_text:'3.63 kg', package_weight_g:3630, units_per_sale:1, sale_total_weight_g:3630, sales_bundle_status:'not_a_bundle', display_rank:2, variant_count:3, formula_evidence_status:'confirmed', recipe_families:['poultry'], recipe_details:['chicken','duck','turkey'], official_recipe_traits:['grain_free'], ingredient_term_result_count:23, confirmed_present_ingredient_terms:['chicken','duck','egg','salmon','trout','turkey'], direct_evidence_ingredient_terms:['chicken','duck','egg','salmon','trout','turkey'], flavor_associated_ingredient_terms:[], reviewed_not_found_ingredient_terms:[], insufficient_evidence_ingredient_terms:[] },
+  { product_id:GO, variant_id:'variant_90a3f62d58c8f704', package_size_text:'7.26 kg', package_weight_g:7260, units_per_sale:1, sale_total_weight_g:7260, sales_bundle_status:'not_a_bundle', display_rank:3, variant_count:3, formula_evidence_status:'confirmed', recipe_families:['poultry'], recipe_details:['chicken','duck','turkey'], official_recipe_traits:['grain_free'], ingredient_term_result_count:23, confirmed_present_ingredient_terms:['chicken','duck','egg','salmon','trout','turkey'], direct_evidence_ingredient_terms:['chicken','duck','egg','salmon','trout','turkey'], flavor_associated_ingredient_terms:[], reviewed_not_found_ingredient_terms:[], insufficient_evidence_ingredient_terms:[] },
+]
+
+const NUTRITION = [
+  { product_id:MONGE, variant_id:null, observation_scope:'product', market_code:'KR', panel_type:'source_declaration', protein_pct:36, protein_qualifier:'min', fat_pct:10, fat_qualifier:'min', fiber_pct:3.5, fiber_qualifier:'max', moisture_pct:5.5, moisture_qualifier:'max', ash_pct:7.5, ash_qualifier:'max', kcal_per_kg:null, kcal_per_100g:null, energy_basis:null, is_korea_market_observation:true, is_current_resolved_formula:false, additional_nutrients:[{unit:'%',amount:1,raw_name:'Calcium',qualifier:'min',nutrient_key:'calcium'},{unit:'%',amount:0.9,raw_name:'Phosphorus',qualifier:'min',nutrient_key:'phosphorus'}], supplemental_nutrition_fields:[], supplemental_observation_scope:null, supplemental_market_code:null, supplemental_is_current_resolved_formula:false, basis_specific_nutrition_basis:null, basis_specific_nutrition_values:null },
+  { product_id:GO, variant_id:null, observation_scope:'product', market_code:'KR', panel_type:'source_declaration', protein_pct:46, protein_qualifier:'min', fat_pct:18, fat_qualifier:'min', fiber_pct:1.5, fiber_qualifier:'max', moisture_pct:10, moisture_qualifier:'max', ash_pct:9, ash_qualifier:'max', kcal_per_kg:4298, kcal_per_100g:null, energy_basis:'direct_manufacturer', is_korea_market_observation:true, is_current_resolved_formula:false, additional_nutrients:[{unit:'%',amount:1.6,raw_name:'Calcium',qualifier:'min',nutrient_key:'calcium'},{unit:'%',amount:1.1,raw_name:'Phosphorus',qualifier:'min',nutrient_key:'phosphorus'}], supplemental_nutrition_fields:['energy'], supplemental_observation_scope:'formula', supplemental_market_code:null, supplemental_is_current_resolved_formula:true, basis_specific_nutrition_basis:null, basis_specific_nutrition_values:null },
+]
+
+const GO_INGREDIENTS = ['chicken meal','de-boned chicken','de-boned turkey','duck meal','turkey meal','salmon meal','de-boned trout','chicken fat (preserved with mixed tocopherols)','natural fish flavour','peas','potatoes','whole dried egg','potato flour','tapioca','de-boned salmon','de-boned duck','salmon oil','pumpkin','apples','carrots','bananas','blueberries','cranberries','lentils','broccoli','cottage cheese','suncured alfalfa','sweet potatoes','blackberries','squash','papayas','pomegranate','phosphoric acid','salt','potassium chloride','DL-methionine','taurine','choline chloride','dried chicory root','dried Lactobacillus acidophilus fermentation product','dried Enterococcus faecium fermentation product','dried Aspergillus oryzae fermentation extract','dried Bacillus subtilis fermentation extract','vitamins (vitamin E supplement, niacin, L-ascorbyl-2-polyphosphate (a source of vitamin C), thiamine mononitrate, biotin, vitamin A supplement, d-calcium pantothenate, beta-carotene, riboflavin, pyridoxine hydrochloride, vitamin B12 supplement, vitamin D3 supplement, folic acid)','minerals (zinc proteinate, ferrous sulphate, zinc oxide, iron proteinate, copper sulphate, sodium selenite, copper proteinate, manganese proteinate, manganous oxide, calcium iodate)','yucca schidigera extract','dried rosemary']
+const INGREDIENTS = [
+  { product_id:MONGE, variant_id:null, observation_scope:'product', market_code:'KR', declaration_scope:'trusted_specialty_retailer', completeness_status:'partial', raw_text:'수분을 제거한 연어 38%, 신선한 닭고기 15%, 천연 항산화제로 보존된 닭고기 오일 13%, 감자, 완두콩, 감자 단백질, 가수분해된 동물성 단백질(돼지), 사탕무우박, 천연 항산화제로 보존된 연어 오일, 맥주 효모, 완두 섬유, 미네랄, 만난올리고당, 스피룰리나 등', ingredient_names:[], ingredient_count:0, is_korea_market_observation:true, is_current_resolved_formula:false, supplemental_full_raw_text:null, supplemental_full_ingredient_names:[], supplemental_full_ingredient_count:0, supplemental_observation_scope:null, supplemental_market_code:null, supplemental_is_current_resolved_formula:false },
+  { product_id:GO, variant_id:null, observation_scope:'formula', market_code:null, declaration_scope:null, completeness_status:'full', raw_text:GO_INGREDIENTS.join(', '), ingredient_names:GO_INGREDIENTS, ingredient_count:47, is_korea_market_observation:false, is_current_resolved_formula:true, supplemental_full_raw_text:null, supplemental_full_ingredient_names:[], supplemental_full_ingredient_count:0, supplemental_observation_scope:null, supplemental_market_code:null, supplemental_is_current_resolved_formula:false },
+]
+
+const MANUFACTURING = [
+  { product_id:MONGE, observation_scope:'product', country_code:'IT', manufacturer:'Monge & C. S.p.A.', plant:'Via Savigliano 31, 12030 Monasterolo di Savigliano (CN), Italy', is_current_resolved_formula:false },
+  { product_id:GO, observation_scope:'product', country_code:'CA', manufacturer:null, plant:null, is_current_resolved_formula:false },
+]
+const MARKETS = [
+  [MONGE,'AU','distribution_not_confirmed','not_found',1],[MONGE,'CA','distribution_not_confirmed','not_found',2],[MONGE,'IT','current_product_confirmed','exact_same',3],[MONGE,'NZ','distribution_not_confirmed','not_found',4],[MONGE,'US','distribution_not_confirmed','not_found',5],
+  [GO,'AU','distribution_not_confirmed','not_found',1],[GO,'CA','current_product_confirmed','same_formula_different_package',2],[GO,'FR','current_product_confirmed','same_formula_different_package',3],[GO,'GB','distribution_not_confirmed','not_found',4],[GO,'NZ','current_product_confirmed','same_formula_different_package',5],[GO,'US','current_product_confirmed','same_formula_different_package',6],
+].map(([product_id,country_code,distribution_status,formula_correspondence_status,display_rank]) => ({ product_id,country_code,distribution_status,formula_correspondence_status,counterpart_name:null,assessed_at:'2026-08-25',display_rank }))
 const outDir = 'qa-output'
 await mkdir(outDir, { recursive: true })
 
 const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome'
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox'] })
-const liveApi = await playwrightRequest.newContext({
-  extraHTTPHeaders: {
-    apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
-    'Accept-Profile': 'api',
-  },
-})
 const report = {
   sourceSha: process.env.EXPECTED_SHA,
   blockedWrites: [],
@@ -54,20 +107,12 @@ async function makePage(width, height) {
     let pathname = ''
     try { pathname = new URL(url).pathname } catch {}
     const key = pathname.split('/').at(-1) || pathname
-    const isLiveRest = url.startsWith((process.env.VITE_SUPABASE_URL || '') + '/rest/v1/')
-    if (isLiveRest && method === 'OPTIONS') {
-      await route.fulfill({
-        status: 204,
-        headers: {
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, HEAD, OPTIONS',
-          'access-control-allow-headers': 'apikey, accept-profile, content-type',
-        },
-        body: '',
-      })
+    const isRest = url.includes('/rest/v1/')
+    if (isRest && method === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: '' })
       return
     }
-    if (isLiveRest) requestCounts.set(key, (requestCounts.get(key) || 0) + 1)
+    if (isRest) requestCounts.set(key, (requestCounts.get(key) || 0) + 1)
 
     if (mode.nutritionFirstFailure && key === 'compare_product_nutrition' && requestCounts.get(key) === 1) {
       await route.fulfill({ status: 503, contentType: 'text/plain', body: 'candidate mock failure' })
@@ -77,26 +122,26 @@ async function makePage(width, height) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
       return
     }
-    if (mode.variantDelayMs && key === 'switch_current_variant_options' && requestCounts.get(key) === 1) {
-      const response = await liveApi.get(url)
-      await new Promise((resolve) => setTimeout(resolve, mode.variantDelayMs))
-      await route.fulfill({
-        status: response.status(),
-        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
-        body: await response.body(),
-      })
+
+    if (isRest && ['GET', 'HEAD'].includes(method)) {
+      const parsed = new URL(url)
+      const filter = parsed.searchParams.get('product_id')
+      const id = filter?.startsWith('eq.') ? filter.slice(3) : filter?.startsWith('in.(') ? filter.slice(4, -1).split(',')[0] : null
+      let payload
+      if (key === 'effective_product_catalog_summary') payload = PRODUCTS
+      else if (key === 'switch_current_variant_options') payload = id ? VARIANTS.filter((row) => row.product_id === id) : VARIANTS
+      else if (key === 'compare_product_nutrition') payload = NUTRITION.filter((row) => !id || row.product_id === id)
+      else if (key === 'compare_product_ingredients') payload = INGREDIENTS.filter((row) => !id || row.product_id === id)
+      else if (key === 'product_detail_manufacturing') payload = MANUFACTURING.filter((row) => !id || row.product_id === id)
+      else if (key === 'product_detail_markets') payload = MARKETS.filter((row) => !id || row.product_id === id)
+      else payload = []
+      if (mode.variantDelayMs && key === 'switch_current_variant_options' && id && requestCounts.get(key) === 2) {
+        await new Promise((resolve) => setTimeout(resolve, mode.variantDelayMs))
+      }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) })
       return
     }
-    if (isLiveRest && ['GET', 'HEAD'].includes(method)) {
-      const response = method === 'HEAD' ? await liveApi.head(url) : await liveApi.get(url)
-      await route.fulfill({
-        status: response.status(),
-        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
-        body: method === 'HEAD' ? '' : await response.body(),
-      })
-      return
-    }
-    await route.continue()
+
   })
   return page
 }
@@ -358,5 +403,4 @@ mode.variantDelayMs = 1200
 assert.equal(report.blockedWrites.length, 0, 'candidate attempted no POST/PUT/PATCH/DELETE requests with decision intake disabled')
 await writeFile(`${outDir}/report.json`, JSON.stringify(report, null, 2))
 console.log('CATFOOD_DETAIL_QA_REPORT=' + JSON.stringify(report))
-await liveApi.dispose()
 await browser.close()

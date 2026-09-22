@@ -1,0 +1,49 @@
+name: PR49 narrow postdeploy QA
+
+on:
+  push:
+    branches:
+      - qa/pr49-postdeploy-20260922
+
+permissions:
+  contents: read
+
+jobs:
+  postdeploy:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_MERGE_SHA: dbff5669ac717b61ed0e50986991d69b2707f977
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: qa/pr49-postdeploy-20260922
+          persist-credentials: false
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/catfood-pr49-postdeploy
+          cp qa/pr49-postdeploy.mjs /tmp/catfood-pr49-postdeploy/
+          cd /tmp/catfood-pr49-postdeploy
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Run narrow deployed Pages QA
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/qa-output" node /tmp/catfood-pr49-postdeploy/pr49-postdeploy.mjs
+
+      - name: Upload report and original screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr49-narrow-postdeploy
+          path: qa-output
+          if-no-files-found: error
+          retention-days: 7

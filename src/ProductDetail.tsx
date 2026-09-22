@@ -269,7 +269,7 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
   return <main className="detail-stage" ref={stageRef}>
     <header className="detail-topbar" ref={topbarRef}>
       <strong className="detail-wordmark">CATFOOD</strong>
-      <button type="button" onClick={onClose}>← 제품 목록</button>
+      <button type="button" onClick={onClose}>← 돌아가기 · 제품 목록</button>
     </header>
     <div className="detail-layout">
       <aside className="detail-identity">

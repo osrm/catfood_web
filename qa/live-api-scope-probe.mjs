@@ -106,8 +106,9 @@ try {
       status: item.response.status,
       body: item.response.body,
     }))
-    const first = JSON.stringify(comparable[0])
-    const sameRequestAndResponse = comparable.every((item) => JSON.stringify(item) === first)
+    const comparableValues = comparable.map(({ label: _label, ...item }) => item)
+    const first = JSON.stringify(comparableValues[0])
+    const sameRequestAndResponse = comparableValues.every((item) => JSON.stringify(item) === first)
 
     const report = {
       generatedAt: new Date().toISOString(),

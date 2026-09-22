@@ -72,7 +72,9 @@ const browser = await chromium.launch({ headless: true, executablePath, args: ['
 const report = {
   sourceSha: process.env.EXPECTED_SHA,
   blockedWrites: [],
-  live: [],
+  blockedAnalytics: [],
+  liveApi: [],
+  fixture: [],
   breakpoints: [],
   interactions: {},
   mockedStates: {},
@@ -93,7 +95,7 @@ function resetMode() {
   requestCounts.clear()
 }
 
-async function makePage(width, height) {
+async function makePage(width, height, { mockApi = true } = {}) {
   const page = await browser.newPage({ viewport: { width, height } })
   await page.route('**/*', async (route) => {
     const request = route.request()
@@ -104,10 +106,19 @@ async function makePage(width, height) {
       await route.abort('blockedbyclient')
       return
     }
+    if (/\/functions\/v1\/|analytics|telemetry|event_log/i.test(url)) {
+      report.blockedAnalytics.push({ method, url })
+      await route.abort('blockedbyclient')
+      return
+    }
     let pathname = ''
     try { pathname = new URL(url).pathname } catch {}
     const key = pathname.split('/').at(-1) || pathname
     const isRest = url.includes('/rest/v1/')
+    if (!mockApi) {
+      await route.continue()
+      return
+    }
     if (isRest && method === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: '' })
       return
@@ -142,6 +153,7 @@ async function makePage(width, height) {
       return
     }
 
+    await route.continue()
   })
   return page
 }
@@ -204,9 +216,9 @@ async function metrics(page) {
   })
 }
 
-async function captureAllTabs(id, query, productTag, width, height) {
+async function captureAllTabs(id, query, productTag, width, height, { mockApi = true, bucket = 'fixture' } = {}) {
   resetMode()
-  const page = await makePage(width, height)
+  const page = await makePage(width, height, { mockApi })
   await page.goto(detailUrl(id, query), { waitUntil: 'commit', timeout: 20000 })
   await waitDetail(page)
   const initial = await metrics(page)
@@ -237,10 +249,10 @@ async function captureAllTabs(id, query, productTag, width, height) {
     })
     assert.ok(alignment?.ok, `${productTag} ${width} ${key}: switched heading is not hidden by sticky tabs`)
     panels[key] = (await page.locator('.detail-body').innerText()).slice(0, 1800)
-    await page.screenshot({ path: `${outDir}/${productTag}-${key}-${width}.png`, fullPage: false })
+    await page.screenshot({ path: `${outDir}/${bucket}-${productTag}-${key}-${width}.png`, fullPage: false })
   }
   const after = await metrics(page)
-  report.live.push({ product: productTag, id, width, height, initial, after, panels })
+  report[bucket].push({ product: productTag, id, width, height, initial, after, panels })
   await page.close()
 }
 
@@ -248,9 +260,10 @@ for (const product of [
   { id: GO, query: 'GO!', tag: 'go' },
   { id: MONGE, query: '몬지', tag: 'monge' },
 ]) {
-  await captureAllTabs(product.id, product.query, product.tag, 390, 844)
-  await captureAllTabs(product.id, product.query, product.tag, 1440, 1000)
+  await captureAllTabs(product.id, product.query, product.tag, 390, 844, { mockApi: false, bucket: 'liveApi' })
+  await captureAllTabs(product.id, product.query, product.tag, 1440, 1000, { mockApi: false, bucket: 'liveApi' })
 }
+await captureAllTabs(MONGE, '몬지', 'monge', 360, 800, { mockApi: false, bucket: 'liveApi' })
 
 for (const width of [360, 768, 959, 961, 1024]) {
   resetMode()

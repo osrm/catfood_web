@@ -74,6 +74,7 @@ const report = {
   blockedWrites: [],
   blockedAnalytics: [],
   liveApiRequests: [],
+  liveApiProbe: null,
   liveApi: [],
   fixture: [],
   breakpoints: [],
@@ -290,14 +291,45 @@ async function captureAllTabs(id, query, productTag, width, height, { mockApi = 
   await page.close()
 }
 
-for (const product of [
+async function probeLiveApi() {
+  const base = (process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
+  const url = new URL(base + '/rest/v1/effective_product_catalog_summary')
+  url.searchParams.set('select', 'product_id')
+  url.searchParams.set('product_id', `in.(${GO},${MONGE})`)
+  url.searchParams.set('limit', '2')
+  try {
+    const response = await fetch(url, {
+      headers: {
+        apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
+        'Accept-Profile': 'api',
+      },
+    })
+    const body = await response.text()
+    return { ok: response.ok, status: response.status, body: body.slice(0, 500) }
+  } catch (error) {
+    return { ok: false, status: null, body: String(error) }
+  }
+}
+
+const representativeProducts = [
   { id: GO, query: 'GO!', tag: 'go' },
   { id: MONGE, query: '몬지', tag: 'monge' },
-]) {
-  await captureAllTabs(product.id, product.query, product.tag, 390, 844, { mockApi: false, bucket: 'liveApi' })
-  await captureAllTabs(product.id, product.query, product.tag, 1440, 1000, { mockApi: false, bucket: 'liveApi' })
+]
+report.liveApiProbe = await probeLiveApi()
+
+if (report.liveApiProbe.ok) {
+  for (const product of representativeProducts) {
+    await captureAllTabs(product.id, product.query, product.tag, 390, 844, { mockApi: false, bucket: 'liveApi' })
+    await captureAllTabs(product.id, product.query, product.tag, 1440, 1000, { mockApi: false, bucket: 'liveApi' })
+  }
+  await captureAllTabs(MONGE, '몬지', 'monge', 360, 800, { mockApi: false, bucket: 'liveApi' })
 }
-await captureAllTabs(MONGE, '몬지', 'monge', 360, 800, { mockApi: false, bucket: 'liveApi' })
+
+for (const product of representativeProducts) {
+  await captureAllTabs(product.id, product.query, product.tag, 390, 844, { mockApi: true, bucket: 'fixture' })
+  await captureAllTabs(product.id, product.query, product.tag, 1440, 1000, { mockApi: true, bucket: 'fixture' })
+}
+await captureAllTabs(MONGE, '몬지', 'monge', 360, 800, { mockApi: true, bucket: 'fixture' })
 
 for (const width of [360, 768, 959, 961, 1024]) {
   resetMode()

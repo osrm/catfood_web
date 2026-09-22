@@ -212,6 +212,33 @@ function detailUrl(id, query, tab = 'overview') {
   return BASE + '?' + params.toString()
 }
 
+async function tabUntil(page, selector, maxTabs = 8) {
+  for (let index = 0; index < maxTabs; index += 1) {
+    await page.keyboard.press('Tab')
+    const matched = await page.evaluate((target) => document.activeElement?.matches(target) || false, selector)
+    if (matched) return index + 1
+  }
+  throw new Error(`keyboard Tab did not reach ${selector}`)
+}
+
+async function focusMetrics(page, selector) {
+  return page.evaluate((target) => {
+    const element = document.querySelector(target)
+    if (!(element instanceof HTMLElement)) return null
+    const rect = element.getBoundingClientRect()
+    const style = getComputedStyle(element)
+    return {
+      tag: element.tagName,
+      text: element.textContent?.trim() || '',
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+      boxShadow: style.boxShadow,
+      rect: { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height },
+      clipped: rect.top < -1 || rect.left < -1 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1,
+    }
+  }, selector)
+}
+
 async function waitDetail(page, { settled = true } = {}) {
   try {
     await page.waitForSelector('.detail-stage', { timeout: 12000 })
@@ -413,19 +440,125 @@ mode.nutritionFirstFailure = true
   await page.waitForSelector('.detail-stage')
   await page.waitForSelector('.detail-state.is-error', { timeout: 20000 })
   const errorText = await page.locator('.detail-state.is-error').innerText()
+  const mobileLayout = await page.evaluate(() => {
+    const box = document.querySelector('.detail-state.is-error')
+    const paragraph = box?.querySelector('p')
+    const button = box?.querySelector('button')
+    if (!(box instanceof HTMLElement) || !(paragraph instanceof HTMLElement) || !(button instanceof HTMLElement)) return null
+    const boxStyle = getComputedStyle(box)
+    const paragraphStyle = getComputedStyle(paragraph)
+    const buttonStyle = getComputedStyle(button)
+    const p = paragraph.getBoundingClientRect()
+    const b = button.getBoundingClientRect()
+    return {
+      flexDirection: boxStyle.flexDirection,
+      rowGap: boxStyle.rowGap,
+      paragraphFlexGrow: paragraphStyle.flexGrow,
+      paragraphFlexShrink: paragraphStyle.flexShrink,
+      paragraphFlexBasis: paragraphStyle.flexBasis,
+      paragraphHeight: p.height,
+      buttonMinHeight: buttonStyle.minHeight,
+      buttonHeight: b.height,
+      visualGap: b.top - p.bottom,
+    }
+  })
+  assert.equal(mobileLayout?.flexDirection, 'column')
+  assert.equal(mobileLayout?.paragraphFlexGrow, '0')
+  assert.notEqual(mobileLayout?.paragraphFlexBasis, '220px')
+  assert.ok((mobileLayout?.visualGap ?? 999) <= 24, 'mobile error copy and retry stay compact')
+  assert.ok((mobileLayout?.buttonHeight ?? 0) >= 44, 'retry keeps at least a 44px target')
   await page.screenshot({ path: `${outDir}/mock-error-390.png`, fullPage: false })
   assert.match(errorText, /영양 정보를 불러오지 못했습니다/)
   assert.match(errorText, /다시 시도/)
   assert.doesNotMatch(await page.locator('.detail-body').innerText(), /확인된 영양 정보가 없습니다/)
+
+  await page.focus('#detail-tab-nutrition')
+  const tabsToRetry = await tabUntil(page, '.detail-state.is-error button', 5)
+  const retryFocus = await focusMetrics(page, '.detail-state.is-error button')
+  assert.equal(retryFocus?.clipped, false, 'retry focus is not clipped')
+  assert.ok(retryFocus?.outlineStyle !== 'none' || retryFocus?.boxShadow !== 'none', 'retry has a visible keyboard focus treatment')
+
   const beforeRetry = Object.fromEntries(requestCounts)
-  await page.click('.detail-state.is-error button')
+  await page.keyboard.press('Enter')
   await page.waitForFunction(() => !document.querySelector('.detail-state.is-error') && ![...document.querySelectorAll('.detail-state')].some((node) => node.textContent?.includes('불러오는 중')), null, { timeout: 20000 })
   const afterRetry = Object.fromEntries(requestCounts)
   for (const key of ['switch_current_variant_options','compare_product_nutrition','compare_product_ingredients','product_detail_manufacturing','product_detail_markets']) {
     assert.ok((afterRetry[key] || 0) >= (beforeRetry[key] || 0) + 1, `retry reloads ${key}`)
   }
-  report.mockedStates.error = { errorText, beforeRetry, afterRetry }
+  report.mockedStates.error = { errorText, mobileLayout, tabsToRetry, retryFocus, beforeRetry, afterRetry }
   await page.screenshot({ path: `${outDir}/mock-error-recovered-390.png`, fullPage: false })
+  await page.close()
+}
+
+resetMode()
+mode.nutritionFirstFailure = true
+{
+  const page = await makePage(1440, 1000)
+  await page.goto(detailUrl(GO, 'GO!', 'nutrition'), { waitUntil: 'commit', timeout: 20000 })
+  await page.waitForSelector('.detail-state.is-error', { timeout: 20000 })
+  const desktopLayout = await page.evaluate(() => {
+    const box = document.querySelector('.detail-state.is-error')
+    const paragraph = box?.querySelector('p')
+    const button = box?.querySelector('button')
+    if (!(box instanceof HTMLElement) || !(paragraph instanceof HTMLElement) || !(button instanceof HTMLElement)) return null
+    const boxStyle = getComputedStyle(box)
+    const p = paragraph.getBoundingClientRect()
+    const b = button.getBoundingClientRect()
+    return {
+      flexDirection: boxStyle.flexDirection,
+      paragraphTop: p.top,
+      paragraphBottom: p.bottom,
+      buttonTop: b.top,
+      buttonBottom: b.bottom,
+      buttonHeight: b.height,
+      sameRow: Math.min(p.bottom, b.bottom) - Math.max(p.top, b.top) > 0,
+    }
+  })
+  assert.equal(desktopLayout?.flexDirection, 'row')
+  assert.equal(desktopLayout?.sameRow, true, 'desktop error copy and retry share the row')
+  assert.ok((desktopLayout?.buttonHeight ?? 0) >= 44, 'desktop retry keeps at least a 44px target')
+  report.mockedStates.errorDesktop = desktopLayout
+  await page.screenshot({ path: `${outDir}/mock-error-1440.png`, fullPage: false })
+  await page.close()
+}
+
+resetMode()
+{
+  const page = await makePage(390, 844)
+  await page.goto(detailUrl(MONGE, '몬지', 'overview'), { waitUntil: 'commit', timeout: 20000 })
+  await waitDetail(page)
+  const overviewText = await page.locator('.detail-body').innerText()
+  assert.match(overviewText, /원재료와 출처 원문 →/)
+  assert.doesNotMatch(overviewText, /전체 원재료와 출처 원문 →/)
+
+  await page.focus('#detail-tab-overview')
+  const tabsToDisclosure = await tabUntil(page, 'summary.detail-disclosure', 6)
+  const disclosureFocus = await focusMetrics(page, 'summary.detail-disclosure')
+  assert.equal(disclosureFocus?.clipped, false, 'disclosure focus is not clipped')
+  assert.ok(disclosureFocus?.outlineStyle !== 'none' || disclosureFocus?.boxShadow !== 'none', 'disclosure has visible keyboard focus')
+  await page.keyboard.press('Enter')
+  assert.equal(await page.locator('details.detail-disclosure').first().getAttribute('open') !== null, true, 'keyboard activates disclosure')
+
+  const tabsToIngredientLink = await tabUntil(page, '.detail-inline-link', 4)
+  const ingredientLinkFocus = await focusMetrics(page, '.detail-inline-link')
+  assert.equal(ingredientLinkFocus?.clipped, false, 'ingredient detail link focus is not clipped')
+  await page.keyboard.press('Enter')
+  await page.waitForFunction(() => document.querySelector('#detail-tab-ingredients')?.getAttribute('aria-selected') === 'true')
+  const ingredientText = await page.locator('.detail-body').innerText()
+  assert.match(ingredientText, /목록에 없는 원료도 포함될 수 있습니다/)
+  assert.match(ingredientText, /출처 원문/)
+  assert.doesNotMatch(ingredientText, /보조 전체 목록/)
+
+  report.interactions.mongePartial = {
+    overviewLink: '원재료와 출처 원문 →',
+    tabsToDisclosure,
+    disclosureFocus,
+    tabsToIngredientLink,
+    ingredientLinkFocus,
+    partialNotice: true,
+    supplementalAbsent: true,
+  }
+  await page.screenshot({ path: `${outDir}/fixture-monge-overview-390.png`, fullPage: false })
   await page.close()
 }
 
@@ -494,8 +627,10 @@ console.log('CATFOOD_DETAIL_QA_REPORT=' + JSON.stringify(report))
 for (const name of [
   'fixture-go-overview-390.png',
   'fixture-go-overview-1440.png',
+  'fixture-monge-overview-390.png',
   'fixture-monge-ingredients-390.png',
   'mock-error-390.png',
+  'mock-error-1440.png',
 ]) {
   const data = await readFile(`${outDir}/${name}`)
   console.log(`CATFOOD_DETAIL_QA_IMAGE=${name}:${data.toString('base64')}`)

@@ -225,6 +225,8 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
   assert.match(document.querySelector('.detail-identity h1').textContent, /아주 긴 제품 이름도 줄임표 없이 모두 보여 주는 테스트용 고양이 사료/)
   assert.match(document.body.textContent, /이미지 없음/)
   assert.match(document.body.textContent, /85 g × 6/)
+  assert.match(document.body.textContent, /원재료와 출처 원문 →/)
+  assert.doesNotMatch(document.body.textContent, /전체 원재료와 출처 원문 →/)
   const packageDisclosure = [...document.querySelectorAll('summary')].find((node) => node.textContent.includes('판매 단위와 총중량'))
   assert.ok(packageDisclosure)
   packageDisclosure.parentElement.open = true

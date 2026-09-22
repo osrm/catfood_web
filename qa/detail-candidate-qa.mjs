@@ -40,7 +40,7 @@ async function makePage(width, height) {
     const request = route.request()
     const method = request.method()
     const url = request.url()
-    if (!['GET', 'HEAD'].includes(method)) {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
       report.blockedWrites.push({ method, url })
       await route.abort('blockedbyclient')
       return

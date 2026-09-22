@@ -184,9 +184,15 @@ test('detail separates dry-matter evidence from standard nutrition and leaves tr
   assert.match(text, /3,772 kcal\/kg/)
   assert.match(text, /건물 기준 자료만 확인/)
   assert.match(text, /수분을 제거한 기준의 영양자료만 확인됐습니다/)
-  assert.match(text, /단백질 · 건물 기준\(Dry Matter\)34\.3%/)
-  assert.match(text, /지방 · 건물 기준\(Dry Matter\)20\.4%/)
-  assert.match(text, /조섬유 · 건물 기준\(Dry Matter\)8\.6%/)
+  const basisRows = [...document.querySelectorAll('.detail-basis-block .detail-nutrition-row')].map((row) => [
+    row.querySelector('span')?.textContent?.trim(),
+    row.querySelector('strong')?.textContent?.trim(),
+  ])
+  assert.deepEqual(basisRows, [
+    ['단백질', '34.3%'],
+    ['지방', '20.4%'],
+    ['조섬유', '8.6%'],
+  ])
   assert.match(text, /수분미확인/)
   assert.match(text, /조회분미확인/)
   const nutritionRequest = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition'))

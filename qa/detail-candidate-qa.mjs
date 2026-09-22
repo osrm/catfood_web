@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { chromium, request as playwrightRequest } from 'playwright-core'
+import { chromium } from 'playwright-core'
 
 const BASE = 'http://127.0.0.1:4173/'
 const GO = 'product_31bc515d78d43d5d'
@@ -69,12 +69,6 @@ await mkdir(outDir, { recursive: true })
 
 const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome'
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox'] })
-const liveApi = await playwrightRequest.newContext({
-  extraHTTPHeaders: {
-    apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
-    'Accept-Profile': 'api',
-  },
-})
 const report = {
   sourceSha: process.env.EXPECTED_SHA,
   blockedWrites: [],
@@ -136,15 +130,21 @@ async function makePage(width, height, { mockApi = true } = {}) {
     }
     if (!mockApi && isRest && ['GET', 'HEAD'].includes(method)) {
       report.liveApiRequests.push({ method, key })
-      const response = method === 'HEAD' ? await liveApi.head(url) : await liveApi.get(url)
-      const body = method === 'HEAD' ? Buffer.from('') : await response.body()
-      report.liveApiRequests.at(-1).status = response.status()
-      if (!response.ok()) {
-        throw new Error(`live API ${key} ${response.status()}: ${body.toString('utf8').slice(0, 300)}`)
+      const response = await fetch(url, {
+        method,
+        headers: {
+          apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
+          'Accept-Profile': 'api',
+        },
+      })
+      const body = method === 'HEAD' ? Buffer.from('') : Buffer.from(await response.arrayBuffer())
+      report.liveApiRequests.at(-1).status = response.status
+      if (!response.ok) {
+        throw new Error(`live API ${key} ${response.status}: ${body.toString('utf8').slice(0, 300)}`)
       }
       await route.fulfill({
-        status: response.status(),
-        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+        status: response.status,
+        headers: { ...Object.fromEntries(response.headers), 'access-control-allow-origin': '*' },
         body,
       })
       return
@@ -450,5 +450,4 @@ mode.variantDelayMs = 1200
 assert.equal(report.blockedWrites.length, 0, 'candidate attempted no POST/PUT/PATCH/DELETE requests with decision intake disabled')
 await writeFile(`${outDir}/report.json`, JSON.stringify(report, null, 2))
 console.log('CATFOOD_DETAIL_QA_REPORT=' + JSON.stringify(report))
-await liveApi.dispose()
 await browser.close()

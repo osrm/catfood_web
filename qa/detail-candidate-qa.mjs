@@ -137,10 +137,15 @@ async function makePage(width, height, { mockApi = true } = {}) {
     if (!mockApi && isRest && ['GET', 'HEAD'].includes(method)) {
       report.liveApiRequests.push({ method, key })
       const response = method === 'HEAD' ? await liveApi.head(url) : await liveApi.get(url)
+      const body = method === 'HEAD' ? Buffer.from('') : await response.body()
+      report.liveApiRequests.at(-1).status = response.status()
+      if (!response.ok()) {
+        throw new Error(`live API ${key} ${response.status()}: ${body.toString('utf8').slice(0, 300)}`)
+      }
       await route.fulfill({
         status: response.status(),
         headers: { ...response.headers(), 'access-control-allow-origin': '*' },
-        body: method === 'HEAD' ? '' : await response.body(),
+        body,
       })
       return
     }

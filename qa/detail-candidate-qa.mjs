@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { chromium } from 'playwright-core'
+import { chromium, request as playwrightRequest } from 'playwright-core'
 
 const BASE = 'http://127.0.0.1:4173/'
 const GO = 'product_31bc515d78d43d5d'
@@ -10,6 +10,12 @@ await mkdir(outDir, { recursive: true })
 
 const executablePath = process.env.CHROME_PATH || '/usr/bin/google-chrome'
 const browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox'] })
+const liveApi = await playwrightRequest.newContext({
+  extraHTTPHeaders: {
+    apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
+    'Accept-Profile': 'api',
+  },
+})
 const report = {
   sourceSha: process.env.EXPECTED_SHA,
   blockedWrites: [],
@@ -48,7 +54,20 @@ async function makePage(width, height) {
     let pathname = ''
     try { pathname = new URL(url).pathname } catch {}
     const key = pathname.split('/').at(-1) || pathname
-    if (pathname.includes('/rest/v1/')) requestCounts.set(key, (requestCounts.get(key) || 0) + 1)
+    const isLiveRest = url.startsWith((process.env.VITE_SUPABASE_URL || '') + '/rest/v1/')
+    if (isLiveRest && method === 'OPTIONS') {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+          'access-control-allow-headers': 'apikey, accept-profile, content-type',
+        },
+        body: '',
+      })
+      return
+    }
+    if (isLiveRest) requestCounts.set(key, (requestCounts.get(key) || 0) + 1)
 
     if (mode.nutritionFirstFailure && key === 'compare_product_nutrition' && requestCounts.get(key) === 1) {
       await route.fulfill({ status: 503, contentType: 'text/plain', body: 'candidate mock failure' })
@@ -59,9 +78,22 @@ async function makePage(width, height) {
       return
     }
     if (mode.variantDelayMs && key === 'switch_current_variant_options' && requestCounts.get(key) === 1) {
-      const response = await route.fetch()
+      const response = await liveApi.get(url)
       await new Promise((resolve) => setTimeout(resolve, mode.variantDelayMs))
-      await route.fulfill({ response })
+      await route.fulfill({
+        status: response.status(),
+        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+        body: await response.body(),
+      })
+      return
+    }
+    if (isLiveRest && ['GET', 'HEAD'].includes(method)) {
+      const response = method === 'HEAD' ? await liveApi.head(url) : await liveApi.get(url)
+      await route.fulfill({
+        status: response.status(),
+        headers: { ...response.headers(), 'access-control-allow-origin': '*' },
+        body: method === 'HEAD' ? '' : await response.body(),
+      })
       return
     }
     await route.continue()
@@ -326,4 +358,5 @@ mode.variantDelayMs = 1200
 assert.equal(report.blockedWrites.length, 0, 'candidate attempted no POST/PUT/PATCH/DELETE requests with decision intake disabled')
 await writeFile(`${outDir}/report.json`, JSON.stringify(report, null, 2))
 console.log('CATFOOD_DETAIL_QA_REPORT=' + JSON.stringify(report))
+await liveApi.dispose()
 await browser.close()

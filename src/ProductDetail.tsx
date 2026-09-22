@@ -327,7 +327,7 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
                   {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
                   {hasSupplementalFullIngredients ? <Fact label="전체 목록 보완" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}
                 </div>
-                <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>전체 원재료와 출처 원문 →</button>
+                <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>원재료와 출처 원문 →</button>
               </> : null}
               {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
             </section>

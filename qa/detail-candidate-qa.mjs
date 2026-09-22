@@ -81,7 +81,18 @@ function detailUrl(id, query, tab = 'overview') {
 }
 
 async function waitDetail(page, { settled = true } = {}) {
-  await page.waitForSelector('.detail-stage', { timeout: 20000 })
+  try {
+    await page.waitForSelector('.detail-stage', { timeout: 12000 })
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      url: location.href,
+      body: document.body.innerText.slice(0, 5000),
+      html: document.body.innerHTML.slice(0, 5000),
+    }))
+    await writeFile(`${outDir}/detail-timeout.json`, JSON.stringify(diagnostic, null, 2))
+    await page.screenshot({ path: `${outDir}/detail-timeout.png`, fullPage: false })
+    throw new Error(`detail-stage did not open: ${JSON.stringify(diagnostic)}; ${error}`)
+  }
   await page.waitForSelector('.detail-identity h1', { timeout: 10000 })
   if (settled) {
     await page.waitForFunction(() => ![...document.querySelectorAll('.detail-state')].some((node) => node.textContent?.includes('불러오는 중')), null, { timeout: 20000 })

@@ -1,4 +1,4 @@
-.home-knowledge-shell {
+.home-shell.home-knowledge-shell {
   --home-ink: #292e2a;
   --home-accent: #6f3328;
   --home-warm: #7a664f;
@@ -13,6 +13,7 @@
 
 .home-knowledge-shell .home-header {
   height: 68px;
+  flex-shrink: 0;
   border-bottom-color: var(--home-line);
   background: rgba(251, 250, 246, 0.96);
 }

@@ -1,0 +1,90 @@
+name: PR52 HOME CSS candidate QA
+
+on:
+  push:
+    branches:
+      - qa/pr52-home-css-candidate-20260923
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-qa:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 3e88cb743ad2cef51bdb8afd037d8219c868b47a
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - name: Checkout QA helper
+        uses: actions/checkout@v5
+        with:
+          ref: qa/pr52-home-css-candidate-20260923
+          persist-credentials: false
+
+      - name: Checkout exact product head
+        uses: actions/checkout@v5
+        with:
+          ref: 3e88cb743ad2cef51bdb8afd037d8219c868b47a
+          path: candidate
+          persist-credentials: false
+
+      - name: Guard exact product source
+        run: |
+          test "$(git -C candidate rev-parse HEAD)" = "$PRODUCT_SHA"
+          test "$(git -C candidate status --short)" = ""
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: candidate/.nvmrc
+          cache: npm
+          cache-dependency-path: candidate/package-lock.json
+
+      - name: Build exact candidate
+        run: |
+          cd candidate
+          npm ci
+          npm run build
+
+      - name: Start candidate preview
+        run: |
+          cd candidate
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/catfood-pr52-preview.log 2>&1 &
+          echo $! >/tmp/catfood-pr52-preview.pid
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/catfood-pr52-preview.log
+          exit 1
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/catfood-pr52-home
+          cp qa/pr52-home-css-candidate.mjs /tmp/catfood-pr52-home/
+          cd /tmp/catfood-pr52-home
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Run HOME CSS candidate QA
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/qa-output" node /tmp/catfood-pr52-home/pr52-home-css-candidate.mjs
+
+      - name: Upload candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr52-home-css-candidate-evidence
+          path: qa-output
+          if-no-files-found: error
+          retention-days: 7

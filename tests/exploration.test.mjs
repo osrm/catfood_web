@@ -203,7 +203,7 @@ test('comparison hides server diagnostics and retries nutrition', async () => {
 })
 async function explore() {
   await act(async () => root.render(createElement(app.App)))
-  await click('조건으로 찾기')
+  await click('조건 고르기')
   await click('이 조건으로 찾기')
 }
 async function switchResults() {

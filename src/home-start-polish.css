@@ -11,8 +11,13 @@
   color: var(--home-ink);
 }
 
+.home-shell.home-knowledge-shell {
+  background: #f3f1ec;
+}
+
 .home-knowledge-shell .home-header {
   height: 68px;
+  flex-shrink: 0;
   border-bottom-color: var(--home-line);
   background: rgba(251, 250, 246, 0.96);
 }

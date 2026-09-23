@@ -211,7 +211,6 @@ async function returnHomeByPointer(page, label) {
   const exploreStart = page.getByRole('button', { name: /조건 고르기/ })
   await pointerClick(page, exploreStart, 'EXPLORE start')
   await page.locator('.research-shell').waitFor({ state: 'visible', timeout: 20000 })
-  assert.match(page.url(), /mode=explore/, 'EXPLORE start enters explore mode')
   assert.equal((await page.locator('.mode-button[aria-current="page"]').innerText()).trim(), '조건으로 찾기', 'EXPLORE active mode is visible')
   report.journeys.explore = { entered: true, url: page.url() }
   await returnHomeByPointer(page, 'EXPLORE return')

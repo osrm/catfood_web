@@ -209,6 +209,50 @@ function catalogRoute(rows, { firstFailure = false, retryDeferred = null } = {})
   return () => calls
 }
 
+test('HOME reading guide moves programmatic focus without changing tab order or URL', async () => {
+  catalogRoute([product('product_000000000001', 'Guide Product')])
+  const originalMatchMedia = window.matchMedia
+  const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView
+  const scrollCalls = []
+
+  window.HTMLElement.prototype.scrollIntoView = function scrollIntoView(options) {
+    scrollCalls.push({ id: this.id, options })
+  }
+
+  try {
+    await act(async () => root.render(createElement(app.App)))
+    await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 1개'), 'catalog loaded on home')
+
+    const trigger = button('정보 읽는 기준 보기')
+    const heading = document.getElementById('home-guides-title')
+    assert.ok(trigger)
+    assert.ok(heading)
+    assert.equal(heading.tabIndex, -1, 'destination is programmatically focusable without entering the normal Tab order')
+    const initialUrl = window.location.href
+
+    window.matchMedia = () => ({ matches: false })
+    await click(trigger)
+    assert.equal(document.activeElement, heading)
+    assert.deepEqual(scrollCalls.at(-1), {
+      id: 'home-guides-title',
+      options: { behavior: 'smooth', block: 'start' },
+    })
+    assert.equal(window.location.href, initialUrl)
+
+    window.matchMedia = () => ({ matches: true })
+    await click(trigger)
+    assert.equal(document.activeElement, heading)
+    assert.deepEqual(scrollCalls.at(-1), {
+      id: 'home-guides-title',
+      options: { behavior: 'auto', block: 'start' },
+    })
+    assert.equal(window.location.href, initialUrl)
+  } finally {
+    window.matchMedia = originalMatchMedia
+    window.HTMLElement.prototype.scrollIntoView = originalScrollIntoView
+  }
+})
+
 test('catalog 503 retries once, preserves LOOKUP query, and opens quick view', async () => {
   const retry = deferred()
   const rows = [

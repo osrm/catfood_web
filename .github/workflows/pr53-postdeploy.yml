@@ -1,0 +1,49 @@
+name: PR53 live Pages postdeploy
+
+on:
+  push:
+    branches:
+      - qa/pr53-postdeploy-20260924
+
+permissions:
+  contents: read
+
+jobs:
+  postdeploy:
+    runs-on: ubuntu-latest
+    env:
+      MERGE_SHA: c942e0cf48068ed0ffe93fde1f3cec8df20114d3
+    steps:
+      - name: Checkout QA helper
+        uses: actions/checkout@v5
+        with:
+          ref: qa/pr53-postdeploy-20260924
+          persist-credentials: false
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/catfood-pr53-postdeploy
+          cp qa/pr53-postdeploy.mjs /tmp/catfood-pr53-postdeploy/
+          cd /tmp/catfood-pr53-postdeploy
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Run live Pages postdeploy
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/qa-output" node /tmp/catfood-pr53-postdeploy/pr53-postdeploy.mjs
+
+      - name: Upload postdeploy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr53-live-pages-postdeploy
+          path: qa-output
+          if-no-files-found: error
+          retention-days: 7

@@ -307,7 +307,7 @@ async function interactionChecks() {
     const button = page.getByRole('button', { name:/정보 읽는 기준 보기/ })
     await button.focus()
     await page.keyboard.press('Enter')
-    await page.waitForFunction(() => window.scrollY > 100, null, { timeout:10000 })
+    await page.waitForFunction(() => (document.querySelector('.home-shell')?.scrollTop ?? 0) > 100, null, { timeout:10000 })
     const guideVisible = await page.locator('#home-guides-title').evaluate(el => {
       const r = el.getBoundingClientRect()
       return r.bottom > 0 && r.top < innerHeight

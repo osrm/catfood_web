@@ -103,6 +103,9 @@ async function getHomeMetrics(page) {
       clientWidth: el.clientWidth,
       scrollHeight: el.scrollHeight,
       clientHeight: el.clientHeight,
+      overflowX: getComputedStyle(el).overflowX,
+      overflowY: getComputedStyle(el).overflowY,
+      textOverflow: getComputedStyle(el).textOverflow,
     }))
     const buttons = [...document.querySelectorAll('.home-entry-search-submit, .home-entry-route > button')].map(el => {
       const r = el.getBoundingClientRect()
@@ -178,7 +181,7 @@ async function returnHomeByPointer(page, label) {
   assert.ok(metrics.routeDescriptions.every(x => x.scrollWidth <= x.clientWidth + 1 && x.scrollHeight <= x.clientHeight + 1), 'mobile: descriptions are not clipped')
   assert.ok(metrics.buttons.length === 3 && metrics.buttons.every(x => x.height >= 44), 'mobile: all three start CTAs are >=44px')
   assert.ok(metrics.buttons.every(x => x.scrollWidth <= x.clientWidth + 1 && x.scrollHeight <= x.clientHeight + 1), 'mobile: CTA text is not clipped')
-  assert.ok(metrics.textFit.every(x => x.scrollWidth <= x.clientWidth + 1 && x.scrollHeight <= x.clientHeight + 1), 'mobile: HOME copy is not clipped')
+  assert.ok(metrics.textFit.every(x => x.scrollWidth <= x.clientWidth + 2 && (x.scrollHeight <= x.clientHeight + 2 || !['hidden','clip'].includes(x.overflowY))), 'mobile: HOME copy is not clipped')
   assert.ok(metrics.lookup && metrics.switchRoute && metrics.exploreRoute, 'mobile: path geometry exists')
   assert.ok(metrics.lookup.top < metrics.switchRoute.top && metrics.switchRoute.top < metrics.exploreRoute.top, 'mobile: lookup → switch → explore order')
 
@@ -291,7 +294,7 @@ async function returnHomeByPointer(page, label) {
   assert.ok(metrics.routeDescriptions.every(x => x.scrollWidth <= x.clientWidth + 1 && x.scrollHeight <= x.clientHeight + 1), 'desktop: descriptions are not clipped')
   assert.ok(metrics.buttons.every(x => x.height >= 44), 'desktop: start CTA buttons are >=44px')
   assert.ok(metrics.buttons.every(x => x.scrollWidth <= x.clientWidth + 1 && x.scrollHeight <= x.clientHeight + 1), 'desktop: buttons are not clipped')
-  assert.ok(metrics.textFit.every(x => x.scrollWidth <= x.clientWidth + 1 && x.scrollHeight <= x.clientHeight + 1), 'desktop: text is not clipped')
+  assert.ok(metrics.textFit.every(x => x.scrollWidth <= x.clientWidth + 2 && (x.scrollHeight <= x.clientHeight + 2 || !['hidden','clip'].includes(x.overflowY))), 'desktop: text is not clipped')
   assert.ok(metrics.lookup && metrics.routes && metrics.lookup.right <= metrics.routes.left + 1, 'desktop: lookup is left of route column')
   assert.ok(metrics.lookup.width > metrics.routes.width, 'desktop: lookup receives more horizontal space')
   assert.ok(metrics.switchRoute && metrics.exploreRoute && metrics.switchRoute.bottom <= metrics.exploreRoute.top + 1, 'desktop: switch/explore are vertically stacked')

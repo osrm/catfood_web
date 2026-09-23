@@ -51,7 +51,7 @@
   gap:24px;
 }
 
-.research-shell.is-inspecting .research-quick-view.is-editorial .quick-view-identity>div{
+.research-shell.is-inspecting .research-quick-view.is-editorial .quick-view-identity > div:not(.image-placeholder) {
   grid-column:1;
   grid-row:1;
   min-width:0;
@@ -230,7 +230,7 @@
   align-items:center;
 }
 
-.research-shell.is-inspecting .research-quick-view.is-editorial .quick-view-identity>div{
+.research-shell.is-inspecting .research-quick-view.is-editorial .quick-view-identity > div:not(.image-placeholder) {
   display:contents;
 }
 
@@ -312,7 +312,7 @@
   border:0; 
 }
 
-.research-shell.is-inspecting .research-quick-view.is-editorial .quick-view-identity > div {
+.research-shell.is-inspecting .research-quick-view.is-editorial .quick-view-identity > div:not(.image-placeholder) {
    width:auto; 
 }
 

@@ -103,7 +103,12 @@ export default function Home({
   }
 
   function showReadingGuide() {
-    document.getElementById('home-guides-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const heading = document.getElementById('home-guides-title')
+    if (!(heading instanceof HTMLElement)) return
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    heading.focus({ preventScroll: true })
+    heading.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
   return (
@@ -192,7 +197,7 @@ export default function Home({
           <div className="home-section-heading">
             <div>
               <span>HOW TO READ</span>
-              <h2 id="home-guides-title">비교할 때 알아두면 좋은 4가지</h2>
+              <h2 id="home-guides-title" tabIndex={-1}>비교할 때 알아두면 좋은 4가지</h2>
             </div>
             <p>제품 정보를 읽을 때 헷갈리기 쉬운 기준만 짧게 정리했습니다.</p>
           </div>

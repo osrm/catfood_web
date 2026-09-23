@@ -72,6 +72,17 @@ async function waitResults(page) {
   await page.evaluate(() => document.fonts?.ready)
 }
 
+async function settleVisibleImages(page) {
+  await page.locator('.research-result-card').first().scrollIntoViewIfNeeded()
+  await page.evaluate(async () => {
+    const visible = [...document.querySelectorAll('img.research-result-image, img.quick-view-image')].filter(img => {
+      const r = img.getBoundingClientRect()
+      return r.bottom > 0 && r.top < innerHeight
+    })
+    await Promise.all(visible.map(img => img.decode?.().catch(() => undefined)))
+  })
+}
+
 async function readCards(page) {
   return page.locator('.research-result-card').evaluateAll(cards => cards.map(card => {
     const rect = card.getBoundingClientRect()
@@ -110,7 +121,14 @@ async function readCards(page) {
       nameScrollHeight: name?.scrollHeight || null,
       nameClientHeight: name?.clientHeight || null,
       identityWidth: identity?.getBoundingClientRect().width || null,
-      image:{width:image?.getBoundingClientRect().width || null,height:image?.getBoundingClientRect().height || null},
+      image:{
+        tag:image?.tagName || null,
+        src:image instanceof HTMLImageElement ? image.currentSrc || image.src : null,
+        naturalWidth:image instanceof HTMLImageElement ? image.naturalWidth : null,
+        complete:image instanceof HTMLImageElement ? image.complete : null,
+        width:image?.getBoundingClientRect().width || null,
+        height:image?.getBoundingClientRect().height || null,
+      },
     }
   }))
 }
@@ -176,6 +194,7 @@ async function captureBrowse({mode,width,height,url,file}) {
   await waitResults(page)
   const results=page.locator('.research-results')
   await results.scrollIntoViewIfNeeded()
+  await settleVisibleImages(page)
   const cards=await readCards(page)
   const metrics=await frameMetrics(page)
   const focus=await focusEvidence(page)
@@ -200,6 +219,7 @@ async function captureSelected({mode,width,height,url,file,pickUnknown=false}) {
   const selectedProductId=await target.getAttribute('data-product-id')
   await target.click()
   await page.locator('.research-quick-view').waitFor({state:'visible',timeout:20000})
+  await settleVisibleImages(page)
   const cards=await readCards(page)
   const metrics=await frameMetrics(page)
   const quick=await page.locator('.research-quick-view').evaluate(el => {

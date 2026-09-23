@@ -145,11 +145,15 @@ async function checkFocus(page) {
   assert.equal(firstTag, 'INPUT', 'first keyboard target is lookup input')
   assert.equal(firstType, 'search', 'first keyboard target is search input')
 
+  await page.waitForTimeout(200)
   const fieldFocus = await page.locator('.home-entry-search-field').evaluate(el => ({
+    focusWithin:el.matches(':focus-within'),
     borderColor:getComputedStyle(el).borderColor,
     boxShadow:getComputedStyle(el).boxShadow,
   }))
-  assert.notEqual(fieldFocus.boxShadow, 'none', 'search field exposes a visible focus-within ring')
+  assert.equal(fieldFocus.focusWithin, true, 'search field owns focus-within while input is focused')
+  assert.equal(fieldFocus.borderColor, 'rgb(85, 121, 133)', 'search field reaches the intended focused border color')
+  assert.match(fieldFocus.boxShadow, /rgba\(85, 121, 133, 0\.14\).*2px/, 'search field reaches the intended visible focus ring')
 
   const input = page.getByRole('searchbox', { name:'브랜드 또는 제품명 검색' })
   await input.fill('focus check')

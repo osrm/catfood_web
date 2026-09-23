@@ -102,6 +102,10 @@ export default function Home({
     onStart('lookup', trimmedQuery)
   }
 
+  function showReadingGuide() {
+    document.getElementById('home-guides-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   return (
     <div className="home-shell home-knowledge-shell">
       <header className="home-header">
@@ -110,75 +114,55 @@ export default function Home({
             <strong className="home-logo">CATFOOD</strong>
             <span>고양이 사료 탐색·비교</span>
           </div>
-          <nav className="home-nav" aria-label="탐색 방법">
-            <button type="button" onClick={() => onStart('lookup')}>제품 찾기</button>
-            <button type="button" onClick={() => onStart('switch')}>사료 바꾸기</button>
-            <button type="button" onClick={() => onStart('explore')}>조건으로 찾기</button>
-          </nav>
+          <div className="home-catalog-status" aria-live="polite">
+            현재 확인된 제품 <strong>{catalogCount}개</strong>
+          </div>
         </div>
       </header>
 
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <span className="home-start-kicker"><i aria-hidden="true" /> 사료 탐색과 비교</span>
-            <h1>고양이 사료를 찾고, 비교하고, 바꿔보세요.</h1>
-            <p>
-              제품명을 직접 찾거나, 지금 먹는 사료에서 바꾸거나, 원하는 조건으로 후보를 좁혀볼 수 있습니다.
-            </p>
+            <h1>사료를 찾는 방법을 고르세요.</h1>
           </div>
 
-          <section className="home-search-console" aria-label="제품 직접 찾기">
-            <div className="home-search-console-copy">
-              <span>제품 바로 찾기</span>
-              <strong>알고 있는 브랜드나 제품명으로 찾아보세요.</strong>
-              <small>현재 확인된 제품 {catalogCount}개</small>
+          <section className="home-entry-board" aria-label="CATFOOD 시작 방법">
+            <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
+              <h2 id="home-lookup-title">브랜드·제품명 검색</h2>
+              <form className="home-entry-search" onSubmit={submitLookup}>
+                <label className="home-entry-search-field">
+                  <span className="home-entry-search-icon" aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="예: GO! SOLUTIONS, 로얄캐닌"
+                    aria-label="브랜드 또는 제품명 검색"
+                  />
+                </label>
+                <button className="home-entry-search-submit" type="submit" disabled={!trimmedQuery}>검색</button>
+              </form>
+            </section>
+
+            <div className="home-entry-routes">
+              <article className="home-entry-route">
+                <h2>현재 사료에서 바꾸기</h2>
+                <p>지금 먹는 제품을 기준으로 유지할 것과 바꿀 것을 정합니다.</p>
+                <button type="button" onClick={() => onStart('switch')}>현재 사료로 시작 →</button>
+              </article>
+
+              <article className="home-entry-route">
+                <h2>조건으로 찾아보기</h2>
+                <p>원하는 조건으로 후보를 좁힙니다.</p>
+                <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
+              </article>
             </div>
-            <form className="home-search-console-form" onSubmit={submitLookup}>
-              <span className="home-search-console-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <circle cx="11" cy="11" r="6.5" />
-                  <path d="m16 16 4 4" />
-                </svg>
-              </span>
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="브랜드 또는 제품명 검색"
-                aria-label="브랜드 또는 제품명 검색"
-              />
-              <button type="submit" disabled={!trimmedQuery}>검색</button>
-            </form>
           </section>
 
-          <div className="home-start-paths" aria-label="다른 탐색 방법">
-            <article className="home-start-path">
-              <div className="home-start-path-index">01 / SWITCH</div>
-              <div className="home-start-path-copy">
-                <span>지금 먹는 사료에서 시작</span>
-                <h2>현재 사료에서 바꾸기</h2>
-                <p>지금 먹이는 제품과 규격을 고르고, 바꿀 것과 유지할 것을 정합니다.</p>
-              </div>
-              <div className="home-start-path-flow" aria-hidden="true">
-                <span>현재 사료</span><b>→</b><span>바꿀 것</span><b>+</b><span>유지할 것</span>
-              </div>
-              <button type="button" onClick={() => onStart('switch')}>현재 사료로 시작하기 →</button>
-            </article>
-
-            <article className="home-start-path">
-              <div className="home-start-path-index">02 / EXPLORE</div>
-              <div className="home-start-path-copy">
-                <span>원하는 조건에서 시작</span>
-                <h2>조건으로 찾아보기</h2>
-                <p>형태·생애주기·대상·기능·레시피를 골라 후보를 좁힙니다.</p>
-              </div>
-              <div className="home-start-path-flow is-filters" aria-hidden="true">
-                <span>형태</span><span>생애주기</span><span>대상</span><span>레시피</span>
-              </div>
-              <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
-            </article>
-          </div>
+          <section className="home-reading-note" aria-label="데이터 읽기 안내">
+            <p><strong>확인된 정보와 미확인은 구분해서 표시합니다.</strong> CATFOOD는 추천 점수나 품질 순위를 만들지 않습니다.</p>
+            <button type="button" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button>
+          </section>
         </section>
 
         {demo ? (

@@ -254,7 +254,7 @@ test('catalog retry preserves applied EXPLORE conditions', async () => {
 
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => !document.body.textContent.includes('불러오는 중'), 'initial catalog failure')
-  await click('조건으로 찾기')
+  await click('조건 고르기')
   await click('습식')
   await click('이 조건으로 찾기')
   await waitForUi(() => document.querySelector('[role="alert"]'), 'explore catalog error')
@@ -374,7 +374,7 @@ test('recipe choices expose every catalog value, sort by display label, and keep
 
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 42개'), 'catalog loaded on home')
-  await click('조건으로 찾기')
+  await click('조건 고르기')
   await click('이 조건으로 찾기')
   await waitForUi(() => all('.recipe-detail-grid .choice').length === recipeKeys.length, 'all recipe choices')
 

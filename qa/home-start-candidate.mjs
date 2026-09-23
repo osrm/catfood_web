@@ -151,16 +151,25 @@ async function checkFocus(page) {
   }))
   assert.notEqual(fieldFocus.boxShadow, 'none', 'search field exposes a visible focus-within ring')
 
+  const input = page.getByRole('searchbox', { name:'브랜드 또는 제품명 검색' })
+  await input.fill('focus check')
+  await page.locator('.home-entry-search-submit').waitFor({ state:'visible' })
+  await page.waitForFunction(() => {
+    const button = document.querySelector('.home-entry-search-submit')
+    return button instanceof HTMLButtonElement && !button.disabled
+  })
+
   await page.keyboard.press('Tab')
   const submitFocus = await page.locator('.home-entry-search-submit').evaluate(el => ({
     focused:document.activeElement === el,
     outlineWidth:getComputedStyle(el).outlineWidth,
     outlineStyle:getComputedStyle(el).outlineStyle,
   }))
-  assert.equal(submitFocus.focused, true, 'search submit is second keyboard target')
+  assert.equal(submitFocus.focused, true, 'enabled search submit follows the lookup input')
   assert.notEqual(submitFocus.outlineStyle, 'none', 'button keeps app focus-visible outline')
   assert.ok(parseFloat(submitFocus.outlineWidth) >= 2, 'button focus outline is at least 2px')
 
+  await input.fill('')
   return { fieldFocus, submitFocus }
 }
 

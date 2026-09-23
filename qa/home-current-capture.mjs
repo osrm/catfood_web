@@ -43,6 +43,7 @@ async function capture(width,height,key,file){
     }catch{}
   })
   await page.goto(BASE,{waitUntil:'networkidle',timeout:60000})
+  await page.waitForFunction(() => !document.querySelector('.home-search-console')?.innerText.includes('—개'), null, { timeout: 30000 })
   await page.evaluate(()=>document.fonts?.ready)
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
   report.views[key]=await page.evaluate(()=>({

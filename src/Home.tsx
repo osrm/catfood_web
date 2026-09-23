@@ -104,7 +104,7 @@ export default function Home({
 
   function showReadingGuide() {
     const heading = document.getElementById('home-guides-title')
-    if (!(heading instanceof HTMLElement)) return
+    if (!heading) return
 
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     heading.focus({ preventScroll: true })

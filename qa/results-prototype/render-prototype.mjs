@@ -115,6 +115,9 @@ async function capture(key,query,width,height,file){
   await page.goto(BASE+query,{waitUntil:'domcontentloaded',timeout:20000})
   await settle(page)
   const metrics=await measure(page)
+  report.states[key]={query,width,height,file,metrics}
+  await page.screenshot({path:OUT+'/'+file,fullPage:false})
+  await writeFile(OUT+'/prototype-measurements.json',JSON.stringify(report,null,2))
   assert.equal(metrics.documentWidth,width,key+': no horizontal document overflow')
   assert.equal(metrics.bodyWidth,width,key+': no horizontal body overflow')
   assert.ok(metrics.rows.every(row=>row.nameFont==='16px'),key+': product names remain 16px')
@@ -139,18 +142,17 @@ async function capture(key,query,width,height,file){
     assert.ok(metrics.quick.facts.every(fact=>fact.box?.height<30),key+': selected package/fact values remain on one line')
     if(query.includes('mode=explore')) assert.ok(metrics.quick.nameBox?.height<50,key+': selected long quick-view name remains one line')
   }
-  await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.states[key]={query,width,height,file,metrics}
   await page.close()
 }
+
+await copyFile(SOURCE+'/results-prototype.html',OUT+'/results-prototype.html')
+await copyFile(SOURCE+'/results-prototype.css',OUT+'/results-prototype.css')
 
 await capture('lookupMobile','?mode=lookup&selected=1',390,844,'prototype-lookup-mobile-390x844-selected.png')
 await capture('lookupDesktop','?mode=lookup&selected=1',1440,900,'prototype-lookup-desktop-1440x900-selected.png')
 await capture('exploreMobile','?mode=explore&selected=1',390,844,'prototype-explore-mobile-390x844-selected.png')
 await capture('exploreDesktop','?mode=explore&selected=1',1440,900,'prototype-explore-desktop-1440x900-selected.png')
 
-await copyFile(SOURCE+'/results-prototype.html',OUT+'/results-prototype.html')
-await copyFile(SOURCE+'/results-prototype.css',OUT+'/results-prototype.css')
 await writeFile(OUT+'/prototype-measurements.json',JSON.stringify(report,null,2))
 console.log('RESULTS_PROTOTYPE='+JSON.stringify(report))
 await browser.close()

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CATFOOD results list prototype</title>
+  <link rel="stylesheet" href="./results-prototype.css" />
+</head>
+<body>
+  <div class="prototype-shell">
+    <header class="topbar">
+      <strong class="brand">CATFOOD</strong>
+      <nav aria-label="탐색 모드">
+        <button type="button" data-nav="explore">조건으로 찾기</button>
+        <button type="button" data-nav="lookup">제품 찾기</button>
+        <button type="button">현재 사료</button>
+      </nav>
+      <div class="status"><span>843 PRODUCTS</span><span>데이터 연결됨</span></div>
+    </header>
+
+    <div id="criteriaBar" class="criteria-bar" hidden>
+      <div><strong>적용된 조건</strong><span class="criteria">건식</span><span class="criteria">실내묘</span></div>
+      <button type="button">조건 수정</button>
+    </div>
+
+    <section id="lookupSearch" class="lookup-search-panel" hidden>
+      <strong>제품 찾기</strong>
+      <span>브랜드나 제품명으로 찾습니다.</span>
+      <div class="search-box">GO! SOLUTIONS</div>
+    </section>
+
+    <main class="workspace">
+      <section class="results-panel">
+        <header class="results-heading">
+          <div>
+            <strong>제품 목록</strong>
+            <span id="resultCount"></span>
+          </div>
+          <p id="resultContext" hidden>선택한 조건이 미확인인 제품도 후보에 포함될 수 있습니다. 제품별 ‘확인됨’과 ‘미확인’을 확인하세요.</p>
+        </header>
+        <div id="mobileRefine" class="mobile-refine" hidden>더 좁혀보기</div>
+        <div id="resultsList" class="results-list"></div>
+      </section>
+
+      <aside id="quickView" class="quick-view" hidden>
+        <div class="quick-topline"><span>빠른 보기</span><button type="button">닫기 ×</button></div>
+        <div class="quick-scroll">
+          <section class="quick-identity">
+            <div>
+              <span id="quickBrand"></span>
+              <h1 id="quickName"></h1>
+              <p id="quickMeta"></p>
+            </div>
+            <img id="quickImage" alt="" />
+          </section>
+          <div class="quick-actions">
+            <button type="button">비교에 추가 · 0/5</button>
+            <button type="button">상세 보기 →</button>
+          </div>
+          <section id="quickRelation" class="quick-section" hidden>
+            <h2>선택한 조건과 비교</h2>
+            <dl>
+              <div><dt>확인됨</dt><dd id="quickConfirmed"></dd></div>
+              <div><dt>미확인</dt><dd id="quickUnknown"></dd></div>
+            </dl>
+          </section>
+          <section class="quick-section">
+            <h2>핵심 정보</h2>
+            <dl id="quickFacts"></dl>
+          </section>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+<script>
+const lookup = [
+  {brand:'GO! SOLUTIONS',name:'LID 오리',meta:'건식 · 전연령',packages:'1.36 kg · 3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_a0e685be674c6617.webp'},
+  {brand:'GO! SOLUTIONS',name:'다이제스천 연어',meta:'건식 · 전연령',packages:'1.36 kg · 3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_bc3d58ec6e7145a0.webp'},
+  {brand:'GO! SOLUTIONS',name:'스킨앤코트 연어 인도어',meta:'건식 · 성묘',packages:'1.36 kg · 3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_d5952c8d8ea90a12.webp'},
+  {brand:'GO! SOLUTIONS',name:'스킨앤코트 치킨',meta:'건식 · 전연령',packages:'1.36 kg · 3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_0a0d0545bbee3e24.webp'},
+  {brand:'GO! SOLUTIONS',name:'웨이트 매니지먼트 치킨',meta:'건식 · 성묘',packages:'1.36 kg · 3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_da449206109a8064.webp'},
+  {brand:'GO! SOLUTIONS',name:'카니보 송어&연어',meta:'건식 · 전연령',packages:'3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_6c765a2df4be9143.webp'},
+  {brand:'GO! SOLUTIONS',name:'카니보 치킨&칠면조&오리',meta:'건식 · 전연령',packages:'1.36 kg · 3.63 kg · 7.26 kg',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_31bc515d78d43d5d.webp'}
+];
+
+const exploreTop = [
+  {brand:'내추럴발란스',name:'오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피',meta:'건식 · 성묘',packages:'1.1 kg · 2.4 kg · 6.8 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_b47d3ae674773585.webp'},
+  {brand:'로얄캐닌',name:'인도어',meta:'건식 · 성묘',packages:'50 g · 400 g · 1.2 kg · 2 kg · 4 kg · 10 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_22531a6bb7f865e5.webp'},
+  {brand:'로얄캐닌',name:'인도어 7+',meta:'건식 · 시니어',packages:'400 g · 1.5 kg · 3.5 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_ad66762bbf6bcbb6.webp'},
+  {brand:'로얄캐닌',name:'인도어 롱헤어',meta:'건식 · 성묘',packages:'2 kg · 4 kg · 10 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_330cb536402fb7c2.webp'},
+  {brand:'몬지',name:'몬지 내추럴 슈퍼프리미엄 인도어 어덜트 치킨',meta:'건식 · 성묘',packages:'1.5 kg · 10 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_e723ce0bf9cb19ef.webp'},
+  {brand:'퓨리나',name:'퓨리나 원 캣 1세 이상 성묘용 인도어',meta:'건식 · 성묘',packages:'1.4kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_cc630e418cc1d0cd.webp'}
+];
+
+const exploreWindow = [
+  {brand:'Purina Pro Plan',name:'프로플랜 캣 성묘용 실내 고양이',meta:'건식 · 성묘',packages:'1.5 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/purina-pro-plan/product_e355c8c099bdba19.webp'},
+  {brand:'Wellness',name:'웰니스 캣 코어 그레인프리 인도어',meta:'건식 · 성묘',packages:'2.2 kg · 4.9 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_8ca3f2c04706921a.webp'},
+  {brand:'Wellness',name:'웰니스 캣 코어 그레인프리 인도어 오션',meta:'건식 · 성묘',packages:'2.2 kg · 4.9 kg',confirmed:'건식 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/wellness/product_641cd5d781b5c9e3.webp'},
+  {brand:'내추럴발란스',name:'오리지날 울트라 닭 & 연어 레시피',meta:'건식 · 전연령',packages:'1.1 kg · 2.4 kg · 6.8 kg',confirmed:'건식',unknown:'제품 표기 대상 · 실내묘',selected:true,img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_99c5ee4eb9211a75.webp'},
+  {brand:'내추럴발란스',name:'오리지날 울트라 팻캣 닭 & 연어 레시피',meta:'건식 · 성묘',packages:'1.1 kg · 6.8 kg',confirmed:'건식',unknown:'제품 표기 대상 · 실내묘',img:'https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_918243b55382c122.webp'}
+];
+
+const params = new URLSearchParams(location.search);
+const mode = params.get('mode') === 'explore' ? 'explore' : 'lookup';
+const selected = params.get('selected') === '1';
+document.body.dataset.mode = mode;
+document.body.classList.toggle('selected-state', selected);
+document.querySelectorAll('[data-nav]').forEach(btn => btn.classList.toggle('is-active', btn.dataset.nav === mode));
+
+const criteriaBar = document.getElementById('criteriaBar');
+const lookupSearch = document.getElementById('lookupSearch');
+const resultContext = document.getElementById('resultContext');
+const mobileRefine = document.getElementById('mobileRefine');
+const resultsList = document.getElementById('resultsList');
+const quickView = document.getElementById('quickView');
+
+criteriaBar.hidden = mode !== 'explore';
+lookupSearch.hidden = mode !== 'lookup';
+resultContext.hidden = mode !== 'explore';
+mobileRefine.hidden = mode !== 'explore';
+
+let rows = mode === 'lookup' ? lookup : (selected ? exploreWindow : exploreTop);
+document.getElementById('resultCount').textContent = mode === 'lookup' ? '7개의 제품' : '323개 중 40개 표시';
+
+function relationMarkup(item) {
+  if (mode !== 'explore') return '';
+  let html = '<div class="relations">';
+  if (item.confirmed) html += '<div class="relation confirmed"><span>확인됨</span><strong>'+item.confirmed+'</strong></div>';
+  if (item.unknown) html += '<div class="relation unknown"><span>미확인</span><strong>'+item.unknown+'</strong></div>';
+  return html+'</div>';
+}
+
+resultsList.innerHTML = rows.map((item,index)=>`
+  <article class="result-row ${item.selected ? 'is-selected' : ''}">
+    <img class="product-image" src="${item.img}" alt="" />
+    <div class="identity">
+      <span class="row-brand">${item.brand}</span>
+      <h2>${item.name}</h2>
+      <p class="meta">${item.meta}</p>
+      <p class="packages">판매 규격 · ${item.packages}</p>
+      ${relationMarkup(item)}
+    </div>
+    <button class="row-action" type="button">빠른 보기 <span aria-hidden="true">→</span></button>
+  </article>
+`).join('');
+
+if (selected) {
+  quickView.hidden = false;
+  const item = mode === 'lookup' ? lookup[0] : exploreWindow.find(x=>x.selected);
+  document.getElementById('quickBrand').textContent = item.brand;
+  document.getElementById('quickName').textContent = item.name;
+  document.getElementById('quickMeta').textContent = item.meta;
+  document.getElementById('quickImage').src = item.img;
+  if (mode === 'explore') {
+    document.getElementById('quickRelation').hidden = false;
+    document.getElementById('quickConfirmed').textContent = item.confirmed;
+    document.getElementById('quickUnknown').textContent = item.unknown;
+    document.getElementById('quickFacts').innerHTML = '<div><dt>판매 규격</dt><dd>'+item.packages+'</dd></div>';
+  } else {
+    document.getElementById('quickFacts').innerHTML =
+      '<div><dt>판매 규격</dt><dd>1.36 kg · 3.63 kg · 7.26 kg</dd></div>'+
+      '<div><dt>레시피 종류</dt><dd>가금류</dd></div>'+
+      '<div><dt>주요 레시피</dt><dd>오리</dd></div>'+
+      '<div><dt>레시피 특성</dt><dd>Grain-Free 표기</dd></div>';
+  }
+}
+</script>
+</body>
+</html>

@@ -72,8 +72,8 @@ async function waitResults(page) {
   await page.evaluate(() => document.fonts?.ready)
 }
 
-async function settleVisibleImages(page) {
-  await page.locator('.research-result-card').first().scrollIntoViewIfNeeded()
+async function settleVisibleImages(page, scrollFirst = true) {
+  if (scrollFirst) await page.locator('.research-result-card').first().scrollIntoViewIfNeeded()
   await page.evaluate(async () => {
     const visible = [...document.querySelectorAll('img.research-result-image, img.quick-view-image')].filter(img => {
       const r = img.getBoundingClientRect()
@@ -219,7 +219,7 @@ async function captureSelected({mode,width,height,url,file,pickUnknown=false}) {
   const selectedProductId=await target.getAttribute('data-product-id')
   await target.click()
   await page.locator('.research-quick-view').waitFor({state:'visible',timeout:20000})
-  await settleVisibleImages(page)
+  await settleVisibleImages(page, false)
   const cards=await readCards(page)
   const metrics=await frameMetrics(page)
   const quick=await page.locator('.research-quick-view').evaluate(el => {

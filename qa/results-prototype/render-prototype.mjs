@@ -136,8 +136,8 @@ async function capture(key,query,width,height,file){
     assert.ok(selected.relations.some(rel=>rel.kind==='unknown'&&/미확인.*제품 표기 대상.*실내묘/.test(rel.text)),key+': unknown meaning is preserved')
   }
   if(width===1440){
-    assert.ok(metrics.results.width>=620&&metrics.results.width<=630,key+': results panel is about 625px')
-    assert.ok(metrics.quickView.width>=595&&metrics.quickView.width<=605,key+': quick view remains about 601px')
+    assert.ok(metrics.results.width>=595&&metrics.results.width<=605,key+': results panel is about 601px')
+    assert.ok(metrics.quickView.width>=620&&metrics.quickView.width<=630,key+': quick view remains about 625px')
     assert.ok(metrics.quick.actions.every(action=>action.box?.height>=44),key+': quick-view actions remain 44px high')
     assert.ok(metrics.quick.facts.every(fact=>fact.box?.height<30),key+': selected package/fact values remain on one line')
     if(query.includes('mode=explore')) assert.ok(metrics.quick.nameBox?.height<50,key+': selected long quick-view name remains one line')

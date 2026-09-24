@@ -417,8 +417,8 @@
   background: #f3f0e8;
 }
 
-.research-result-identity strong,
-.research-shell.is-inspecting .research-result-identity strong {
+.research-shell .research-results .research-result-card .research-result-identity strong,
+.research-shell.is-inspecting .research-results .research-result-card .research-result-identity strong {
   overflow: visible;
   color: #202720;
   font-size: 16px;

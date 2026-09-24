@@ -1,0 +1,62 @@
+name: Results prototype render
+
+on:
+  push:
+    branches:
+      - qa/results-prototype-20260924
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout prototype
+        uses: actions/checkout@v5
+        with:
+          ref: qa/results-prototype-20260924
+          persist-credentials: false
+
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4174 --directory qa/results-prototype >/tmp/results-prototype-http.log 2>&1 &
+          echo $! >/tmp/results-prototype-http.pid
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4174/results-prototype.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/results-prototype-http.log
+          exit 1
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/catfood-results-prototype
+          cp qa/results-prototype/render-prototype.mjs /tmp/catfood-results-prototype/
+          cd /tmp/catfood-results-prototype
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Render and measure prototype
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/prototype-output" \
+          SOURCE_DIR="$GITHUB_WORKSPACE/qa/results-prototype" \
+          node /tmp/catfood-results-prototype/render-prototype.mjs
+
+      - name: Upload prototype evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-list-prototype
+          path: prototype-output
+          if-no-files-found: error
+          retention-days: 7

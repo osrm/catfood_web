@@ -406,3 +406,120 @@
     font-size: 11.5px;
   }
 }
+
+/* Results list hierarchy: preserve identity/evidence readability without changing result semantics. */
+.research-result-card {
+  border-bottom-color: #e5e1d8;
+}
+
+.research-result-card.is-selected {
+  box-shadow: inset 2px 0 0 #53675b;
+  background: #f3f0e8;
+}
+
+.research-result-identity strong,
+.research-shell.is-inspecting .research-result-identity strong {
+  overflow: visible;
+  color: #202720;
+  font-size: 16px;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.research-result-packages,
+.research-shell.is-inspecting .research-result-packages {
+  max-width: 100%;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.relation-line,
+.research-shell.is-inspecting .relation-line {
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.relation-line > span,
+.research-shell.is-inspecting .relation-line > span {
+  font-size: 12px;
+}
+
+.relation-line > strong,
+.research-shell.is-inspecting .relation-line > strong {
+  overflow: visible;
+  font-size: 13px;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 901px) {
+  .research-shell.is-inspecting .research-workspace {
+    grid-template-columns: minmax(0, 49fr) minmax(0, 51fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card,
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card:has(.research-result-facts),
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card:not(:has(.research-result-facts)) {
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 10px;
+    row-gap: 4px;
+    min-height: 0;
+    padding: 14px 16px;
+  }
+
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-image,
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card .image-placeholder,
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card:has(.research-result-facts) .research-result-image,
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card:has(.research-result-facts) .image-placeholder {
+    grid-column: 1;
+    grid-row: 1;
+    width: 76px;
+    height: 84px;
+  }
+
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-identity {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .research-shell.is-browsing:not(.is-inspecting) .result-relations,
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-facts,
+  .research-shell.is-browsing:not(.is-inspecting) .result-relation-empty {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-open,
+  .research-shell.is-browsing:not(.is-inspecting) .research-result-card:has(.research-result-facts) .research-result-open {
+    grid-column: 1;
+    grid-row: 2;
+    display: inline-flex;
+    width: 76px;
+    min-width: 0;
+    min-height: 44px;
+    align-self: start;
+    align-items: center;
+    justify-content: center;
+    justify-self: stretch;
+    margin: 0;
+    border-bottom: 1px solid rgba(83, 103, 91, 0.45);
+    padding: 6px 0 4px;
+    color: #405348;
+    font-size: 12px;
+    font-weight: 720;
+    white-space: nowrap;
+  }
+}
+

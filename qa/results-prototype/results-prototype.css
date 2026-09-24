@@ -188,6 +188,21 @@ button{cursor:pointer}
   .row-action{
     grid-column:2;justify-self:end;min-height:44px;margin-top:4px;font-size:13px
   }
+  body[data-mode="lookup"] .result-row{
+    grid-template-columns:62px minmax(0,1fr) auto;
+    gap:12px;
+    padding:14px 16px;
+  }
+  body[data-mode="lookup"] .product-image{
+    width:62px;
+    height:78px;
+  }
+  body[data-mode="lookup"] .row-action{
+    grid-column:3;
+    grid-row:1;
+    align-self:end;
+    margin-top:0;
+  }
   .quick-view{min-height:0}
   .quick-scroll{padding:24px 22px 30px}
   .quick-identity{grid-template-columns:56px minmax(0,1fr);gap:12px 14px;align-items:center}

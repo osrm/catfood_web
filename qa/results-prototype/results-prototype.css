@@ -62,7 +62,7 @@ button{cursor:pointer}
   width:min(1240px,calc(100% - 28px));margin:18px auto;display:grid;grid-template-columns:minmax(0,1fr);gap:0
 }
 .selected-state .workspace{
-  grid-template-columns:minmax(0,51fr) minmax(0,49fr);gap:14px
+  grid-template-columns:minmax(0,49fr) minmax(0,51fr);gap:14px
 }
 .selected-state .lookup-search-panel{display:none}
 .results-panel,.quick-view{

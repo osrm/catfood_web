@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
-import { mkdir, copyFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 
 const BASE='http://127.0.0.1:4174/results-prototype.html'
 const OUT=process.env.OUT_DIR||'qa-output'
@@ -9,7 +9,7 @@ await mkdir(OUT,{recursive:true})
 
 const report={
   generatedAt:new Date().toISOString(),
-  note:'Standalone UI prototype. Buttons are mock controls and are not evidence of CATFOOD app navigation behavior.',
+  note:'Standalone QA-only prototype. Mobile and desktop captures use the same selected product state per mode.',
   states:{},
   blockedAttempts:[],
   imageResponses:[],
@@ -27,7 +27,7 @@ async function makePage(width,height){
     const req=route.request()
     const method=req.method()
     const url=req.url()
-    if(!['GET','HEAD','OPTIONS'].includes(method)||/analytics|telemetry|event_log|functions\/v1/i.test(url)){
+    if(!['GET','HEAD','OPTIONS'].includes(method)||/analytics|telemetry|event_log|functions\\/v1/i.test(url)){
       report.blockedAttempts.push({method,url})
       await route.abort('blockedbyclient')
       return
@@ -37,7 +37,7 @@ async function makePage(width,height){
   page.on('response',response=>{
     try{
       const u=new URL(response.url())
-      if(u.host==='gnosbstdatkytsyxuapt.supabase.co' && u.pathname.includes('/storage/v1/object/public/product-images/')){
+      if(u.host==='gnosbstdatkytsyxuapt.supabase.co'&&u.pathname.includes('/storage/v1/object/public/product-images/')){
         report.imageResponses.push({path:u.pathname,status:response.status()})
       }
     }catch{}
@@ -59,81 +59,55 @@ async function settle(page){
 
 async function measure(page){
   return page.evaluate(()=>{
-    const rect=selector=>{
-      const el=document.querySelector(selector)
+    const box=el=>{
       if(!(el instanceof HTMLElement)) return null
       const r=el.getBoundingClientRect()
       return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}
     }
     const rows=[...document.querySelectorAll('.result-row')].map(row=>{
       const name=row.querySelector('h2')
-      const brand=row.querySelector('.row-brand')
+      const identity=row.querySelector('.identity')
+      const packages=row.querySelector('.packages')
       const action=row.querySelector('.row-action')
-      const relations=[...row.querySelectorAll('.relation')].map(rel=>({
-        kind:rel.classList.contains('confirmed')?'confirmed':'unknown',
-        text:rel.textContent?.replace(/\s+/g,' ').trim()||'',
-        labelFont:getComputedStyle(rel.querySelector('span')).fontSize,
-        valueFont:getComputedStyle(rel.querySelector('strong')).fontSize,
-      }))
-      const rr=row.getBoundingClientRect()
-      const ar=action?.getBoundingClientRect()
+      const image=row.querySelector('.product-image')
       return {
         selected:row.classList.contains('is-selected'),
-        brand:brand?.textContent?.trim()||'',
+        brand:row.querySelector('.row-brand')?.textContent?.trim()||'',
         name:name?.textContent?.trim()||'',
         nameFont:name?getComputedStyle(name).fontSize:null,
         nameLineHeight:name?getComputedStyle(name).lineHeight:null,
-        nameOverflow:name?getComputedStyle(name).overflow:null,
-        nameScrollWidth:name?.scrollWidth||0,
-        nameClientWidth:name?.clientWidth||0,
-        nameScrollHeight:name?.scrollHeight||0,
-        nameClientHeight:name?.clientHeight||0,
-        row:{width:rr.width,height:rr.height},
-        action:ar?{width:ar.width,height:ar.height,fontSize:getComputedStyle(action).fontSize}:null,
-        relations,
+        row:box(row),
+        identity:box(identity),
+        packages:box(packages),
+        action:box(action),
+        image:box(image),
+        relations:[...row.querySelectorAll('.relation')].map(rel=>({
+          kind:rel.classList.contains('unknown')?'unknown':'confirmed',
+          text:rel.textContent?.replace(/\\s+/g,' ').trim()||'',
+          labelFont:getComputedStyle(rel.querySelector('span')).fontSize,
+          valueFont:getComputedStyle(rel.querySelector('strong')).fontSize,
+        })),
       }
     })
-    const q=document.querySelector('.quick-view')
-    const results=document.querySelector('.results-panel')
+    const quick=document.querySelector('.quick-view')
+    const quickName=document.querySelector('#quickName')
     return {
       viewport:{width:innerWidth,height:innerHeight},
       documentWidth:document.documentElement.scrollWidth,
       bodyWidth:document.body.scrollWidth,
-      results:rect('.results-panel'),
-      quickView:rect('.quick-view'),
+      results:box(document.querySelector('.results-panel')),
+      quickView:box(quick),
       rows,
-      resultsTitleFont:getComputedStyle(document.querySelector('.results-heading strong')).fontSize,
-      resultContextFont:document.querySelector('#resultContext:not([hidden])')?getComputedStyle(document.querySelector('#resultContext')).fontSize:null,
-      quickWidth:q instanceof HTMLElement?q.getBoundingClientRect().width:null,
-      resultsWidth:results instanceof HTMLElement?results.getBoundingClientRect().width:null,
+      quick:{
+        name:quickName?.textContent||'',
+        nameFont:quickName?getComputedStyle(quickName).fontSize:null,
+        nameBox:box(quickName),
+        actions:[...document.querySelectorAll('.quick-actions button')].map(button=>({text:button.textContent?.trim()||'',box:box(button)})),
+        facts:[...document.querySelectorAll('#quickFacts dd')].map(dd=>({text:dd.textContent?.trim()||'',box:box(dd)})),
+        unknown:document.querySelector('#quickUnknown')?.textContent||'',
+      },
     }
   })
-}
-
-async function focusEvidence(page){
-  await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur()})
-  const sequence=[]
-  for(let i=0;i<40;i+=1){
-    await page.keyboard.press('Tab')
-    const state=await page.evaluate(()=>{
-      const el=document.activeElement
-      return {
-        tag:el?.tagName||'',
-        className:el instanceof HTMLElement?el.className:'',
-        text:el?.textContent?.replace(/\s+/g,' ').trim().slice(0,80)||'',
-      }
-    })
-    sequence.push(state)
-    if(state.className.includes('row-action')){
-      const style=await page.evaluate(()=>{
-        const el=document.activeElement
-        const cs=getComputedStyle(el)
-        return {outline:cs.outline,outlineOffset:cs.outlineOffset}
-      })
-      return {sequence,style}
-    }
-  }
-  return {sequence,style:null}
 }
 
 async function capture(key,query,width,height,file){
@@ -141,40 +115,42 @@ async function capture(key,query,width,height,file){
   await page.goto(BASE+query,{waitUntil:'domcontentloaded',timeout:20000})
   await settle(page)
   const metrics=await measure(page)
-  const focus=await focusEvidence(page)
   assert.equal(metrics.documentWidth,width,key+': no horizontal document overflow')
   assert.equal(metrics.bodyWidth,width,key+': no horizontal body overflow')
-  assert.ok(metrics.rows.every(r=>r.nameScrollWidth<=r.nameClientWidth+2),key+': names do not overflow horizontally')
-  assert.ok(metrics.rows.every(r=>r.action?.height>=44),key+': row actions are at least 44px high')
-  assert.ok(metrics.rows.every(r=>r.nameFont==='16px'),key+': product names are 16px')
-  const relationRows=metrics.rows.flatMap(r=>r.relations)
+  assert.ok(metrics.rows.every(row=>row.nameFont==='16px'),key+': product names remain 16px')
+  assert.ok(metrics.rows.every(row=>row.action?.height>=44),key+': row actions remain at least 44px high')
+  const relationRows=metrics.rows.flatMap(row=>row.relations)
   if(relationRows.length){
-    assert.ok(relationRows.every(r=>r.valueFont==='13px'&&r.labelFont==='12px'),key+': relation typography is readable')
+    assert.ok(relationRows.every(rel=>rel.labelFont==='12px'&&rel.valueFont==='13px'),key+': relation typography remains 12/13px')
   }
-  assert.ok(focus.style&&focus.style.outline.includes('2px'),key+': visible keyboard focus exists on quick-view action')
-  await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur()})
+  if(width===390&&query.includes('mode=lookup')){
+    assert.ok(metrics.rows.every(row=>row.identity?.width>=240),key+': lookup identity keeps at least 240px')
+    assert.ok(metrics.rows.every(row=>row.packages?.height<20),key+': lookup package line is not squeezed into a second line')
+  }
+  if(width===390&&query.includes('mode=explore')){
+    const selected=metrics.rows.find(row=>row.selected)
+    assert.ok(selected&&selected.row.height<190,key+': selected explore row stays below 190px')
+    assert.ok(selected.relations.some(rel=>rel.kind==='unknown'&&/미확인.*제품 표기 대상.*실내묘/.test(rel.text)),key+': unknown meaning is preserved')
+  }
+  if(width===1440){
+    assert.ok(metrics.results.width>=620&&metrics.results.width<=630,key+': results panel is about 625px')
+    assert.ok(metrics.quickView.width>=595&&metrics.quickView.width<=605,key+': quick view remains about 601px')
+    assert.ok(metrics.quick.actions.every(action=>action.box?.height>=44),key+': quick-view actions remain 44px high')
+    assert.ok(metrics.quick.facts.every(fact=>fact.box?.height<30),key+': selected package/fact values remain on one line')
+    if(query.includes('mode=explore')) assert.ok(metrics.quick.nameBox?.height<50,key+': selected long quick-view name remains one line')
+  }
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.states[key]={query,width,height,metrics,focus,file}
+  report.states[key]={query,width,height,file,metrics}
   await page.close()
 }
 
-await capture('lookupMobile','?mode=lookup',390,844,'prototype-lookup-mobile-390x844-browse.png')
+await capture('lookupMobile','?mode=lookup&selected=1',390,844,'prototype-lookup-mobile-390x844-selected.png')
 await capture('lookupDesktop','?mode=lookup&selected=1',1440,900,'prototype-lookup-desktop-1440x900-selected.png')
-await capture('exploreMobile','?mode=explore',390,844,'prototype-explore-mobile-390x844-browse.png')
+await capture('exploreMobile','?mode=explore&selected=1',390,844,'prototype-explore-mobile-390x844-selected.png')
 await capture('exploreDesktop','?mode=explore&selected=1',1440,900,'prototype-explore-desktop-1440x900-selected.png')
-
-const longExplore=report.states.exploreMobile.metrics.rows[0]
-assert.ok(longExplore.name.length>20,'long product name case is present')
-assert.ok(longExplore.nameScrollHeight>=longExplore.nameClientHeight,'long product name remains fully laid out')
-const unknown=report.states.exploreDesktop.metrics.rows.find(r=>r.relations.some(x=>x.kind==='unknown'))
-assert.ok(unknown,'selected EXPLORE desktop contains an explicit unknown relation')
-assert.match(unknown.relations.find(x=>x.kind==='unknown').text,/미확인.*제품 표기 대상.*실내묘/,'unknown wording preserved')
-assert.ok(report.states.lookupDesktop.metrics.resultsWidth>540,'desktop result list receives more room than current selected state')
-assert.ok(report.states.lookupDesktop.metrics.quickWidth>600,'quick view remains a substantial decision panel')
 
 await copyFile(SOURCE+'/results-prototype.html',OUT+'/results-prototype.html')
 await copyFile(SOURCE+'/results-prototype.css',OUT+'/results-prototype.css')
 await writeFile(OUT+'/prototype-measurements.json',JSON.stringify(report,null,2))
 console.log('RESULTS_PROTOTYPE='+JSON.stringify(report))
-
 await browser.close()

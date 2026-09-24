@@ -152,6 +152,7 @@ async function capture(key,query,width,height,file){
     assert.ok(relationRows.every(r=>r.valueFont==='13px'&&r.labelFont==='12px'),key+': relation typography is readable')
   }
   assert.ok(focus.style&&focus.style.outline.includes('2px'),key+': visible keyboard focus exists on quick-view action')
+  await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement)document.activeElement.blur()})
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
   report.states[key]={query,width,height,metrics,focus,file}
   await page.close()

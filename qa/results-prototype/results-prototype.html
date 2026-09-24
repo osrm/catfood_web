@@ -30,6 +30,7 @@
     </section>
 
     <main class="workspace">
+      <div id="mobileRefine" class="mobile-refine" hidden>더 좁혀보기</div>
       <section class="results-panel">
         <header class="results-heading">
           <div>
@@ -38,7 +39,6 @@
           </div>
           <p id="resultContext" hidden>선택한 조건이 미확인인 제품도 후보에 포함될 수 있습니다. 제품별 ‘확인됨’과 ‘미확인’을 확인하세요.</p>
         </header>
-        <div id="mobileRefine" class="mobile-refine" hidden>더 좁혀보기</div>
         <div id="resultsList" class="results-list"></div>
       </section>
 
@@ -132,7 +132,7 @@ function relationMarkup(item) {
 }
 
 resultsList.innerHTML = rows.map((item,index)=>`
-  <article class="result-row ${item.selected ? 'is-selected' : ''}">
+  <article class="result-row ${item.selected || (selected && mode === 'lookup' && index === 0) ? 'is-selected' : ''}">
     <img class="product-image" src="${item.img}" alt="" />
     <div class="identity">
       <span class="row-brand">${item.brand}</span>

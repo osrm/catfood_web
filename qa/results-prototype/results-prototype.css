@@ -14,6 +14,7 @@
   background:var(--bg);
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;min-width:320px;background:var(--bg);color:var(--ink)}
 button,input{font:inherit}
 button{cursor:pointer}

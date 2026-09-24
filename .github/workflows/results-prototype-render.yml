@@ -18,6 +18,11 @@ jobs:
           ref: qa/results-prototype-20260924
           persist-credentials: false
 
+      - name: Install Korean render font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+
       - name: Start prototype server
         run: |
           python3 -m http.server 4174 --directory qa/results-prototype >/tmp/results-prototype-http.log 2>&1 &

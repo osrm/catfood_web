@@ -27,7 +27,7 @@ async function makePage(width,height){
     const req=route.request()
     const method=req.method()
     const url=req.url()
-    if(!['GET','HEAD','OPTIONS'].includes(method)||/analytics|telemetry|event_log|functions\\/v1/i.test(url)){
+    if(!['GET','HEAD','OPTIONS'].includes(method)||/analytics|telemetry|event_log|functions\/v1/i.test(url)){
       report.blockedAttempts.push({method,url})
       await route.abort('blockedbyclient')
       return
@@ -83,7 +83,7 @@ async function measure(page){
         image:box(image),
         relations:[...row.querySelectorAll('.relation')].map(rel=>({
           kind:rel.classList.contains('unknown')?'unknown':'confirmed',
-          text:rel.textContent?.replace(/\\s+/g,' ').trim()||'',
+          text:rel.textContent?.replace(/\s+/g,' ').trim()||'',
           labelFont:getComputedStyle(rel.querySelector('span')).fontSize,
           valueFont:getComputedStyle(rel.querySelector('strong')).fontSize,
         })),

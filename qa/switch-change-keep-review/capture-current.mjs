@@ -57,6 +57,7 @@ async function enterAatu(page){
   const productBrand=normalize(await page.locator('.switch-preview-identity > div > span').textContent())
   await page.getByRole('button',{name:'이 제품을 현재 사료로 선택 →'}).click()
   await page.locator('.switch-sku-list').waitFor({state:'visible',timeout:10000})
+  await page.locator('.switch-sku-option').first().waitFor({state:'visible',timeout:30000})
   const skuTexts=(await page.locator('.switch-sku-option').allTextContents()).map(normalize)
   console.log('AATU_RESULTS='+JSON.stringify(resultTexts.map(normalize)))
   console.log('AATU_SKUS='+JSON.stringify(skuTexts))

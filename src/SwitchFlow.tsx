@@ -1283,7 +1283,7 @@ export default function SwitchFlow({
     ) : null
 
     return (
-      <div className="switch-step-layout">
+      <div className="switch-step-layout switch-decision-step switch-change-step">
         <ReferenceRail product={currentProduct} variantText={currentVariantText} step="change" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
@@ -1353,7 +1353,7 @@ export default function SwitchFlow({
                 </span>
                 <span className="switch-change-additional-state" aria-hidden="true">{changeAdditionalOpen ? '접기 ↑' : '펼치기 ↓'}</span>
               </button>
-              {changeAdditionalLabels.length > 0 ? <p className="switch-change-additional-summary">{changeAdditionalLabels.join(' · ')}</p> : null}
+              {!changeAdditionalOpen && changeAdditionalLabels.length > 0 ? <p className="switch-change-additional-summary">{changeAdditionalLabels.join(' · ')}</p> : null}
               <div id={additionalControlsId} className="switch-change-additional-content" hidden={!changeAdditionalOpen}>
                 {renderLifeStage()}
                 {renderIngredientAvoidance()}
@@ -1377,20 +1377,41 @@ export default function SwitchFlow({
   function renderKeepStep() {
     if (!currentProduct) return null
 
+    const selectedChangeLabels = criteriaLabels(change)
+    if (changeBrand) selectedChangeLabels.unshift('다른 브랜드')
+    selectedChangeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+    if (noChangeIntent && selectedChangeLabels.length === 0) selectedChangeLabels.push('특별히 바꿀 점 없음')
+
+    const currentCoreFacts = [
+      currentProduct.feed_type ?? '형태 미확인',
+      currentProduct.life_stage ? optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인',
+      currentRecipeFamilies.length > 0 ? compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS) : '레시피 미확인',
+    ]
+
     return (
-      <div className="switch-step-layout">
+      <div className="switch-step-layout switch-decision-step switch-keep-step">
         <ReferenceRail product={currentProduct} variantText={currentVariantText} step="keep" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
             <span>KEEP</span>
             <h1>무엇을 그대로 유지할까요?</h1>
             <p>지금 사료에서 다음 사료에도 꼭 남기고 싶은 조건만 골라주세요.</p>
+            <div className="switch-keep-change-summary">
+              <strong>바꾸기로 정함</strong>
+              <span>{selectedChangeLabels.join(' · ') || '특별히 바꿀 점 없음'}</span>
+            </div>
           </div>
 
-          <section className="switch-current-facts-strip">
-            <div><span>공식 대상</span><strong>{compactList(currentProduct.official_targets, TARGET_LABELS)}</strong></div>
-            <div><span>기능</span><strong>{compactList(currentProduct.features, FEATURE_LABELS)}</strong></div>
-            <div><span>레시피</span><strong>{currentRecipeFamilies.length > 0 ? compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS) : '확인된 레시피 정보 없음'}</strong></div>
+          <section className="switch-current-facts-strip switch-current-facts-summary" aria-label="현재 제품에서 확인된 정보">
+            <div>
+              <span>현재 제품에서 확인됨</span>
+              <strong>{currentCoreFacts.join(' · ')}</strong>
+            </div>
+            <p>
+              <b>공식 대상</b> {compactList(currentProduct.official_targets, TARGET_LABELS)}
+              <i>·</i>
+              <b>기능</b> {compactList(currentProduct.features, FEATURE_LABELS)}
+            </p>
           </section>
 
           <div className="switch-criteria-columns">

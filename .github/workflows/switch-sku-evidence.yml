@@ -10,6 +10,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Verify QA base
         run: |
           git merge-base --is-ancestor 3afa544521b8407931076eae43698b8a5c5113ef HEAD

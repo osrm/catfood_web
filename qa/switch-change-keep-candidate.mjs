@@ -181,10 +181,16 @@ function assertFocusVisible(focus,height,label){
 
 async function normalScrollBottom(page,width,step){
   if(width<=760){
-    await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
-    await page.waitForFunction(()=>window.scrollY>0)
-  }else{
-    const main=page.locator('.switch-'+step+'-step .switch-step-main')
+    const canScroll=await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight)
+    if(canScroll){
+      await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
+      await page.waitForFunction(()=>window.scrollY>0)
+    }
+    return {owner:'document',canScroll}
+  }
+  const main=page.locator('.switch-'+step+'-step .switch-step-main')
+  const canScroll=await main.evaluate(el=>el.scrollHeight>el.clientHeight)
+  if(canScroll){
     await main.hover()
     await page.mouse.wheel(0,5000)
     await page.waitForFunction(step=>{
@@ -192,6 +198,7 @@ async function normalScrollBottom(page,width,step){
       return el instanceof HTMLElement&&el.scrollTop>0
     },step)
   }
+  return {owner:'step-main',canScroll}
 }
 
 async function focusActionPair(page,height,step){
@@ -218,12 +225,12 @@ async function assertDecisionMetrics(page,width,height,step){
   assert.ok(measured.actions.primary.box?.height>=48&&measured.actions.secondary.box?.height>=48,step+' actions >=48px')
   assert.match(measured.reference.name.style?.whiteSpace||'',/normal/,'reference product name can wrap')
   assert.notEqual(measured.reference.name.style?.textOverflow,'ellipsis','reference name is not ellipsized')
-  await normalScrollBottom(page,width,step)
+  const scroll=await normalScrollBottom(page,width,step)
   const bottom=await state(page,step)
   assert.ok(bottom.actions.primary.box?.top>=0&&bottom.actions.primary.box?.bottom<=height,step+' primary action reachable')
   assert.ok(bottom.actions.secondary.box?.top>=0&&bottom.actions.secondary.box?.bottom<=height,step+' secondary action reachable')
   const focus=await focusActionPair(page,height,step)
-  return {top:measured,bottom,focus}
+  return {top:measured,scroll,bottom,focus}
 }
 
 async function viewportRoundTrip(page){

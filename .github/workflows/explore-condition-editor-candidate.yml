@@ -1,0 +1,70 @@
+name: Explore condition editor candidate QA
+
+on:
+  push:
+    branches:
+      - feat/explore-condition-editor-20260926
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test, typecheck and build candidate
+        run: npm test && npm run build
+
+      - name: Start candidate server
+        run: |
+          python3 -m http.server 4173 --directory dist >/tmp/explore-condition-editor.log 2>&1 &
+          echo $! >/tmp/explore-condition-editor.pid
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/explore-condition-editor.log
+          exit 1
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/explore-condition-editor
+          cp qa/explore-condition-editor-candidate.mjs /tmp/explore-condition-editor/
+          cd /tmp/explore-condition-editor
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Run actual candidate QA
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/explore-condition-editor-output" \
+          node /tmp/explore-condition-editor/explore-condition-editor-candidate.mjs
+
+      - name: Upload candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: explore-condition-editor-candidate
+          path: explore-condition-editor-output
+          if-no-files-found: warn
+          retention-days: 7

@@ -3,7 +3,8 @@ on:
   pull_request:
     paths:
       - 'src/SwitchFlow.tsx'
-      - 'src/switch-results-polish.css'
+      - 'src/switch-results-reviewed.css'
+      - 'src/main.tsx'
       - 'tests/switch-session-navigation.test.mjs'
       - 'qa/switch-results-candidate-review.mjs'
       - '.github/workflows/switch-results-candidate-review.yml'
@@ -13,10 +14,13 @@ jobs:
   candidate-review:
     runs-on: ubuntu-latest
     env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

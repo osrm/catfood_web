@@ -674,6 +674,7 @@ export default function SwitchFlow({
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
   const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const pendingCandidateFocus = useRef<string | null>(null)
   const pendingExplicitScroll = useRef<{
     source: SwitchExplicitScrollTarget
     intent: SwitchExplicitScrollIntent
@@ -894,6 +895,13 @@ export default function SwitchFlow({
     })), [compareIds, candidates])
 
   useLayoutEffect(() => {
+    if (selectedCandidateId || !pendingCandidateFocus.current) return
+    const productId = pendingCandidateFocus.current
+    pendingCandidateFocus.current = null
+    candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true })
+  }, [selectedCandidateId])
+
+  useLayoutEffect(() => {
     const pending = pendingExplicitScroll.current
     if (!pending) return
     const renderedTarget: SwitchExplicitScrollTarget | null = detailProduct && !compareOpen
@@ -975,7 +983,7 @@ export default function SwitchFlow({
   }
 
   function closeCandidate(productId: string) {
-    candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true })
+    pendingCandidateFocus.current = productId
     setSelectedCandidateId(null)
   }
 

@@ -156,7 +156,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   assert.equal(toggle.getAttribute('aria-expanded'), 'true', 'choosing an advanced condition must not auto-fold the disclosure')
   assert.equal(kitten.getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
-  assert.match(document.querySelector('.switch-change-additional-summary').textContent, /키튼/)
+  assert.equal(document.querySelector('.switch-change-additional-summary'), null, 'expanded disclosure hides duplicate selected-name summary')
 
   await click(toggle)
   assert.equal(toggle.getAttribute('aria-expanded'), 'false')
@@ -166,6 +166,9 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
 
   await click(document.querySelector('.switch-step-actions .switch-primary-action'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /그대로 유지/)
+  assert.match(document.querySelector('.switch-keep-change-summary').textContent, /바꾸기로 정함.*키튼/s)
+  assert.match(document.querySelector('.switch-current-facts-summary').textContent, /현재 제품에서 확인됨.*건식.*성묘/s)
+  assert.doesNotMatch(document.querySelector('.switch-current-facts-summary').textContent, /키튼/, 'current facts stay separate from CHANGE intent')
 
   await click(exactButton('← 바꿀 것 수정'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /바꾸고 싶나요/)
@@ -175,7 +178,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   const reentryKitten = exactButton('키튼', reentryContent)
   assert.equal(reentryKitten.getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
-  assert.match(document.querySelector('.switch-change-additional-summary').textContent, /키튼/)
+  assert.equal(document.querySelector('.switch-change-additional-summary'), null, 're-entered expanded disclosure keeps duplicate summary hidden')
 
   await click(document.querySelector('.switch-no-change'))
   assert.equal(document.querySelector('.switch-no-change').classList.contains('is-selected'), true)
@@ -189,8 +192,9 @@ test('mobile CHANGE disclosure counts only advanced selections and retains deskt
   const source = await import('node:fs/promises').then(({ readFile }) => Promise.all([
     readFile(new URL('../src/SwitchFlow.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/switch-change-disclosure.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/switch-change-keep-editorial.css', import.meta.url), 'utf8'),
   ]))
-  const [flow, css] = source
+  const [flow, css, editorial] = source
   const helper = flow.slice(flow.indexOf('function additionalChangeLabels'), flow.indexOf('function buildConditions'))
   for (const token of ['criteria.lifeStage', 'ingredientAvoidTerms', 'criteria.officialTargets', 'criteria.features', 'criteria.recipeFamilies', 'criteria.grainFree']) {
     assert.match(helper, new RegExp(token.replace('.', '\\.')))
@@ -198,5 +202,11 @@ test('mobile CHANGE disclosure counts only advanced selections and retains deskt
   assert.doesNotMatch(helper, /changeBrand|criteria\.feedType/)
   assert.match(css, /@media \(max-width: 760px\)/)
   assert.match(css, /\.switch-change-desktop-criteria \{\s*display: none;/)
-  assert.doesNotMatch(css, /position:\s*(?:fixed|sticky)/)
+  assert.match(flow, /!changeAdditionalOpen && changeAdditionalLabels\.length > 0/)
+  assert.match(flow, /switch-decision-step-layout/)
+  assert.match(flow, /switch-keep-change-summary/)
+  assert.match(flow, /switch-current-facts-summary/)
+  assert.match(editorial, /\.switch-decision-step-layout \.switch-choice \{[\s\S]*?min-height:\s*44px/)
+  assert.match(editorial, /\.switch-decision-step-layout \.switch-primary-action,[\s\S]*?min-height:\s*48px/)
+  assert.doesNotMatch(css + editorial, /position:\s*(?:fixed|sticky)/)
 })

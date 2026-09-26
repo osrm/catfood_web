@@ -42,7 +42,7 @@ async function state(page){
     const rect=el=>{
       if(!(el instanceof HTMLElement)) return null
       const r=el.getBoundingClientRect()
-      return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}
+      return {x:r.x,y:r.y,top:r.top,left:r.left,width:r.width,height:r.height,right:r.right,bottom:r.bottom}
     }
     const style=el=>{
       if(!(el instanceof HTMLElement)) return null

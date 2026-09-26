@@ -340,19 +340,19 @@ async function desktopScenario(width,height,key){
     const lastControl=page.locator('.switch-change-desktop-criteria').getByRole('button',{name:'Grain-Free 표기',exact:true})
     assert.ok(await lastControl.count(),'1440x700 final recipe-trait condition exists')
     let lastControlBox=null
-    for(let i=0;i<24;i++){
-      await page.mouse.wheel(0,180)
-      await page.waitForTimeout(60)
+    for(let i=0;i<80;i++){
+      await page.mouse.wheel(0,60)
+      await page.waitForTimeout(35)
       lastControlBox=await lastControl.boundingBox()
       if(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height) break
     }
     assert.ok(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height,'1440x700 final Grain-Free condition reachable by normal scroll')
 
-    for(let i=0;i<24;i++){
+    for(let i=0;i<80;i++){
       change=await measureDecision(page,'change')
       if(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height) break
-      await page.mouse.wheel(0,180)
-      await page.waitForTimeout(60)
+      await page.mouse.wheel(0,60)
+      await page.waitForTimeout(35)
     }
     change=await measureDecision(page,'change')
     assert.ok(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height,'1440x700 CHANGE action reachable by normal scroll')

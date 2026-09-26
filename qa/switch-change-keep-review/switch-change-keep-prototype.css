@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+
 :root{
-  font-family:Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  font-family:"Noto Sans KR",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   color:#202823;
   background:#f5f3ee;
   font-synthesis:none;

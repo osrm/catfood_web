@@ -11,6 +11,10 @@
   color: var(--home-ink);
 }
 
+.home-shell.home-knowledge-shell {
+  background: #f3f1ec;
+}
+
 .home-knowledge-shell .home-header {
   height: 68px;
   flex-shrink: 0;

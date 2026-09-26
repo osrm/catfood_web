@@ -158,6 +158,7 @@ async function measureDecision(page,step){
       const s=getComputedStyle(el)
       return {display:s.display,position:s.position,overflowY:s.overflowY,fontSize:s.fontSize,lineHeight:s.lineHeight,whiteSpace:s.whiteSpace,textOverflow:s.textOverflow,overflow:s.overflow}
     }
+    const norm=(value)=>String(value||'').replace(/\\s+/g,' ').trim()
     const choices=[...root.querySelectorAll('.switch-choice')].filter(el=>{
       if(!(el instanceof HTMLElement)) return false
       const r=el.getBoundingClientRect(),s=getComputedStyle(el)
@@ -170,22 +171,22 @@ async function measureDecision(page,step){
       viewport:{width:innerWidth,height:innerHeight},
       document:{scrollHeight:document.documentElement.scrollHeight,scrollWidth:document.documentElement.scrollWidth,scrollY},
       main:{box:rect(main),scrollTop:main instanceof HTMLElement?main.scrollTop:null,scrollHeight:main instanceof HTMLElement?main.scrollHeight:null,clientHeight:main instanceof HTMLElement?main.clientHeight:null,style:style(main)},
-      rail:{box:rect(rail),text:normalize(rail?.textContent),style:style(rail)},
+      rail:{box:rect(rail),text:norm(rail?.textContent),style:style(rail)},
       heading:{box:rect(document.querySelector('.switch-step-header h1')),style:style(document.querySelector('.switch-step-header h1'))},
       choices,
       actions:{
         box:rect(actions),
-        secondary:{box:rect(actions?.querySelector('.switch-secondary-action')),style:style(actions?.querySelector('.switch-secondary-action')),text:normalize(actions?.querySelector('.switch-secondary-action')?.textContent)},
-        primary:{box:rect(actions?.querySelector('.switch-primary-action')),style:style(actions?.querySelector('.switch-primary-action')),text:normalize(actions?.querySelector('.switch-primary-action')?.textContent)},
+        secondary:{box:rect(actions?.querySelector('.switch-secondary-action')),style:style(actions?.querySelector('.switch-secondary-action')),text:norm(actions?.querySelector('.switch-secondary-action')?.textContent)},
+        primary:{box:rect(actions?.querySelector('.switch-primary-action')),style:style(actions?.querySelector('.switch-primary-action')),text:norm(actions?.querySelector('.switch-primary-action')?.textContent)},
       },
       additional:{
         mobileDisplay:style(document.querySelector('.switch-change-mobile-criteria'))?.display||null,
         desktopDisplay:style(document.querySelector('.switch-change-desktop-criteria'))?.display||null,
         expanded:document.querySelector('.switch-change-additional-toggle')?.getAttribute('aria-expanded')||null,
-        summary:normalize(document.querySelector('.switch-change-additional-summary')?.textContent)||null,
+        summary:norm(document.querySelector('.switch-change-additional-summary')?.textContent)||null,
       },
-      keepChangeSummary:normalize(document.querySelector('.switch-keep-change-summary')?.textContent)||null,
-      currentFacts:normalize(document.querySelector('.switch-current-facts-summary')?.textContent)||null,
+      keepChangeSummary:norm(document.querySelector('.switch-keep-change-summary')?.textContent)||null,
+      currentFacts:norm(document.querySelector('.switch-current-facts-summary')?.textContent)||null,
       horizontalOverflow:document.documentElement.scrollWidth-innerWidth,
     }
   },step)

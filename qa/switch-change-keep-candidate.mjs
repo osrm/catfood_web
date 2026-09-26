@@ -88,7 +88,15 @@ async function chooseAatu(page){
   const selectedSku=normalize(await sku.textContent())
   await page.locator('.switch-step-actions .switch-primary-action').click()
   await page.getByRole('heading',{name:'무엇을 바꾸고 싶나요?'}).waitFor({state:'visible'})
-  return {...identity,selectedSku}
+  const referenceImage=page.locator('.switch-reference-image')
+  await referenceImage.waitFor({state:'visible'})
+  await page.waitForFunction(() => {
+    const image=document.querySelector('.switch-reference-image')
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+  },undefined,{timeout:10000})
+  const imageLoaded=await referenceImage.evaluate(el=>el instanceof HTMLImageElement&&el.complete&&el.naturalWidth>0)
+  assert.equal(imageLoaded,true,'actual AATU product image loaded')
+  return {...identity,selectedSku,imageLoaded}
 }
 
 async function visibleExact(page,label,selector='button'){
@@ -340,7 +348,7 @@ async function longIdentityScenario(){
   const rows=getCatalog()
   assert.ok(Array.isArray(rows)&&rows.length>0,'captured actual public catalog')
   const candidates=rows
-    .filter(row=>row.has_variants&&row.display_image_url&&row.canonical_name)
+    .filter(row=>row.has_variants&&row.display_image_url&&row.canonical_name&&String(row.display_image_url).includes('supabase.co'))
     .sort((a,b)=>String(b.canonical_name).length-String(a.canonical_name).length)
   assert.ok(candidates.length>0,'long identity candidate available')
   const target=candidates[0]
@@ -363,8 +371,12 @@ async function longIdentityScenario(){
   assert.ok(state.reference.sku.text.length>0,'actual long SKU text retained')
   const image=page.locator('.switch-reference-image')
   await image.waitFor({state:'visible'})
+  await page.waitForFunction(() => {
+    const image=document.querySelector('.switch-reference-image')
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+  },undefined,{timeout:10000})
   const imageLoaded=await image.evaluate(el=>el instanceof HTMLImageElement&&el.complete&&el.naturalWidth>0)
-  assert.equal(imageLoaded,true,'actual product image loaded')
+  assert.equal(imageLoaded,true,'actual long-case product image loaded')
   await page.screenshot({path:OUT+'/'+key+'.png',fullPage:false})
   report.scenarios[key]={target:{product_id:target.product_id,brand:target.brand,name:target.canonical_name},identity,selectedSku:longestText,reference:state.reference,imageLoaded}
   report.catalog={count:rows.length}

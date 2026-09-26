@@ -246,6 +246,12 @@ button:focus-visible{outline:2px solid #557985;outline-offset:2px}
   color:#fff;
 }
 
+@media(min-width:1000px){
+  .choice-grid:not(.one-column){
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
 @media(max-width:760px){
   body{padding-bottom:76px}
   .topbar{

@@ -194,7 +194,7 @@ test('EXPLORE additional disclosure keeps draft state separate from applied sear
   await click('실내묘')
   assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 1개/)
   assert.match(toggle.textContent, /1개 선택/)
-  assert.match(document.querySelector('.mobile-additional-summary').textContent, /실내묘/)
+  assert.equal(document.querySelector('.mobile-additional-summary'), null, 'expanded disclosure avoids duplicating selected labels')
   assert.equal(searchRuns().length, 0)
 
   await click(toggle)

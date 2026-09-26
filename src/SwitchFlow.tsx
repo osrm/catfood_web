@@ -1397,7 +1397,7 @@ export default function SwitchFlow({
             {changeSummary.length > 0 ? <div className="switch-change-selection-summary"><strong>바꾸기로 정함</strong><span>{changeSummary.join(' · ')}</span></div> : null}
           </div>
 
-          <section className="switch-current-facts-summary" aria-label="현재 제품에서 확인된 정보">
+          <section className="switch-current-facts-strip switch-current-facts-summary" aria-label="현재 제품에서 확인된 정보">
             <div><span>현재 제품에서 확인됨</span><strong>{currentFacts.join(' · ')}</strong></div>
             <p><b>공식 대상</b> {compactList(currentProduct.official_targets, TARGET_LABELS)} <i>·</i> <b>기능</b> {compactList(currentProduct.features, FEATURE_LABELS)}</p>
           </section>

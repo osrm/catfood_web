@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'switch-results-candidate-output'
 await mkdir(OUT,{recursive:true})
-const report={sourceSha:process.env.GITHUB_SHA,baseSha:'7f49ac85e20e9873f37e70c08995240032168722',blocked:[],scenarios:{}}
+const report={sourceSha:process.env.CANDIDATE_SHA||process.env.GITHUB_SHA,baseSha:'7f49ac85e20e9873f37e70c08995240032168722',blocked:[],scenarios:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
 async function pageAt(w,h){

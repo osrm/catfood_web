@@ -350,7 +350,7 @@ test('SwitchFlow unmount cancels its scheduled settle handle before a stale call
     .find((node) => node.textContent.trim() === '다음 →')
   assert.ok(next)
   await act(async () => next.click())
-  assert.ok(document.querySelector('.switch-current-facts-strip'), 'KEEP destination rendered')
+  assert.ok(document.querySelector('.switch-current-facts-summary'), 'KEEP destination rendered')
   const [staleFrame] = activeFrameIds()
   assert.ok(staleFrame, 'SwitchFlow keeps one settle frame pending after the synchronous reset')
 
@@ -358,7 +358,7 @@ test('SwitchFlow unmount cancels its scheduled settle handle before a stale call
   root = null
   assert.equal(frameState(staleFrame)?.canceled, true, 'component cleanup cancels the owned settle frame')
 
-  document.body.innerHTML = '<div id="root"><main class="switch-step-main"><section class="switch-current-facts-strip"></section></main></div>'
+  document.body.innerHTML = '<div id="root"><main class="switch-step-main"><section class="switch-current-facts-summary"></section></main></div>'
   document.documentElement.scrollTop = 463
   assert.equal(runFrame(staleFrame, { force: true }), true, 'force the canceled callback to prove it is harmless')
   assert.equal(document.documentElement.scrollTop, 463)

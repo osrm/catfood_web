@@ -180,25 +180,39 @@ function assertFocusVisible(focus,height,label){
 }
 
 async function normalScrollBottom(page,width,step){
+  const actionSelector='.switch-'+step+'-step .switch-primary-action'
   if(width<=760){
     const canScroll=await page.evaluate(()=>document.documentElement.scrollHeight>innerHeight)
     if(canScroll){
-      await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
-      await page.waitForFunction(()=>window.scrollY>0)
+      await page.locator('body').hover()
+      for(let i=0;i<12;i++){
+        await page.mouse.wheel(0,700)
+        await page.waitForTimeout(25)
+        const visible=await page.locator(actionSelector).evaluate(el=>{
+          const r=el.getBoundingClientRect()
+          return r.top>=0&&r.bottom<=innerHeight
+        })
+        if(visible) break
+      }
     }
-    return {owner:'document',canScroll}
+    return {owner:'document',canScroll,position:await page.evaluate(()=>({scrollTop:scrollY,scrollHeight:document.documentElement.scrollHeight,clientHeight:innerHeight}))}
   }
+
   const main=page.locator('.switch-'+step+'-step .switch-step-main')
   const canScroll=await main.evaluate(el=>el.scrollHeight>el.clientHeight)
   if(canScroll){
     await main.hover()
-    await page.mouse.wheel(0,5000)
-    await page.waitForFunction(step=>{
-      const el=document.querySelector('.switch-'+step+'-step .switch-step-main')
-      return el instanceof HTMLElement&&el.scrollTop>0
-    },step)
+    for(let i=0;i<12;i++){
+      await page.mouse.wheel(0,700)
+      await page.waitForTimeout(25)
+      const visible=await page.locator(actionSelector).evaluate(el=>{
+        const r=el.getBoundingClientRect()
+        return r.top>=0&&r.bottom<=innerHeight
+      })
+      if(visible) break
+    }
   }
-  return {owner:'step-main',canScroll}
+  return {owner:'step-main',canScroll,position:await main.evaluate(el=>({scrollTop:el.scrollTop,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight}))}
 }
 
 async function focusActionPair(page,height,step){

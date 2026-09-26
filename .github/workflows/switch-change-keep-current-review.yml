@@ -41,11 +41,29 @@ jobs:
           OUT_DIR="$GITHUB_WORKSPACE/switch-change-keep-current" \
           node /tmp/switch-change-keep-review/capture-current.mjs
 
+      - name: Start local prototype server
+        run: |
+          python3 -m http.server 4173 --directory . >/tmp/switch-change-keep-prototype.log 2>&1 &
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4173/qa/switch-change-keep-review/switch-change-keep-prototype.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/switch-change-keep-prototype.log
+          exit 1
+
+      - name: Render prototype and combine measurements
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/switch-change-keep-review-output" \
+          CURRENT_DIR="$GITHUB_WORKSPACE/switch-change-keep-current" \
+          node qa/switch-change-keep-review/render-review.mjs
+
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: switch-change-keep-current
-          path: switch-change-keep-current
+          name: switch-change-keep-review
+          path: switch-change-keep-review-output
           if-no-files-found: warn
           retention-days: 7

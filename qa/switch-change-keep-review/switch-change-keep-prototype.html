@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CATFOOD SWITCH CHANGE / KEEP QA prototype</title>
+  <link rel="stylesheet" href="./switch-change-keep-prototype.css" />
+</head>
+<body>
+  <header class="topbar">
+    <strong>CATFOOD</strong>
+    <nav aria-label="탐색 모드">
+      <span>조건으로 찾기</span>
+      <span>제품 찾기</span>
+      <b>현재 사료</b>
+    </nav>
+    <div class="status"><span>843 PRODUCTS</span><span>데이터 연결됨</span></div>
+  </header>
+
+  <section id="change" class="prototype-screen change-screen">
+    <div class="step-layout">
+      <aside class="reference" aria-label="현재 사료와 진행 단계">
+        <span class="reference-label">현재 사료</span>
+        <div class="product">
+          <div class="product-mark" aria-hidden="true"><b>AATU</b><small>SALMON</small></div>
+          <div>
+            <span>AATU</span>
+            <strong>연어</strong>
+            <small>건식 · 전연령</small>
+          </div>
+        </div>
+        <div class="sku"><span>사용 규격</span><strong>1 kg</strong></div>
+        <button type="button" class="text-action">현재 사료 다시 선택</button>
+        <ol class="progress" aria-label="현재 사료 전환 단계">
+          <li class="done"><span>✓</span><strong>현재 제품</strong></li>
+          <li class="done"><span>✓</span><strong>사용 규격</strong></li>
+          <li class="current"><span>3</span><strong>바꿀 것</strong></li>
+          <li><a href="#keep"><span>4</span><strong>유지할 것</strong></a></li>
+          <li><span>5</span><strong>후보</strong></li>
+        </ol>
+      </aside>
+
+      <main class="editor">
+        <header class="step-heading">
+          <span>3 · 바꿀 것</span>
+          <h1>무엇을 바꾸고 싶나요?</h1>
+          <p>지금 사료에서 바꾸고 싶은 점만 골라주세요. 확인되지 않은 정보는 임의로 추정하지 않습니다.</p>
+        </header>
+
+        <button class="no-change" type="button" aria-pressed="false">
+          <strong>특별히 바꾸고 싶은 점 없음</strong>
+          <span>지금 사료와 비슷한 후보를 보고, 다음 단계에서 꼭 유지할 조건만 고릅니다.</span>
+        </button>
+
+        <div class="basic-grid">
+          <section class="criterion">
+            <div class="criterion-heading"><strong>브랜드</strong><span>현재 · AATU</span></div>
+            <button class="choice wide active" type="button" aria-pressed="true">다른 브랜드로 보기</button>
+          </section>
+          <section class="criterion">
+            <div class="criterion-heading"><strong>사료 형태</strong><span>현재 · 건식</span></div>
+            <div class="choice-row">
+              <button class="choice" type="button" aria-pressed="false">습식</button>
+              <button class="choice" type="button" aria-pressed="false">동결건조</button>
+            </div>
+          </section>
+        </div>
+
+        <details class="additional" open>
+          <summary>
+            <span><strong>추가 변경 조건</strong><small>1개 선택</small></span>
+            <b class="disclosure-state">접기 ↑</b>
+            <em class="selected-summary">시니어</em>
+          </summary>
+          <div class="additional-content">
+            <section class="criterion">
+              <div class="criterion-heading"><strong>생애주기</strong><span>현재 · 전연령</span></div>
+              <div class="choice-row">
+                <button class="choice" type="button" aria-pressed="false">키튼</button>
+                <button class="choice" type="button" aria-pressed="false">성묘</button>
+                <button class="choice active" type="button" aria-pressed="true">시니어</button>
+                <button class="choice" type="button" aria-pressed="false">임신·수유·키튼</button>
+              </div>
+            </section>
+
+            <section class="criterion ingredient">
+              <div class="criterion-heading"><strong>피하고 싶은 원료</strong><span>현재 확인된 원재료 기준</span></div>
+              <p class="muted">현재 제품에서 바로 제안할 원료가 없습니다. 아래에서 직접 검색할 수 있습니다.</p>
+              <input type="search" placeholder="원료 검색 · 예: 닭, 연어" aria-label="피하고 싶은 원료 검색" />
+              <p class="note">해당 원료가 <strong>확인된</strong> 제품은 후보에서 제외합니다. ‘찾지 못함’은 원료가 없다는 보장은 아닙니다.</p>
+            </section>
+
+            <section class="criterion">
+              <div class="criterion-heading"><strong>공식 대상</strong><span>현재 제품에서 확인되지 않은 표기</span></div>
+              <div class="choice-row">
+                <button class="choice" type="button" aria-pressed="false">실내묘</button>
+                <button class="choice" type="button" aria-pressed="false">중성화묘</button>
+              </div>
+            </section>
+
+            <section class="criterion">
+              <div class="criterion-heading"><strong>기능</strong><span>제품의 공식 표기 기준</span></div>
+              <div class="choice-row">
+                <button class="choice" type="button" aria-pressed="false">체중 관리</button>
+                <button class="choice" type="button" aria-pressed="false">변 상태</button>
+                <button class="choice" type="button" aria-pressed="false">헤어볼</button>
+                <button class="choice" type="button" aria-pressed="false">소화</button>
+                <button class="choice" type="button" aria-pressed="false">요로</button>
+                <button class="choice" type="button" aria-pressed="false">피부·피모</button>
+                <button class="choice" type="button" aria-pressed="false">덴탈</button>
+              </div>
+            </section>
+
+            <section class="criterion">
+              <div class="criterion-heading"><strong>레시피 계열</strong><span>현재 · 생선</span></div>
+              <div class="choice-row">
+                <button class="choice" type="button" aria-pressed="false">가금류</button>
+                <button class="choice" type="button" aria-pressed="false">육류</button>
+              </div>
+            </section>
+
+            <section class="criterion">
+              <div class="criterion-heading"><strong>레시피 특성</strong><span>현재 제품 표기 미확인</span></div>
+              <button class="choice wide" type="button" aria-pressed="false">Grain-Free 표기</button>
+            </section>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button class="secondary" type="button">← 사용 규격</button>
+          <a class="primary" href="#keep">다음 · 유지할 것 정하기 →</a>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <section id="keep" class="prototype-screen keep-screen">
+    <div class="step-layout">
+      <aside class="reference" aria-label="현재 사료와 진행 단계">
+        <span class="reference-label">현재 사료</span>
+        <div class="product">
+          <div class="product-mark" aria-hidden="true"><b>AATU</b><small>SALMON</small></div>
+          <div>
+            <span>AATU</span>
+            <strong>연어</strong>
+            <small>건식 · 전연령</small>
+          </div>
+        </div>
+        <div class="sku"><span>사용 규격</span><strong>1 kg</strong></div>
+        <button type="button" class="text-action">현재 사료 다시 선택</button>
+        <ol class="progress" aria-label="현재 사료 전환 단계">
+          <li class="done"><span>✓</span><strong>현재 제품</strong></li>
+          <li class="done"><span>✓</span><strong>사용 규격</strong></li>
+          <li class="done"><a href="#change"><span>✓</span><strong>바꿀 것</strong></a></li>
+          <li class="current"><span>4</span><strong>유지할 것</strong></li>
+          <li><span>5</span><strong>후보</strong></li>
+        </ol>
+      </aside>
+
+      <main class="editor">
+        <header class="step-heading">
+          <span>4 · 유지할 것</span>
+          <h1>무엇을 그대로 유지할까요?</h1>
+          <p>지금 사료에서 다음 사료에도 꼭 남기고 싶은 조건만 골라주세요.</p>
+          <div class="previous-selection"><b>바꾸기로 정함</b><span>다른 브랜드 · 시니어</span></div>
+        </header>
+
+        <section class="current-facts" aria-label="현재 제품에서 확인된 정보">
+          <div>
+            <span>현재 제품에서 확인됨</span>
+            <strong>건식 · 전연령 · 생선</strong>
+          </div>
+          <p><b>공식 대상</b> 확인된 값 없음 <i>·</i> <b>기능</b> 확인된 값 없음</p>
+        </section>
+
+        <div class="keep-grid">
+          <section class="criterion">
+            <div class="criterion-heading"><strong>사료 형태</strong><span>현재 제품</span></div>
+            <button class="choice wide active" type="button" aria-pressed="true">건식 유지</button>
+          </section>
+          <section class="criterion">
+            <div class="criterion-heading"><strong>레시피 계열</strong><span>현재 확인된 레시피 정보</span></div>
+            <button class="choice active" type="button" aria-pressed="true">생선</button>
+          </section>
+        </div>
+
+        <div class="actions">
+          <a class="secondary" href="#change">← 바꿀 것 수정</a>
+          <button class="primary" type="button">후보 제품 보기 →</button>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <p class="prototype-note">독립 QA 시안 · 단계 링크와 추가 조건 펼침/접힘만 모형으로 동작합니다. 선택·적용·후보 탐색은 실제 앱 기능이 아닙니다.</p>
+</body>
+</html>

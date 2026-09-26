@@ -1,0 +1,370 @@
+/* SWITCH CHANGE / KEEP editorial hierarchy.
+   Presentation only: preserve existing workflow, state, history and evaluator semantics. */
+
+.switch-workflow-shell .switch-decision-step-layout {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-rail {
+  padding: 18px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-product {
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 11px;
+  padding: 10px 0 15px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-image,
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-product .switch-image-placeholder {
+  width: 46px;
+  height: 58px;
+  border-radius: 6px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-product > div > strong {
+  overflow: visible;
+  color: var(--consumer-primary);
+  font-size: 14px;
+  line-height: 1.3;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-product > div > small {
+  overflow: visible;
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-sku {
+  padding: 13px 0;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-reference-sku strong {
+  overflow-wrap: anywhere;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-change-current {
+  min-height: 40px;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-progress {
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-step-main {
+  padding: 30px 52px 34px;
+  scroll-padding-block: 18px 28px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-step-header {
+  max-width: 850px;
+  padding-bottom: 20px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-no-change {
+  min-height: 66px;
+  margin: 0 0 18px;
+  padding: 13px 16px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-criteria-columns {
+  max-width: 980px;
+  gap: 0 26px;
+  margin-top: 0;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-criterion-section {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #e6e2da;
+  border-radius: 0;
+  padding: 15px 0 17px;
+  background: transparent;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-criterion-heading {
+  margin-bottom: 10px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-criterion-heading strong {
+  font-size: 13.5px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-criterion-heading span {
+  font-size: 11.5px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-choice {
+  min-height: 44px;
+  padding: 9px 13px;
+  font-size: 13px;
+  line-height: 1.35;
+  scroll-margin-block: 14px 24px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-step-actions {
+  max-width: 980px;
+  margin-top: 22px;
+  padding-top: 16px;
+}
+
+.switch-workflow-shell .switch-decision-step-layout .switch-primary-action,
+.switch-workflow-shell .switch-decision-step-layout .switch-secondary-action {
+  min-height: 48px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+
+.switch-workflow-shell .switch-keep-change-summary {
+  max-width: 980px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: -4px 0 14px;
+  color: #59625d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.switch-workflow-shell .switch-keep-change-summary strong {
+  flex: 0 0 auto;
+  color: var(--consumer-primary-2);
+  font-weight: 760;
+}
+
+.switch-workflow-shell .switch-keep-change-summary span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.switch-workflow-shell .switch-current-facts-summary {
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin: 0 0 16px;
+  border-top: 1px solid #e6e2da;
+  border-bottom: 1px solid #e6e2da;
+  padding: 13px 0;
+}
+
+.switch-workflow-shell .switch-current-facts-summary > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.switch-workflow-shell .switch-current-facts-summary > div span {
+  color: var(--consumer-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.switch-workflow-shell .switch-current-facts-summary > div strong {
+  color: #26473d;
+  font-size: 13.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.switch-workflow-shell .switch-current-facts-summary p {
+  margin: 0;
+  color: #76736c;
+  font-size: 11.5px;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.switch-workflow-shell .switch-current-facts-summary p b {
+  color: #4f5854;
+  font-weight: 700;
+}
+
+.switch-workflow-shell .switch-current-facts-summary p i {
+  padding: 0 5px;
+  color: #b0aba2;
+  font-style: normal;
+}
+
+@media (max-width: 980px) {
+  .switch-workflow-shell .switch-decision-step-layout {
+    width: min(100% - 32px, 820px);
+    height: auto;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-decision-step-layout {
+    width: calc(100% - 28px);
+    display: block;
+    margin: 14px auto 24px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-rail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 10px;
+    overflow: visible;
+    padding: 12px 14px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-label {
+    flex: 0 0 100%;
+    margin-bottom: 4px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-product {
+    flex: 1 1 190px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+    padding: 4px 0 8px;
+    border-bottom: 0;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-image,
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-product .switch-image-placeholder {
+    width: 40px;
+    height: 50px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-product > div > span,
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-product > div > small {
+    font-size: 10px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-sku {
+    flex: 0 0 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    border: 0;
+    padding: 6px 0;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-sku span {
+    font-size: 10px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-reference-sku strong {
+    font-size: 13px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-change-current {
+    flex: 0 0 100%;
+    min-height: 36px;
+    padding: 4px 0 7px;
+    text-align: left;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-progress {
+    flex: 0 0 100%;
+    width: 100%;
+    margin: 5px 0 0;
+    padding-top: 9px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-progress li {
+    min-height: 44px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-main {
+    margin-top: 14px;
+    overflow: visible;
+    padding: 26px 28px 30px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-header {
+    padding-bottom: 18px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-header h1 {
+    font-size: 26px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-header > p {
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-no-change {
+    min-height: 72px;
+    margin-bottom: 16px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-change-mobile-criteria {
+    margin-top: 0;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-change-mobile-basic .switch-criterion-section,
+  .switch-workflow-shell .switch-decision-step-layout .switch-change-additional-content .switch-criterion-section {
+    padding: 14px 0 16px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-change-additional-content {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-change-additional-summary {
+    font-size: 12px;
+  }
+
+  .switch-workflow-shell .switch-keep-change-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: -2px;
+  }
+
+  .switch-workflow-shell .switch-current-facts-summary {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    margin-bottom: 14px;
+    padding: 12px 0;
+  }
+
+  .switch-workflow-shell .switch-current-facts-summary p {
+    text-align: left;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-criteria-columns {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-actions .switch-primary-action,
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-actions .switch-secondary-action {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-actions .switch-primary-action {
+    grid-row: 1;
+  }
+
+  .switch-workflow-shell .switch-decision-step-layout .switch-step-actions .switch-secondary-action {
+    grid-row: 2;
+  }
+}

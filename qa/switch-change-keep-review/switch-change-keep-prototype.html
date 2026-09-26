@@ -193,5 +193,29 @@
   </section>
 
   <p class="prototype-note">독립 QA 시안 · 단계 링크와 추가 조건 펼침/접힘만 모형으로 동작합니다. 선택·적용·후보 탐색은 실제 앱 기능이 아닙니다.</p>
+
+  <script>
+    (() => {
+      const mobileQuery = window.matchMedia('(max-width: 760px)');
+      const additional = document.querySelector('#change .additional');
+      if (!(additional instanceof HTMLDetailsElement)) return;
+
+      let mobileOpen = additional.open;
+      const syncAdditionalForViewport = (matchesMobile) => {
+        if (matchesMobile) {
+          additional.open = mobileOpen;
+          return;
+        }
+        mobileOpen = additional.open;
+        additional.open = true;
+      };
+
+      additional.addEventListener('toggle', () => {
+        if (mobileQuery.matches) mobileOpen = additional.open;
+      });
+      mobileQuery.addEventListener('change', (event) => syncAdditionalForViewport(event.matches));
+      syncAdditionalForViewport(mobileQuery.matches);
+    })();
+  </script>
 </body>
 </html>

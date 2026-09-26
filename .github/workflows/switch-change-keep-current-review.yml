@@ -1,4 +1,4 @@
-name: SWITCH CHANGE KEEP current review
+name: SWITCH CHANGE KEEP narrow prototype review
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  current:
+  prototype:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -21,7 +21,7 @@ jobs:
       - name: Install browser driver
         run: |
           mkdir -p /tmp/switch-change-keep-review
-          cp qa/switch-change-keep-review/capture-current.mjs /tmp/switch-change-keep-review/
+          cp qa/switch-change-keep-review/render-review.mjs /tmp/switch-change-keep-review/
           cd /tmp/switch-change-keep-review
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
@@ -32,14 +32,6 @@ jobs:
           else
             exit 1
           fi
-
-      - name: Verify public Pages
-        run: curl --fail --silent --show-error https://osrm.github.io/catfood_web/ >/dev/null
-
-      - name: Capture actual CHANGE KEEP
-        run: |
-          OUT_DIR="$GITHUB_WORKSPACE/switch-change-keep-current" \
-          node /tmp/switch-change-keep-review/capture-current.mjs
 
       - name: Start local prototype server
         run: |
@@ -53,12 +45,10 @@ jobs:
           cat /tmp/switch-change-keep-prototype.log
           exit 1
 
-      - name: Render prototype and combine measurements
+      - name: Run narrow responsive and keyboard QA
         run: |
-          cp qa/switch-change-keep-review/render-review.mjs /tmp/switch-change-keep-review/
           cd /tmp/switch-change-keep-review
           OUT_DIR="$GITHUB_WORKSPACE/switch-change-keep-review-output" \
-          CURRENT_DIR="$GITHUB_WORKSPACE/switch-change-keep-current" \
           REPO_DIR="$GITHUB_WORKSPACE" \
           node render-review.mjs
 
@@ -66,7 +56,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: switch-change-keep-review
+          name: switch-change-keep-review-narrow
           path: switch-change-keep-review-output
           if-no-files-found: warn
           retention-days: 7

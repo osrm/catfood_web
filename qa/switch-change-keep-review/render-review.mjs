@@ -1,23 +1,21 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
-import { mkdir, readFile, writeFile, readdir, copyFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, copyFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
 const PROTOTYPE='http://127.0.0.1:4173/qa/switch-change-keep-review/switch-change-keep-prototype.html'
 const OUT=process.env.OUT_DIR||'switch-change-keep-review-output'
-const CURRENT=process.env.CURRENT_DIR||'switch-change-keep-current'
 const REPO=process.env.REPO_DIR||'.'
 await mkdir(OUT,{recursive:true})
 
-const currentReport=JSON.parse(await readFile(join(CURRENT,'measurements-current.json'),'utf8'))
 const report={
-  baselineMain:'f69e1c64b37d68f99365a12eeae74e4627148271',
+  baselineHead:'518bef25f8953d07ff7c330ebf0db85f2af13464',
   generatedAt:new Date().toISOString(),
   source:{},
-  current:currentReport.current,
-  currentRequestGuard:{blockedWrites:currentReport.blockedWrites.length,blockedAnalytics:currentReport.blockedAnalytics.length},
-  prototype:{},
+  viewportRoundTrip:null,
+  navigation:{},
+  viewports:{},
 }
 
 for(const [key,path] of Object.entries({
@@ -29,9 +27,6 @@ for(const [key,path] of Object.entries({
   report.source[key]={path,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length}
 }
 
-for(const name of await readdir(CURRENT)){
-  if(name.endsWith('.png')) await copyFile(join(CURRENT,name),join(OUT,'current-'+name))
-}
 await copyFile(join(REPO,'qa/switch-change-keep-review/switch-change-keep-prototype.html'),join(OUT,'switch-change-keep-prototype.html'))
 await copyFile(join(REPO,'qa/switch-change-keep-review/switch-change-keep-prototype.css'),join(OUT,'switch-change-keep-prototype.css'))
 
@@ -41,189 +36,228 @@ const browser=await chromium.launch({
   args:['--no-sandbox'],
 })
 
-async function openPrototype(width,height,hash){
+async function openPrototype(width,height,hash='#change'){
   const context=await browser.newContext({viewport:{width,height}})
   const page=await context.newPage()
   await page.goto(PROTOTYPE+hash,{waitUntil:'domcontentloaded',timeout:30000})
-  await page.waitForFunction(() => {
+  await page.waitForFunction(()=>{
     const choice=document.querySelector('.choice')
-    return choice instanceof HTMLElement && parseFloat(getComputedStyle(choice).minHeight) >= 44
-  },undefined,{timeout:30000})
+    return choice instanceof HTMLElement && parseFloat(getComputedStyle(choice).minHeight)>=44
+  })
   await page.evaluate(async()=>{await document.fonts?.ready})
   return {page,context}
 }
 
-async function state(page,step){
-  return page.evaluate(step=>{
-    const rect=el=>{
+async function disclosureState(page){
+  return page.evaluate(()=>{
+    const details=document.querySelector('#change .additional')
+    const summary=document.querySelector('#change .additional>summary')
+    const selected=document.querySelector('#change .additional .choice[aria-pressed="true"]')
+    const selectedSummary=document.querySelector('#change .selected-summary')
+    if(!(details instanceof HTMLDetailsElement)) return null
+    const box=(el)=>{
       if(!(el instanceof HTMLElement)) return null
       const r=el.getBoundingClientRect()
       return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}
     }
-    const style=el=>{
-      if(!(el instanceof HTMLElement)) return null
-      const s=getComputedStyle(el)
-      return {
-        display:s.display,position:s.position,overflowY:s.overflowY,
-        fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight,
-        outline:s.outline,outlineWidth:s.outlineWidth,outlineOffset:s.outlineOffset,
-      }
-    }
-    const screen=document.querySelector(step==='change'?'#change':'#keep')
-    const editor=screen?.querySelector('.editor')
-    const details=screen?.querySelector('.additional')
-    const selectedSummary=screen?.querySelector('.selected-summary')
-    const choices=[...(screen?.querySelectorAll('.choice')||[])].filter(el=>{
-      if(!(el instanceof HTMLElement)) return false
-      const r=el.getBoundingClientRect(),s=getComputedStyle(el)
-      return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'
-    }).map(el=>({text:el.textContent?.trim()||'',pressed:el.getAttribute('aria-pressed'),box:rect(el),style:style(el)}))
+    const display=(el)=>el instanceof HTMLElement?getComputedStyle(el).display:null
     return {
-      viewport:{width:innerWidth,height:innerHeight},
-      document:{scrollY,scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},
-      reference:{box:rect(screen?.querySelector('.reference')),text:screen?.querySelector('.reference')?.textContent?.replace(/\s+/g,' ').trim()||''},
-      editor:{
-        box:rect(editor),style:style(editor),
-        scrollTop:editor instanceof HTMLElement?editor.scrollTop:null,
-        scrollHeight:editor instanceof HTMLElement?editor.scrollHeight:null,
-        clientHeight:editor instanceof HTMLElement?editor.clientHeight:null,
-      },
-      heading:{box:rect(screen?.querySelector('.step-heading h1')),style:style(screen?.querySelector('.step-heading h1')),text:screen?.querySelector('.step-heading h1')?.textContent?.trim()||''},
-      intro:{box:rect(screen?.querySelector('.step-heading>p')),style:style(screen?.querySelector('.step-heading>p')),text:screen?.querySelector('.step-heading>p')?.textContent?.trim()||''},
-      noChange:{box:rect(screen?.querySelector('.no-change')),style:style(screen?.querySelector('.no-change'))},
-      currentFacts:{box:rect(screen?.querySelector('.current-facts')),text:screen?.querySelector('.current-facts')?.textContent?.replace(/\s+/g,' ').trim()||''},
-      choices,
-      disclosure:details?{
-        open:details.open,
-        summary:{box:rect(details.querySelector('summary')),style:style(details.querySelector('summary')),text:details.querySelector('summary')?.textContent?.replace(/\s+/g,' ').trim()||''},
-        selectedSummary:selectedSummary?{box:rect(selectedSummary),style:style(selectedSummary),text:selectedSummary.textContent?.trim()||''}:null,
-      }:null,
-      actions:{
-        box:rect(screen?.querySelector('.actions')),
-        primary:{box:rect(screen?.querySelector('.actions .primary')),style:style(screen?.querySelector('.actions .primary')),text:screen?.querySelector('.actions .primary')?.textContent?.trim()||''},
-        secondary:{box:rect(screen?.querySelector('.actions .secondary')),style:style(screen?.querySelector('.actions .secondary')),text:screen?.querySelector('.actions .secondary')?.textContent?.trim()||''},
-      },
-      selectedChoices:choices.filter(x=>x.pressed==='true').map(x=>x.text),
-    }
-  },step)
-}
-
-async function activeFocus(page){
-  return page.evaluate(()=>{
-    const el=document.activeElement
-    if(!(el instanceof HTMLElement)) return null
-    const r=el.getBoundingClientRect(),s=getComputedStyle(el)
-    return {
-      text:el.textContent?.replace(/\s+/g,' ').trim()||'',
-      tag:el.tagName,className:el.className,
-      box:{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height},
-      outline:s.outline,outlineWidth:s.outlineWidth,outlineOffset:s.outlineOffset,
+      width:innerWidth,
+      open:details.open,
+      summaryDisplay:display(summary),
+      selectedText:selected?.textContent?.trim()||null,
+      selectedPressed:selected?.getAttribute('aria-pressed')||null,
+      selectedBox:box(selected),
+      selectedSummaryText:selectedSummary?.textContent?.trim()||null,
+      selectedSummaryDisplay:display(selectedSummary),
     }
   })
 }
 
-async function tabUntil(page,selector,max=80){
+async function roundTrip(){
+  const {page,context}=await openPrototype(390,844,'#change')
+  const details=page.locator('#change .additional')
+  if(await details.evaluate(el=>el.open)) await page.locator('#change .additional>summary').click()
+  await page.waitForFunction(()=>document.querySelector('#change .additional')?.open===false)
+
+  const mobileCollapsed=await disclosureState(page)
+  assert.equal(mobileCollapsed.open,false,'390px disclosure is collapsed')
+  assert.equal(mobileCollapsed.summaryDisplay,'grid','390px disclosure summary remains visible')
+  assert.match(mobileCollapsed.selectedSummaryText||'',/시니어/,'390px collapsed summary keeps selected senior')
+
+  await page.setViewportSize({width:761,height:844})
+  await page.waitForFunction(()=>document.querySelector('#change .additional')?.open===true)
+  const tablet=await disclosureState(page)
+  assert.equal(tablet.open,true,'761px forces additional conditions open')
+  assert.equal(tablet.summaryDisplay,'none','761px hides mobile summary row')
+  assert.equal(tablet.selectedPressed,'true','761px keeps senior selected')
+  assert.ok(tablet.selectedBox?.height>0,'761px selected senior is visibly rendered')
+
+  await page.setViewportSize({width:1440,height:900})
+  const desktop=await disclosureState(page)
+  assert.equal(desktop.open,true,'1440px keeps additional conditions open')
+  assert.equal(desktop.selectedPressed,'true','1440px keeps senior selected')
+  assert.ok(desktop.selectedBox?.height>=44,'1440px selected senior remains accessible')
+
+  await page.setViewportSize({width:390,height:844})
+  await page.waitForFunction(()=>document.querySelector('#change .additional')?.open===false)
+  const mobileRestored=await disclosureState(page)
+  assert.equal(mobileRestored.open,false,'return to 390px restores prior mobile collapsed state')
+  assert.match(mobileRestored.selectedSummaryText||'',/시니어/,'return to 390px restores selected summary')
+  assert.equal(mobileRestored.selectedPressed,'true','return to 390px preserves selected senior state')
+
+  await page.screenshot({path:join(OUT,'prototype-mobile-390x844-roundtrip-collapsed.png'),fullPage:false})
+  report.viewportRoundTrip={mobileCollapsed,tablet,desktop,mobileRestored}
+  await context.close()
+}
+
+async function focusSnapshot(page){
+  return page.evaluate(()=>{
+    const el=document.activeElement
+    if(!(el instanceof HTMLElement)) return null
+    const r=el.getBoundingClientRect(),s=getComputedStyle(el)
+    const extent=(parseFloat(s.outlineWidth)||0)+(parseFloat(s.outlineOffset)||0)
+    return {
+      text:el.textContent?.replace(/\s+/g,' ').trim()||'',
+      tag:el.tagName,
+      href:el.getAttribute('href'),
+      display:s.display,
+      outline:s.outline,
+      outlineWidth:s.outlineWidth,
+      outlineOffset:s.outlineOffset,
+      box:{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height},
+      focusBox:{top:r.top-extent,bottom:r.bottom+extent,left:r.left-extent,right:r.right+extent},
+    }
+  })
+}
+
+async function tabUntilHref(page,href,direction='Tab',max=30){
   await page.locator('body').click({position:{x:2,y:2}})
   await page.evaluate(()=>{if(document.activeElement instanceof HTMLElement) document.activeElement.blur()})
   for(let i=0;i<max;i++){
-    await page.keyboard.press('Tab')
-    const matched=await page.evaluate(selector=>document.activeElement instanceof HTMLElement&&document.activeElement.matches(selector),selector)
-    if(matched) return activeFocus(page)
+    await page.keyboard.press(direction)
+    const f=await focusSnapshot(page)
+    if(f?.href===href) return f
   }
   return null
 }
 
-async function mobile(){
+async function navigationKeyboard(){
   const {page,context}=await openPrototype(390,844,'#change')
-  const initialDetails=page.locator('#change .additional')
-  if(await initialDetails.evaluate(el=>el.open)) await page.locator('#change .additional>summary').click()
-  await page.evaluate(()=>window.scrollTo(0,0))
-  const pageTop=await state(page,'change')
-  assert.equal(pageTop.document.scrollWidth,390,'prototype mobile no horizontal overflow')
-  assert.ok(pageTop.choices.every(x=>x.box&&x.box.height>=43.5),'prototype mobile choices >=44px')
-  assert.equal(pageTop.actions.primary.box.height,48,'prototype mobile primary is 48px')
-  await page.screenshot({path:OUT+'/prototype-mobile-390x844-change-page-top.png',fullPage:false})
+  const forward=await tabUntilHref(page,'#keep','Tab')
+  assert.ok(forward,'Tab reaches KEEP progress link')
+  assert.equal(forward.display,'flex','mobile progress link has a real layout box')
+  assert.ok(forward.box.width>0&&forward.box.height>=44,'mobile progress link has a 44px+ box')
+  assert.ok(parseFloat(forward.outlineWidth)>=2,'mobile progress link shows focus outline')
+  await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>location.hash==='#keep')
+  assert.equal(await page.locator('#keep').evaluate(el=>getComputedStyle(el).display),'block','Enter moves to KEEP prototype screen')
 
-  const details=page.locator('#change .additional')
-  if(await details.evaluate(el=>el.open)) await page.locator('#change .additional>summary').click()
-  await page.locator('#change .additional>summary').scrollIntoViewIfNeeded()
-  const collapsed=await state(page,'change')
-  assert.equal(collapsed.disclosure.open,false,'prototype mobile disclosure collapsed')
-  assert.equal(collapsed.disclosure.selectedSummary.style.display,'block','collapsed selected summary visible')
-  assert.match(collapsed.disclosure.selectedSummary.text,/시니어/,'collapsed summary keeps selected name')
-  await page.screenshot({path:OUT+'/prototype-mobile-390x844-change-collapsed.png',fullPage:false})
+  const firstKeepChoice=page.locator('#keep .keep-grid .choice').first()
+  await firstKeepChoice.focus()
+  await page.keyboard.press('Shift+Tab')
+  const reverse=await focusSnapshot(page)
+  assert.equal(reverse?.href,'#change','Shift+Tab reaches CHANGE progress link from first KEEP control')
+  assert.equal(reverse?.display,'flex','CHANGE progress link has a real mobile box')
+  assert.ok(parseFloat(reverse?.outlineWidth||'0')>=2,'CHANGE progress link shows focus outline')
+  await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>location.hash==='#change')
 
-  await page.locator('#change .additional>summary').click()
-  const expanded=await state(page,'change')
-  assert.equal(expanded.disclosure.open,true,'prototype mobile disclosure expanded')
-  assert.equal(expanded.disclosure.selectedSummary.style.display,'none','expanded duplicate selected summary hidden')
-  assert.ok(expanded.selectedChoices.includes('시니어'),'expanded state preserves senior selection')
-  await page.screenshot({path:OUT+'/prototype-mobile-390x844-change-expanded.png',fullPage:false})
+  await page.setViewportSize({width:1440,height:900})
+  const desktopLink=page.locator('#change .progress a[href="#keep"]')
+  await desktopLink.focus()
+  const desktopFocus=await focusSnapshot(page)
+  assert.equal(desktopFocus.display,'grid','desktop progress link has a real grid box')
+  assert.ok(desktopFocus.box.width>0&&desktopFocus.box.height>=34,'desktop progress link box is measurable')
+  assert.ok(parseFloat(desktopFocus.outlineWidth)>=2,'desktop progress link focus outline visible')
 
-  const brandFocus=await tabUntil(page,'#change .basic-grid .choice.active')
-  const disclosureFocus=await tabUntil(page,'#change .additional>summary')
-  const nextFocus=await tabUntil(page,'#change .actions .primary')
-  for(const [label,f] of [['brand',brandFocus],['disclosure',disclosureFocus],['next',nextFocus]]){
-    assert.ok(f,'prototype mobile '+label+' focus exists')
-    assert.ok(parseFloat(f.outlineWidth)>=2,'prototype mobile '+label+' focus ring >=2px')
+  report.navigation={forward,reverse,desktopFocus}
+  await context.close()
+}
+
+async function viewportAccess(width,height,key){
+  const {page,context}=await openPrototype(width,height,'#change')
+  if(width<=760){
+    const details=page.locator('#change .additional')
+    if(!(await details.evaluate(el=>el.open))) await page.locator('#change .additional>summary').click()
   }
+  const state=await page.evaluate(()=>{
+    const rect=(sel)=>{
+      const el=document.querySelector(sel)
+      if(!(el instanceof HTMLElement)) return null
+      const r=el.getBoundingClientRect()
+      return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}
+    }
+    const choices=[...document.querySelectorAll('#change .choice')].filter(el=>{
+      if(!(el instanceof HTMLElement)) return false
+      const r=el.getBoundingClientRect(),s=getComputedStyle(el)
+      return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'
+    }).map(el=>({text:el.textContent?.trim()||'',height:el.getBoundingClientRect().height,fontSize:getComputedStyle(el).fontSize}))
+    const editor=document.querySelector('#change .editor')
+    return {
+      viewport:{width:innerWidth,height:innerHeight},
+      horizontalOverflow:document.documentElement.scrollWidth-innerWidth,
+      documentHeight:document.documentElement.scrollHeight,
+      editor:{
+        box:rect('#change .editor'),
+        scrollHeight:editor instanceof HTMLElement?editor.scrollHeight:null,
+        clientHeight:editor instanceof HTMLElement?editor.clientHeight:null,
+        overflowY:editor instanceof HTMLElement?getComputedStyle(editor).overflowY:null,
+      },
+      choices,
+    }
+  })
+  assert.equal(state.horizontalOverflow,0,key+' no horizontal overflow')
+  assert.ok(state.choices.every(x=>x.height>=44),key+' visible choices >=44px')
 
-  await page.goto(PROTOTYPE+'#keep',{waitUntil:'domcontentloaded'})
-  await page.evaluate(async()=>{await document.fonts?.ready;window.scrollTo(0,0)})
-  const keepTop=await state(page,'keep')
-  assert.ok(keepTop.choices.every(x=>x.box&&x.box.height>=43.5),'prototype keep choices >=44px')
-  assert.equal(keepTop.currentFacts.box.height<=100,true,'prototype compact keep facts <=100px')
-  assert.deepEqual(keepTop.selectedChoices.sort(),['건식 유지','생선'].sort(),'prototype keep selection state matches review state')
-  await page.screenshot({path:OUT+'/prototype-mobile-390x844-keep-page-top.png',fullPage:false})
+  if(width<=760){
+    await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
+  }else{
+    await page.locator('#change .editor').evaluate(el=>{el.scrollTop=el.scrollHeight})
+  }
+  await page.waitForTimeout(60)
 
-  await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
-  const keepBottom=await state(page,'keep')
-  await page.screenshot({path:OUT+'/prototype-mobile-390x844-keep-bottom.png',fullPage:false})
-  const keepPrimaryFocus=await tabUntil(page,'#keep .actions .primary')
-  assert.ok(keepPrimaryFocus&&parseFloat(keepPrimaryFocus.outlineWidth)>=2,'prototype keep primary keyboard focus visible')
+  const bottom=await page.evaluate(()=>{
+    const action=document.querySelector('#change .actions')
+    const primary=document.querySelector('#change .actions .primary')
+    const secondary=document.querySelector('#change .actions .secondary')
+    const editor=document.querySelector('#change .editor')
+    const rect=(el)=>{if(!(el instanceof HTMLElement))return null;const r=el.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}}
+    return {
+      action:rect(action),primary:rect(primary),secondary:rect(secondary),
+      editorScrollTop:editor instanceof HTMLElement?editor.scrollTop:null,
+      windowScrollY:scrollY,
+    }
+  })
+  assert.ok(bottom.primary?.height>=48&&bottom.secondary?.height>=48,key+' actions >=48px')
+  assert.ok(bottom.primary.top>=0&&bottom.primary.bottom<=height,key+' primary action reachable in viewport')
+  assert.ok(bottom.secondary.top>=0&&bottom.secondary.bottom<=height,key+' secondary action reachable in viewport')
 
-  report.prototype['mobile-390x844']={change:{pageTop,collapsed,expanded,focus:{brand:brandFocus,disclosure:disclosureFocus,next:nextFocus}},keep:{pageTop:keepTop,bottom:keepBottom,focus:{primary:keepPrimaryFocus}}}
+  await page.locator('#change .actions .primary').focus()
+  const actionFocus=await focusSnapshot(page)
+  assert.ok(parseFloat(actionFocus.outlineWidth)>=2,key+' action focus outline visible')
+  assert.ok(actionFocus.focusBox.top>=0&&actionFocus.focusBox.bottom<=height,key+' action focus fully visible')
+
+  const filename=key==='desktop-1440x700'
+    ? 'prototype-desktop-1440x700-bottom.png'
+    : key==='desktop-1440x900'
+      ? 'prototype-desktop-1440x900-change.png'
+      : 'prototype-mobile-390x844-change-expanded.png'
+  await page.screenshot({path:join(OUT,filename),fullPage:false})
+  report.viewports[key]={state,bottom,actionFocus}
   await context.close()
 }
 
-async function desktop(){
-  const {page,context}=await openPrototype(1440,900,'#change')
-  const changeTop=await state(page,'change')
-  assert.equal(changeTop.document.scrollWidth,1440,'prototype desktop no horizontal overflow')
-  assert.ok(changeTop.choices.every(x=>x.box&&x.box.height>=43.5),'prototype desktop choices >=44px')
-  assert.equal(changeTop.actions.primary.box.height,48,'prototype desktop action 48px')
-  await page.screenshot({path:OUT+'/prototype-desktop-1440x900-change-top.png',fullPage:false})
+await roundTrip()
+await navigationKeyboard()
+await viewportAccess(390,844,'mobile-390x844')
+await viewportAccess(1440,900,'desktop-1440x900')
+await viewportAccess(1440,700,'desktop-1440x700')
 
-  await page.locator('#change .editor').evaluate(el=>{el.scrollTop=el.scrollHeight})
-  const changeBottom=await state(page,'change')
-  await page.screenshot({path:OUT+'/prototype-desktop-1440x900-change-bottom.png',fullPage:false})
-  const changeFocus=await tabUntil(page,'#change .basic-grid .choice.active')
-  assert.ok(changeFocus&&parseFloat(changeFocus.outlineWidth)>=2,'prototype desktop choice focus visible')
-
-  await page.goto(PROTOTYPE+'#keep',{waitUntil:'domcontentloaded'})
-  await page.evaluate(async()=>{await document.fonts?.ready})
-  const keepTop=await state(page,'keep')
-  assert.ok(keepTop.currentFacts.box.height<=100,'prototype desktop compact keep facts')
-  assert.deepEqual(keepTop.selectedChoices.sort(),['건식 유지','생선'].sort(),'prototype desktop selection state matches')
-  await page.screenshot({path:OUT+'/prototype-desktop-1440x900-keep-top.png',fullPage:false})
-  const keepPrimaryFocus=await tabUntil(page,'#keep .actions .primary')
-  assert.ok(keepPrimaryFocus&&parseFloat(keepPrimaryFocus.outlineWidth)>=2,'prototype desktop keep primary focus visible')
-
-  report.prototype['desktop-1440x900']={change:{top:changeTop,bottom:changeBottom,focus:{choice:changeFocus}},keep:{top:keepTop,focus:{primary:keepPrimaryFocus}}}
-  await context.close()
-}
-
-await mobile()
-await desktop()
-
-await writeFile(OUT+'/measurements.json',JSON.stringify(report,null,2))
-console.log('SWITCH_CHANGE_KEEP_REVIEW='+JSON.stringify({
-  source:report.source,
-  currentMobileChangeScroll:report.current['mobile-390x844'].changeCollapsed.document.scrollHeight,
-  currentMobileKeepScroll:report.current['mobile-390x844'].keep.selected.document.scrollHeight,
-  prototypeMobileChangeScroll:report.prototype['mobile-390x844'].change.pageTop.document.scrollHeight,
-  prototypeMobileKeepScroll:report.prototype['mobile-390x844'].keep.pageTop.document.scrollHeight,
-  currentKeepFactsHeight:report.current['mobile-390x844'].keep.selected.facts.box.height,
-  prototypeKeepFactsHeight:report.prototype['mobile-390x844'].keep.pageTop.currentFacts.box.height,
+await writeFile(join(OUT,'measurements.json'),JSON.stringify(report,null,2))
+console.log('SWITCH_CHANGE_KEEP_NARROW='+JSON.stringify({
+  roundTrip:report.viewportRoundTrip,
+  navigation:report.navigation,
+  viewports:Object.fromEntries(Object.entries(report.viewports).map(([k,v])=>[k,{bottom:v.bottom,focus:v.actionFocus}])),
 }))
 await browser.close()

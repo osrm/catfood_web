@@ -45,6 +45,10 @@ async function openPrototype(width,height,hash){
   const context=await browser.newContext({viewport:{width,height}})
   const page=await context.newPage()
   await page.goto(PROTOTYPE+hash,{waitUntil:'domcontentloaded',timeout:30000})
+  await page.waitForFunction(() => {
+    const choice=document.querySelector('.choice')
+    return choice instanceof HTMLElement && parseFloat(getComputedStyle(choice).minHeight) >= 44
+  },undefined,{timeout:30000})
   await page.evaluate(async()=>{await document.fonts?.ready})
   return {page,context}
 }

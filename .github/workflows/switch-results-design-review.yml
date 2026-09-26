@@ -1,0 +1,32 @@
+name: SWITCH results design review
+on:
+  push:
+    branches:
+      - qa/switch-results-design-review-20260926
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/switch-results-review
+          cp qa/switch-results-design-review.mjs /tmp/switch-results-review/
+          cd /tmp/switch-results-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Capture deployed results
+        run: OUT_DIR="$GITHUB_WORKSPACE/switch-results-review-output" node /tmp/switch-results-review/switch-results-design-review.mjs
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-results-design-review
+          path: switch-results-review-output
+          retention-days: 7

@@ -136,7 +136,9 @@ async function run(width,height,key){
   const applyFocus=await tabTo(page,'이 조건으로 찾기')
   await page.evaluate(()=>{
     scrollTo(0,0)
+    const filters=document.querySelector('.research-filters')
     const scroller=document.querySelector('.research-filter-scroll')
+    if(filters instanceof HTMLElement) filters.scrollTop=0
     if(scroller instanceof HTMLElement) scroller.scrollTop=0
   })
   const metrics=await measure(page)

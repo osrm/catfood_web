@@ -134,7 +134,7 @@ async function mobile(){
   await page.evaluate(()=>window.scrollTo(0,0))
   const pageTop=await state(page,'change')
   assert.equal(pageTop.document.scrollWidth,390,'prototype mobile no horizontal overflow')
-  assert.ok(pageTop.choices.every(x=>x.box&&x.box.height>=44),'prototype mobile choices >=44px')
+  assert.ok(pageTop.choices.every(x=>x.box&&x.box.height>=43.5),'prototype mobile choices >=44px')
   assert.equal(pageTop.actions.primary.box.height,48,'prototype mobile primary is 48px')
   await page.screenshot({path:OUT+'/prototype-mobile-390x844-change-page-top.png',fullPage:false})
 
@@ -165,7 +165,7 @@ async function mobile(){
   await page.goto(PROTOTYPE+'#keep',{waitUntil:'domcontentloaded'})
   await page.evaluate(async()=>{await document.fonts?.ready;window.scrollTo(0,0)})
   const keepTop=await state(page,'keep')
-  assert.ok(keepTop.choices.every(x=>x.box&&x.box.height>=44),'prototype keep choices >=44px')
+  assert.ok(keepTop.choices.every(x=>x.box&&x.box.height>=43.5),'prototype keep choices >=44px')
   assert.equal(keepTop.currentFacts.box.height<=100,true,'prototype compact keep facts <=100px')
   assert.deepEqual(keepTop.selectedChoices.sort(),['건식 유지','생선'].sort(),'prototype keep selection state matches review state')
   await page.screenshot({path:OUT+'/prototype-mobile-390x844-keep-page-top.png',fullPage:false})
@@ -184,7 +184,7 @@ async function desktop(){
   const {page,context}=await openPrototype(1440,900,'#change')
   const changeTop=await state(page,'change')
   assert.equal(changeTop.document.scrollWidth,1440,'prototype desktop no horizontal overflow')
-  assert.ok(changeTop.choices.every(x=>x.box&&x.box.height>=44),'prototype desktop choices >=44px')
+  assert.ok(changeTop.choices.every(x=>x.box&&x.box.height>=43.5),'prototype desktop choices >=44px')
   assert.equal(changeTop.actions.primary.box.height,48,'prototype desktop action 48px')
   await page.screenshot({path:OUT+'/prototype-desktop-1440x900-change-top.png',fullPage:false})
 

@@ -336,7 +336,7 @@ async function resetApplyReedit(page,key){
   assert.equal(await page.locator('.condition-actions').count(),0,key+': actions leave after apply')
   assert.ok(await page.locator('.research-result-card').count()>0,key+': results restore after apply')
 
-  await page.getByRole('button',{name:'조건 수정',exact:true}).click()
+  await page.locator('.criteria-bar > button').click()
   await page.locator('.condition-actions').waitFor({state:'visible',timeout:10000})
   assert.equal(await page.locator('.research-results').count(),0,key+': result pane leaves while re-editing')
   assert.match(await page.locator('.condition-draft-count').textContent(),/0개/,key+': reset state survives result round trip')
@@ -357,7 +357,7 @@ async function resultsLayoutRoundTrip(page,key){
   assert.ok(split.share>=0.485&&split.share<=0.495,key+': existing 49:51 result/quick split restored')
   await page.screenshot({path:OUT+'/'+key+'-results-quick.png',fullPage:false})
   await page.getByRole('button',{name:'닫기 ×',exact:true}).click()
-  await page.getByRole('button',{name:'조건 수정',exact:true}).click()
+  await page.locator('.criteria-bar > button').click()
   await page.locator('.condition-actions').waitFor({state:'visible',timeout:10000})
   await assertEightPreserved(page,key+' re-edit')
   return split

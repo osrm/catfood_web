@@ -214,13 +214,18 @@ async function runViewport(width,height,key){
 
   const changeCollapsed=await measure(page,'change-selected-collapsed')
   if(width<=760){
+    await page.evaluate(()=>window.scrollTo(0,0))
+    const changePageTop=await measure(page,'change-page-top')
+    await page.screenshot({path:OUT+'/'+key+'-change-page-top.png',fullPage:false})
+    report.current[key]={identity,initialChange,noChangeSelected,noChangeAfterActual,changeCollapsed,changePageTop}
+
     assert.match(changeCollapsed.additional.summary?.text||'',/시니어/,key+': collapsed change summary')
     await page.screenshot({path:OUT+'/'+key+'-change-collapsed.png',fullPage:false})
     await page.locator('.switch-change-additional-toggle').click()
     const changeExpanded=await measure(page,'change-selected-expanded')
     assert.equal(await page.getByRole('button',{name:'시니어',exact:true}).getAttribute('aria-pressed'),'true',key+': reopen preserves senior')
     await page.screenshot({path:OUT+'/'+key+'-change-expanded.png',fullPage:false})
-    report.current[key]={identity,initialChange,noChangeSelected,noChangeAfterActual,changeCollapsed,changeExpanded}
+    report.current[key].changeExpanded=changeExpanded
   }else{
     await page.screenshot({path:OUT+'/'+key+'-change-top.png',fullPage:false})
     report.current[key]={identity,initialChange,noChangeSelected,noChangeAfterActual,changeCollapsed}
@@ -240,12 +245,18 @@ async function runViewport(width,height,key){
   const keepInitial=await measure(page,'keep-initial')
   const keepState=await setKeepState(page)
   const keepSelected=await measure(page,'keep-selected')
+  if(width<=760){
+    await page.evaluate(()=>window.scrollTo(0,0))
+    const keepPageTop=await measure(page,'keep-page-top')
+    report.current[key].keepPageTop=keepPageTop
+    await page.screenshot({path:OUT+'/'+key+'-keep-page-top.png',fullPage:false})
+  }
   await page.screenshot({path:OUT+'/'+key+'-keep-top.png',fullPage:false})
 
   await scrollToActions(page,width)
   const keepBottom=await measure(page,'keep-bottom')
-  const keepPrimaryFocus=await page.locator('.switch-step-actions .switch-primary-action').focus().then(()=>activeFocus(page))
-  const keepBackFocus=await page.locator('.switch-step-actions .switch-secondary-action').focus().then(()=>activeFocus(page))
+  const keepPrimaryFocus=await tabTo(page,'후보 제품 보기 →')
+  const keepBackFocus=await tabTo(page,'← 바꿀 것 수정')
   await page.screenshot({path:OUT+'/'+key+'-keep-bottom.png',fullPage:false})
 
   report.current[key].keep={initial:keepInitial,state:keepState,selected:keepSelected,bottom:keepBottom,focus:{primary:keepPrimaryFocus,secondary:keepBackFocus}}

@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const OUT=process.env.OUT_DIR||'switch-results-review-output'
 await mkdir(OUT,{recursive:true})
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
-const report={prototypeSourceCommit:process.env.GITHUB_SHA,generatedAt:new Date().toISOString(),note:'Static prototype validation only; not product verification.',scenarios:{}}
+const report={prototypeSourceCommit:process.env.GITHUB_SHA,prototypeHtmlBlobSha:'6429d9ce9fa3d79183c028bd6f82b2913b539696',generatedAt:new Date().toISOString(),note:'Static prototype validation only; not product verification.',scenarios:{}}
 const rect=e=>e?(()=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}})():null
 async function snapshot(page,key){
  return page.evaluate(()=>{

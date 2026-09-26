@@ -334,20 +334,29 @@ async function desktopScenario(width,height,key){
 
   if(height===700){
     await page.locator('.switch-step-main').hover()
-    await page.mouse.wheel(0,5000)
-    await page.waitForFunction(()=>{
-      const el=document.querySelector('.switch-step-main')
-      return el instanceof HTMLElement&&el.scrollTop>0
-    })
+    const controls=page.locator('.switch-change-desktop-criteria button:visible, .switch-change-desktop-criteria input:visible')
+    const lastControl=controls.nth((await controls.count())-1)
+    let lastControlBox=null
+    for(let i=0;i<8;i++){
+      await page.mouse.wheel(0,700)
+      await page.waitForTimeout(80)
+      lastControlBox=await lastControl.boundingBox()
+      if(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height) break
+    }
+    assert.ok(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height,'1440x700 last CHANGE control reachable by normal scroll')
+
+    for(let i=0;i<8;i++){
+      change=await measureDecision(page,'change')
+      if(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height) break
+      await page.mouse.wheel(0,700)
+      await page.waitForTimeout(80)
+    }
     change=await measureDecision(page,'change')
-    const sections=page.locator('.switch-change-desktop-criteria .switch-criterion-section:visible')
-    const last=sections.nth((await sections.count())-1)
-    const lastBox=await last.boundingBox()
-    assert.ok(lastBox&&lastBox.bottom<=height,'1440x700 last CHANGE condition reachable')
-    assert.ok(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height,'1440x700 CHANGE action reachable')
+    assert.ok(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height,'1440x700 CHANGE action reachable by normal scroll')
     assert.equal(change.main.style.overflowY,'auto','1440x700 internal main scroll owner')
     await page.locator('.switch-step-actions .switch-primary-action').focus()
     assertFocusVisible(await activeFocus(page),height,'1440x700 CHANGE action')
+    change.lastControlBox=lastControlBox
   }
   await page.screenshot({path:OUT+'/'+key+'-change-bottom.png',fullPage:false})
 

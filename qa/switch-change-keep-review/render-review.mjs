@@ -7,6 +7,7 @@ import { join } from 'node:path'
 const PROTOTYPE='http://127.0.0.1:4173/qa/switch-change-keep-review/switch-change-keep-prototype.html'
 const OUT=process.env.OUT_DIR||'switch-change-keep-review-output'
 const CURRENT=process.env.CURRENT_DIR||'switch-change-keep-current'
+const REPO=process.env.REPO_DIR||'.'
 await mkdir(OUT,{recursive:true})
 
 const currentReport=JSON.parse(await readFile(join(CURRENT,'measurements-current.json'),'utf8'))
@@ -24,7 +25,7 @@ for(const [key,path] of Object.entries({
   css:'qa/switch-change-keep-review/switch-change-keep-prototype.css',
   renderer:'qa/switch-change-keep-review/render-review.mjs',
 })){
-  const bytes=await readFile(path)
+  const bytes=await readFile(join(REPO,path))
   report.source[key]={path,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length}
 }
 

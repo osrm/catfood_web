@@ -537,3 +537,25 @@ test('restored actual SKU reports variant API failure and retries without becomi
   assert.equal(session().variantSelection.variantId, 'variant_current_1')
   assert.deepEqual(session().compareIds, [candidateA.product_id])
 })
+
+
+test('candidate inspector keeps full relationships and closing restores selected-row focus', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await selectCandidate(candidateA.canonical_name)
+
+  const selectedRow = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))
+  assert.ok(selectedRow.classList.contains('is-selected'))
+  const inspector = document.querySelector('.switch-candidate-inspector')
+  assert.ok(inspector)
+  assert.match(inspector.textContent, /선택한 조건과 비교/)
+  assert.match(inspector.textContent, /비교 기준.*현재브랜드.*현재 건식 사료.*1 kg/s)
+  assert.match(inspector.textContent, /제품 정보 요약/)
+  assert.match(selectedRow.textContent, /원료 확인.*닭.*검토한 자료에서 찾지 못함/s)
+
+  await click(inspector.querySelector('.switch-preview-topline button'))
+  assert.equal(document.querySelector('.switch-candidate-inspector'), null)
+  assert.equal(document.activeElement, selectedRow)
+  assert.ok(selectedRow.classList.contains('is-selected') === false)
+  assert.equal(session().selectedCandidateId, null)
+})

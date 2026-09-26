@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const OUT=process.env.OUT_DIR||'switch-results-review-output'
 await mkdir(OUT,{recursive:true})
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
-const report={prototypeSourceCommit:process.env.GITHUB_SHA,prototypeHtmlBlobSha:'6429d9ce9fa3d79183c028bd6f82b2913b539696',generatedAt:new Date().toISOString(),note:'Static prototype validation only; not product verification.',scenarios:{}}
+const report={prototypeSourceCommit:process.env.GITHUB_SHA,prototypeHtmlBlobSha:'66d50ab8a008c2bbc354e7675756081b19664758',generatedAt:new Date().toISOString(),note:'Static prototype validation only; not product verification.',scenarios:{}}
 const rect=e=>e?(()=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}})():null
 async function snapshot(page,key){
  return page.evaluate(()=>{
@@ -31,15 +31,23 @@ for(const [key,w,h] of [['mobile-390x844',390,844],['desktop-1440x900',1440,900]
  await page.evaluate(()=>{document.querySelectorAll('.panel')[0].style.display='none';document.querySelector('.split').style.marginTop='14px'})
  const quick=await snapshot(page,key)
  await page.screenshot({path:OUT+'/'+key+'-prototype-quick-view.png',fullPage:false})
+ const closeState=()=>page.evaluate(()=>{const ins=document.querySelector('.ins'),list=document.querySelector('.list'),hiddenButtons=[...ins.querySelectorAll('button')];return{listVisible:getComputedStyle(list).display!=='none'&&list.getBoundingClientRect().width>0,inspectorVisible:getComputedStyle(ins).display!=='none'&&ins.getBoundingClientRect().height>0,inspectorDisplay:getComputedStyle(ins).display,hiddenButtonRects:hiddenButtons.map(b=>b.getBoundingClientRect().width*b.getBoundingClientRect().height),focusedClass:document.activeElement?.className||'',focusedText:document.activeElement?.textContent?.replace(/\\s+/g,' ').trim()||'',listWidth:list.getBoundingClientRect().width}})
+ await page.locator('.close').click()
+ const pointerClose=await closeState()
+ assert.equal(pointerClose.listVisible,true); assert.equal(pointerClose.inspectorVisible,false); assert.ok(pointerClose.hiddenButtonRects.every(v=>v===0)); assert.match(pointerClose.focusedClass,/selected/)
+ await page.reload(); await page.evaluate(()=>document.fonts.ready); await page.waitForTimeout(100); await page.evaluate(()=>{document.querySelectorAll('.panel')[0].style.display='none';document.querySelector('.split').style.marginTop='14px'})
  await page.locator('.close').focus()
  const focus=await page.evaluate(()=>{const e=document.activeElement,s=getComputedStyle(e),r=e.getBoundingClientRect();return{aria:e.getAttribute('aria-label'),outlineWidth:s.outlineWidth,outlineStyle:s.outlineStyle,box:{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}}})
- await page.locator('.close').click()
- const returned=await page.evaluate(()=>({listVisible:getComputedStyle(document.querySelector('.list')).display!=='none',inspectorVisible:getComputedStyle(document.querySelector('.ins')).display!=='none',focusedClass:document.activeElement?.className||'',focusedText:document.activeElement?.textContent?.replace(/\s+/g,' ').trim()||''}))
+ assert.ok(parseFloat(focus.outlineWidth)>=2)
+ await page.keyboard.press('Enter')
+ const keyboardClose=await closeState()
+ assert.equal(keyboardClose.listVisible,true); assert.equal(keyboardClose.inspectorVisible,false); assert.ok(keyboardClose.hiddenButtonRects.every(v=>v===0)); assert.match(keyboardClose.focusedClass,/selected/)
+ await page.keyboard.press('Tab')
+ const afterTab=await page.evaluate(()=>({className:document.activeElement?.className||'',insideInspector:!!document.activeElement?.closest('.ins')}))
+ assert.equal(afterTab.insideInspector,false)
  assert.equal(results.document.scrollWidth,w); assert.equal(quick.document.scrollWidth,w)
  assert.ok(quick.quickView.close.box.width>=44&&quick.quickView.close.box.height>=44)
- assert.ok(parseFloat(focus.outlineWidth)>=2)
- if(w===390){assert.equal(returned.listVisible,true);assert.equal(returned.inspectorVisible,false);assert.match(returned.focusedClass,/selected/)}
- report.scenarios[key]={results,quickView:quick,closeFocus:focus,afterClose:returned,firstViewport:{height:h,identityBottom:quick.quickView.identity?.bottom,actionsBottom:quick.quickView.actions?.bottom,relationsBottom:quick.quickView.relations?.bottom,factsTop:quick.quickView.facts?.top,factsBottom:quick.quickView.facts?.bottom}}
+ report.scenarios[key]={results,quickView:quick,closeFocus:focus,pointerClose,keyboardClose,afterKeyboardTab:afterTab,firstViewport:{height:h,identityBottom:quick.quickView.identity?.bottom,actionsBottom:quick.quickView.actions?.bottom,relationsBottom:quick.quickView.relations?.bottom,factsTop:quick.quickView.facts?.top,factsBottom:quick.quickView.facts?.bottom}}
  await context.close()
 }
 await writeFile(OUT+'/report.json',JSON.stringify(report,null,2))

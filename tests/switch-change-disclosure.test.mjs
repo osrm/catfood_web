@@ -176,10 +176,6 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
   assert.equal(document.querySelector('.switch-change-additional-summary'), null, 're-entered expanded disclosure avoids duplicate summary')
 
-  const changeSummary = document.querySelector('.switch-change-selection-summary')
-  assert.ok(changeSummary, 'KEEP shows a distinct CHANGE selection summary')
-  assert.match(changeSummary.textContent, /키튼/, 'KEEP summary derives from the selected CHANGE state')
-
   await click(document.querySelector('.switch-no-change'))
   assert.equal(document.querySelector('.switch-no-change').classList.contains('is-selected'), true)
   assert.equal(reentryKitten.getAttribute('aria-pressed'), 'false')

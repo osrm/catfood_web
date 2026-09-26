@@ -59,12 +59,13 @@
             </div>
           </section>
 
-          <section class="condition-group additional">
-            <button class="additional-toggle" type="button" aria-expanded="true">
-              <span><b>추가 조건</b><small>6개 선택</small></span>
+          <details class="condition-group additional additional-disclosure" open>
+            <summary class="additional-toggle">
+              <span class="additional-title"><b>추가 조건</b><small>6개 선택</small></span>
               <span class="toggle-note">미확인은 후보에 유지</span>
-              <span aria-hidden="true">▴</span>
-            </button>
+              <span class="chevron" aria-hidden="true"></span>
+              <span class="collapsed-selection" aria-label="선택한 추가 조건">실내묘 · 중성화묘 · 체중 관리 · 피부·피모 · 생선 · Grain-Free 표기</span>
+            </summary>
 
             <div class="additional-sections">
               <section class="condition-section">
@@ -105,7 +106,7 @@
                 <p class="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p>
               </section>
             </div>
-          </section>
+          </details>
         </div>
 
         <footer class="editor-actions">
@@ -115,6 +116,6 @@
       </section>
     </main>
   </div>
-  <p class="prototype-note">독립 QA 시안 · 버튼은 동작하지 않는 모형입니다.</p>
+  <p class="prototype-note">독립 QA 시안 · 추가 조건 펼침/접힘만 동작하며 선택·적용 버튼은 모형입니다.</p>
 </body>
 </html>

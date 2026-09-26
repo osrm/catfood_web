@@ -65,7 +65,7 @@ function stepScreen(step) {
     : step === 'change'
       ? '<button class="switch-no-change"></button>'
       : step === 'keep'
-        ? '<section class="switch-current-facts-strip"></section>'
+        ? '<section class="switch-current-facts-summary"></section>'
         : ''
   document.getElementById('root').innerHTML = `<main class="switch-step-main">${inner}</main>`
 }
@@ -292,13 +292,13 @@ test('canceling a scheduled settle prevents a forced stale callback from changin
 test('a same-selector replacement is not mistaken for the original destination anchor', () => {
   stepScreen('keep')
   const intent = helper.beginSwitchExplicitScrollIntent('keep', false)
-  const originalAnchor = document.querySelector('.switch-current-facts-strip')
+  const originalAnchor = document.querySelector('.switch-current-facts-summary')
   const settle = helper.resetSwitchExplicitNavigationScroll(intent)
   assert.ok(settle)
   const [staleFrame] = activeFrameIds()
 
   stepScreen('keep')
-  const replacementAnchor = document.querySelector('.switch-current-facts-strip')
+  const replacementAnchor = document.querySelector('.switch-current-facts-summary')
   assert.notEqual(replacementAnchor, originalAnchor)
   document.documentElement.scrollTop = 391
   assert.equal(runFrame(staleFrame, { force: true }), true)

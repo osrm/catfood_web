@@ -346,6 +346,10 @@ async function desktopScenario(width,height,key){
       lastControlBox=await lastControl.boundingBox()
       if(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height) break
     }
+    const scrollDiag=await page.locator('.switch-step-main').evaluate(el=>({
+      scrollTop:el.scrollTop,scrollHeight:el.scrollHeight,clientHeight:el.clientHeight,
+    }))
+    console.log('SWITCH_700_SCROLL_DIAG='+JSON.stringify({lastControlBox,scrollDiag}))
     assert.ok(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height,'1440x700 final Grain-Free condition reachable by normal scroll')
 
     for(let i=0;i<80;i++){

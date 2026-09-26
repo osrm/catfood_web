@@ -27,7 +27,7 @@ const TARGET_ANCHORS: Record<SwitchExplicitScrollTarget, string> = {
   current: '.switch-find-stage',
   sku: '.switch-sku-list',
   change: '.switch-no-change',
-  keep: '.switch-current-facts-strip',
+  keep: '.switch-current-facts-summary',
   results: '.switch-candidate-list',
   compare: '.compare-stage',
 }

@@ -198,7 +198,7 @@ async function keyboardReachAction(page,label,direction='Tab',max=80){
   for(let i=0;i<max;i++){
     await page.keyboard.press(direction)
     const f=await focusInfo(page)
-    if(f?.text.includes(label)) return f
+    if(f?.text===label) return f
   }
   return null
 }
@@ -257,7 +257,7 @@ async function mobileScenario(){
   await scrollBottom(page,390)
   const changeBottom=await measure(page,'change-expanded-bottom')
   assertSizing(changeBottom,key+' change',844)
-  const nextFocus=await keyboardReachAction(page,'다음')
+  const nextFocus=await keyboardReachAction(page,'다음 →')
   assert.ok(nextFocus,'Tab reaches CHANGE next')
   assert.ok(parseFloat(nextFocus.outlineWidth)>=2,'CHANGE next focus visible')
   assert.ok(nextFocus.focusBox.bottom<=844,'CHANGE next focus not clipped')
@@ -271,7 +271,7 @@ async function mobileScenario(){
   await scrollBottom(page,390)
   const keepBottom=await measure(page,'keep-bottom')
   assertSizing(keepBottom,key+' keep',844)
-  const candidateFocus=await keyboardReachAction(page,'후보 제품 보기')
+  const candidateFocus=await keyboardReachAction(page,'후보 제품 보기 →')
   assert.ok(candidateFocus,'Tab reaches KEEP candidate action')
   assert.ok(parseFloat(candidateFocus.outlineWidth)>=2,'KEEP candidate focus visible')
   assert.ok(candidateFocus.focusBox.bottom<=844,'KEEP candidate focus not clipped')

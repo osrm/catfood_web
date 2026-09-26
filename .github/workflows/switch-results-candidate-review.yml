@@ -1,0 +1,54 @@
+name: SWITCH candidate review
+on:
+  pull_request:
+    paths:
+      - 'src/SwitchFlow.tsx'
+      - 'src/switch-results-reviewed.css'
+      - 'src/main.tsx'
+      - 'tests/switch-session-navigation.test.mjs'
+      - 'qa/switch-results-candidate-review.mjs'
+      - '.github/workflows/switch-results-candidate-review.yml'
+permissions:
+  contents: read
+jobs:
+  candidate-review:
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Exact candidate production build
+        run: npm run build
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/switch-candidate-review
+          cp qa/switch-results-candidate-review.mjs /tmp/switch-candidate-review/
+          cd /tmp/switch-candidate-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact candidate
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/catfood-preview.log 2>&1 &
+          echo $! > /tmp/catfood-preview.pid
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/catfood-preview.log
+          exit 1
+      - name: Narrow real-data interaction QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/switch-results-candidate-output" node /tmp/switch-candidate-review/switch-results-candidate-review.mjs
+      - name: Upload candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-results-candidate-review
+          path: switch-results-candidate-output
+          retention-days: 7

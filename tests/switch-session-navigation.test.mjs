@@ -537,3 +537,68 @@ test('restored actual SKU reports variant API failure and retries without becomi
   assert.equal(session().variantSelection.variantId, 'variant_current_1')
   assert.deepEqual(session().compareIds, [candidateA.product_id])
 })
+
+
+test('candidate inspector keeps full relationships and closing restores selected-row focus', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await selectCandidate(candidateA.canonical_name)
+
+  const selectedRow = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))
+  assert.ok(selectedRow.classList.contains('is-selected'))
+  const inspector = document.querySelector('.switch-candidate-inspector')
+  assert.ok(inspector)
+  assert.match(inspector.textContent, /선택한 조건과 비교/)
+  assert.match(inspector.textContent, /비교 기준.*현재브랜드.*현재 건식 사료.*1 kg/s)
+  assert.match(inspector.textContent, /제품 정보 요약/)
+  assert.match(selectedRow.textContent, /원료 확인.*닭.*검토한 자료에서 찾지 못함/s)
+
+  await click(inspector.querySelector('.switch-preview-topline button'))
+  assert.equal(document.querySelector('.switch-candidate-inspector'), null)
+  assert.equal(document.activeElement, selectedRow)
+  assert.ok(selectedRow.classList.contains('is-selected') === false)
+  assert.equal(session().selectedCandidateId, null)
+})
+
+
+test('fixture: candidate relationship renders 3+ long ingredient evidence items without display truncation', async () => {
+  const terms = [
+    '닭고기와 닭고기 부산물을 포함한 매우 긴 원료 근거',
+    '칠면조 단백질과 장문 원료 근거',
+    '오리 단백질과 추가 확인 근거',
+    '가수분해 동물성 단백질과 긴 확인 문구',
+  ]
+  catalogProducts = catalogProducts.map((item) => {
+    if (item.product_id === current.product_id) return { ...item, confirmed_present_ingredient_terms: terms, direct_evidence_ingredient_terms: terms }
+    if (item.product_id === candidateA.product_id) return { ...item, reviewed_not_found_ingredient_terms: terms }
+    return item
+  })
+  variantsByProduct.set(current.product_id, [
+    { ...variant(current.product_id, 'variant_current_1', '1 kg', 1), confirmed_present_ingredient_terms: terms, direct_evidence_ingredient_terms: terms },
+    variant(current.product_id, 'variant_current_2', '2 kg', 2),
+  ])
+
+  await renderApp()
+  await chooseCurrent()
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'fixture actual SKU')
+  await click(variantButton('1 kg'))
+  await click(exactButton('다음 →'))
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'fixture CHANGE')
+  await click(exactButton('습식'))
+  const ingredientButtons = all('.switch-current-ingredients button')
+  assert.ok(ingredientButtons.length >= 4)
+  for (const ingredientButton of ingredientButtons) await click(ingredientButton)
+  await click(exactButton('다음 →'))
+  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'fixture KEEP')
+  await click('후보 제품 보기')
+  await waitForUi(() => document.querySelector('.switch-results-stage'), 'fixture results')
+
+  const row = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))
+  assert.ok(row)
+  const relationLines = [...row.querySelectorAll('.switch-relation-line')]
+  const rendered = relationLines.map((line) => line.textContent).join(' ')
+  for (const term of terms) assert.match(rendered, new RegExp(term))
+  const ingredientLine = relationLines.find((line) => line.textContent.includes('원료 확인'))
+  assert.ok(ingredientLine)
+  assert.equal(ingredientLine.querySelector('strong').textContent.split(' · ').filter(Boolean).length >= 5, true)
+})

@@ -1,0 +1,152 @@
+/* Reviewed SWITCH candidate-results design. Loaded after existing consumer layers. */
+.switch-workflow-shell .switch-session-bar strong,
+.switch-workflow-shell .switch-session-bar small,
+.switch-workflow-shell .switch-candidate-identity > strong,
+.switch-workflow-shell .switch-candidate-identity > small,
+.switch-workflow-shell .switch-relation-line > strong,
+.switch-workflow-shell .switch-inspector-identity h1,
+.switch-workflow-shell .switch-inspector-identity p,
+.switch-workflow-shell .switch-inspector-section dd {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+ .switch-workflow-shell .switch-candidate-identity > strong {
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.switch-workflow-shell .switch-relation-line > strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-box-orient: initial;
+  -webkit-line-clamp: unset;
+}
+
+.switch-workflow-shell .switch-inspector-actions {
+  margin: 20px 0 0;
+}
+
+.switch-workflow-shell .switch-inspector-decision {
+  margin-top: 24px;
+  border-top: 1px solid var(--research-line);
+  padding-top: 18px;
+}
+
+.switch-workflow-shell .switch-inspector-decision .switch-inspector-baseline {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: baseline;
+  margin: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--research-line-soft);
+  border-radius: 0;
+  padding: 0 0 12px;
+  background: transparent;
+}
+
+.switch-workflow-shell .switch-inspector-decision .switch-inspector-baseline span {
+  color: var(--research-dim);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.switch-workflow-shell .switch-inspector-decision .switch-inspector-baseline strong {
+  color: var(--research-text);
+  font-size: 12.5px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.switch-workflow-shell .switch-inspector-decision .switch-inspector-baseline small {
+  grid-column: 2;
+  color: var(--research-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.switch-workflow-shell .switch-inspector-decision dl {
+  margin-top: 0;
+}
+
+.switch-workflow-shell .switch-inspector-decision dd {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-session-bar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .switch-workflow-shell .switch-session-current {
+    grid-column: 1 / -1;
+  }
+
+  .switch-workflow-shell .switch-session-bar > div {
+    padding: 10px 16px;
+  }
+
+  .switch-workflow-shell .switch-session-bar > div:nth-child(3) {
+    border-left: 1px solid #edf0ee;
+  }
+
+  .switch-workflow-shell .switch-session-bar > button {
+    grid-column: 1 / -1;
+    min-height: 44px;
+  }
+
+  .switch-workflow-shell .switch-inspector-scroll {
+    padding: 18px 18px 32px;
+  }
+
+  .switch-workflow-shell .switch-inspector-identity {
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 18px;
+  }
+
+  .switch-workflow-shell .switch-inspector-identity > div {
+    min-width: 0;
+    width: auto;
+  }
+
+  .switch-workflow-shell .switch-inspector-image,
+  .switch-workflow-shell .switch-inspector-identity .switch-image-placeholder {
+    width: 72px;
+    height: 88px;
+  }
+
+  .switch-workflow-shell .switch-inspector-identity h1 {
+    font-size: 26px;
+    line-height: 1.18;
+  }
+
+  .switch-workflow-shell .switch-inspector-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .switch-workflow-shell .switch-inspector-actions > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .switch-workflow-shell .switch-inspector-decision {
+    margin-top: 18px;
+  }
+}

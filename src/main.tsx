@@ -34,6 +34,7 @@ import './explore-condition-disclosure.css'
 import './switch-compare-dock-clearance.css'
 import './mobile-switch-compare-header.css'
 import './quick-view-editorial.css'
+import './switch-results-reviewed.css'
 
 function syncCompareScroll(event: Event) {
   const target = event.target

@@ -146,10 +146,12 @@ function assertFocusRing(focus,label){
 
 function assertNotCovered(focus,barTop,viewportHeight,label){
   assertFocusRing(focus,label)
-  assert.ok(focus.focusBox.top>=-0.5,label+': focus ring top remains in viewport')
-  assert.ok(focus.focusBox.bottom<=viewportHeight+0.5,label+': focus ring bottom remains in viewport')
+  const diagnostic={label,focusBox:focus.focusBox,barTop,viewportHeight,className:focus.className}
+  console.log('FOCUS_DIAGNOSTIC='+JSON.stringify(diagnostic))
+  assert.ok(focus.focusBox.top>=-0.5,label+': focus ring top remains in viewport '+JSON.stringify(diagnostic))
+  assert.ok(focus.focusBox.bottom<=viewportHeight+0.5,label+': focus ring bottom remains in viewport '+JSON.stringify(diagnostic))
   if(!String(focus.className).includes('apply')&&!String(focus.className).includes('reset')){
-    assert.ok(focus.focusBox.bottom<=barTop-1,label+': focus ring remains above fixed/sticky action bar')
+    assert.ok(focus.focusBox.bottom<=barTop-1,label+': focus ring remains above fixed/sticky action bar '+JSON.stringify(diagnostic))
   }
 }
 

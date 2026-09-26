@@ -166,7 +166,6 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
 
   await click(document.querySelector('.switch-step-actions .switch-primary-action'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /그대로 유지/)
-
   await click(exactButton('← 바꿀 것 수정'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /바꾸고 싶나요/)
   assert.equal(document.querySelector('.switch-change-additional-toggle').getAttribute('aria-expanded'), 'true', 're-entering CHANGE with advanced values must reopen the disclosure')

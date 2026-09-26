@@ -975,8 +975,8 @@ export default function SwitchFlow({
   }
 
   function closeCandidate(productId: string) {
+    candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true })
     setSelectedCandidateId(null)
-    requestAnimationFrame(() => candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true }))
   }
 
   function recordSwitchConsideration(

@@ -352,19 +352,19 @@ async function desktopScenario(width,height,key){
     const lastControl=controls.nth(lowestIndex)
     const lastControlText=normalize(await lastControl.textContent())||await lastControl.getAttribute('placeholder')||'control'
     let lastControlBox=null
-    for(let i=0;i<8;i++){
-      await page.mouse.wheel(0,700)
-      await page.waitForTimeout(80)
+    for(let i=0;i<24;i++){
+      await page.mouse.wheel(0,180)
+      await page.waitForTimeout(60)
       lastControlBox=await lastControl.boundingBox()
       if(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height) break
     }
     assert.ok(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height,'1440x700 visually lowest CHANGE control reachable by normal scroll')
 
-    for(let i=0;i<8;i++){
+    for(let i=0;i<24;i++){
       change=await measureDecision(page,'change')
       if(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height) break
-      await page.mouse.wheel(0,700)
-      await page.waitForTimeout(80)
+      await page.mouse.wheel(0,180)
+      await page.waitForTimeout(60)
     }
     change=await measureDecision(page,'change')
     assert.ok(change.actions.primary.box.top>=0&&change.actions.primary.box.bottom<=height,'1440x700 CHANGE action reachable by normal scroll')

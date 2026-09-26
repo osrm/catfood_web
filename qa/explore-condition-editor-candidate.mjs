@@ -281,8 +281,8 @@ async function assertEightPreserved(page,key){
   assert.match(await page.locator('.condition-draft-count').textContent(),/8개/,key+': eight-count preserved')
 }
 
-async function stressSelectionDisclosure(page,key){
-  await selectEight(page)
+async function stressSelectionDisclosure(page,key,alreadySelected=false){
+  if(!alreadySelected) await selectEight(page)
   await clickChoice(page,'피부·피모',false)
   await setDisclosure(page,false)
   let st=await editorState(page)
@@ -416,7 +416,7 @@ async function desktop(width,height,key,fullFlow){
   let split=null
   let selection=null
   if(fullFlow){
-    selection=await stressSelectionDisclosure(page,key)
+    selection=await stressSelectionDisclosure(page,key,true)
     await setDisclosure(page,true)
     split=await resultsLayoutRoundTrip(page,key)
     await page.getByRole('button',{name:'초기화',exact:true}).click()

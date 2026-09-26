@@ -84,6 +84,8 @@ async function run(width,height,key){
     assert.equal(metrics.action.style.position,'fixed',key+': mobile actions remain visible')
     assert.ok(metrics.action.box.bottom<=height+1&&metrics.action.box.top>=height-90,key+': mobile action bar is visible at viewport bottom')
     assert.ok(metrics.additionalCount.box.width>0,key+': additional selection count visible')
+  } else {
+    assert.ok(metrics.action.box.bottom<=height,key+': desktop action bar is visible in the 1440x900 viewport')
   }
   await page.screenshot({path:OUT+'/prototype-'+key+'-top.png',fullPage:false})
   if(width===390){

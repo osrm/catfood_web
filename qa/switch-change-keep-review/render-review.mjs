@@ -175,76 +175,90 @@ async function navigationKeyboard(){
   await context.close()
 }
 
-async function viewportAccess(width,height,key){
-  const {page,context}=await openPrototype(width,height,'#change')
-  if(width<=760){
-    const details=page.locator('#change .additional')
-    if(!(await details.evaluate(el=>el.open))) await page.locator('#change .additional>summary').click()
-  }
-  const state=await page.evaluate(()=>{
-    const rect=(sel)=>{
-      const el=document.querySelector(sel)
+async function measureStepAccess(page,step,width,height,key){
+  await page.evaluate(()=>window.scrollTo(0,0))
+  const state=await page.evaluate((step)=>{
+    const root=document.querySelector('#'+step)
+    const rect=(el)=>{
       if(!(el instanceof HTMLElement)) return null
       const r=el.getBoundingClientRect()
       return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}
     }
-    const choices=[...document.querySelectorAll('#change .choice')].filter(el=>{
+    const choices=[...root.querySelectorAll('.choice')].filter(el=>{
       if(!(el instanceof HTMLElement)) return false
-      const r=el.getBoundingClientRect(),s=getComputedStyle(el)
-      return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'
+      const r=el.getBoundingClientRect(),computed=getComputedStyle(el)
+      return r.width>0&&r.height>0&&computed.display!=='none'&&computed.visibility!=='hidden'
     }).map(el=>({text:el.textContent?.trim()||'',height:el.getBoundingClientRect().height,fontSize:getComputedStyle(el).fontSize}))
-    const editor=document.querySelector('#change .editor')
+    const editor=root.querySelector('.editor')
     return {
       viewport:{width:innerWidth,height:innerHeight},
       horizontalOverflow:document.documentElement.scrollWidth-innerWidth,
       documentHeight:document.documentElement.scrollHeight,
+      heading:rect(root.querySelector('.step-heading h1')),
       editor:{
-        box:rect('#change .editor'),
+        box:rect(editor),
         scrollHeight:editor instanceof HTMLElement?editor.scrollHeight:null,
         clientHeight:editor instanceof HTMLElement?editor.clientHeight:null,
         overflowY:editor instanceof HTMLElement?getComputedStyle(editor).overflowY:null,
       },
       choices,
     }
-  })
+  },step)
   assert.equal(state.horizontalOverflow,0,key+' no horizontal overflow')
+  assert.ok(state.heading&&state.heading.height>0,key+' heading visible')
   assert.ok(state.choices.every(x=>x.height>=44),key+' visible choices >=44px')
 
   if(width<=760){
     await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
   }else{
-    await page.locator('#change .editor').evaluate(el=>{el.scrollTop=el.scrollHeight})
+    await page.locator('#'+step+' .editor').evaluate(el=>{el.scrollTop=el.scrollHeight})
   }
   await page.waitForTimeout(60)
 
-  const bottom=await page.evaluate(()=>{
-    const action=document.querySelector('#change .actions')
-    const primary=document.querySelector('#change .actions .primary')
-    const secondary=document.querySelector('#change .actions .secondary')
-    const editor=document.querySelector('#change .editor')
+  const bottom=await page.evaluate((step)=>{
+    const root=document.querySelector('#'+step)
+    const action=root.querySelector('.actions')
+    const primary=action?.querySelector('.primary')
+    const secondary=action?.querySelector('.secondary')
+    const editor=root.querySelector('.editor')
     const rect=(el)=>{if(!(el instanceof HTMLElement))return null;const r=el.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}}
     return {
       action:rect(action),primary:rect(primary),secondary:rect(secondary),
       editorScrollTop:editor instanceof HTMLElement?editor.scrollTop:null,
       windowScrollY:scrollY,
     }
-  })
+  },step)
   assert.ok(bottom.primary?.height>=48&&bottom.secondary?.height>=48,key+' actions >=48px')
   assert.ok(bottom.primary.top>=0&&bottom.primary.bottom<=height,key+' primary action reachable in viewport')
   assert.ok(bottom.secondary.top>=0&&bottom.secondary.bottom<=height,key+' secondary action reachable in viewport')
 
-  await page.locator('#change .actions .primary').focus()
+  await page.locator('#'+step+' .actions .primary').focus()
   const actionFocus=await focusSnapshot(page)
   assert.ok(parseFloat(actionFocus.outlineWidth)>=2,key+' action focus outline visible')
   assert.ok(actionFocus.focusBox.top>=0&&actionFocus.focusBox.bottom<=height,key+' action focus fully visible')
 
-  const filename=key==='desktop-1440x700'
-    ? 'prototype-desktop-1440x700-bottom.png'
-    : key==='desktop-1440x900'
-      ? 'prototype-desktop-1440x900-change.png'
-      : 'prototype-mobile-390x844-change-expanded.png'
-  await page.screenshot({path:join(OUT,filename),fullPage:false})
-  report.viewports[key]={state,bottom,actionFocus}
+  return {state,bottom,actionFocus}
+}
+
+async function viewportAccess(width,height,key){
+  const {page,context}=await openPrototype(width,height,'#change')
+  if(width<=760){
+    const details=page.locator('#change .additional')
+    if(!(await details.evaluate(el=>el.open))) await page.locator('#change .additional>summary').click()
+  }
+
+  await page.evaluate(()=>window.scrollTo(0,0))
+  await page.screenshot({path:join(OUT,key==='desktop-1440x900'?'prototype-desktop-1440x900-change.png':key==='mobile-390x844'?'prototype-mobile-390x844-change-expanded.png':'prototype-desktop-1440x700-change-top.png'),fullPage:false})
+  const change=await measureStepAccess(page,'change',width,height,key+' change')
+  await page.screenshot({path:join(OUT,key+'-change-bottom.png'),fullPage:false})
+
+  await page.locator('#change .actions .primary').click()
+  await page.waitForFunction(()=>location.hash==='#keep')
+  await page.evaluate(()=>window.scrollTo(0,0))
+  const keep=await measureStepAccess(page,'keep',width,height,key+' keep')
+  await page.screenshot({path:join(OUT,key+'-keep-bottom.png'),fullPage:false})
+
+  report.viewports[key]={change,keep}
   await context.close()
 }
 

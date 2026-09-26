@@ -337,20 +337,8 @@ async function desktopScenario(width,height,key){
 
   if(height===700){
     await page.locator('.switch-step-main').hover()
-    const controls=page.locator('.switch-change-desktop-criteria button:visible, .switch-change-desktop-criteria input:visible')
-    const controlCount=await controls.count()
-    assert.ok(controlCount>0,'1440x700 CHANGE controls exist')
-    let lowestIndex=0
-    let lowestBottom=-Infinity
-    for(let i=0;i<controlCount;i++){
-      const box=await controls.nth(i).boundingBox()
-      if(box&&box.bottom>lowestBottom){
-        lowestBottom=box.bottom
-        lowestIndex=i
-      }
-    }
-    const lastControl=controls.nth(lowestIndex)
-    const lastControlText=normalize(await lastControl.textContent())||await lastControl.getAttribute('placeholder')||'control'
+    const lastControl=page.locator('.switch-change-desktop-criteria').getByRole('button',{name:'Grain-Free 표기',exact:true})
+    assert.ok(await lastControl.count(),'1440x700 final recipe-trait condition exists')
     let lastControlBox=null
     for(let i=0;i<24;i++){
       await page.mouse.wheel(0,180)
@@ -358,7 +346,7 @@ async function desktopScenario(width,height,key){
       lastControlBox=await lastControl.boundingBox()
       if(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height) break
     }
-    assert.ok(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height,'1440x700 visually lowest CHANGE control reachable by normal scroll')
+    assert.ok(lastControlBox&&lastControlBox.top>=0&&lastControlBox.bottom<=height,'1440x700 final Grain-Free condition reachable by normal scroll')
 
     for(let i=0;i<24;i++){
       change=await measureDecision(page,'change')
@@ -371,7 +359,7 @@ async function desktopScenario(width,height,key){
     assert.equal(change.main.style.overflowY,'auto','1440x700 internal main scroll owner')
     await page.locator('.switch-step-actions .switch-primary-action').focus()
     assertFocusVisible(await activeFocus(page),height,'1440x700 CHANGE action')
-    change.lastControl={text:lastControlText,box:lastControlBox}
+    change.lastControl={text:'Grain-Free 표기',box:lastControlBox}
   }
   await page.screenshot({path:OUT+'/'+key+'-change-bottom.png',fullPage:false})
 

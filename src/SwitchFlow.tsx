@@ -577,19 +577,19 @@ function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
   return (
     <div className="switch-candidate-relations">
       {evaluation.keepMatches.length > 0 ? (
-        <div className="switch-relation-line is-keep"><span>유지 조건</span><strong>{evaluation.keepMatches.slice(0, 2).join(' · ')}</strong></div>
+        <div className="switch-relation-line is-keep"><span>유지 조건</span><strong>{evaluation.keepMatches.join(' · ')}</strong></div>
       ) : null}
       {evaluation.changeMatches.length > 0 ? (
-        <div className="switch-relation-line is-change"><span>변경 조건</span><strong>{evaluation.changeMatches.slice(0, 2).join(' · ')}</strong></div>
+        <div className="switch-relation-line is-change"><span>변경 조건</span><strong>{evaluation.changeMatches.join(' · ')}</strong></div>
       ) : null}
       {evaluation.ingredientReviewedNotFound.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.slice(0, 2).join(' · ')} · 검토한 자료에서 찾지 못함</strong></div>
+        <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.join(' · ')} · 검토한 자료에서 찾지 못함</strong></div>
       ) : null}
       {evaluation.ingredientInsufficient.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.slice(0, 2).join(' · ')} · 판단 근거 부족</strong></div>
+        <div className="switch-relation-line is-ingredient-unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.join(' · ')} · 판단 근거 부족</strong></div>
       ) : null}
       {evaluation.unknowns.length > 0 ? (
-        <div className="switch-relation-line is-unknown"><span>미확인</span><strong>{evaluation.unknowns.slice(0, 2).join(' · ')}</strong></div>
+        <div className="switch-relation-line is-unknown"><span>미확인</span><strong>{evaluation.unknowns.join(' · ')}</strong></div>
       ) : null}
     </div>
   )
@@ -673,6 +673,7 @@ export default function SwitchFlow({
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
+  const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const pendingExplicitScroll = useRef<{
     source: SwitchExplicitScrollTarget
     intent: SwitchExplicitScrollIntent
@@ -971,6 +972,11 @@ export default function SwitchFlow({
   function openCandidate(productId: string) {
     setSelectedCandidateId(productId)
     recordSwitchConsideration(productId, 'detail_open')
+  }
+
+  function closeCandidate(productId: string) {
+    setSelectedCandidateId(null)
+    requestAnimationFrame(() => candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true }))
   }
 
   function recordSwitchConsideration(
@@ -1525,7 +1531,16 @@ export default function SwitchFlow({
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 return (
-                  <button className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'} key={product.product_id} type="button" onClick={() => openCandidate(product.product_id)}>
+                  <button
+                    className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'}
+                    key={product.product_id}
+                    ref={(node) => {
+                      if (node) candidateButtonRefs.current.set(product.product_id, node)
+                      else candidateButtonRefs.current.delete(product.product_id)
+                    }}
+                    type="button"
+                    onClick={() => openCandidate(product.product_id)}
+                  >
                     <ProductImage className="switch-candidate-image" product={product} />
                     <span className="switch-candidate-identity">
                       <span>{product.brand}</span><strong>{product.canonical_name}</strong>
@@ -1546,14 +1561,12 @@ export default function SwitchFlow({
 
           {selectedCandidate ? (
             <aside className="switch-candidate-inspector">
-              <div className="switch-preview-topline"><span>후보 제품</span><button type="button" onClick={() => setSelectedCandidateId(null)}>닫기 ×</button></div>
+              <div className="switch-preview-topline"><span>후보 제품</span><button type="button" onClick={() => closeCandidate(selectedCandidate.product.product_id)}>닫기 ×</button></div>
               <div className="switch-inspector-scroll">
                 <section className="switch-inspector-identity">
                   <ProductImage className="switch-inspector-image" product={selectedCandidate.product} />
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}</p></div>
                 </section>
-
-                <section className="switch-inspector-baseline"><span>현재 사료</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></section>
 
                 <div className="quick-view-actions switch-inspector-actions">
                   <button
@@ -1580,8 +1593,9 @@ export default function SwitchFlow({
                   </button>
                 </div>
 
-                <section className="switch-inspector-section">
+                <section className="switch-inspector-section switch-inspector-decision">
                   <h2>선택한 조건과 비교</h2>
+                  <div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
                   <dl>
                     <div><dt>유지 조건</dt><dd>{selectedCandidate.keepMatches.join(' · ') || '확인된 항목 없음'}</dd></div>
                     <div><dt>변경 조건</dt><dd>{selectedCandidate.changeMatches.join(' · ') || '확인된 항목 없음'}</dd></div>

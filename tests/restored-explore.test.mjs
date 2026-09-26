@@ -194,7 +194,7 @@ test('EXPLORE additional disclosure keeps draft state separate from applied sear
   await click('실내묘')
   assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 1개/)
   assert.match(toggle.textContent, /1개 선택/)
-  assert.match(document.querySelector('.mobile-additional-summary').textContent, /실내묘/)
+  assert.equal(document.querySelector('.mobile-additional-summary'), null, 'expanded disclosure avoids duplicating selected labels')
   assert.equal(searchRuns().length, 0)
 
   await click(toggle)
@@ -224,4 +224,39 @@ test('EXPLORE additional disclosure keeps draft state separate from applied sear
   assert.match(restoredToggle.textContent, /선택 없음/)
   assert.equal(new URL(window.location.href).searchParams.get('targets'), 'indoor', 'reset leaves the applied URL untouched until apply')
   assert.equal(searchRuns().length, runsBeforeReset, 'reset and disclosure do not create search runs')
+})
+
+
+test('EXPLORE hides compare dock while editing conditions without clearing queued compare IDs', async () => {
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore&applied=1&feed=%EA%B1%B4%EC%8B%9D' })
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(
+    () => document.querySelectorAll('.research-result-card').length === 40,
+    'applied explore results rendered',
+  )
+
+  const firstCard = document.querySelector('.research-result-card')
+  assert.ok(firstCard)
+  await act(async () => firstCard.click())
+  await waitForUi(() => document.querySelector('.research-quick-view') !== null, 'quick view opened')
+
+  await click('비교에 추가')
+  await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'compare dock shown on results')
+  const queuedId = firstCard.getAttribute('data-product-id')
+  assert.ok(queuedId)
+  assert.match(new URL(window.location.href).searchParams.get('compare') ?? '', new RegExp(queuedId), 'queued compare ID is reflected in URL state')
+
+  await click('닫기 ×')
+  const editButton = document.querySelector('.criteria-bar > button')
+  assert.ok(editButton, 'criteria-bar condition edit action exists')
+  await click(editButton)
+
+  assert.equal(document.querySelector('.switch-compare-dock'), null, 'compare dock is excluded from condition-editing UI')
+  assert.equal(button('비교 보기 →'), undefined, 'hidden compare dock is not a focusable/button target while editing')
+  assert.match(new URL(window.location.href).searchParams.get('compare') ?? '', new RegExp(queuedId), 'entering condition edit preserves queued compare IDs')
+
+  await click('이 조건으로 찾기')
+  await waitForUi(() => document.querySelectorAll('.research-result-card').length === 40, 'results restored after apply')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), null, 'applying conditions keeps the existing compare reset policy')
+  assert.equal(document.querySelector('.switch-compare-dock'), null, 'compare dock stays cleared after apply reset')
 })

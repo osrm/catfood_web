@@ -1,0 +1,26 @@
+name: SWITCH SKU evidence
+on:
+  push:
+    branches: [qa/switch-sku-evidence-20260926]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify QA base
+        run: |
+          git merge-base --is-ancestor 3afa544521b8407931076eae43698b8a5c5113ef HEAD
+          test "$(git diff --name-only 3afa544521b8407931076eae43698b8a5c5113ef...HEAD | sort)" = "$(printf '%s\n' '.github/workflows/switch-sku-evidence.yml' 'qa/switch-sku-evidence.mjs' | sort)"
+      - name: Install Playwright core
+        run: npm install --no-save --ignore-scripts playwright-core@1.55.0
+      - name: Run deployed Pages SKU capture
+        run: node qa/switch-sku-evidence.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: switch-sku-evidence
+          path: switch-sku-evidence-output
+          retention-days: 7

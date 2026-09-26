@@ -184,7 +184,11 @@ async function capturePrototype(width,height,key){
   const {page,context}=await prototypePage(width,height)
   const focusChoice=await tabEvidence(page,'건식')
   const focusApply=await tabEvidence(page,'이 조건으로 찾기')
-  await page.evaluate(()=>window.scrollTo(0,0))
+  await page.evaluate(()=>{
+    window.scrollTo(0,0)
+    const body=document.querySelector('.editor-body')
+    if(body instanceof HTMLElement) body.scrollTop=0
+  })
   await page.waitForTimeout(50)
   const metrics=await measurePrototype(page)
   assert.equal(metrics.document.scrollWidth,width,key+' prototype no horizontal overflow')

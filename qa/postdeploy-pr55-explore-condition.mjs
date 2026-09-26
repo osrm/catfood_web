@@ -41,13 +41,13 @@ async function makePage(width,height){
 async function enterExplore(page){
   await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000})
   await page.getByRole('button',{name:'조건 고르기 →'}).waitFor({state:'visible',timeout:30000})
+  await page.getByRole('button',{name:'조건 고르기 →'}).click()
+  await page.locator('.condition-actions').waitFor({state:'visible',timeout:10000})
   await page.waitForFunction(
     () => document.querySelector('.research-status')?.textContent?.includes('데이터 연결됨') === true,
     undefined,
     {timeout:30000},
   )
-  await page.getByRole('button',{name:'조건 고르기 →'}).click()
-  await page.locator('.condition-actions').waitFor({state:'visible',timeout:10000})
   await page.evaluate(async()=>{await document.fonts?.ready})
 }
 

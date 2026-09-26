@@ -156,7 +156,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   assert.equal(toggle.getAttribute('aria-expanded'), 'true', 'choosing an advanced condition must not auto-fold the disclosure')
   assert.equal(kitten.getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
-  assert.match(document.querySelector('.switch-change-additional-summary').textContent, /키튼/)
+  assert.equal(document.querySelector('.switch-change-additional-summary'), null, 'expanded disclosure avoids duplicate selected-name summary')
 
   await click(toggle)
   assert.equal(toggle.getAttribute('aria-expanded'), 'false')
@@ -175,7 +175,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   const reentryKitten = exactButton('키튼', reentryContent)
   assert.equal(reentryKitten.getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
-  assert.match(document.querySelector('.switch-change-additional-summary').textContent, /키튼/)
+  assert.equal(document.querySelector('.switch-change-additional-summary'), null, 'reopened disclosure keeps duplicate summary hidden')
 
   await click(document.querySelector('.switch-no-change'))
   assert.equal(document.querySelector('.switch-no-change').classList.contains('is-selected'), true)
@@ -183,6 +183,53 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   assert.equal(document.querySelector('.switch-change-additional-summary'), null)
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '필요할 때만 선택하세요.')
   assert.equal(document.querySelector('.switch-change-additional-toggle').getAttribute('aria-expanded'), 'true', 'clearing values must not auto-fold the disclosure')
+})
+
+
+test('KEEP separates dynamic CHANGE summary from current product facts', async () => {
+  const current = product('current-summary', 'Current summary food', {
+    brand: 'Current Brand',
+    feed_type: '건식',
+    life_stage: 'adult',
+    recipe_families: ['fish'],
+    official_targets: ['indoor'],
+    features: ['digestive'],
+  })
+  const initialSession = {
+    ...app.createInitialSwitchSession(),
+    currentProductId: current.product_id,
+    variantSelection: { kind: 'unknown', variantId: null },
+    changeBrand: true,
+    change: {
+      ...app.emptySwitchCriteria(),
+      lifeStage: 'senior',
+    },
+    keep: {
+      ...app.emptySwitchCriteria(),
+      feedType: '건식',
+      recipeFamilies: ['fish'],
+    },
+    step: 'keep',
+  }
+
+  await act(async () => {
+    root.render(createElement(Harness, { initialSession, products: [current] }))
+  })
+
+  const changeSummary = document.querySelector('.switch-keep-change-summary')
+  assert.ok(changeSummary)
+  assert.match(changeSummary.textContent, /바꾸기로 정함/)
+  assert.match(changeSummary.textContent, /다른 브랜드/)
+  assert.match(changeSummary.textContent, /시니어/)
+
+  const facts = document.querySelector('.switch-current-facts-summary')
+  assert.ok(facts)
+  assert.match(facts.textContent, /건식/)
+  assert.match(facts.textContent, /성묘/)
+  assert.match(facts.textContent, /생선/)
+  assert.match(facts.textContent, /실내묘/)
+  assert.match(facts.textContent, /소화/)
+  assert.doesNotMatch(facts.textContent, /다른 브랜드|시니어/)
 })
 
 test('mobile CHANGE disclosure counts only advanced selections and retains desktop-only presentation contract', async () => {

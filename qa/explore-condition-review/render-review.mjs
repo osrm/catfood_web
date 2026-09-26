@@ -127,6 +127,8 @@ async function captureCurrent(width,height,key){
     window.scrollTo(0,0)
     const el=document.querySelector('.research-filter-scroll')
     if(el instanceof HTMLElement) el.scrollTop=0
+    const pane=document.querySelector('.research-filters')
+    if(pane instanceof HTMLElement) pane.scrollTop=0
   })
   await page.waitForTimeout(80)
   const top=await measureCurrent(page)

@@ -595,8 +595,10 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
 
   const row = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))
   assert.ok(row)
-  const relation = row.querySelector('.switch-relation-line')
-  const rendered = relation.textContent
+  const relationLines = [...row.querySelectorAll('.switch-relation-line')]
+  const rendered = relationLines.map((line) => line.textContent).join(' ')
   for (const term of terms) assert.match(rendered, new RegExp(term))
-  assert.equal(relation.querySelector('strong').textContent.split(' · ').filter(Boolean).length >= 5, true)
+  const ingredientLine = relationLines.find((line) => line.textContent.includes('원료 확인'))
+  assert.ok(ingredientLine)
+  assert.equal(ingredientLine.querySelector('strong').textContent.split(' · ').filter(Boolean).length >= 5, true)
 })

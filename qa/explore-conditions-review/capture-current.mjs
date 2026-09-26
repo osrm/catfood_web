@@ -38,7 +38,7 @@ async function startExplore(page){
   await page.getByRole('button',{name:'조건 고르기 →'}).waitFor({state:'visible',timeout:30000})
   await pointerClick(page,page.getByRole('button',{name:'조건 고르기 →'}))
   await page.locator('.condition-actions').waitFor({state:'visible',timeout:10000})
-  await page.locator('.research-status').filter({hasText:'데이터 연결됨'}).waitFor({state:'visible',timeout:30000})
+  await page.waitForFunction(() => document.querySelector('.research-status')?.textContent?.includes('데이터 연결됨'), null, {timeout:30000})
 }
 
 const selections=['건식','임신·수유·키튼','실내묘','중성화묘','체중 관리','소화','피부·피모','가금류','생선','Grain-Free 표기']

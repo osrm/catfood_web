@@ -1,18 +1,46 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
-const BASE='https://osrm.github.io/catfood_web/', OUT=process.env.OUT_DIR||'switch-results-review-output'
+const OUT=process.env.OUT_DIR||'switch-results-review-output'
 await mkdir(OUT,{recursive:true})
-const report={deployedMergeSha:'7f49ac85e20e9873f37e70c08995240032168722',generatedAt:new Date().toISOString(),blockedWrites:[],blockedAnalytics:[],scenarios:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
-const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
-async function makePage(w,h){const context=await browser.newContext({viewport:{width:w,height:h},serviceWorkers:'block'}),page=await context.newPage();await page.route('**/*',async route=>{const req=route.request(),method=req.method(),url=req.url(),analytics=/functions\/v1|search-runs|considerations|event_log|analytics|telemetry/i.test(url),write=!['GET','HEAD','OPTIONS'].includes(method);if(analytics||write){if(analytics)report.blockedAnalytics.push({method,url});if(write)report.blockedWrites.push({method,url});await route.abort('blockedbyclient');return}await route.continue()});return{page,context}}
-async function exact(page,label){const x=page.getByRole('button',{name:label,exact:true});for(let i=0;i<await x.count();i++)if(await x.nth(i).isVisible())return x.nth(i);return null}
-async function setup(page){await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000});await page.getByRole('button',{name:'현재 사료로 시작 →'}).click();await page.waitForFunction(()=>document.querySelector('.research-status')?.textContent?.includes('데이터 연결됨')===true,undefined,{timeout:30000});await page.locator('.switch-find-search input').fill('AATU');const row=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await row.waitFor({state:'visible',timeout:30000});await row.click();await page.getByRole('button',{name:'이 제품을 현재 사료로 선택 →'}).click();const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first();await sku.waitFor({state:'visible'});await sku.click();await page.locator('.switch-step-actions .switch-primary-action').click();await (await exact(page,'다른 브랜드로 보기')).click();const toggle=page.locator('.switch-change-additional-toggle');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();await (await exact(page,'시니어')).click();await page.locator('.switch-step-actions .switch-primary-action').click();await page.getByRole('heading',{name:'무엇을 그대로 유지할까요?'}).waitFor();await (await exact(page,'건식 유지')).click();await (await exact(page,'생선')).click();await page.locator('.switch-step-actions .switch-primary-action').click();await page.locator('.switch-candidate-row').first().waitFor({state:'visible',timeout:30000})}
-async function measure(page){return page.evaluate(()=>{const norm=v=>String(v||'').replace(/\s+/g,' ').trim(),one=s=>document.querySelector(s),rect=e=>{if(!e)return null;const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}},style=e=>{if(!e)return null;const s=getComputedStyle(e);return{fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight,overflow:s.overflow,whiteSpace:s.whiteSpace}},rows=[...document.querySelectorAll('.switch-candidate-row')];return{viewport:{w:innerWidth,h:innerHeight},scrollWidth:document.documentElement.scrollWidth,session:{text:norm(one('.switch-session-bar')?.textContent),box:rect(one('.switch-session-bar')),style:style(one('.switch-session-bar strong'))},heading:{text:norm(one('.switch-candidate-heading')?.textContent),box:rect(one('.switch-candidate-heading')),strong:style(one('.switch-candidate-heading strong')),span:style(one('.switch-candidate-heading span')),p:style(one('.switch-candidate-heading p'))},firstRows:rows.slice(0,3).map(r=>({text:norm(r.textContent),box:rect(r),identity:style(r.querySelector('.switch-candidate-identity>strong')),meta:style(r.querySelector('.switch-candidate-identity>small')),relation:style(r.querySelector('.switch-relation-line')),open:style(r.querySelector('.switch-candidate-open'))})),candidateCount:rows.length}})}
-async function inspect(page){await page.locator('.switch-candidate-row').first().click();await page.locator('.switch-candidate-inspector').waitFor({state:'visible'});return page.evaluate(()=>{const norm=v=>String(v||'').replace(/\s+/g,' ').trim(),one=s=>document.querySelector(s),style=e=>{if(!e)return null;const s=getComputedStyle(e);return{fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight}};return{identity:norm(one('.switch-inspector-identity')?.textContent),baseline:norm(one('.switch-inspector-baseline')?.textContent),relation:norm(one('.switch-inspector-section')?.textContent),actions:norm(one('.switch-inspector-actions')?.textContent),h1:style(one('.switch-inspector-identity h1')),dd:style(one('.switch-inspector-section dd')),scrollWidth:document.documentElement.scrollWidth}})}
-for(const [key,w,h] of [['mobile-390x844',390,844],['desktop-1440x900',1440,900]]){const {page,context}=await makePage(w,h);await setup(page);const before=await measure(page);await page.screenshot({path:OUT+'/'+key+'-results.png',fullPage:false});const selected=await inspect(page);await page.screenshot({path:OUT+'/'+key+'-quick-view.png',fullPage:false});report.scenarios[key]={before,selected};assert.equal(before.scrollWidth,w);assert.equal(selected.scrollWidth,w);await context.close()}
-assert.equal(report.blockedWrites.length,0);assert.equal(report.blockedAnalytics.length,0)
+const report={prototypeSourceCommit:process.env.GITHUB_SHA,generatedAt:new Date().toISOString(),note:'Static prototype validation only; not product verification.',scenarios:{}}
+const rect=e=>e?(()=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}})():null
+async function snapshot(page,key){
+ return page.evaluate(()=>{
+  const q=s=>document.querySelector(s), r=e=>{if(!e)return null;const x=e.getBoundingClientRect();return{top:x.top,bottom:x.bottom,left:x.left,right:x.right,width:x.width,height:x.height}},
+  cs=e=>{if(!e)return null;const s=getComputedStyle(e);return{fontFamily:s.fontFamily,fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight,wordBreak:s.wordBreak,overflowWrap:s.overflowWrap,whiteSpace:s.whiteSpace}},
+  visible=e=>!!e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().height>0;
+  const first=q('.panel:not(.split) .row'), ins=q('.ins'), close=q('.close'), actions=q('.actions'), decision=q('.decision'), facts=q('.facts');
+  return {
+   viewport:{width:innerWidth,height:innerHeight},
+   document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},
+   session:{box:r(q('.context')),typography:cs(q('.context .v'))},
+   results:{heading:r(q('.panel:not(.split) .head')),firstCandidate:r(first),identityTypography:cs(first?.querySelector('.name')),relationTypography:cs(first?.querySelector('.rel strong'))},
+   quickView:{box:r(ins),identity:r(q('.identity')),actions:r(actions),relations:r(decision),facts:r(facts),close:{box:r(close),typography:cs(close),visible:visible(close)},identityTypography:cs(q('.identity h1')),relationTypography:cs(q('.decision .rel strong')),factTypography:cs(q('.facts div')),actionButtons:[...document.querySelectorAll('.actions button')].map(b=>({text:b.textContent.trim(),box:r(b),typography:cs(b)}))},
+   list:{box:r(q('.list')),selected:r(q('.list .selected')),unknown:r(q('.list .row:nth-of-type(3)')),selectedRelations:[...q('.list .selected')?.querySelectorAll('.rel')||[]].map(r),unknownRelations:[...q('.list .row:nth-of-type(3)')?.querySelectorAll('.rel')||[]].map(r)}
+  }
+ })
+}
+for(const [key,w,h] of [['mobile-390x844',390,844],['desktop-1440x900',1440,900]]){
+ const context=await browser.newContext({viewport:{width:w,height:h}}), page=await context.newPage()
+ await page.goto('file://'+process.env.GITHUB_WORKSPACE+'/qa/switch-results-design-prototype.html')
+ await page.evaluate(()=>document.fonts.ready); await page.waitForTimeout(250)
+ const results=await snapshot(page,key)
+ await page.screenshot({path:OUT+'/'+key+'-prototype-results.png',fullPage:false})
+ await page.evaluate(()=>{document.querySelectorAll('.panel')[0].style.display='none';document.querySelector('.split').style.marginTop='14px'})
+ const quick=await snapshot(page,key)
+ await page.screenshot({path:OUT+'/'+key+'-prototype-quick-view.png',fullPage:false})
+ await page.locator('.close').focus()
+ const focus=await page.evaluate(()=>{const e=document.activeElement,s=getComputedStyle(e),r=e.getBoundingClientRect();return{aria:e.getAttribute('aria-label'),outlineWidth:s.outlineWidth,outlineStyle:s.outlineStyle,box:{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}}})
+ await page.locator('.close').click()
+ const returned=await page.evaluate(()=>({listVisible:getComputedStyle(document.querySelector('.list')).display!=='none',inspectorVisible:getComputedStyle(document.querySelector('.ins')).display!=='none',focusedClass:document.activeElement?.className||'',focusedText:document.activeElement?.textContent?.replace(/\s+/g,' ').trim()||''}))
+ assert.equal(results.document.scrollWidth,w); assert.equal(quick.document.scrollWidth,w)
+ assert.ok(quick.quickView.close.box.width>=44&&quick.quickView.close.box.height>=44)
+ assert.ok(parseFloat(focus.outlineWidth)>=2)
+ if(w===390){assert.equal(returned.listVisible,true);assert.equal(returned.inspectorVisible,false);assert.match(returned.focusedClass,/selected/)}
+ report.scenarios[key]={results,quickView:quick,closeFocus:focus,afterClose:returned,firstViewport:{height:h,identityBottom:quick.quickView.identity?.bottom,actionsBottom:quick.quickView.actions?.bottom,relationsBottom:quick.quickView.relations?.bottom,factsTop:quick.quickView.facts?.top,factsBottom:quick.quickView.facts?.bottom}}
+ await context.close()
+}
 await writeFile(OUT+'/report.json',JSON.stringify(report,null,2))
-for(const [key,w,h] of [['mobile-390x844',390,844],['desktop-1440x900',1440,900]]){const context=await browser.newContext({viewport:{width:w,height:h}}),page=await context.newPage();await page.goto('file://'+process.env.GITHUB_WORKSPACE+'/qa/switch-results-design-prototype.html');await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(250);await page.screenshot({path:OUT+'/'+key+'-prototype-results.png',fullPage:false});await page.evaluate(()=>{document.querySelectorAll('.panel')[0].style.display='none';document.querySelector('.split').style.marginTop='14px'});await page.screenshot({path:OUT+'/'+key+'-prototype-quick-view.png',fullPage:false});await context.close()}
 await browser.close()

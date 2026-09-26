@@ -156,7 +156,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   assert.equal(toggle.getAttribute('aria-expanded'), 'true', 'choosing an advanced condition must not auto-fold the disclosure')
   assert.equal(kitten.getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
-  assert.match(document.querySelector('.switch-change-additional-summary').textContent, /키튼/)
+  assert.equal(document.querySelector('.switch-change-additional-summary'), null, 'expanded disclosure hides duplicate selected-name summary')
 
   await click(toggle)
   assert.equal(toggle.getAttribute('aria-expanded'), 'false')
@@ -166,7 +166,6 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
 
   await click(document.querySelector('.switch-step-actions .switch-primary-action'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /그대로 유지/)
-
   await click(exactButton('← 바꿀 것 수정'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /바꾸고 싶나요/)
   assert.equal(document.querySelector('.switch-change-additional-toggle').getAttribute('aria-expanded'), 'true', 're-entering CHANGE with advanced values must reopen the disclosure')
@@ -175,7 +174,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   const reentryKitten = exactButton('키튼', reentryContent)
   assert.equal(reentryKitten.getAttribute('aria-pressed'), 'true')
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '1개 선택')
-  assert.match(document.querySelector('.switch-change-additional-summary').textContent, /키튼/)
+  assert.equal(document.querySelector('.switch-change-additional-summary'), null, 're-entered expanded disclosure avoids duplicate summary')
 
   await click(document.querySelector('.switch-no-change'))
   assert.equal(document.querySelector('.switch-no-change').classList.contains('is-selected'), true)
@@ -189,8 +188,9 @@ test('mobile CHANGE disclosure counts only advanced selections and retains deskt
   const source = await import('node:fs/promises').then(({ readFile }) => Promise.all([
     readFile(new URL('../src/SwitchFlow.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/switch-change-disclosure.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/switch-change-keep-polish.css', import.meta.url), 'utf8'),
   ]))
-  const [flow, css] = source
+  const [flow, css, polish] = source
   const helper = flow.slice(flow.indexOf('function additionalChangeLabels'), flow.indexOf('function buildConditions'))
   for (const token of ['criteria.lifeStage', 'ingredientAvoidTerms', 'criteria.officialTargets', 'criteria.features', 'criteria.recipeFamilies', 'criteria.grainFree']) {
     assert.match(helper, new RegExp(token.replace('.', '\\.')))
@@ -199,4 +199,8 @@ test('mobile CHANGE disclosure counts only advanced selections and retains deskt
   assert.match(css, /@media \(max-width: 760px\)/)
   assert.match(css, /\.switch-change-desktop-criteria \{\s*display: none;/)
   assert.doesNotMatch(css, /position:\s*(?:fixed|sticky)/)
+  assert.doesNotMatch(polish, /position:\s*(?:fixed|sticky)/)
+  assert.match(polish, /\.switch-decision-step/)
+  assert.match(polish, /min-height:\s*44px/)
+  assert.match(polish, /min-height:\s*48px/)
 })

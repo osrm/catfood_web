@@ -135,6 +135,8 @@ async function tabUntil(page,selector,max=80){
 
 async function mobile(){
   const {page,context}=await openPrototype(390,844,'#change')
+  const initialDetails=page.locator('#change .additional')
+  if(await initialDetails.evaluate(el=>el.open)) await page.locator('#change .additional>summary').click()
   await page.evaluate(()=>window.scrollTo(0,0))
   const pageTop=await state(page,'change')
   assert.equal(pageTop.document.scrollWidth,390,'prototype mobile no horizontal overflow')

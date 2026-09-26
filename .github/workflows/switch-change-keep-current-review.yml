@@ -1,0 +1,51 @@
+name: SWITCH CHANGE KEEP current review
+
+on:
+  push:
+    branches:
+      - qa/switch-change-keep-review-20260926
+
+permissions:
+  contents: read
+
+jobs:
+  current:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/switch-change-keep-review
+          cp qa/switch-change-keep-review/capture-current.mjs /tmp/switch-change-keep-review/
+          cd /tmp/switch-change-keep-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            exit 1
+          fi
+
+      - name: Verify public Pages
+        run: curl --fail --silent --show-error https://osrm.github.io/catfood_web/ >/dev/null
+
+      - name: Capture actual CHANGE KEEP
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/switch-change-keep-current" \
+          node /tmp/switch-change-keep-review/capture-current.mjs
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: switch-change-keep-current
+          path: switch-change-keep-current
+          if-no-files-found: warn
+          retention-days: 7

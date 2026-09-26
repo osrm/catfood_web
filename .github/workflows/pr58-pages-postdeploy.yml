@@ -1,0 +1,35 @@
+name: PR 58 Pages postdeploy QA
+on:
+  push:
+    branches:
+      - qa/pr58-pages-postdeploy-20260926
+permissions:
+  contents: read
+jobs:
+  postdeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/pr58-postdeploy
+          cp qa/pr58-pages-postdeploy.mjs /tmp/pr58-postdeploy/
+          cd /tmp/pr58-postdeploy
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; elif command -v chromium >/dev/null; then echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; else exit 1; fi
+      - name: Verify public Pages is reachable
+        run: curl --fail --silent --show-error https://osrm.github.io/catfood_web/ >/dev/null
+      - name: Run narrow deployed Pages QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/pr58-postdeploy-output" node /tmp/pr58-postdeploy/pr58-pages-postdeploy.mjs
+      - name: Upload postdeploy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr58-postdeploy
+          path: pr58-postdeploy-output
+          if-no-files-found: warn
+          retention-days: 7

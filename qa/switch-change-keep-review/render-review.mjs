@@ -32,6 +32,8 @@ for(const [key,path] of Object.entries({
 for(const name of await readdir(CURRENT)){
   if(name.endsWith('.png')) await copyFile(join(CURRENT,name),join(OUT,'current-'+name))
 }
+await copyFile(join(REPO,'qa/switch-change-keep-review/switch-change-keep-prototype.html'),join(OUT,'switch-change-keep-prototype.html'))
+await copyFile(join(REPO,'qa/switch-change-keep-review/switch-change-keep-prototype.css'),join(OUT,'switch-change-keep-prototype.css'))
 
 const browser=await chromium.launch({
   headless:true,

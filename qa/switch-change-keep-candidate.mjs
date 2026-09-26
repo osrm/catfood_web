@@ -45,8 +45,11 @@ async function makePage(width,height){
 
 async function assertLoadedImage(locator,label){
   await locator.waitFor({state:'visible',timeout:10000})
-  const info=await locator.evaluate(el=>{
+  const info=await locator.evaluate(async el=>{
     if(!(el instanceof HTMLImageElement)) return null
+    if(!el.complete||el.naturalWidth===0){
+      try{ await el.decode() }catch{}
+    }
     const r=el.getBoundingClientRect()
     return {src:el.currentSrc||el.src,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight,width:r.width,height:r.height}
   })

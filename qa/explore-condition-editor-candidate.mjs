@@ -108,9 +108,15 @@ async function editorState(page){
     const note=[...document.querySelectorAll('.field-note')].at(-1)
     const toggle=document.querySelector('.mobile-additional-toggle')
     const summary=document.querySelector('.mobile-additional-summary')
-    const choices=[...document.querySelectorAll('.research-filter-scroll .choice')].map(el=>({
-      text:el.textContent?.trim()||'',pressed:el.getAttribute('aria-pressed'),box:rect(el),style:style(el),
-    }))
+    const choices=[...document.querySelectorAll('.research-filter-scroll .choice')]
+      .filter(el=>{
+        if(!(el instanceof HTMLElement)) return false
+        const computed=getComputedStyle(el),r=el.getBoundingClientRect()
+        return computed.display!=='none'&&computed.visibility!=='hidden'&&r.width>0&&r.height>0
+      })
+      .map(el=>({
+        text:el.textContent?.trim()||'',pressed:el.getAttribute('aria-pressed'),box:rect(el),style:style(el),
+      }))
     return {
       viewport:{width:innerWidth,height:innerHeight},
       document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},

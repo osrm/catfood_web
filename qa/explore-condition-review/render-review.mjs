@@ -50,6 +50,7 @@ async function currentPage(width,height){
   await page.goto(PUBLIC,{waitUntil:'domcontentloaded',timeout:30000})
   await page.getByRole('button',{name:'조건 고르기 →'}).click()
   await page.locator('.research-filter-scroll').waitFor({state:'visible'})
+  await page.locator('.research-status').filter({hasText:'데이터 연결됨'}).waitFor({state:'visible',timeout:30000})
   await page.evaluate(async()=>{await document.fonts?.ready})
   return {page,context}
 }

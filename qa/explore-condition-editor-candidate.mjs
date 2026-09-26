@@ -136,12 +136,12 @@ async function editorState(page){
       disclosure:{
         expanded:toggle?.getAttribute('aria-expanded')||null,
         box:rect(toggle),style:style(toggle),
-        summary:summary?{text:normalize(summary.textContent),box:rect(summary),style:style(summary)}:null,
+        summary:summary?{text:String(summary.textContent||'').replace(/\\s+/g,' ').trim(),box:rect(summary),style:style(summary)}:null,
         sectionsDisplay:style(document.querySelector('.additional-condition-sections'))?.display||null,
       },
-      draftCount:normalize(document.querySelector('.condition-draft-count')?.textContent),
+      draftCount:String(document.querySelector('.condition-draft-count')?.textContent||'').replace(/\\s+/g,' ').trim(),
       choices,
-      lastNote:{text:normalize(note?.textContent),box:rect(note),style:style(note)},
+      lastNote:{text:String(note?.textContent||'').replace(/\\s+/g,' ').trim(),box:rect(note),style:style(note)},
       resultsExists:Boolean(document.querySelector('.research-results')),
       horizontalOverflow:document.documentElement.scrollWidth-innerWidth,
     }

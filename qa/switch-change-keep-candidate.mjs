@@ -345,20 +345,21 @@ async function longIdentityCase(){
   await page.locator('.switch-sku-option').first().waitFor({state:'visible',timeout:30000})
   const variants=page.locator('.switch-sku-option')
   const vcount=await variants.count()
-  let longest={index:0,text:''}
+  let longest={index:0,label:'',text:''}
   for(let i=0;i<vcount;i++){
     const text=norm(await variants.nth(i).textContent())
-    if(text.length>longest.text.length) longest={index:i,text}
+    const label=norm(await variants.nth(i).locator('strong').textContent())
+    if(label.length>longest.label.length) longest={index:i,label,text}
   }
   await variants.nth(longest.index).click()
   await page.locator('.switch-step-actions .switch-primary-action').click()
   await page.getByRole('heading',{name:'무엇을 바꾸고 싶나요?'}).waitFor({state:'visible'})
   const measured=await state(page,'change')
   assert.equal(measured.reference.name.text,best.name,'full long product name preserved')
-  assert.equal(measured.reference.sku.text,norm(longest.text.replace(/선택됨|선택/g,'')),'full long SKU label preserved')
+  assert.equal(measured.reference.sku.text,longest.label,'full long SKU label preserved')
   assert.notEqual(measured.reference.name.style?.textOverflow,'ellipsis','long product name not ellipsized')
   await page.screenshot({path:OUT+'/mobile-390x844-long-identity.png',fullPage:false})
-  report.longIdentity={product:best.name,sku:longest.text,reference:measured.reference}
+  report.longIdentity={product:best.name,sku:longest.label,variantButton:longest.text,reference:measured.reference}
   await context.close()
 }
 

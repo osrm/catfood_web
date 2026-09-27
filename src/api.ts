@@ -22,6 +22,7 @@ export interface CatalogProduct {
   manufacturing_observation_count: number
   has_manufacturing_details: boolean
   manufacturing_country_codes: string[]
+  manufacturing_has_variant_scope: boolean
   market_observation_count: number
   has_market_details: boolean
   assessed_market_country_codes: string[]
@@ -142,6 +143,17 @@ export interface ProductManufacturingDetail {
   is_current_resolved_formula: boolean
 }
 
+export interface ProductManufacturingScopeDetail {
+  product_id: string
+  variant_id: string | null
+  observation_scope: string
+  country_code: string | null
+  manufacturer: string | null
+  plant: string | null
+  is_current_resolved_formula: boolean
+  display_rank: number
+}
+
 export interface ProductMarketDetail {
   product_id: string
   country_code: string
@@ -178,6 +190,7 @@ const CATALOG_FIELDS = [
   'manufacturing_observation_count',
   'has_manufacturing_details',
   'manufacturing_country_codes',
+  'manufacturing_has_variant_scope',
   'market_observation_count',
   'has_market_details',
   'assessed_market_country_codes',
@@ -286,6 +299,17 @@ const PRODUCT_MANUFACTURING_FIELDS = [
   'manufacturer',
   'plant',
   'is_current_resolved_formula',
+].join(',')
+
+const PRODUCT_MANUFACTURING_SCOPE_FIELDS = [
+  'product_id',
+  'variant_id',
+  'observation_scope',
+  'country_code',
+  'manufacturer',
+  'plant',
+  'is_current_resolved_formula',
+  'display_rank',
 ].join(',')
 
 const PRODUCT_MARKET_FIELDS = [
@@ -565,6 +589,20 @@ export async function fetchProductManufacturing(
     '1',
   )
   return rows[0] ?? null
+}
+
+export async function fetchProductManufacturingScope(
+  productId: string,
+  signal?: AbortSignal,
+): Promise<ProductManufacturingScopeDetail[]> {
+  return fetchRows<ProductManufacturingScopeDetail>(
+    'product_detail_manufacturing_scope',
+    PRODUCT_MANUFACTURING_SCOPE_FIELDS,
+    `eq.${productId}`,
+    signal,
+    'display_rank.asc',
+    '100',
+  )
 }
 
 export async function fetchProductMarkets(

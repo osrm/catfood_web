@@ -34,6 +34,7 @@ async function noOverflow(page,loc,label){
  assert.ok(m.visible,label+' not visible');assert.ok(m.scrollWidth-m.clientWidth<=1,label+' horizontal overflow');return m
 }
 async function shot(page,name){await page.screenshot({path:`${OUT}/${name}.png`,fullPage:false})}
+async function firstVisible(locator,label){for(let i=0;i<await locator.count();i++)if(await locator.nth(i).isVisible())return locator.nth(i);throw new Error(label+' visible target not found')}
 async function detail(page,label){
  await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${DENTAL}&detailTab=context`,{waitUntil:'domcontentloaded'})
  const target=page.getByText('3.5 kg · 한국',{exact:false}).first();await target.waitFor({state:'visible',timeout:30000})
@@ -47,7 +48,7 @@ async function compare(page,label){
  await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${DENTAL},${MULTI}&compareOpen=1`,{waitUntil:'domcontentloaded'})
  const stage=page.locator('.compare-stage');await stage.waitFor({state:'visible',timeout:30000})
  const values=stage.getByText(/확인된 포장 기준/);assert.ok(await values.count()>0)
- const target=values.last();await target.scrollIntoViewIfNeeded();const m=await noOverflow(page,target,label+' compare')
+ const target=await firstVisible(values,label+' compare');await target.scrollIntoViewIfNeeded();const m=await noOverflow(page,target,label+' compare')
  await shot(page,label+'-compare');report.views[label+'-compare']={pass:true,value:m.text,metrics:m}
 }
 async function button(page,name){const xs=page.getByRole('button',{name,exact:true});for(let i=0;i<await xs.count();i++)if(await xs.nth(i).isVisible())return xs.nth(i);throw new Error('button '+name)}
@@ -66,7 +67,7 @@ async function inspector(page,label,dentalName){
  await page.locator('.switch-step-actions .switch-primary-action').click()
  const candidate=page.locator('.switch-candidate-row').filter({hasText:dentalName}).first();await candidate.waitFor({state:'visible',timeout:30000});await candidate.click()
  const panel=page.locator('.switch-candidate-inspector');await panel.waitFor({state:'visible'})
- const target=panel.getByText(/확인된 포장 기준/).first();await target.waitFor({state:'visible'});await target.scrollIntoViewIfNeeded();const m=await noOverflow(page,target,label+' inspector')
+ const target=await firstVisible(panel.getByText(/확인된 포장 기준/),label+' inspector');await target.waitFor({state:'visible'});await target.scrollIntoViewIfNeeded();const m=await noOverflow(page,target,label+' inspector')
  await shot(page,label+'-inspector');report.views[label+'-inspector']={pass:true,candidate:dentalName,value:m.text,metrics:m}
 }
 for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){

@@ -73,6 +73,7 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
 
  await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${dental.product_id},${multi.product_id}&compareOpen=1`,{waitUntil:'domcontentloaded'})
  await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/확인된 포장 기준/)
+ await page.evaluate(()=>{const xs=[...document.querySelectorAll('*')].filter(n=>n.textContent?.trim()==='제조국'&&n.getClientRects().length);xs.at(-1)?.scrollIntoView({block:'center'})})
  await screenshotView(page,`${label}-compare.png`)
  report.views[`${label}-compare`]={text:(await page.locator('.compare-stage').innerText()).slice(0,2200),overflow:await overflow(page,'.compare-cell,.compare-mobile-value')}
 
@@ -82,6 +83,7 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  await page.getByRole('button',{name:'다른 브랜드로 보기'}).click();await page.locator('.switch-step-actions .switch-primary-action').click()
  await page.locator('.switch-step-actions .switch-primary-action').click();await page.locator('.switch-candidate-row').filter({hasText:multi.canonical_name}).click()
  await page.locator('.switch-candidate-inspector').waitFor();assert.match(await page.locator('.switch-candidate-inspector').innerText(),/확인된 포장 기준/)
+ await page.evaluate(()=>{const xs=[...document.querySelectorAll('.switch-candidate-inspector dt')].filter(n=>n.textContent?.trim()==='제조국');xs[0]?.scrollIntoView({block:'center'})})
  await screenshotView(page,`${label}-inspector.png`)
  report.views[`${label}-inspector`]={text:(await page.locator('.switch-candidate-inspector').innerText()).slice(0,2200),overflow:await overflow(page,'.switch-inspector-section dd,.switch-inspector-identity h1')}
  await context.close()

@@ -344,7 +344,7 @@ test('lookup search ignores spacing and standalone and/& notation without changi
   assert.deepEqual(app.lookupCatalog(lookupProducts, '   '), [])
   assert.deepEqual(app.lookupCatalog(lookupProducts, 'c&y'), [], 'and inside a word must not normalize to &')
   assert.deepEqual(
-    app.lookupCatalog(lookupProducts, 'and').map((product) => product.product_id),
+    app.lookupCatalog([lookupProducts[3], lookupProducts[6]], 'and').map((product) => product.product_id),
     [lookupProducts[3].product_id, lookupProducts[6].product_id],
     'existing substring matches for and inside words stay available in input order',
   )

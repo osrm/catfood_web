@@ -3,6 +3,7 @@ import {
   fetchCompareIngredients,
   fetchCompareNutrition,
   fetchProductManufacturing,
+  fetchProductManufacturingScope,
   fetchProductMarkets,
   fetchProductVariants,
   type AdditionalNutrient,
@@ -10,6 +11,7 @@ import {
   type CompareIngredients,
   type CompareNutrition,
   type ProductManufacturingDetail,
+  type ProductManufacturingScopeDetail,
   type ProductMarketDetail,
   type ProductVariant,
 } from './api'
@@ -164,6 +166,7 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
   const [nutrition, setNutrition] = useState<CompareNutrition | null>(null)
   const [ingredients, setIngredients] = useState<CompareIngredients | null>(null)
   const [manufacturing, setManufacturing] = useState<ProductManufacturingDetail | null>(null)
+  const [manufacturingScope, setManufacturingScope] = useState<ProductManufacturingScopeDetail[]>([])
   const [markets, setMarkets] = useState<ProductMarketDetail[]>([])
   const [loading, setLoading] = useState<Record<DetailResource, boolean>>(INITIAL_LOADING)
   const [errors, setErrors] = useState<Record<DetailResource, string | null>>(INITIAL_ERRORS)
@@ -229,7 +232,7 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
 
   useEffect(() => {
     const controller = new AbortController(); let active = true
-    setLoading(INITIAL_LOADING); setErrors(INITIAL_ERRORS); setVariants([]); setNutrition(null); setIngredients(null); setManufacturing(null); setMarkets([])
+    setLoading(INITIAL_LOADING); setErrors(INITIAL_ERRORS); setVariants([]); setNutrition(null); setIngredients(null); setManufacturing(null); setManufacturingScope([]); setMarkets([])
     function load<T>(resource: DetailResource, request: Promise<T>, apply: (value: T) => void, fallback: string) {
       request.then((value) => { if (active) apply(value) }).catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
@@ -239,10 +242,25 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     load('variants', fetchProductVariants(product.product_id, controller.signal), setVariants, '판매 규격을 불러오지 못했습니다.')
     load('nutrition', fetchCompareNutrition([product.product_id], controller.signal), (rows) => setNutrition(rows[0] ?? null), '영양 정보를 불러오지 못했습니다.')
     load('ingredients', fetchCompareIngredients([product.product_id], controller.signal), (rows) => setIngredients(rows[0] ?? null), '원재료 정보를 불러오지 못했습니다.')
-    load('manufacturing', fetchProductManufacturing(product.product_id, controller.signal), setManufacturing, '제조 정보를 불러오지 못했습니다.')
+    load('manufacturing', Promise.all([
+      fetchProductManufacturing(product.product_id, controller.signal),
+      fetchProductManufacturingScope(product.product_id, controller.signal),
+    ]), ([detail, scopeRows]) => { setManufacturing(detail); setManufacturingScope(scopeRows) }, '제조 정보를 불러오지 못했습니다.')
     load('markets', fetchProductMarkets(product.product_id, controller.signal), setMarkets, '유통 정보를 불러오지 못했습니다.')
     return () => { active = false; controller.abort() }
   }, [product.product_id, reload])
+
+  const manufacturingCountryRows = manufacturingScope.filter((row) => row.country_code)
+  const manufacturingVariantRows = manufacturingCountryRows.filter((row) => row.observation_scope === 'variant')
+  const manufacturingVariantGroups = Array.from(new Set(manufacturingVariantRows.map((row) => row.variant_id))).map((variantId) => ({
+    variantId,
+    variant: variantId ? variants.find((item) => item.variant_id === variantId) ?? null : null,
+    countries: Array.from(new Set(manufacturingVariantRows.filter((row) => row.variant_id === variantId).map((row) => row.country_code).filter((code): code is string => Boolean(code)))),
+  }))
+  const manufacturingCountryValue = manufacturingVariantGroups.length
+    ? manufacturingVariantGroups.map(({ variant, countries }) => `${variantSizeLabel(variant) ?? '확인한 포장'} · ${countries.map(countryLabel).join(' · ')}`).join(' / ')
+    : Array.from(new Set(manufacturingCountryRows.map((row) => row.country_code).filter((code): code is string => Boolean(code)))).map(countryLabel).join(' · ') || countryLabel(manufacturing?.country_code ?? null)
+  const manufacturingHasUnmatchedVariant = manufacturingVariantGroups.some(({ variant }) => !variant)
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const alternateNutritionValues = basisValues(nutrition).filter((value) => value.amount != null)
@@ -407,12 +425,12 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
               {errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={retry} /> : null}
               {!loading.manufacturing && !errors.manufacturing && manufacturing ? <>
                 <div className="detail-fact-lines">
-                  <Fact label="제조국" value={countryLabel(manufacturing.country_code)} />
+                  <Fact label="제조국" value={manufacturingCountryValue} />
                   {manufacturing.manufacturer?.trim() ? <Fact label="제조 업체" value={manufacturing.manufacturer} /> : null}
                   {manufacturing.plant?.trim() ? <Fact label="제조 공장" value={manufacturing.plant} /> : null}
                 </div>
                 {missingManufacturingFields.length ? <p className="detail-note">{missingManufacturingFields.join('와 ')} 정보는 확인하지 못했습니다.</p> : null}
-                {manufacturing.observation_scope === 'variant' ? <p className="detail-note">제조국은 확인한 포장을 기준으로 안내합니다. 구매할 제품의 포장도 확인해 주세요.</p> : null}
+                {manufacturing.observation_scope === 'variant' ? <p className="detail-note">제조국은 확인한 포장을 기준으로 안내합니다. 확인되지 않은 규격에는 적용하지 않습니다.{manufacturingHasUnmatchedVariant ? ' 일부 포장 규격은 연결 정보를 확인하지 못했습니다.' : ''}</p> : null}
               </> : null}
               {!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">확인된 제조 정보가 없습니다.</div> : null}
             </section>

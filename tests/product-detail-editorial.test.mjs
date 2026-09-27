@@ -291,20 +291,21 @@ test('overview omits repeated package facts for a confirmed single unit and omit
 
 test('overview keeps package details unless the API confirms a matching single unit', async () => {
   const cases = [
-    { sales_bundle_status: 'official_sales_bundle', package_weight_g: 80, units_per_sale: 6, sale_total_weight_g: 480 },
-    { sales_bundle_status: null, package_weight_g: 80, units_per_sale: 1, sale_total_weight_g: 80 },
-    { sales_bundle_status: 'not_a_bundle', package_weight_g: null, units_per_sale: 1, sale_total_weight_g: 80 },
-    { sales_bundle_status: 'not_a_bundle', package_weight_g: 80, units_per_sale: 1, sale_total_weight_g: 90 },
+    { key: 'bundle', package_size_text: '81 g × 6', sales_bundle_status: 'official_sales_bundle', package_weight_g: 81, units_per_sale: 6, sale_total_weight_g: 486 },
+    { key: 'unknown-status', package_size_text: '82 g', sales_bundle_status: null, package_weight_g: 82, units_per_sale: 1, sale_total_weight_g: 82 },
+    { key: 'unknown-weight', package_size_text: '83 g', sales_bundle_status: 'not_a_bundle', package_weight_g: null, units_per_sale: 1, sale_total_weight_g: 83 },
+    { key: 'mismatched-weight', package_size_text: '84 g', sales_bundle_status: 'not_a_bundle', package_weight_g: 84, units_per_sale: 1, sale_total_weight_g: 94 },
   ]
   for (const values of cases) {
     handler = async (url) => {
-      if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([{ ...variants[0], ...values }])
+      if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([{ ...variants[0], ...values, variant_id: `variant_${values.key}` }])
       return Response.json([])
     }
     await act(async () => {
-      root.render(createElement(app.ProductDetail, { product: target, onClose() {} }))
+      root.render(createElement(app.ProductDetail, { key: values.key, product: target, onClose() {} }))
       await Promise.resolve()
     })
+    assert.match(document.querySelector('.detail-size-list')?.textContent ?? '', new RegExp(values.package_size_text.replace(' × ', ' × ')))
     assert.ok([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')))
   }
 })

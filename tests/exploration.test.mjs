@@ -331,7 +331,7 @@ test('lookup search ignores spacing and standalone and/& notation without changi
   Object.assign(lookupProducts[3], { brand: 'Test', canonical_name: 'Candy Mix' })
   Object.assign(lookupProducts[4], { brand: 'Test', canonical_name: 'Alpha One' })
   Object.assign(lookupProducts[5], { brand: 'Test', canonical_name: 'Alpha Two' })
-  Object.assign(lookupProducts[6], { brand: 'Other', canonical_name: 'Unrelated' })
+  Object.assign(lookupProducts[6], { brand: 'Other', canonical_name: 'Standard Recipe' })
 
   assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄 캐닌').map((product) => product.product_id), [lookupProducts[0].product_id])
   assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄캐닌').map((product) => product.product_id), [lookupProducts[0].product_id])
@@ -343,6 +343,11 @@ test('lookup search ignores spacing and standalone and/& notation without changi
 
   assert.deepEqual(app.lookupCatalog(lookupProducts, '   '), [])
   assert.deepEqual(app.lookupCatalog(lookupProducts, 'c&y'), [], 'and inside a word must not normalize to &')
+  assert.deepEqual(
+    app.lookupCatalog(lookupProducts, 'and').map((product) => product.product_id),
+    [lookupProducts[3].product_id, lookupProducts[6].product_id],
+    'existing substring matches for and inside words stay available in input order',
+  )
   assert.deepEqual(
     app.lookupCatalog(lookupProducts, 'alpha').map((product) => product.product_id),
     [lookupProducts[4].product_id, lookupProducts[5].product_id],

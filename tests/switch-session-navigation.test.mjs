@@ -99,7 +99,7 @@ const current = product('product_current', '현재 건식 사료', {
 const candidateA = product('product_candidate_a', '전환 습식 A', {
   brand: '새브랜드A', feed_type: '습식', life_stage: 'adult', variant_count: 1, has_variants: true,
   official_targets: ['indoor'], features: ['digestive'], recipe_families: ['fish'], recipe_details: ['salmon'],
-  reviewed_not_found_ingredient_terms: ['chicken'],
+  reviewed_not_found_ingredient_terms: ['chicken'], manufacturing_country_codes: ['KR'], manufacturing_has_variant_scope: true,
 })
 const candidateB = product('product_candidate_b', '전환 습식 B', {
   brand: '새브랜드B', feed_type: '습식', life_stage: 'adult', variant_count: 1, has_variants: true,
@@ -387,6 +387,8 @@ test('browser back/forward restores SWITCH candidate detail and compare detail e
   await renderApp()
   await reachResultsWithConditions()
   await selectCandidate(candidateA.canonical_name)
+  assert.match(document.querySelector('.switch-candidate-inspector').textContent, /한국 \(KR\) · 확인된 포장 기준/)
+  assert.doesNotMatch(document.querySelector('.switch-candidate-inspector').textContent, /일부 포장 기준/)
   await click('상세 보기')
   await waitForUi(() => document.querySelector('.detail-stage'), 'candidate detail')
   await browserBack(() => document.querySelector('.switch-candidate-inspector') && !document.querySelector('.detail-stage'), 'back to candidate parent')

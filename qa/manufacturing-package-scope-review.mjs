@@ -6,6 +6,7 @@ const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'manufacturing-package-scope-output'
 await mkdir(OUT,{recursive:true})
 const blocked=[]
+// Fixture-only browser evidence; this does not claim live API validation.
 const report={sourceSha:process.env.CANDIDATE_SHA||process.env.GITHUB_SHA,fixtureOnly:true,blocked,views:{}}
 
 function product(id,name,countries,variantScope,overrides={}){

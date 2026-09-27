@@ -188,8 +188,10 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     const panel = panelRef.current
     const topbar = topbarRef.current
     const tabs = tabsRef.current
-    const heading = panel?.querySelector<HTMLElement>('.detail-section-heading') ?? null
-    if (stage && heading && topbar && tabs) {
+    const target = tab === 'overview'
+      ? panel?.querySelector<HTMLElement>('.detail-section') ?? null
+      : panel?.querySelector<HTMLElement>('.detail-section-heading') ?? null
+    if (stage && target && topbar && tabs) {
       const stageRect = stage.getBoundingClientRect()
       const topbarStyle = window.getComputedStyle(topbar)
       const tabsStyle = window.getComputedStyle(tabs)
@@ -199,9 +201,9 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
         topbarTop + topbar.getBoundingClientRect().height,
         tabsTop + tabs.getBoundingClientRect().height,
       )
-      const headingTop = heading.getBoundingClientRect().top - stageRect.top
+      const targetTop = target.getBoundingClientRect().top - stageRect.top
       const maxScrollTop = Math.max(0, stage.scrollHeight - stage.clientHeight)
-      stage.scrollTop = Math.max(0, Math.min(maxScrollTop, stage.scrollTop + headingTop - stickyBottom))
+      stage.scrollTop = Math.max(0, Math.min(maxScrollTop, stage.scrollTop + targetTop - stickyBottom))
     }
 
     if (pending.focus) {
@@ -279,10 +281,11 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     product.official_recipe_traits.includes('grain_free') ? ['Grain-Free', '제품에 표기됨'] : null,
   ].filter((item): item is [string, string] => item !== null)
   const showPackageDetails = variants.some((variant) =>
-    variant.sales_bundle_status === 'bundle'
-    || variant.units_per_sale == null
+    variant.sales_bundle_status !== 'not_a_bundle'
+    || variant.units_per_sale !== 1
+    || variant.package_weight_g == null
     || variant.sale_total_weight_g == null
-    || (variant.units_per_sale != null && variant.units_per_sale !== 1)
+    || variant.package_weight_g !== variant.sale_total_weight_g
   )
   const missingManufacturingFields = manufacturing ? [!manufacturing.manufacturer?.trim() ? '제조 업체' : null, !manufacturing.plant?.trim() ? '공장' : null].filter(Boolean) : []
   const contextStatus = loading.manufacturing || loading.markets ? '불러오는 중' : errors.manufacturing && errors.markets ? '조회 실패' : errors.manufacturing || errors.markets ? '일부 조회 실패' : manufacturing || markets.length ? '확인된 정보 있음' : '확인된 정보 없음'

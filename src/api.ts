@@ -22,7 +22,7 @@ export interface CatalogProduct {
   manufacturing_observation_count: number
   has_manufacturing_details: boolean
   manufacturing_country_codes: string[]
-  manufacturing_has_variant_scope: boolean
+  manufacturing_has_variant_scope?: boolean
   market_observation_count: number
   has_market_details: boolean
   assessed_market_country_codes: string[]
@@ -340,6 +340,7 @@ function normalizeProduct(value: CatalogProduct): CatalogProduct {
     ...value,
     available_package_labels: asStringArray(value.available_package_labels),
     manufacturing_country_codes: asStringArray(value.manufacturing_country_codes),
+    manufacturing_has_variant_scope: value.manufacturing_has_variant_scope === true,
     assessed_market_country_codes: asStringArray(value.assessed_market_country_codes),
     current_market_country_codes: asStringArray(value.current_market_country_codes),
     formula_match_market_country_codes: asStringArray(value.formula_match_market_country_codes),

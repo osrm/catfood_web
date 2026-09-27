@@ -64,7 +64,7 @@ const variants = [
     package_weight_g: 85,
     units_per_sale: 6,
     sale_total_weight_g: 510,
-    sales_bundle_status: 'bundle',
+    sales_bundle_status: 'official_sales_bundle',
     display_rank: 1,
     variant_count: 2,
     formula_evidence_status: 'confirmed',
@@ -232,6 +232,7 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
   assert.match(document.body.textContent, /직접 확인 원료닭/)
   assert.match(document.body.textContent, /향미 연관 원료참치/)
   assert.match(document.body.textContent, /일부 목록 · 2개/)
+  assert.match(document.querySelector('.detail-summary-meta')?.textContent ?? '', /일부 목록 · 2개/)
   assert.match(document.body.textContent, /Grain-Free제품에 표기됨/)
   assert.match(document.body.textContent, /원재료 보기 →/)
   assert.doesNotMatch(document.body.textContent, /원재료와 출처 원문 →|전체 원재료와 출처 원문 →/)
@@ -271,7 +272,7 @@ test('overview omits repeated package facts for a confirmed single unit and omit
       package_weight_g: 80,
       units_per_sale: 1,
       sale_total_weight_g: 80,
-      sales_bundle_status: 'single_unit',
+      sales_bundle_status: 'not_a_bundle',
     }])
     if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{ ...ingredients, completeness_status: 'full' }])
     return Response.json([])
@@ -283,9 +284,58 @@ test('overview omits repeated package facts for a confirmed single unit and omit
   assert.match(document.body.textContent, /80 g/)
   assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')), false)
   assert.equal(document.querySelector('.detail-section-overview-facts'), null)
-  assert.doesNotMatch(document.body.textContent, /전체 목록 · 2개/)
+  assert.equal(document.querySelector('.detail-summary-meta'), null)
   assert.match(document.body.textContent, /직접 확인 원료닭/)
   assert.match(document.body.textContent, /향미 연관 원료참치/)
+})
+
+test('overview keeps package details unless the API confirms a matching single unit', async () => {
+  const cases = [
+    { sales_bundle_status: 'official_sales_bundle', package_weight_g: 80, units_per_sale: 6, sale_total_weight_g: 480 },
+    { sales_bundle_status: null, package_weight_g: 80, units_per_sale: 1, sale_total_weight_g: 80 },
+    { sales_bundle_status: 'not_a_bundle', package_weight_g: null, units_per_sale: 1, sale_total_weight_g: 80 },
+    { sales_bundle_status: 'not_a_bundle', package_weight_g: 80, units_per_sale: 1, sale_total_weight_g: 90 },
+  ]
+  for (const values of cases) {
+    handler = async (url) => {
+      if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([{ ...variants[0], ...values }])
+      return Response.json([])
+    }
+    await act(async () => {
+      root.render(createElement(app.ProductDetail, { product: target, onClose() {} }))
+      await Promise.resolve()
+    })
+    assert.ok([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')))
+  }
+})
+
+test('returning to overview aligns its actual first content and reselecting overview preserves scroll', async () => {
+  await render()
+  const stage = document.querySelector('.detail-stage')
+  const topbar = document.querySelector('.detail-topbar')
+  const tabs = document.querySelector('.detail-tabs')
+  Object.defineProperties(stage, { scrollHeight: { value: 2000, configurable: true }, clientHeight: { value: 600, configurable: true } })
+  stage.getBoundingClientRect = () => ({ top: 0, height: 600 })
+  topbar.getBoundingClientRect = () => ({ top: 0, height: 40 })
+  tabs.getBoundingClientRect = () => ({ top: 40, height: 40 })
+  const nativeComputedStyle = window.getComputedStyle
+  window.getComputedStyle = (node) => node === topbar ? { top: '0px' } : node === tabs ? { top: '40px' } : nativeComputedStyle(node)
+
+  await click('영양')
+  document.querySelector('#detail-panel-nutrition .detail-section-heading').getBoundingClientRect = () => ({ top: 300 })
+  stage.scrollTop = 120
+  await click('개요')
+  const firstOverviewSection = document.querySelector('#detail-panel-overview .detail-section')
+  firstOverviewSection.getBoundingClientRect = () => ({ top: 240 })
+  await click('영양')
+  stage.scrollTop = 120
+  await click('개요')
+  assert.equal(stage.scrollTop, 280)
+
+  stage.scrollTop = 333
+  await click('개요')
+  assert.equal(stage.scrollTop, 333)
+  window.getComputedStyle = nativeComputedStyle
 })
 test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async () => {
   await render()

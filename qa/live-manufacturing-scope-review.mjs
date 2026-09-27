@@ -53,7 +53,7 @@ async function compare(page,label){
 }
 async function button(page,name){const xs=page.getByRole('button',{name,exact:true});for(let i=0;i<await xs.count();i++)if(await xs.nth(i).isVisible())return xs.nth(i);throw new Error('button '+name)}
 async function inspector(page,label,dentalName){
- await page.goto(`${BASE}?view=workspace&mode=switch`,{waitUntil:'domcontentloaded'})
+ await page.goto(BASE,{waitUntil:'domcontentloaded'})
  await page.getByRole('button',{name:'현재 사료로 시작 →'}).click()
  await page.waitForFunction(()=>document.querySelector('.research-status')?.textContent?.includes('데이터 연결됨'),null,{timeout:30000})
  const search=page.locator('.switch-find-search input');await search.fill('AATU')

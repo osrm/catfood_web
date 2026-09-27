@@ -1,0 +1,37 @@
+name: Manufacturing scope postdeploy QA
+on:
+  push:
+    branches: ['qa/postdeploy-manufacturing-scope-20260927']
+    paths:
+      - 'qa/postdeploy-manufacturing-scope-review.mjs'
+      - '.github/workflows/manufacturing-scope-postdeploy.yml'
+permissions:
+  contents: read
+jobs:
+  postdeploy:
+    runs-on: ubuntu-latest
+    env:
+      MERGE_SHA: e635a5e022e02e07b109f79fdfb872e147e595ba
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/postdeploy
+          cp qa/postdeploy-manufacturing-scope-review.mjs /tmp/postdeploy/review.mjs
+          cd /tmp/postdeploy
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Narrow live Pages postdeploy
+        run: OUT_DIR="$GITHUB_WORKSPACE/postdeploy-manufacturing-output" node /tmp/postdeploy/review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: manufacturing-scope-postdeploy
+          path: postdeploy-manufacturing-output
+          retention-days: 7

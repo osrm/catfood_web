@@ -1628,7 +1628,7 @@ export default function SwitchFlow({
                     <div><dt>기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>레시피 계열</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div>
                     <div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div>
-                    <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 일부 포장 기준' : ''}</dd></div>
+                    <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div>
                     <div><dt>확인된 유통 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div>
                     <div><dt>동일 배합 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.formula_match_market_country_codes)}</dd></div>
                   </dl>

@@ -87,7 +87,8 @@ function overviewValue(product: CatalogProduct, field: OverviewField): ReactNode
   if (field === 'recipeDetails') return labels(product.recipe_details, RECIPE_LABELS)
   if (field === 'grainFree') return product.official_recipe_traits.includes('grain_free') ? '확인됨' : '공식 표기 미확인'
   if (field === 'packages') return representativePackageLabel(product)
-  return product.manufacturing_country_codes.map((code) => countryNames.of(code) ?? code).join(' · ') || '미확인'
+  const countries = product.manufacturing_country_codes.map((code) => countryNames.of(code) ?? code).join(' · ') || '미확인'
+  return product.manufacturing_has_variant_scope && product.manufacturing_country_codes.length ? `${countries} · 일부 포장 기준` : countries
 }
 function additionalNutrient(row: CompareNutrition | undefined, key: string) { return (row?.additional_nutrients ?? []).find((item) => item.nutrient_key === key) }
 function additionalNutrientLabel(key: string, rows: CompareNutrition[]) {

@@ -323,6 +323,33 @@ test('LOOKUP retains its 120-row batch and does not collect decisions', async ()
   assert.equal(considerations().length, 0)
 })
 
+test('lookup search ignores spacing and standalone and/& notation without changing order', () => {
+  const lookupProducts = catalog(7)
+  Object.assign(lookupProducts[0], { brand: '로얄캐닌', canonical_name: '인도어' })
+  Object.assign(lookupProducts[1], { brand: '카니보', canonical_name: '송어 & 연어' })
+  Object.assign(lookupProducts[2], { brand: 'Test', canonical_name: 'Sea Bass & Sea Bream' })
+  Object.assign(lookupProducts[3], { brand: 'Test', canonical_name: 'Candy Mix' })
+  Object.assign(lookupProducts[4], { brand: 'Test', canonical_name: 'Alpha One' })
+  Object.assign(lookupProducts[5], { brand: 'Test', canonical_name: 'Alpha Two' })
+  Object.assign(lookupProducts[6], { brand: 'Other', canonical_name: 'Unrelated' })
+
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄 캐닌').map((product) => product.product_id), [lookupProducts[0].product_id])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄캐닌').map((product) => product.product_id), [lookupProducts[0].product_id])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '카니보송어&연어').map((product) => product.product_id), [lookupProducts[1].product_id])
+
+  for (const query of ['Sea Bass & Sea Bream', 'Sea Bass&Sea Bream', 'Sea Bass and Sea Bream', 'sea bass AND SEA bream']) {
+    assert.deepEqual(app.lookupCatalog(lookupProducts, query).map((product) => product.product_id), [lookupProducts[2].product_id])
+  }
+
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '   '), [])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, 'S&'), [], 'and inside a word must not normalize to &')
+  assert.deepEqual(
+    app.lookupCatalog(lookupProducts, 'alpha').map((product) => product.product_id),
+    [lookupProducts[4].product_id, lookupProducts[5].product_id],
+    'existing substring matching and input order stay unchanged',
+  )
+})
+
 test('later candidates still respect the five-product comparison limit', async () => {
   await explore()
   await click('제품 더 보기')

@@ -3,6 +3,7 @@ export { default as ProductDetail } from '../src/ProductDetail'
 export { default as CompareView } from '../src/CompareView'
 export { default as SwitchFlow } from '../src/SwitchFlow'
 export { fetchCatalog } from '../src/api'
+export { lookupCatalog } from '../src/search'
 export * from '../src/analytics'
 export * from '../src/navigation-state'
 // SWITCH session regressions exercise App-level persistence and history helpers through this test entry.

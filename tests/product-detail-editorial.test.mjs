@@ -53,7 +53,7 @@ const target = {
   features: ['digestive'],
   recipe_families: ['fish'],
   recipe_details: ['tuna'],
-  official_recipe_traits: [],
+  official_recipe_traits: ['grain_free'],
 }
 
 const variants = [
@@ -231,7 +231,8 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
   assert.match(document.body.textContent, /제품 표기 대상실내묘/)
   assert.match(document.body.textContent, /직접 확인 원료닭/)
   assert.match(document.body.textContent, /향미 연관 원료참치/)
-  assert.match(document.body.textContent, /부분 목록 · 2개/)
+  assert.match(document.body.textContent, /일부 목록 · 2개/)
+  assert.match(document.body.textContent, /Grain-Free제품에 표기됨/)
   assert.match(document.body.textContent, /원재료 보기 →/)
   assert.doesNotMatch(document.body.textContent, /원재료와 출처 원문 →|전체 원재료와 출처 원문 →/)
   const packageDisclosure = [...document.querySelectorAll('summary')].find((node) => node.textContent.includes('판매 단위와 총중량'))

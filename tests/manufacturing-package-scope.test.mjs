@@ -134,7 +134,7 @@ test('compare renders the variant-scope boolean as confirmed-package scope, not 
   const whole=product('product_compare_product',{canonical_name:'제품 범위',manufacturing_country_codes:['TH'],manufacturing_has_variant_scope:false})
   await renderCompare([{product:scoped},{product:whole}])
   const text=document.querySelector('.compare-stage').textContent
-  assert.match(text,/한국 · 확인된 포장 기준/)
+  assert.match(text,/대한민국 · 확인된 포장 기준/)
   assert.match(text,/태국/)
   assert.doesNotMatch(text,/일부 포장 기준|태국 · 확인된 포장 기준/)
 })

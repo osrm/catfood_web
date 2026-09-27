@@ -321,12 +321,16 @@ test('returning to overview aligns its actual first content and reselecting over
   const nativeComputedStyle = window.getComputedStyle
   window.getComputedStyle = (node) => node === topbar ? { top: '0px' } : node === tabs ? { top: '40px' } : nativeComputedStyle(node)
 
-  await click('영양')
-  document.querySelector('#detail-panel-nutrition .detail-section-heading').getBoundingClientRect = () => ({ top: 300 })
-  stage.scrollTop = 120
-  await click('개요')
-  const firstOverviewSection = document.querySelector('#detail-panel-overview .detail-section')
-  firstOverviewSection.getBoundingClientRect = () => ({ top: 240 })
+  const nativeRect = HTMLElement.prototype.getBoundingClientRect
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this === stage) return { top: 0, height: 600 }
+    if (this === topbar) return { top: 0, height: 40 }
+    if (this === tabs) return { top: 40, height: 40 }
+    if (this.classList?.contains('detail-section-heading')) return { top: 300 }
+    if (this.classList?.contains('detail-section')) return { top: 240 }
+    return nativeRect.call(this)
+  }
+
   await click('영양')
   stage.scrollTop = 120
   await click('개요')
@@ -336,6 +340,7 @@ test('returning to overview aligns its actual first content and reselecting over
   await click('개요')
   assert.equal(stage.scrollTop, 333)
   window.getComputedStyle = nativeComputedStyle
+  HTMLElement.prototype.getBoundingClientRect = nativeRect
 })
 test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async () => {
   await render()

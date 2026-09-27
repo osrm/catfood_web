@@ -342,7 +342,7 @@ test('lookup search ignores spacing and standalone and/& notation without changi
   }
 
   assert.deepEqual(app.lookupCatalog(lookupProducts, '   '), [])
-  assert.deepEqual(app.lookupCatalog(lookupProducts, 'S&'), [], 'and inside a word must not normalize to &')
+  assert.deepEqual(app.lookupCatalog(lookupProducts, 'c&y'), [], 'and inside a word must not normalize to &')
   assert.deepEqual(
     app.lookupCatalog(lookupProducts, 'alpha').map((product) => product.product_id),
     [lookupProducts[4].product_id, lookupProducts[5].product_id],

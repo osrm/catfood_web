@@ -258,7 +258,10 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     countries: Array.from(new Set(manufacturingVariantRows.filter((row) => row.variant_id === variantId).map((row) => row.country_code).filter((code): code is string => Boolean(code)))),
   }))
   const manufacturingCountryValue = manufacturingVariantGroups.length
-    ? manufacturingVariantGroups.map(({ variant, countries }) => `${variantSizeLabel(variant) ?? '확인한 포장'} · ${countries.map(countryLabel).join(' · ')}`).join(' / ')
+    ? manufacturingVariantGroups.map(({ variant, countries }) => {
+      const scope = variantSizeLabel(variant) ?? (loading.variants ? '포장 규격 확인 중' : errors.variants ? '포장 규격 조회 실패' : '확인한 포장')
+      return `${scope} · ${countries.map(countryLabel).join(' · ')}`
+    }).join(' / ')
     : Array.from(new Set(manufacturingCountryRows.map((row) => row.country_code).filter((code): code is string => Boolean(code)))).map(countryLabel).join(' · ') || countryLabel(manufacturing?.country_code ?? null)
   const manufacturingHasUnmatchedVariant = manufacturingVariantGroups.some(({ variant }) => !variant)
 

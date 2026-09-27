@@ -24,7 +24,7 @@ async function pageAt(w,h){
   const req=res.request(),url=res.url()
   if(req.method()!=='GET'||!url.includes('.supabase.co/rest/v1/')||!wanted.test(url))return
   const u=new URL(url),entry={path:u.pathname.split('/').at(-1),status:res.status(),productFilter:u.searchParams.get('product_id')||null,fields:[]}
-  try{const body=await res.json();const rows=Array.isArray(body)?body:[];entry.fields=rows.filter(x=>!entry.productFilter||[DENTAL,MULTI].includes(x.product_id)).slice(0,6).map(x=>({product_id:x.product_id,variant_id:x.variant_id??undefined,package_size_text:x.package_size_text??undefined,country_code:x.country_code??undefined,observation_scope:x.observation_scope??undefined,manufacturing_country_codes:x.manufacturing_country_codes??undefined,manufacturing_has_variant_scope:x.manufacturing_has_variant_scope??undefined}))}catch{}
+  try{const body=await res.json();const rows=Array.isArray(body)?body:[];entry.fields=rows.filter(x=>[DENTAL,MULTI].includes(x.product_id)||entry.productFilter?.includes(x.product_id)).slice(0,6).map(x=>({product_id:x.product_id,variant_id:x.variant_id??undefined,package_size_text:x.package_size_text??undefined,country_code:x.country_code??undefined,observation_scope:x.observation_scope??undefined,manufacturing_country_codes:x.manufacturing_country_codes??undefined,manufacturing_has_variant_scope:x.manufacturing_has_variant_scope??undefined}))}catch{}
   report.httpGets.push(entry)
  })
  return{context,page}

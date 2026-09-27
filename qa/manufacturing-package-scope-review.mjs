@@ -6,6 +6,7 @@ const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'manufacturing-package-scope-output'
 await mkdir(OUT,{recursive:true})
 const blocked=[]
+const OVERFLOW_TOLERANCE_PX=1 // allow subpixel/layout rounding only; >1px is a failure
 // Fixture-only browser evidence; this does not claim live API validation.
 const report={sourceSha:process.env.CANDIDATE_SHA||process.env.GITHUB_SHA,fixtureOnly:true,blocked,views:{}}
 
@@ -62,20 +63,46 @@ async function pageAt(w,h){
  return {context,page}
 }
 async function screenshotView(page,path){await page.screenshot({path:`${OUT}/${path}`,fullPage:false})}
-async function overflow(page,selector){return page.locator(selector).evaluateAll(nodes=>nodes.map(n=>({text:(n.textContent||'').trim(),scrollWidth:n.scrollWidth,clientWidth:n.clientWidth,overflow:n.scrollWidth>n.clientWidth})))}
+async function assertVisibleNoHorizontalOverflow(page,selector,label,textNeedle=null){
+ const metrics=await page.locator(selector).evaluateAll((nodes,args)=>nodes.map(n=>{
+  const style=getComputedStyle(n),rect=n.getBoundingClientRect(),text=(n.textContent||'').trim()
+  const visible=style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0
+  return {text,visible,scrollWidth:n.scrollWidth,clientWidth:n.clientWidth,overflowPx:n.scrollWidth-n.clientWidth}
+ }).filter(x=>x.visible&&(!args.textNeedle||x.text.includes(args.textNeedle))),{textNeedle})
+ assert.ok(metrics.length>0,`${label}: expected at least one visible target`)
+ for(const metric of metrics) assert.ok(metric.overflowPx<=OVERFLOW_TOLERANCE_PX,`${label}: visible target horizontally overflows by ${metric.overflowPx}px: ${metric.text}`)
+ return metrics
+}
+async function assertNoHorizontalPageOverflow(page,label){
+ const metrics=await page.evaluate(()=>{
+  const doc=document.scrollingElement||document.documentElement
+  const visible=node=>{const s=getComputedStyle(node),r=node.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0}
+  const owners=[...document.querySelectorAll('*')].filter(node=>visible(node)&&['auto','scroll'].includes(getComputedStyle(node).overflowX)&&node.scrollWidth>node.clientWidth)
+    .map(node=>({kind:'scroll-owner',tag:node.tagName,className:node.className,scrollWidth:node.scrollWidth,clientWidth:node.clientWidth,overflowPx:node.scrollWidth-node.clientWidth}))
+  return {document:{kind:'document',scrollWidth:doc.scrollWidth,clientWidth:doc.clientWidth,overflowPx:doc.scrollWidth-doc.clientWidth},owners}
+ })
+ assert.ok(metrics.document.clientWidth>0,`${label}: document scroll owner must be measurable`)
+ assert.ok(metrics.document.overflowPx<=OVERFLOW_TOLERANCE_PX,`${label}: document horizontally overflows by ${metrics.document.overflowPx}px`)
+ for(const owner of metrics.owners) assert.ok(owner.overflowPx<=OVERFLOW_TOLERANCE_PX,`${label}: visible horizontal scroll owner overflows by ${owner.overflowPx}px`)
+ return metrics
+}
 for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  const {context,page}=await pageAt(w,h)
  await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${dental.product_id}&detailTab=context`,{waitUntil:'domcontentloaded'})
  await page.getByText('3.5 kg · 한국').waitFor()
  assert.equal(await page.getByText(/1\.5 kg · 한국/).count(),0);assert.equal(await page.getByText(/8 kg · 한국/).count(),0)
  await screenshotView(page,`${label}-detail.png`)
- report.views[`${label}-detail`]={text:(await page.locator('.detail-document').innerText()).slice(0,1800),overflow:await overflow(page,'.detail-fact strong,.detail-note')}
+ const detailTargets=await assertVisibleNoHorizontalOverflow(page,'.detail-fact strong,.detail-note',`${label} detail manufacturing value`,'3.5 kg · 한국')
+ const detailPage=await assertNoHorizontalPageOverflow(page,`${label} detail`)
+ report.views[`${label}-detail`]={text:(await page.locator('.detail-document').innerText()).slice(0,1800),targets:detailTargets,horizontalLayout:detailPage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
 
  await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${dental.product_id},${multi.product_id}&compareOpen=1`,{waitUntil:'domcontentloaded'})
  await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/확인된 포장 기준/)
  await page.evaluate(()=>{const xs=[...document.querySelectorAll('*')].filter(n=>n.textContent?.trim()==='제조국'&&n.getClientRects().length);xs.at(-1)?.scrollIntoView({block:'center'})})
  await screenshotView(page,`${label}-compare.png`)
- report.views[`${label}-compare`]={text:(await page.locator('.compare-stage').innerText()).slice(0,2200),overflow:await overflow(page,'.compare-cell,.compare-mobile-value')}
+ const compareTargets=await assertVisibleNoHorizontalOverflow(page,'.compare-cell,.compare-mobile-value',`${label} compare manufacturing value`,'확인된 포장 기준')
+ const comparePage=await assertNoHorizontalPageOverflow(page,`${label} compare`)
+ report.views[`${label}-compare`]={text:(await page.locator('.compare-stage').innerText()).slice(0,2200),targets:compareTargets,horizontalLayout:comparePage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
 
  await page.goto(`${BASE}?view=workspace&mode=switch`,{waitUntil:'domcontentloaded'})
  const search=page.locator('.switch-find-search input');await search.fill('현재 사료');await page.locator('.switch-find-result').filter({hasText:'현재 사료'}).click();await page.getByRole('button',{name:/이 제품을 현재 사료로 선택/}).click()
@@ -85,7 +112,10 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  await page.locator('.switch-candidate-inspector').waitFor();assert.match(await page.locator('.switch-candidate-inspector').innerText(),/확인된 포장 기준/)
  await page.evaluate(()=>{const xs=[...document.querySelectorAll('.switch-candidate-inspector dt')].filter(n=>n.textContent?.trim()==='제조국');xs[0]?.scrollIntoView({block:'center'})})
  await screenshotView(page,`${label}-inspector.png`)
- report.views[`${label}-inspector`]={text:(await page.locator('.switch-candidate-inspector').innerText()).slice(0,2200),overflow:await overflow(page,'.switch-inspector-section dd,.switch-inspector-identity h1')}
+ const inspectorTargets=await assertVisibleNoHorizontalOverflow(page,'.switch-inspector-section dd',`${label} inspector manufacturing value`,'확인된 포장 기준')
+ const inspectorName=await assertVisibleNoHorizontalOverflow(page,'.switch-inspector-identity h1',`${label} inspector long product name`)
+ const inspectorPage=await assertNoHorizontalPageOverflow(page,`${label} inspector`)
+ report.views[`${label}-inspector`]={text:(await page.locator('.switch-candidate-inspector').innerText()).slice(0,2200),targets:inspectorTargets,longName:inspectorName,horizontalLayout:inspectorPage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
  await context.close()
 }
 assert.ok(blocked.every(x=>!['GET','HEAD','OPTIONS'].includes(x.method)||/search-runs|considerations|event_log|analytics|telemetry|functions\/v1/i.test(x.url)))

@@ -10,7 +10,7 @@ const switchFlow = fs.readFileSync(new URL('../src/SwitchFlow.tsx', import.meta.
 test('manufacturing package scope stays explicit through API and detail UI', () => {
   assert.match(api, /product_detail_manufacturing_scope/)
   assert.match(api, /variant_id/)
-  assert.match(detail, /variant\.variant_id === variantId/)
+  assert.match(detail, /item\.variant_id === variantId/)
   assert.match(detail, /확인되지 않은 규격에는 적용하지 않습니다/)
   assert.match(detail, /variantSizeLabel\(variant\).*countries\.map\(countryLabel\)/s)
 })

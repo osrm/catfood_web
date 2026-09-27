@@ -54,16 +54,22 @@ function normalizedText(value: string): string {
   return value.trim().toLocaleLowerCase('ko-KR')
 }
 
+function normalizedLookupText(value: string): string {
+  return normalizedText(value)
+    .replace(/(^|[^a-z])and(?=$|[^a-z])/g, '$1&')
+    .replace(/\s+/g, '')
+}
+
 function conditionLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value.replaceAll('_', ' ')
 }
 
 export function lookupCatalog(products: CatalogProduct[], query: string): CatalogProduct[] {
-  const needle = normalizedText(query)
+  const needle = normalizedLookupText(query)
   if (!needle) return []
 
   return products.filter((product) => {
-    const searchable = normalizedText(`${product.brand} ${product.canonical_name}`)
+    const searchable = normalizedLookupText(`${product.brand} ${product.canonical_name}`)
     return searchable.includes(needle)
   })
 }

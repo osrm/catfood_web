@@ -304,6 +304,35 @@ test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are re
   assert.equal(button('제품 더 보기'), undefined)
 })
 
+
+test('LOOKUP normalizes spacing and standalone and/ampersand without changing order', () => {
+  const royal = { product_id: 'royal', brand: '로얄캐닌', canonical_name: '유리너리 케어' }
+  const go = { product_id: 'go', brand: 'GO! SOLUTIONS', canonical_name: '카니보 송어&연어' }
+  const almo = { product_id: 'almo', brand: 'Almo Nature', canonical_name: 'HFC Our Adult Sterilised Fresh Sea Bass & Sea Bream' }
+  const candy = { product_id: 'candy', brand: 'Test Brand', canonical_name: 'Candy Recipe' }
+  const seaFirst = { product_id: 'sea-first', brand: 'First Brand', canonical_name: 'Sea Recipe' }
+  const seaSecond = { product_id: 'sea-second', brand: 'Second Brand', canonical_name: 'Sea Recipe' }
+  const lookupProducts = [royal, go, almo, candy, seaSecond, seaFirst]
+
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄캐닌').map((product) => product.product_id), ['royal'])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄 캐닌').map((product) => product.product_id), ['royal'])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '카니보송어&연어').map((product) => product.product_id), ['go'])
+
+  for (const query of ['Sea Bass & Sea Bream', 'Sea Bass&Sea Bream', 'Sea Bass and Sea Bream']) {
+    assert.deepEqual(app.lookupCatalog(lookupProducts, query).map((product) => product.product_id), ['almo'])
+  }
+
+  assert.deepEqual(app.lookupCatalog(lookupProducts, 'ALMO NATURE').map((product) => product.product_id), ['almo'])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '   \t\n  '), [])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, 'candy').map((product) => product.product_id), ['candy'])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, 'c&y'), [], 'and inside a word must not normalize to ampersand')
+  assert.deepEqual(
+    app.lookupCatalog(lookupProducts, 'sea recipe').map((product) => product.product_id),
+    ['sea-second', 'sea-first'],
+    'lookup keeps the input product order',
+  )
+})
+
 test('LOOKUP retains its 120-row batch and does not collect decisions', async () => {
   products = catalog(121)
   await act(async () => root.render(createElement(app.App)))

@@ -321,8 +321,8 @@ test('returning to overview aligns its actual first content and reselecting over
   const nativeComputedStyle = window.getComputedStyle
   window.getComputedStyle = (node) => node === topbar ? { top: '0px' } : node === tabs ? { top: '40px' } : nativeComputedStyle(node)
 
-  const nativeRect = HTMLElement.prototype.getBoundingClientRect
-  HTMLElement.prototype.getBoundingClientRect = function () {
+  const nativeRect = window.HTMLElement.prototype.getBoundingClientRect
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
     if (this === stage) return { top: 0, height: 600 }
     if (this === topbar) return { top: 0, height: 40 }
     if (this === tabs) return { top: 40, height: 40 }
@@ -340,7 +340,7 @@ test('returning to overview aligns its actual first content and reselecting over
   await click('개요')
   assert.equal(stage.scrollTop, 333)
   window.getComputedStyle = nativeComputedStyle
-  HTMLElement.prototype.getBoundingClientRect = nativeRect
+  window.HTMLElement.prototype.getBoundingClientRect = nativeRect
 })
 test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async () => {
   await render()

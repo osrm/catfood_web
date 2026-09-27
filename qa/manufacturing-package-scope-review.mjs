@@ -100,7 +100,7 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/확인된 포장 기준/)
  await page.evaluate(()=>{const xs=[...document.querySelectorAll('*')].filter(n=>n.textContent?.trim()==='제조국'&&n.getClientRects().length);xs.at(-1)?.scrollIntoView({block:'center'})})
  await screenshotView(page,`${label}-compare.png`)
- const compareTargets=await assertVisibleNoHorizontalOverflow(page,'.compare-cell,.compare-mobile-value',`${label} compare manufacturing value`,'확인된 포장 기준')
+ const compareTargets=await assertVisibleNoHorizontalOverflow(page,'.compare-cell,.compare-mobile-two-product-value',`${label} compare manufacturing value`,'확인된 포장 기준')
  const comparePage=await assertNoHorizontalPageOverflow(page,`${label} compare`)
  report.views[`${label}-compare`]={text:(await page.locator('.compare-stage').innerText()).slice(0,2200),targets:compareTargets,horizontalLayout:comparePage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
 

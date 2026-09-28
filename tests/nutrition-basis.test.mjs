@@ -183,7 +183,7 @@ test('detail separates dry-matter evidence from standard nutrition and leaves tr
   const text = document.body.textContent
   assert.match(text, /3,772 kcal\/kg/)
   assert.match(text, /건물 기준 자료만 확인/)
-  assert.match(text, /수분을 제거한 기준의 영양자료만 확인됐습니다/)
+  assert.match(text, /수분을 제거한 건물 기준 자료입니다/)
   const basisRows = [...document.querySelectorAll('.detail-basis-block .detail-nutrition-row')].map((row) => [
     row.querySelector('span')?.textContent?.trim(),
     row.querySelector('strong')?.textContent?.trim(),

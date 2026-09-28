@@ -139,7 +139,11 @@ function supplementalNutritionContext(detail: CompareNutrition | null) {
   const fields = detail?.supplemental_nutrition_fields ?? []
   if (!fields.length) return null
   const labels = fields.map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' ')).join(' · ')
-  return `${labels} · ${detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 기준' : '보조 영양 근거'} 자료로 보완`
+  return `${labels} · ${detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 기준' : '다른 영양 자료 기준'}으로 보완`
+}
+function basisContext(detail: CompareNutrition | null) {
+  if (detail?.basis_specific_nutrition_basis === 'dry_matter') return '수분을 제거한 건물 기준 자료입니다. 일반 표시값과 기준이 달라 합치거나 환산하지 않습니다.'
+  return '일반 표시값과 다른 기준의 자료입니다. 기준이 달라 합치거나 환산하지 않습니다.'
 }
 function supplementalIngredientContext(detail: CompareIngredients | null) {
   if (!detail?.supplemental_full_raw_text?.trim() && !detail?.supplemental_full_ingredient_names?.length) return null
@@ -369,26 +373,20 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
                 <div className="detail-energy">
                   <span>열량</span>
                   <strong>{energyValue(nutrition)}</strong>
-                  {nutritionSupplementContext ? <small>{nutritionSupplementContext}</small> : null}
-                </div>
+                 </div>
                 <p className="detail-evidence-context">{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</p>
                 <div className="detail-nutrition-list">
                   {standardRows.map(([label, key, value, qualifier]) => <div className="detail-nutrition-row" key={key}><span>{label}</span><strong>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}</strong></div>)}
                   {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong></div>)}
                 </div>
+                {nutritionSupplementContext ? <p className="detail-evidence-context">{nutritionSupplementContext}</p> : null}
                 {alternateNutritionValues.length ? <div className="detail-basis-block">
                   <h3>{basisLabel(nutrition)} 자료</h3>
-                  <p>수분을 제거한 기준의 영양자료만 확인됐습니다. 일반 표시값과 기준이 달라 합치거나 환산하지 않습니다.</p>
+                  <p>{basisContext(nutrition)}</p>
                   <div className="detail-nutrition-list">
                     {alternateNutritionValues.map((value, index) => <div className="detail-nutrition-row" key={`basis-${value.nutrient_key}-${index}`}><span>{BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong></div>)}
                   </div>
                 </div> : null}
-                <details className="detail-disclosure detail-source-disclosure">
-                  <summary>자료 기준과 보완 범위</summary>
-                  <p>{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</p>
-                  {nutritionSupplementContext ? <p>일부 미기재 값 보완 · {nutritionSupplementContext}</p> : null}
-                  <p>최소·최대·평균 등 출처의 한정자와 단위를 그대로 표시합니다.</p>
-                </details>
               </> : <div className="detail-empty">확인된 영양 정보가 없습니다.</div>}
             </> : null}
             {!loading.nutrition && !errors.nutrition && !nutrition ? <div className="detail-empty">확인된 영양 정보가 없습니다.</div> : null}

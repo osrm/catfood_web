@@ -209,7 +209,7 @@ function catalogRoute(rows, { firstFailure = false, retryDeferred = null } = {})
   return () => calls
 }
 
-test('HOME reading guide moves programmatic focus without changing tab order or URL', async () => {
+test('HOME information guide opens optionally, moves focus with reduced-motion support, and returns focus on close', async () => {
   catalogRoute([product('product_000000000001', 'Guide Product')])
   const originalMatchMedia = window.matchMedia
   const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView
@@ -224,26 +224,37 @@ test('HOME reading guide moves programmatic focus without changing tab order or 
     await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 1개'), 'catalog loaded on home')
 
     const trigger = button('정보 읽는 기준 보기')
-    const heading = document.getElementById('home-guides-title')
+    const panel = document.getElementById('home-info-panel')
+    const heading = document.getElementById('home-info-title')
     assert.ok(trigger)
+    assert.ok(panel)
     assert.ok(heading)
+    assert.equal(panel.hidden, true)
+    assert.equal(trigger.getAttribute('aria-expanded'), 'false')
     assert.equal(heading.tabIndex, -1, 'destination is programmatically focusable without entering the normal Tab order')
     const initialUrl = window.location.href
 
     window.matchMedia = () => ({ matches: false })
     await click(trigger)
+    assert.equal(panel.hidden, false)
+    assert.equal(trigger.getAttribute('aria-expanded'), 'true')
     assert.equal(document.activeElement, heading)
     assert.deepEqual(scrollCalls.at(-1), {
-      id: 'home-guides-title',
+      id: 'home-info-title',
       options: { behavior: 'smooth', block: 'start' },
     })
     assert.equal(window.location.href, initialUrl)
+
+    await click('정보 안내 닫기')
+    await waitForUi(() => document.activeElement === trigger, 'focus returns to information trigger')
+    assert.equal(panel.hidden, true)
+    assert.equal(trigger.getAttribute('aria-expanded'), 'false')
 
     window.matchMedia = () => ({ matches: true })
     await click(trigger)
     assert.equal(document.activeElement, heading)
     assert.deepEqual(scrollCalls.at(-1), {
-      id: 'home-guides-title',
+      id: 'home-info-title',
       options: { behavior: 'auto', block: 'start' },
     })
     assert.equal(window.location.href, initialUrl)

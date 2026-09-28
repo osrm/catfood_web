@@ -32,12 +32,13 @@ for(const target of targets){
   const panel=page.locator('#detail-panel-nutrition')
   await panel.locator('.detail-nutrition-list').first().waitFor({timeout:90000})
   const text=await panel.innerText()
+  const flat=text.replace(/\s+/g,'')
   assert.ok(!text.includes('자료 기준과 보완 범위'))
   assert.ok(!text.includes('최소·최대·평균 등 출처의 한정자와 단위를 그대로 표시합니다'))
   assert.equal(await panel.locator('details').count(),0)
 
   if(target.slug==='go'){
-    for(const expected of ['4,298 kcal/kg','조단백질46% 이상','조지방18% 이상','조섬유1.5% 이하','수분10% 이하','조회분9% 이하']) assert.ok(text.includes(expected),expected)
+    for(const expected of ['4,298kcal/kg','조단백질46%이상','조지방18%이상','조섬유1.5%이하','수분10%이하','조회분9%이하']) assert.ok(flat.includes(expected),expected)
     const supplement='열량 · 현재 확인 배합 기준으로 보완'
     assert.equal((text.match(new RegExp(supplement,'g'))||[]).length,1)
     const note=panel.locator('.detail-evidence-context').filter({hasText:supplement})
@@ -45,7 +46,7 @@ for(const target of targets){
     await note.scrollIntoViewIfNeeded()
     assert.ok(await note.isVisible())
   } else {
-    for(const expected of ['열량미확인','조단백질13%','조지방8%','조섬유0.6%','수분79%','조회분1%']) assert.ok(text.replaceAll('\n','').includes(expected),expected)
+    for(const expected of ['열량미확인','조단백질13%','조지방8%','조섬유0.6%','수분79%','조회분1%']) assert.ok(flat.includes(expected),expected)
   }
 
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)

@@ -257,7 +257,7 @@ async function renderApp({ preserveHistory = false } = {}) {
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(app.App)))
-  await waitForUi(() => document.body.textContent.includes('데이터 연결됨') || document.body.textContent.includes('연결 오류'), 'catalog settles')
+  await waitForUi(() => document.body.textContent.includes(`${catalogProducts.length} PRODUCTS`) || document.body.textContent.includes('연결 오류'), 'catalog settles')
 }
 
 async function remountApp() {
@@ -266,7 +266,7 @@ async function remountApp() {
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(app.App)))
-  await waitForUi(() => document.body.textContent.includes('데이터 연결됨') || document.body.textContent.includes('연결 오류'), 'remounted catalog settles')
+  await waitForUi(() => document.body.textContent.includes(`${catalogProducts.length} PRODUCTS`) || document.body.textContent.includes('연결 오류'), 'remounted catalog settles')
 }
 
 async function chooseCurrent(productName = current.canonical_name) {
@@ -407,6 +407,30 @@ test('browser back/forward restores SWITCH candidate detail and compare detail e
   await browserBack(() => document.querySelector('.compare-stage') && !document.querySelector('.detail-stage'), 'back from compare detail')
   assert.match(document.querySelector('.compare-stage').textContent, /전환 습식 A/)
   assert.match(document.querySelector('.compare-stage').textContent, /전환 습식 B/)
+})
+
+test('SWITCH empty candidates use an edit action and KEEP unset wording without relaxing conditions', async () => {
+  catalogProducts = [current]
+  await renderApp()
+  await chooseCurrent()
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'variant option for empty candidate fixture')
+  await click(variantButton('1 kg'))
+  await click(exactButton('다음 →'))
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'CHANGE step for empty candidate fixture')
+  await click('특별히 바꾸고 싶은 점 없음')
+  await click(exactButton('다음 →'))
+  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step for empty candidate fixture')
+  await click('후보 제품 보기')
+  await waitForUi(() => document.querySelector('.switch-results-stage'), 'empty results step')
+
+  assert.match(document.querySelector('.switch-session-bar').textContent, /KEEP.*따로 고르지 않음/s)
+  const empty = document.querySelector('.switch-candidate-list .switch-state-message')
+  assert.ok(empty)
+  assert.match(empty.textContent, /조건에 맞는 후보가 없습니다\.바꿀 조건이나 유지할 조건을 수정해 보세요\./)
+  assert.doesNotMatch(empty.textContent, /임의로 완화|제약 없음/)
+  const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
+  await click(edit)
+  await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'empty result edit returns to CHANGE')
 })
 
 test('comparison removal survives browser back to results and explicit current-food reselection clears dependents', async () => {

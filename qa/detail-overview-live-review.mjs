@@ -56,6 +56,7 @@ for(const [width,height] of views){
     assert.equal(await close.evaluate(el=>el===document.activeElement),true)
     await page.keyboard.press('Enter')
     assert.equal(await panel.isHidden(),true)
+    await page.waitForFunction(()=>document.activeElement?.textContent?.includes('정보 읽는 기준 보기'))
     assert.equal(await trigger.evaluate(el=>el===document.activeElement),true)
 
     report.views['home-'+width]={file,infoHiddenInitially:true,triggerExpandedAfterOpen:'true'}

@@ -398,33 +398,29 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
-              {directIngredientLabel || flavorIngredientLabel ? <div className="detail-fact-lines detail-fact-lines-compact">
-                {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
-                {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
-              </div> : null}
               <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
               {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
-              {ingredients.ingredient_names.length ? <details className="detail-disclosure" open>
-                <summary>정규화 목록 · {ingredients.ingredient_names.length}개</summary>
+              {ingredients.raw_text?.trim()
+                ? <div className="detail-ingredient-copy">{ingredients.raw_text}</div>
+                : ingredients.ingredient_names.length
+                  ? <div className="detail-ingredient-list">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{ingredient}</span>)}</div>
+                  : <div className="detail-empty">확인된 원재료 목록이 없습니다.</div>}
+              {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure">
+                <summary>원료별로 보기</summary>
                 <div className="detail-ingredient-list">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{ingredient}</span>)}</div>
               </details> : null}
-              <details className="detail-disclosure detail-source-disclosure" open>
-                <summary>출처 원문</summary>
-                <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)}</p>
-                <div className="detail-ingredient-copy">{ingredients.raw_text?.trim() || ingredients.ingredient_names.join(', ') || '확인된 원재료 목록 없음'}</div>
-              </details>
-              {hasSupplementalFullIngredients ? <div className="detail-supplemental">
-                <h3>보조 전체 목록</h3>
+              {directIngredientLabel || flavorIngredientLabel ? <details className="detail-disclosure">
+                <summary>확인 원료 정보</summary>
+                <div className="detail-fact-lines detail-fact-lines-compact">
+                  {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
+                  {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
+                </div>
+              </details> : null}
+              {hasSupplementalFullIngredients ? <details className="detail-disclosure detail-source-disclosure">
+                <summary>다른 자료의 전체 원재료</summary>
                 <p className="detail-evidence-context">{ingredientSupplementContext}</p>
-                {supplementalIngredientNames.length ? <details className="detail-disclosure">
-                  <summary>정규화 목록 · {ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개</summary>
-                  <div className="detail-ingredient-list">{supplementalIngredientNames.map((ingredient, index) => <span key={`supplemental-${ingredient}-${index}`}>{ingredient}</span>)}</div>
-                </details> : null}
-                <details className="detail-disclosure detail-source-disclosure">
-                  <summary>출처 원문</summary>
-                  <div className="detail-ingredient-copy">{ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}</div>
-                </details>
-              </div> : null}
+                <div className="detail-ingredient-copy">{ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}</div>
+              </details> : null}
             </> : null}
             {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
           </section> : null}

@@ -1,0 +1,47 @@
+name: One-off live detail overview QA
+on:
+  pull_request:
+    paths:
+      - 'qa/detail-overview-live-review.mjs'
+      - '.github/workflows/detail-overview-live-review.yml'
+permissions:
+  contents: read
+jobs:
+  live-browser:
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_SHA: 3624e9641f97a306609e523ab6db1903fe3d958f
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 3624e9641f97a306609e523ab6db1903fe3d958f
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install browser driver and QA harness
+        run: |
+          mkdir -p /tmp/detail-overview-live
+          git show ${{ github.event.pull_request.head.sha }}:qa/detail-overview-live-review.mjs > /tmp/detail-overview-live/detail-overview-live-review.mjs
+          cd /tmp/detail-overview-live
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact product candidate
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/detail-overview-live-preview.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/detail-overview-live-preview.log
+          exit 1
+      - name: Live public-data browser QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" node /tmp/detail-overview-live/detail-overview-live-review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: detail-overview-live-review
+          path: detail-overview-live-output
+          retention-days: 7

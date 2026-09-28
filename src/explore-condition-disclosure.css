@@ -121,6 +121,10 @@
   line-height: 1.55;
 }
 
+.research-workspace:has(.condition-actions) .condition-policy-note {
+  grid-column: 1 / -1;
+}
+
 .research-workspace:has(.condition-actions) .choice {
   min-height: 44px;
   border-color: #d8d5cd;
@@ -150,7 +154,7 @@
   display: grid;
   width: 100%;
   min-height: 52px;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   border: 0;
@@ -181,6 +185,7 @@
 }
 
 .mobile-additional-chevron {
+  justify-self: end;
   color: #68716e;
   font-size: 13px;
   line-height: 1;

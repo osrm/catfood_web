@@ -400,15 +400,15 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
               <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
               {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
-              {ingredients.raw_text?.trim()
-                ? <div className="detail-ingredient-copy">{ingredients.raw_text}</div>
-                : ingredients.ingredient_names.length
-                  ? <div className="detail-ingredient-list">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{ingredient}</span>)}</div>
-                  : <div className="detail-empty">확인된 원재료 목록이 없습니다.</div>}
-              {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure">
-                <summary>원료별로 보기</summary>
-                <div className="detail-ingredient-list">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{ingredient}</span>)}</div>
+              {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure detail-source-disclosure">
+                <summary>원문 보기</summary>
+                <div className="detail-ingredient-copy">{ingredients.raw_text}</div>
               </details> : null}
+              {ingredients.ingredient_names.length
+                ? <div className="detail-ingredient-list detail-ingredient-list-compact">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{ingredient}</span>)}</div>
+                : ingredients.raw_text?.trim()
+                  ? <div className="detail-ingredient-copy">{ingredients.raw_text}</div>
+                  : <div className="detail-empty">확인된 원재료 목록이 없습니다.</div>}
               {directIngredientLabel || flavorIngredientLabel ? <details className="detail-disclosure">
                 <summary>확인 원료 정보</summary>
                 <div className="detail-fact-lines detail-fact-lines-compact">

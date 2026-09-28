@@ -14,19 +14,27 @@ jobs:
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Preserve QA harness outside workspace
+        run: |
+          mkdir -p /tmp/detail-overview-live
+          cp qa/detail-overview-live-review.mjs /tmp/detail-overview-live/
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
         with:
           ref: 3624e9641f97a306609e523ab6db1903fe3d958f
+          clean: true
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Install browser driver and QA harness
+      - name: Install browser driver
         run: |
-          mkdir -p /tmp/detail-overview-live
-          git show ${{ github.event.pull_request.head.sha }}:qa/detail-overview-live-review.mjs > /tmp/detail-overview-live/detail-overview-live-review.mjs
           cd /tmp/detail-overview-live
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1

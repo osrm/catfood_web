@@ -327,6 +327,25 @@
   line-height: 1.45;
 }
 
+.detail-ingredient-list-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  border: 0;
+}
+
+.detail-ingredient-list-compact span {
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: 1.6;
+}
+
+.detail-ingredient-list-compact span:not(:last-child)::after {
+  content: ' ·';
+  color: #8b9498;
+}
+
 .detail-note {
   margin: 16px 20px 20px;
   color: var(--detail-muted);
@@ -389,7 +408,7 @@
   .detail-status-grid,
   .detail-fact-table,
   .detail-nutrition-grid,
-  .detail-ingredient-list {
+  .detail-ingredient-list:not(.detail-ingredient-list-compact) {
     grid-template-columns: 1fr;
   }
 

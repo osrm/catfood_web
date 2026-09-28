@@ -411,7 +411,49 @@ test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async
   assert.match(text, /수분80% 이하/)
   assert.match(text, /조회분미확인/)
   assert.match(text, /타우린800 mg\/kg 평균값/)
-  assert.match(text, /자료 기준과 보완 범위/)
+  assert.equal((text.match(/한국 확인 · 85 g × 6 제품에서 확인/g) ?? []).length, 1)
+  assert.equal((text.match(/조회분 · 현재 확인 배합 기준으로 보완/g) ?? []).length, 1)
+  assert.doesNotMatch(text, /자료 기준과 보완 범위|최소·최대·평균 등 출처의 한정자/)
+  assert.equal(document.querySelector('#detail-panel-nutrition details'), null)
+})
+
+test('nutrition describes dry matter only for the dry-matter basis', async () => {
+  const cases = [
+    {
+      key: 'dry',
+      basis: 'dry_matter',
+      expected: /수분을 제거한 건물 기준 자료입니다/,
+      absent: /일반 표시값과 다른 기준의 자료입니다/,
+    },
+    {
+      key: 'other',
+      basis: 'as_fed_reference',
+      expected: /일반 표시값과 다른 기준의 자료입니다/,
+      absent: /수분을 제거한 건물 기준 자료입니다/,
+    },
+  ]
+
+  for (const item of cases) {
+    handler = async (url) => {
+      if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([{
+        ...nutrition,
+        supplemental_nutrition_fields: [],
+        basis_specific_nutrition_basis: item.basis,
+        basis_specific_nutrition_values: [{ nutrient_key: 'protein', raw_name: null, amount: 42, unit: '%', qualifier: 'reported' }],
+      }])
+      if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+      if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([ingredients])
+      return Response.json([])
+    }
+    await act(async () => {
+      root.render(createElement(app.ProductDetail, { key: item.key, product: target, onClose() {}, initialTab: 'nutrition' }))
+      await Promise.resolve()
+    })
+    const text = document.querySelector('#detail-panel-nutrition')?.textContent ?? ''
+    assert.match(text, item.expected)
+    assert.doesNotMatch(text, item.absent)
+    assert.match(text, /단백질42%/)
+  }
 })
 
 test('detail distinguishes request failure from an empty 200 response and retries the existing resource group', async () => {

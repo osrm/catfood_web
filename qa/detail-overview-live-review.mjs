@@ -17,7 +17,7 @@ for(const product of products) for(const [width,height] of views){
  await page.goto(BASE+'?view=workspace&mode=lookup&detail='+product.id+'&detailTab=ingredients',{waitUntil:'domcontentloaded'})
  const title=page.locator('.detail-identity h1');await title.waitFor();assert.ok((await title.innerText()).includes(product.name));await page.getByRole('tab',{name:'원재료'}).click()
  const img=page.locator('.detail-identity img').first();await img.waitFor({state:'visible'});await page.waitForFunction(()=>{const x=document.querySelector('.detail-identity img');return x&&x.complete&&x.naturalWidth>0})
- await page.locator('#detail-panel-ingredients .detail-ingredient-list-compact, #detail-panel-ingredients > section .detail-ingredient-copy').first().waitFor({timeout:90000})
+ await page.locator('#detail-panel-ingredients .detail-ingredient-list-compact').waitFor({timeout:90000})
  const panel=page.locator('#detail-panel-ingredients'),text=await panel.innerText()
  const raw=await panel.locator('.detail-ingredient-copy').first().innerText().catch(()=>null)
  const summaries=await panel.locator('summary').allInnerTexts()

@@ -21,7 +21,7 @@ for(const [label,width,height] of [['390',390,844],['1440',1440,900]])for(const 
  const {context,page}=await openPage(width,height)
  await page.goto(BASE+'?view=workspace&mode=lookup&detail='+product.id+'&detailTab=overview',{waitUntil:'domcontentloaded'})
  await page.locator('.detail-identity h1').waitFor();const title=await page.locator('.detail-identity h1').innerText();assert.ok(title.includes(product.name),'full product name missing: '+title)
- await page.locator('.detail-size-list').waitFor();const image=await waitImage(page),identity=await page.locator('.detail-identity').innerText(),overview=await page.locator('#detail-panel-overview').innerText()
+ await page.locator('.detail-size-list').waitFor();await page.getByRole('button',{name:/원재료 보기/}).waitFor();const image=await waitImage(page),identity=await page.locator('.detail-identity').innerText(),overview=await page.locator('#detail-panel-overview').innerText()
  assert.ok(!/사료 형태|대상 연령|레시피 종류|주요 레시피/.test(overview),'duplicate overview facts remain');if(product.grainFree)assert.match(overview,/Grain-Free/)
  const g=await geometry(page);assert.ok(g.documentOverflow<=1,'horizontal overflow '+g.documentOverflow);assert.equal(g.clipped.length,0,'clipped '+JSON.stringify(g.clipped));assert.equal(g.overlaps.length,0,'overlap '+JSON.stringify(g.overlaps))
  const file=product.slug+'-'+label+'.png';await page.screenshot({path:OUT+'/'+file,fullPage:false});report.views[product.slug+'-'+label]={file,title,identity,overview,image,geometry:g}

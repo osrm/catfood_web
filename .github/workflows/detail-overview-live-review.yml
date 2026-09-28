@@ -10,7 +10,7 @@ jobs:
   live-browser:
     runs-on: ubuntu-latest
     env:
-      CANDIDATE_SHA: ee75874fcd896fb6607ea49878d90ddff7051f8f
+      CANDIDATE_SHA: adb5838e1af5eead8443d02f12fd0fa6bb50b614
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
     steps:
@@ -25,7 +25,7 @@ jobs:
       - name: Checkout exact product candidate
         uses: actions/checkout@v5
         with:
-          ref: ee75874fcd896fb6607ea49878d90ddff7051f8f
+          ref: adb5838e1af5eead8443d02f12fd0fa6bb50b614
           clean: true
       - uses: actions/setup-node@v5
         with:
@@ -45,7 +45,7 @@ jobs:
           for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
           cat /tmp/detail-overview-live-preview.log
           exit 1
-      - name: Live public-data HOME and EXPLORE QA
+      - name: Live public-data EXPLORE grid QA
         run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" PRODUCT_SHA="$CANDIDATE_SHA" node /tmp/detail-overview-live/detail-overview-live-review.mjs
       - uses: actions/upload-artifact@v4
         if: always()

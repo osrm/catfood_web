@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
-const BASE='http://127.0.0.1:4173/catfood_web/'
+const BASE='http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'detail-ingredients-live-output'
 const products=[
  {slug:'go',id:'product_31bc515d78d43d5d',name:'카니보 치킨&칠면조&오리'},

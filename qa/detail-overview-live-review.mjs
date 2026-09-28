@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
-const BASE='http://127.0.0.1:4173/'
+const BASE=process.env.BASE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'detail-ingredients-live-output'
 const products=[
  {slug:'go',id:'product_31bc515d78d43d5d',name:'카니보 치킨&칠면조&오리'},
  {slug:'monge',id:'product_285ec8eafca0bec8',name:'몬지 모노프로틴(L.I.D) 그레인프리 플레이크 온리 포크'},
 ]
-const views=[[390,844],[1440,900]]
+const targets=[{product:products[0],width:390,height:844},{product:products[1],width:1440,height:900}]
 await mkdir(OUT,{recursive:true})
 const report={candidate:process.env.PRODUCT_SHA,blocked:[],views:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
-for(const product of products) for(const [width,height] of views){
+for(const {product,width,height} of targets){
  const context=await browser.newContext({viewport:{width,height},serviceWorkers:'block'}),page=await context.newPage()
  await page.route('**/*',async route=>{const req=route.request(),url=new URL(req.url()),method=req.method();if(!['GET','HEAD','OPTIONS'].includes(method)||/search-runs|considerations|event_log|analytics|telemetry|functions\/v1/i.test(url.pathname)){report.blocked.push({method,url:url.href});return route.abort('blockedbyclient')}await route.continue()})
  await page.goto(BASE+'?view=workspace&mode=lookup&detail='+product.id+'&detailTab=ingredients',{waitUntil:'domcontentloaded'})

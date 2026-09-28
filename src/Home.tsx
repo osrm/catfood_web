@@ -38,7 +38,7 @@ const GUIDES = [
   {
     number: '02',
     title: '‘미확인’은 ‘없음’과 어떻게 다른가요?',
-    text: '‘없음’과 구분해 표시하며, 자세한 뜻은 아래 정보 표시 원칙과 용어집에서 확인할 수 있습니다.',
+    text: '‘미확인’과 ‘없음’은 다르게 표시합니다. 뜻은 아래 용어집에서 확인할 수 있습니다.',
     tag: '데이터 읽기',
   },
   {
@@ -262,7 +262,7 @@ export default function Home({
           </section>
 
           <section className="home-home-principles" aria-label="CATFOOD 정보 표시 원칙">
-            <div><span>01</span><strong>확인과 미확인을 구분</strong><p>‘미확인’은 현재 자료에서 확인하지 못했다는 뜻입니다.</p></div>
+            <div><span>01</span><strong>확인과 미확인을 구분</strong><p>확인되지 않은 값을 ‘없음’으로 바꾸지 않습니다.</p></div>
             <div><span>02</span><strong>선택한 조건을 그대로 적용</strong><p>선택한 조건을 자동으로 바꾸거나 완화하지 않습니다.</p></div>
             <div><span>03</span><strong>점수로 대신 결정하지 않음</strong><p>순위 대신 확인된 사실과 차이를 보여줍니다.</p></div>
           </section>

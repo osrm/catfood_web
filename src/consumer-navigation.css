@@ -135,7 +135,11 @@
   outline-offset: 2px;
 }
 
-.detail-identity-copy h1,
+.detail-identity-copy h1 {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
 .quick-view-identity h1,
 .compare-product-copy > strong,
 .compare-cell,

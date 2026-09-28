@@ -188,8 +188,10 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     const panel = panelRef.current
     const topbar = topbarRef.current
     const tabs = tabsRef.current
-    const heading = panel?.querySelector<HTMLElement>('.detail-section-heading') ?? null
-    if (stage && heading && topbar && tabs) {
+    const target = tab === 'overview'
+      ? panel?.querySelector<HTMLElement>('.detail-section') ?? null
+      : panel?.querySelector<HTMLElement>('.detail-section-heading') ?? null
+    if (stage && target && topbar && tabs) {
       const stageRect = stage.getBoundingClientRect()
       const topbarStyle = window.getComputedStyle(topbar)
       const tabsStyle = window.getComputedStyle(tabs)
@@ -199,9 +201,9 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
         topbarTop + topbar.getBoundingClientRect().height,
         tabsTop + tabs.getBoundingClientRect().height,
       )
-      const headingTop = heading.getBoundingClientRect().top - stageRect.top
+      const targetTop = target.getBoundingClientRect().top - stageRect.top
       const maxScrollTop = Math.max(0, stage.scrollHeight - stage.clientHeight)
-      stage.scrollTop = Math.max(0, Math.min(maxScrollTop, stage.scrollTop + headingTop - stickyBottom))
+      stage.scrollTop = Math.max(0, Math.min(maxScrollTop, stage.scrollTop + targetTop - stickyBottom))
     }
 
     if (pending.focus) {
@@ -273,6 +275,18 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
   const directIngredientLabel = product.direct_evidence_ingredient_terms.length ? listLabel(product.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
   const flavorIngredientLabel = product.flavor_associated_ingredient_terms.length ? listLabel(product.flavor_associated_ingredient_terms, RECIPE_LABELS) : null
+  const overviewFacts = [
+    product.features.length ? ['제품 특징', listLabel(product.features, FEATURE_LABELS)] : null,
+    product.official_targets.length ? ['제품 표기 대상', listLabel(product.official_targets, TARGET_LABELS)] : null,
+    product.official_recipe_traits.includes('grain_free') ? ['Grain-Free', '제품에 표기됨'] : null,
+  ].filter((item): item is [string, string] => item !== null)
+  const showPackageDetails = variants.some((variant) =>
+    variant.sales_bundle_status !== 'not_a_bundle'
+    || variant.units_per_sale !== 1
+    || variant.package_weight_g == null
+    || variant.sale_total_weight_g == null
+    || variant.package_weight_g !== variant.sale_total_weight_g
+  )
   const missingManufacturingFields = manufacturing ? [!manufacturing.manufacturer?.trim() ? '제조 업체' : null, !manufacturing.plant?.trim() ? '공장' : null].filter(Boolean) : []
   const contextStatus = loading.manufacturing || loading.markets ? '불러오는 중' : errors.manufacturing && errors.markets ? '조회 실패' : errors.manufacturing || errors.markets ? '일부 조회 실패' : manufacturing || markets.length ? '확인된 정보 있음' : '확인된 정보 없음'
   const standardRows = [
@@ -308,32 +322,25 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
         {TABS.filter(([key]) => key !== tab).map(([key]) => <div key={`hidden-${key}`} id={`detail-panel-${key}`} role="tabpanel" aria-labelledby={`detail-tab-${key}`} hidden />)}
         <div className="detail-body" id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0} ref={panelRef}>
           {tab === 'overview' ? <>
-            <section className="detail-section">
-              <div className="detail-section-heading"><h2>기본 정보</h2></div>
-              <div className="detail-fact-lines">
-                <Fact label="사료 형태" value={product.feed_type ?? '미확인'} />
-                <Fact label="대상 연령" value={product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '미확인'} />
-                {product.features.length ? <Fact label="제품 특징" value={listLabel(product.features, FEATURE_LABELS)} /> : null}
-                {product.official_targets.length ? <Fact label="제품 표기 대상" value={listLabel(product.official_targets, TARGET_LABELS)} /> : null}
-                {product.recipe_families.length ? <Fact label="레시피 종류" value={listLabel(product.recipe_families, RECIPE_LABELS)} /> : null}
-                {product.recipe_details.length ? <Fact label="주요 레시피" value={listLabel(product.recipe_details, RECIPE_LABELS)} /> : null}
-                {product.official_recipe_traits.includes('grain_free') ? <Fact label="Grain-Free" value="제품에 표기됨" /> : null}
+            {overviewFacts.length ? <section className="detail-section detail-section-overview-facts">
+              <div className="detail-fact-lines detail-fact-lines-compact">
+                {overviewFacts.map(([label, value]) => <Fact key={label} label={label} value={value} />)}
               </div>
-            </section>
+            </section> : null}
             <section className="detail-section">
               <div className="detail-section-heading"><h2>한국 판매 규격</h2></div>
               {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
               {errors.variants ? <LoadError message={errors.variants} onRetry={retry} /> : null}
               {!loading.variants && !errors.variants && variants.length ? <>
                 <div className="detail-size-list">{variants.map((variant) => <span key={variant.variant_id}>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</span>)}</div>
-                <details className="detail-disclosure">
+                {showPackageDetails ? <details className="detail-disclosure">
                   <summary>판매 단위와 총중량</summary>
                   <div className="detail-variant-list">{variants.map((variant) => <div className="detail-variant-row" key={variant.variant_id}>
                     <div><span>판매 규격</span><strong>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</strong></div>
                     <div><span>판매 단위</span><strong>{variant.units_per_sale != null ? `${variant.units_per_sale}개` : '미확인'}</strong></div>
                     <div><span>총 판매 중량</span><strong>{weightLabel(variant.sale_total_weight_g)}</strong></div>
                   </div>)}</div>
-                </details>
+                </details> : null}
               </> : null}
               {!loading.variants && !errors.variants && variants.length === 0 ? <div className="detail-empty">확인된 판매 규격이 없습니다.</div> : null}
             </section>
@@ -342,13 +349,13 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
               {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
               {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
               {!loading.ingredients && !errors.ingredients && ingredients ? <>
-                <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p>
+                {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : null}
                 <div className="detail-fact-lines detail-fact-lines-compact">
                   {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
                   {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
                   {hasSupplementalFullIngredients ? <Fact label="전체 목록 보완" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}
                 </div>
-                <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>원재료와 출처 원문 →</button>
+                <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>원재료 보기 →</button>
               </> : null}
               {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
             </section>

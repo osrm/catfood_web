@@ -53,7 +53,7 @@ const target = {
   features: ['digestive'],
   recipe_families: ['fish'],
   recipe_details: ['tuna'],
-  official_recipe_traits: [],
+  official_recipe_traits: ['grain_free'],
 }
 
 const variants = [
@@ -64,7 +64,7 @@ const variants = [
     package_weight_g: 85,
     units_per_sale: 6,
     sale_total_weight_g: 510,
-    sales_bundle_status: 'bundle',
+    sales_bundle_status: 'official_sales_bundle',
     display_rank: 1,
     variant_count: 2,
     formula_evidence_status: 'confirmed',
@@ -225,8 +225,17 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
   assert.match(document.querySelector('.detail-identity h1').textContent, /아주 긴 제품 이름도 줄임표 없이 모두 보여 주는 테스트용 고양이 사료/)
   assert.match(document.body.textContent, /이미지 없음/)
   assert.match(document.body.textContent, /85 g × 6/)
-  assert.match(document.body.textContent, /원재료와 출처 원문 →/)
-  assert.doesNotMatch(document.body.textContent, /전체 원재료와 출처 원문 →/)
+  assert.match(document.body.textContent, /습식 · 전연령/)
+  assert.equal([...document.querySelectorAll('.detail-fact')].filter((node) => /사료 형태|대상 연령|레시피 종류|주요 레시피/.test(node.textContent)).length, 0)
+  assert.match(document.body.textContent, /제품 특징소화/)
+  assert.match(document.body.textContent, /제품 표기 대상실내묘/)
+  assert.match(document.body.textContent, /직접 확인 원료닭/)
+  assert.match(document.body.textContent, /향미 연관 원료참치/)
+  assert.match(document.body.textContent, /일부 목록 · 2개/)
+  assert.match(document.querySelector('.detail-summary-meta')?.textContent ?? '', /일부 목록 · 2개/)
+  assert.match(document.body.textContent, /Grain-Free제품에 표기됨/)
+  assert.match(document.body.textContent, /원재료 보기 →/)
+  assert.doesNotMatch(document.body.textContent, /원재료와 출처 원문 →|전체 원재료와 출처 원문 →/)
   const packageDisclosure = [...document.querySelectorAll('summary')].find((node) => node.textContent.includes('판매 단위와 총중량'))
   assert.ok(packageDisclosure)
   packageDisclosure.parentElement.open = true
@@ -247,6 +256,93 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
   assert.match(text, /Tuna, chicken, broth, vitamins and minerals/)
 })
 
+
+test('overview omits repeated package facts for a confirmed single unit and omits an empty optional fact section', async () => {
+  const single = {
+    ...target,
+    official_targets: [],
+    features: [],
+    official_recipe_traits: [],
+  }
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([{
+      ...variants[0],
+      variant_id: 'variant_single',
+      package_size_text: '80 g',
+      package_weight_g: 80,
+      units_per_sale: 1,
+      sale_total_weight_g: 80,
+      sales_bundle_status: 'not_a_bundle',
+    }])
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{ ...ingredients, completeness_status: 'full' }])
+    return Response.json([])
+  }
+  await act(async () => {
+    root.render(createElement(app.ProductDetail, { product: single, onClose() {} }))
+    await Promise.resolve()
+  })
+  assert.match(document.body.textContent, /80 g/)
+  assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')), false)
+  assert.equal(document.querySelector('.detail-section-overview-facts'), null)
+  assert.equal(document.querySelector('.detail-summary-meta'), null)
+  assert.match(document.body.textContent, /직접 확인 원료닭/)
+  assert.match(document.body.textContent, /향미 연관 원료참치/)
+})
+
+test('overview keeps package details unless the API confirms a matching single unit', async () => {
+  const cases = [
+    { key: 'bundle', package_size_text: '81 g × 6', sales_bundle_status: 'official_sales_bundle', package_weight_g: 81, units_per_sale: 6, sale_total_weight_g: 486 },
+    { key: 'unknown-status', package_size_text: '82 g', sales_bundle_status: null, package_weight_g: 82, units_per_sale: 1, sale_total_weight_g: 82 },
+    { key: 'unknown-weight', package_size_text: '83 g', sales_bundle_status: 'not_a_bundle', package_weight_g: null, units_per_sale: 1, sale_total_weight_g: 83 },
+    { key: 'mismatched-weight', package_size_text: '84 g', sales_bundle_status: 'not_a_bundle', package_weight_g: 84, units_per_sale: 1, sale_total_weight_g: 94 },
+  ]
+  for (const values of cases) {
+    handler = async (url) => {
+      if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([{ ...variants[0], ...values, variant_id: `variant_${values.key}` }])
+      return Response.json([])
+    }
+    await act(async () => {
+      root.render(createElement(app.ProductDetail, { key: values.key, product: target, onClose() {} }))
+      await Promise.resolve()
+    })
+    assert.match(document.querySelector('.detail-size-list')?.textContent ?? '', new RegExp(values.package_size_text.replace(' × ', ' × ')))
+    assert.ok([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')))
+  }
+})
+
+test('returning to overview aligns its actual first content and reselecting overview preserves scroll', async () => {
+  await render()
+  const stage = document.querySelector('.detail-stage')
+  const topbar = document.querySelector('.detail-topbar')
+  const tabs = document.querySelector('.detail-tabs')
+  Object.defineProperties(stage, { scrollHeight: { value: 2000, configurable: true }, clientHeight: { value: 600, configurable: true } })
+  stage.getBoundingClientRect = () => ({ top: 0, height: 600 })
+  topbar.getBoundingClientRect = () => ({ top: 0, height: 40 })
+  tabs.getBoundingClientRect = () => ({ top: 40, height: 40 })
+  const nativeComputedStyle = window.getComputedStyle
+  window.getComputedStyle = (node) => node === topbar ? { top: '0px' } : node === tabs ? { top: '40px' } : nativeComputedStyle(node)
+
+  const nativeRect = window.HTMLElement.prototype.getBoundingClientRect
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this === stage) return { top: 0, height: 600 }
+    if (this === topbar) return { top: 0, height: 40 }
+    if (this === tabs) return { top: 40, height: 40 }
+    if (this.classList?.contains('detail-section-heading')) return { top: 300 }
+    if (this.classList?.contains('detail-section')) return { top: 240 }
+    return nativeRect.call(this)
+  }
+
+  await click('영양')
+  stage.scrollTop = 120
+  await click('개요')
+  assert.equal(stage.scrollTop, 280)
+
+  stage.scrollTop = 333
+  await click('개요')
+  assert.equal(stage.scrollTop, 333)
+  window.getComputedStyle = nativeComputedStyle
+  window.HTMLElement.prototype.getBoundingClientRect = nativeRect
+})
 test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async () => {
   await render()
   await click('영양')

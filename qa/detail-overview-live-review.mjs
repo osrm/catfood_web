@@ -15,7 +15,7 @@ for(const product of products) for(const [width,height] of views){
  const context=await browser.newContext({viewport:{width,height},serviceWorkers:'block'}),page=await context.newPage()
  await page.route('**/*',async route=>{const req=route.request(),url=new URL(req.url()),method=req.method();if(!['GET','HEAD','OPTIONS'].includes(method)||/search-runs|considerations|event_log|analytics|telemetry|functions\/v1/i.test(url.pathname)){report.blocked.push({method,url:url.href});return route.abort('blockedbyclient')}await route.continue()})
  await page.goto(BASE+'?view=workspace&mode=lookup&detail='+product.id+'&detailTab=ingredients',{waitUntil:'domcontentloaded'})
- const title=page.locator('.detail-identity h1');await title.waitFor();assert.ok((await title.innerText()).includes(product.name))
+ const title=page.locator('.detail-identity h1');await title.waitFor();assert.ok((await title.innerText()).includes(product.name));await page.getByRole('tab',{name:'원재료'}).click()
  const img=page.locator('.detail-identity img').first();await img.waitFor({state:'visible'});await page.waitForFunction(()=>{const x=document.querySelector('.detail-identity img');return x&&x.complete&&x.naturalWidth>0})
  await page.locator('#detail-panel-ingredients .detail-ingredient-copy, #detail-panel-ingredients .detail-ingredient-list').first().waitFor({timeout:90000})
  const panel=page.locator('#detail-panel-ingredients'),text=await panel.innerText()

@@ -211,7 +211,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click(exactButton('습식'))
   assert.match(document.querySelector('[role="status"]').textContent, /사료 형태 유지 조건을 해제했습니다/)
   await click(exactButton('시니어'))
-  assert.match(document.querySelector('[role="status"]').textContent, /생애주기 유지 조건을 해제했습니다/)
+  assert.match(document.querySelector('[role="status"]').textContent, /연령 유지 조건을 해제했습니다/)
   await click(exactButton('생선'))
   assert.match(document.querySelector('[role="status"]').textContent, /레시피 계열 유지 조건을 해제했습니다/)
 

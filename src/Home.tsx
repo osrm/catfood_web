@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { isDemoPreview } from './preview-mode'
 
 type HomeMode = 'switch' | 'explore' | 'lookup'
@@ -38,7 +38,7 @@ const GUIDES = [
   {
     number: '02',
     title: '‘미확인’은 ‘없음’과 어떻게 다른가요?',
-    text: '현재 자료에서 확인하지 못했다는 뜻이지, 실제로 없다는 뜻은 아닙니다.',
+    text: '‘미확인’과 ‘없음’은 다르게 표시합니다. 뜻은 아래 용어집에서 확인할 수 있습니다.',
     tag: '데이터 읽기',
   },
   {
@@ -92,6 +92,9 @@ export default function Home({
   onStart: (mode: HomeMode, query?: string) => void
 }) {
   const [query, setQuery] = useState('')
+  const [infoOpen, setInfoOpen] = useState(false)
+  const infoTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const infoHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const trimmedQuery = query.trim()
   const catalogCount = loading ? '—' : productCount ? productCount.toLocaleString('ko-KR') : '—'
   const demo = isDemoPreview()
@@ -102,13 +105,30 @@ export default function Home({
     onStart('lookup', trimmedQuery)
   }
 
-  function showReadingGuide() {
-    const heading = document.getElementById('home-guides-title')
+  useEffect(() => {
+    if (!infoOpen) return
+    const heading = infoHeadingRef.current
     if (!heading) return
-
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     heading.focus({ preventScroll: true })
     heading.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }, [infoOpen])
+
+  function showReadingGuide() {
+    if (infoOpen) {
+      const heading = infoHeadingRef.current
+      if (!heading) return
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+      heading.focus({ preventScroll: true })
+      heading.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+      return
+    }
+    setInfoOpen(true)
+  }
+
+  function closeReadingGuide() {
+    setInfoOpen(false)
+    window.setTimeout(() => infoTriggerRef.current?.focus(), 0)
   }
 
   return (
@@ -164,9 +184,9 @@ export default function Home({
             </div>
           </section>
 
-          <section className="home-reading-note" aria-label="데이터 읽기 안내">
-            <p><strong>확인된 정보와 미확인은 구분해서 표시합니다.</strong> CATFOOD는 추천 점수나 품질 순위를 만들지 않습니다.</p>
-            <button type="button" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button>
+          <section className="home-reading-note" aria-label="정보 안내">
+            <p>표시 기준과 용어가 궁금할 때 확인하세요.</p>
+            <button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button>
           </section>
         </section>
 
@@ -193,49 +213,59 @@ export default function Home({
           </section>
         ) : null}
 
-        <section className="home-section home-guides" aria-labelledby="home-guides-title">
-          <div className="home-section-heading">
+        <section id="home-info-panel" className="home-info-panel" aria-labelledby="home-info-title" hidden={!infoOpen}>
+          <div className="home-section-heading home-info-heading">
             <div>
-              <span>HOW TO READ</span>
-              <h2 id="home-guides-title" tabIndex={-1}>비교할 때 알아두면 좋은 4가지</h2>
+              <span>INFO</span>
+              <h2 id="home-info-title" ref={infoHeadingRef} tabIndex={-1}>정보 안내</h2>
             </div>
-            <p>제품 정보를 읽을 때 헷갈리기 쉬운 기준만 짧게 정리했습니다.</p>
+            <button className="home-info-close" type="button" onClick={closeReadingGuide}>정보 안내 닫기</button>
           </div>
 
-          <div className="home-guide-grid">
-            {GUIDES.map((guide) => (
-              <article className="home-guide" key={guide.number}>
-                <div className="home-guide-top"><span>{guide.number}</span><small>{guide.tag}</small></div>
-                <h3>{guide.title}</h3>
-                <p>{guide.text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="home-section home-glossary" aria-labelledby="home-glossary-title">
-          <div className="home-section-heading">
-            <div>
-              <span>GLOSSARY</span>
-              <h2 id="home-glossary-title">용어집</h2>
+          <section className="home-section home-guides" aria-labelledby="home-guides-title">
+            <div className="home-section-heading">
+              <div>
+                <span>HOW TO READ</span>
+                <h2 id="home-guides-title">비교할 때 알아두면 좋은 4가지</h2>
+              </div>
+              <p>제품 정보를 읽을 때 헷갈리기 쉬운 기준만 짧게 정리했습니다.</p>
             </div>
-            <p>제품 상세와 비교 화면에서 자주 쓰는 용어입니다.</p>
-          </div>
 
-          <div className="home-glossary-grid">
-            {GLOSSARY.map((item) => (
-              <details className="home-glossary-item" key={item.term}>
-                <summary><span>{item.term}</span><b aria-hidden="true">+</b></summary>
-                <p>{item.definition}</p>
-              </details>
-            ))}
-          </div>
-        </section>
+            <div className="home-guide-grid">
+              {GUIDES.map((guide) => (
+                <article className="home-guide" key={guide.number}>
+                  <div className="home-guide-top"><span>{guide.number}</span><small>{guide.tag}</small></div>
+                  <h3>{guide.title}</h3>
+                  <p>{guide.text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
-        <section className="home-home-principles" aria-label="Catfood 데이터 원칙">
-          <div><span>01</span><strong>확인과 미확인을 구분</strong><p>확인하지 못한 값을 ‘없음’으로 바꾸지 않습니다.</p></div>
-          <div><span>02</span><strong>선택한 조건을 그대로 적용</strong><p>결과를 늘리기 위해 조건을 임의로 완화하지 않습니다.</p></div>
-          <div><span>03</span><strong>점수로 대신 결정하지 않음</strong><p>순위를 매기기보다 확인된 사실과 차이를 보여줍니다.</p></div>
+          <section className="home-section home-glossary" aria-labelledby="home-glossary-title">
+            <div className="home-section-heading">
+              <div>
+                <span>GLOSSARY</span>
+                <h2 id="home-glossary-title">용어집</h2>
+              </div>
+              <p>제품 상세와 비교 화면에서 자주 쓰는 용어입니다.</p>
+            </div>
+
+            <div className="home-glossary-grid">
+              {GLOSSARY.map((item) => (
+                <details className="home-glossary-item" key={item.term}>
+                  <summary><span>{item.term}</span><b aria-hidden="true">+</b></summary>
+                  <p>{item.definition}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-home-principles" aria-label="CATFOOD 정보 표시 원칙">
+            <div><span>01</span><strong>확인과 미확인을 구분</strong><p>확인되지 않은 값을 ‘없음’으로 바꾸지 않습니다.</p></div>
+            <div><span>02</span><strong>선택한 조건을 그대로 적용</strong><p>선택한 조건을 자동으로 바꾸거나 완화하지 않습니다.</p></div>
+            <div><span>03</span><strong>점수로 대신 결정하지 않음</strong><p>순위 대신 확인된 사실과 차이를 보여줍니다.</p></div>
+          </section>
         </section>
       </main>
     </div>

@@ -287,6 +287,36 @@ for (const mode of ['explore', 'switch']) {
   })
 }
 
+test('EXPLORE input states the unknown-data policy once and keeps selection-specific limits nearby', async () => {
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
+  await click('조건 고르기')
+  const text = document.body.textContent
+  assert.equal((text.match(/조건 정보가 없는 제품도 결과에 포함됩니다\./g) ?? []).length, 1)
+  assert.doesNotMatch(text, /확인된 불일치만 제외|미확인은 후보에 유지|선택한 조건이 미확인인 제품도 후보에 포함/)
+  assert.match(text, /제품에 표기된 연령 구분을 기준으로 합니다\./)
+  assert.match(text, /Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다\./)
+})
+
+test('LOOKUP empty result points back to the existing search input without changing search behavior', async () => {
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
+  const homeInput = document.querySelector('.home-entry-search input')
+  assert.ok(homeInput)
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(homeInput, 'does-not-exist')
+    homeInput.dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+  await act(async () => homeInput.closest('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
+  await waitForUi(() => document.body.textContent.includes('검색 결과가 없습니다.'), 'lookup empty state')
+  const empty = document.querySelector('.state-message')
+  assert.match(empty.textContent, /검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요\./)
+  assert.doesNotMatch(document.body.textContent, /데이터 연결됨/)
+  const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('검색어 수정'))
+  await click(edit)
+  assert.equal(document.activeElement?.classList.contains('lookup-input'), true)
+})
+
 test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are retained', async () => {
   products = catalog(40)
   products[0].feed_type = null
@@ -302,6 +332,12 @@ test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are re
   await click('이 조건으로 찾기')
   assert.equal(rows('.research-result-card').length, 0)
   assert.equal(button('제품 더 보기'), undefined)
+  const empty = document.querySelector('.state-message')
+  assert.match(empty.textContent, /조건에 맞는 제품이 없습니다\.조건을 바꾸어 다시 찾아보세요\./)
+  assert.doesNotMatch(empty.textContent, /임의로 완화/)
+  const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
+  await click(edit)
+  assert.match(document.body.textContent, /조건 정보가 없는 제품도 결과에 포함됩니다\./)
 })
 
 test('LOOKUP retains its 120-row batch and does not collect decisions', async () => {

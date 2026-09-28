@@ -312,7 +312,7 @@ function SwitchTopbar({
       </nav>
       <div className="research-status">
         <span>{productCount || '—'} PRODUCTS</span>
-        <span className={error ? 'is-error' : ''}>{error ? '연결 오류' : loading ? '불러오는 중' : '데이터 연결됨'}</span>
+        {error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}
       </div>
     </header>
   )
@@ -342,7 +342,7 @@ function ReferenceRail({
           <strong>{product.canonical_name}</strong>
           <small>
             {product.feed_type ?? '형태 미확인'} ·{' '}
-            {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}
+            {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}
           </small>
         </div>
       </div>
@@ -424,7 +424,7 @@ function buildConditions({
       conditions.push({ source, kind: 'feedType', value: criteria.feedType, label: `형태 · ${optionLabel(criteria.feedType, FEED_TYPE_LABELS)}`, hard: true })
     }
     if (criteria.lifeStage) {
-      conditions.push({ source, kind: 'lifeStage', value: criteria.lifeStage, label: `생애주기 · ${optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS)}`, hard: true })
+      conditions.push({ source, kind: 'lifeStage', value: criteria.lifeStage, label: `연령 · ${optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS)}`, hard: true })
     }
     for (const value of criteria.officialTargets) {
       conditions.push({ source, kind: 'officialTarget', value, label: `공식 대상 · ${optionLabel(value, TARGET_LABELS)}`, hard: false })
@@ -1069,7 +1069,7 @@ export default function SwitchFlow({
       setKeep((current) => ({ ...current, [field]: '' }))
       setKeepConflictNotice(field === 'feedType'
         ? '사료 형태 유지 조건을 해제했습니다.'
-        : '생애주기 유지 조건을 해제했습니다.')
+        : '연령 유지 조건을 해제했습니다.')
     }
     setChange((current) => ({ ...current, [field]: nextValue }))
   }
@@ -1113,7 +1113,7 @@ export default function SwitchFlow({
             <div className="switch-find-results-list">
               {error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
               {loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}
-              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message">검색 결과가 없습니다.</div> : null}
+              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span></div> : null}
               {searchResults.map((product) => (
                 <button
                   className={previewProductId === product.product_id ? 'switch-find-result is-selected' : 'switch-find-result'}
@@ -1127,7 +1127,7 @@ export default function SwitchFlow({
                     <strong>{product.canonical_name}</strong>
                     <small>
                       {product.feed_type ?? '형태 미확인'} ·{' '}
-                      {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
+                      {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} ·{' '}
                       {representativePackageLabel(product)}
                     </small>
                   </span>
@@ -1148,7 +1148,7 @@ export default function SwitchFlow({
                     <h2>{previewProduct.canonical_name}</h2>
                     <p>
                       {previewProduct.feed_type ?? '형태 미확인'} ·{' '}
-                      {previewProduct.life_stage ? optionLabel(previewProduct.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} ·{' '}
+                      {previewProduct.life_stage ? optionLabel(previewProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} ·{' '}
                       {representativePackageLabel(previewProduct)}
                     </p>
                   </div>
@@ -1271,7 +1271,7 @@ export default function SwitchFlow({
     const additionalControlsId = 'switch-change-additional-controls'
 
     const renderLifeStage = () => (
-      <CriterionSection title="생애주기" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
+      <CriterionSection title="연령" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
         <ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
       </CriterionSection>
     )
@@ -1303,7 +1303,7 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>CHANGE</span>
             <h1>무엇을 바꾸고 싶나요?</h1>
-            <p>지금 사료에서 바꾸고 싶은 점만 골라주세요. 확인되지 않은 정보는 임의로 추정하지 않습니다.</p>
+            <p>지금 사료에서 바꾸고 싶은 점만 골라주세요.</p>
           </div>
 
           {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
@@ -1437,7 +1437,7 @@ export default function SwitchFlow({
                 <CriterionSection title="사료 형태" hint="현재 제품"><button className={keep.feedType ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.feedType)} onClick={() => setKeepSingle('feedType', currentProduct.feed_type!)}>{currentProduct.feed_type} 유지</button></CriterionSection>
               ) : null}
               {!change.lifeStage && currentProduct.life_stage ? (
-                <CriterionSection title="생애주기" hint="현재 제품"><button className={keep.lifeStage ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.lifeStage)} onClick={() => setKeepSingle('lifeStage', currentProduct.life_stage!)}>{optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)} 유지</button></CriterionSection>
+                <CriterionSection title="연령" hint="현재 제품"><button className={keep.lifeStage ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.lifeStage)} onClick={() => setKeepSingle('lifeStage', currentProduct.life_stage!)}>{optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)} 유지</button></CriterionSection>
               ) : null}
               {currentProduct.official_targets.length > 0 ? (
                 <CriterionSection title="공식 대상" hint="현재 제품에서 확인됨">
@@ -1527,7 +1527,7 @@ export default function SwitchFlow({
         <div className="switch-session-bar">
           <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
           <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
-          <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '제약 없음'}</strong></div>
+          <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
           <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
         </div>
 
@@ -1535,7 +1535,7 @@ export default function SwitchFlow({
           <div className="switch-candidate-pane">
             <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 제품 정보를 비교합니다.</span><p>레시피·Grain-Free·원료는 현재 확인된 정보만 사용합니다. 자세한 근거는 상세 화면에서 확인할 수 있습니다.</p></div></div>
             <div className="switch-candidate-list">
-              {candidates.length === 0 ? <div className="switch-state-message">조건에 맞는 후보가 없습니다. 선택한 조건은 임의로 완화하지 않습니다.</div> : null}
+              {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 return (
@@ -1552,7 +1552,7 @@ export default function SwitchFlow({
                     <ProductImage className="switch-candidate-image" product={product} />
                     <span className="switch-candidate-identity">
                       <span>{product.brand}</span><strong>{product.canonical_name}</strong>
-                      <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'} · {representativePackageLabel(product)}</small>
+                      <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
                     </span>
                     <RelationBlock evaluation={evaluation} />
                     <span className="switch-candidate-open">보기 →</span>
@@ -1573,7 +1573,7 @@ export default function SwitchFlow({
               <div className="switch-inspector-scroll">
                 <section className="switch-inspector-identity">
                   <ProductImage className="switch-inspector-image" product={selectedCandidate.product} />
-                  <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '생애주기 미확인'}</p></div>
+                  <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div>
                 </section>
 
                 <div className="quick-view-actions switch-inspector-actions">

@@ -245,17 +245,51 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
 
   await click('원재료')
   const text = document.body.textContent
-  assert.match(text, /직접 확인 원료닭/)
-  assert.match(text, /향미 연관 원료참치/)
   assert.match(text, /목록에 없는 원료도 포함될 수 있습니다/)
-  assert.match(text, /정규화 목록 · 2개/)
-  assert.match(text, /출처 원문/)
   assert.match(text, /참치, 닭고기, 기타 원료/)
-  assert.match(text, /보조 전체 목록/)
-  assert.match(text, /정규화 목록 · 4개/)
-  assert.match(text, /Tuna, chicken, broth, vitamins and minerals/)
+  assert.doesNotMatch(text, /정규화 목록|출처 원문|보조 전체 목록/)
+  const summaries = [...document.querySelectorAll('summary')].map((node) => node.textContent)
+  assert.deepEqual(summaries.filter((value) => /원료별로 보기|확인 원료 정보|다른 자료의 전체 원재료/.test(value)), [
+    '원료별로 보기',
+    '확인 원료 정보',
+    '다른 자료의 전체 원재료',
+  ])
+  const normalized = [...document.querySelectorAll('summary')].find((node) => node.textContent === '원료별로 보기')
+  normalized.parentElement.open = true
+  assert.match(normalized.parentElement.textContent, /참치닭고기/)
+  const evidence = [...document.querySelectorAll('summary')].find((node) => node.textContent === '확인 원료 정보')
+  evidence.parentElement.open = true
+  assert.match(evidence.parentElement.textContent, /직접 확인 원료닭/)
+  assert.match(evidence.parentElement.textContent, /향미 연관 원료참치/)
+  const supplemental = [...document.querySelectorAll('summary')].find((node) => node.textContent === '다른 자료의 전체 원재료')
+  supplemental.parentElement.open = true
+  assert.match(supplemental.parentElement.textContent, /일본 확인 · 현재 확인 배합 기준 · 전체 목록/)
+  assert.match(supplemental.parentElement.textContent, /Tuna, chicken, broth, vitamins and minerals/)
 })
 
+
+test('ingredient tab uses normalized names as the primary body when source raw text is absent', async () => {
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+      ...ingredients,
+      completeness_status: 'full',
+      raw_text: null,
+      ingredient_names: ['참치', '닭고기'],
+      supplemental_full_raw_text: null,
+      supplemental_full_ingredient_names: [],
+      supplemental_full_ingredient_count: 0,
+    }])
+    return Response.json([])
+  }
+  await act(async () => {
+    root.render(createElement(app.ProductDetail, { key: 'ingredients-no-raw', product: target, onClose() {}, initialTab: 'ingredients' }))
+    await Promise.resolve()
+  })
+  assert.match(document.querySelector('.detail-ingredient-list')?.textContent ?? '', /참치닭고기/)
+  assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent === '원료별로 보기'), false)
+  assert.doesNotMatch(document.body.textContent, /출처 원문/)
+})
 
 test('overview omits repeated package facts for a confirmed single unit and omits an empty optional fact section', async () => {
   const single = {

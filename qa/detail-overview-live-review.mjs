@@ -53,7 +53,7 @@ async function enterCompare(page){
   await page.locator('.home-entry-search-submit').click()
   await page.locator('.lookup-input').waitFor({state:'visible'})
   await addLookup(page,'AATU 연어',/연어/)
-  await addLookup(page,'GO! LID 오리',/오리/)
+  await addLookup(page,'GO!',/오리|Duck/i)
   await page.locator('.switch-compare-dock').getByRole('button',{name:/비교 보기/}).click()
   await page.getByRole('heading',{name:'제품 비교'}).waitFor()
   await waitVisibleImages(page)

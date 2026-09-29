@@ -456,3 +456,31 @@ test('catalog loads all package options despite the API 1000-row cap', async () 
   assert.equal(fallback.length, 599, 'package failure must not hide the catalog')
   assert.ok(fallback.every((product) => product.available_package_labels.length === 0), 'partial pages must not appear to be a complete package list')
 })
+
+for (const confirmedCount of [3, 4]) {
+  for (const unknownCount of [2, 3]) {
+    test('EXPLORE relation summary: ' + confirmedCount + ' confirmed and ' + unknownCount + ' unknown retains complete quick view', async () => {
+      products = catalog(1)
+      products[0].official_targets = ['indoor']
+      products[0].features = confirmedCount === 4 ? ['hairball'] : []
+      const missing = ['digestive', 'urinary', 'skin_coat'].slice(0, unknownCount)
+      const features = [...products[0].features, ...missing]
+      const params = new URLSearchParams({ view: 'workspace', mode: 'explore', applied: '1', feed: '건식', age: 'adult', targets: 'indoor', features: features.join(',') })
+      dom.reconfigure({ url: 'https://catfood.test/?' + params })
+      await act(async () => root.render(createElement(app.App)))
+      await waitForUi(() => rows('.research-result-card').length === 1, 'candidate rendered')
+      const card = document.querySelector('.research-result-card')
+      const confirmed = card.querySelector('.is-confirmed strong').textContent
+      const unknown = card.querySelector('.is-unknown strong').textContent
+      assert.equal(confirmed, '건식 · 성묘 · 실내묘' + (confirmedCount === 4 ? ' 외 1개' : ''))
+      assert.equal(unknown, '소화 · 요로' + (unknownCount === 3 ? ' 외 1개' : ''))
+      await click(card)
+      const relations = rows('.quick-view-section .definition')
+      const fullConfirmed = relations.find((node) => node.querySelector('dt')?.textContent === '확인된 조건').querySelector('dd').textContent
+      const fullUnknown = relations.find((node) => node.querySelector('dt')?.textContent === '미확인 조건').querySelector('dd').textContent
+      assert.equal(fullConfirmed, '건식 · 성묘 · 실내묘' + (confirmedCount === 4 ? ' · 헤어볼' : ''))
+      assert.equal(fullUnknown, '소화 · 요로' + (unknownCount === 3 ? ' · 피부·피모' : ''))
+      assert.equal(new URL(window.location.href).searchParams.get('features'), features.join(','))
+    })
+  }
+}

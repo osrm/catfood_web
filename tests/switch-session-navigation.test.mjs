@@ -404,9 +404,14 @@ test('browser back/forward restores SWITCH candidate detail and compare detail e
   const compareDetail = all('.compare-detail-link').find((node) => node.closest('.compare-product-head')?.textContent.includes(candidateA.canonical_name))
   await click(compareDetail)
   await waitForUi(() => document.querySelector('.detail-stage'), 'detail inside compare')
+  assert.equal(document.querySelector('.detail-topbar button').textContent, '← 비교로 돌아가기')
   await browserBack(() => document.querySelector('.compare-stage') && !document.querySelector('.detail-stage'), 'back from compare detail')
   assert.match(document.querySelector('.compare-stage').textContent, /전환 습식 A/)
   assert.match(document.querySelector('.compare-stage').textContent, /전환 습식 B/)
+  await click(all('.compare-detail-link')[0])
+  await click('비교로 돌아가기')
+  await waitForUi(() => document.querySelector('.compare-stage') && !document.querySelector('.detail-stage'), 'explicit return to SWITCH compare')
+  assert.deepEqual(session().compareIds, [candidateA.product_id, candidateB.product_id])
 })
 
 test('SWITCH empty candidates use an edit action and KEEP unset wording without relaxing conditions', async () => {

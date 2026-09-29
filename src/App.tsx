@@ -165,7 +165,7 @@ function ModeButton({ mode, active, label, onClick }: { mode: Mode; active: Mode
 function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
   const confirmed = evaluation.confirmedMatches.map(relationLabel), unknown = evaluation.unknowns.map(unknownLabel)
   if (!confirmed.length && !unknown.length) return <p className="result-relation-empty">추가 조건 없음</p>
-  return <div className="result-relations">{confirmed.length ? <div className="relation-line is-confirmed"><span>확인된 조건</span><strong>{confirmed.slice(0, 3).join(' · ')}</strong></div> : null}{unknown.length ? <div className="relation-line is-unknown"><span>미확인 조건</span><strong>{unknown.slice(0, 2).join(' · ')}</strong></div> : null}</div>
+  return <div className="result-relations">{confirmed.length ? <div className="relation-line is-confirmed"><span>확인된 조건</span><strong>{confirmed.slice(0, 3).join(' · ')}{confirmed.length > 3 ? ` 외 ${confirmed.length - 3}개` : ''}</strong></div> : null}{unknown.length ? <div className="relation-line is-unknown"><span>미확인 조건</span><strong>{unknown.slice(0, 2).join(' · ')}{unknown.length > 2 ? ` 외 ${unknown.length - 2}개` : ''}</strong></div> : null}</div>
 }
 
 export default function App() {

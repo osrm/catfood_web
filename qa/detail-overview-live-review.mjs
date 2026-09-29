@@ -79,8 +79,24 @@ const metrics=loc=>loc.evaluate(el=>{
       clone.remove()
       return width
     })
-    const grid=await label.locator('..').evaluate(el=>getComputedStyle(el).gridTemplateColumns)
-    labelLayout.push({...m,neededWidth:needed,grid})
+    const ruleInfo=await label.locator('..').evaluate(el=>{
+      const matches=[]
+      const walk=(rules,href)=>{
+        for(const rule of rules){
+          if(rule.type===CSSRule.STYLE_RULE){
+            const style=rule.style
+            if(style?.gridTemplateColumns && rule.selectorText){
+              try{if(el.matches(rule.selectorText)) matches.push({href,selector:rule.selectorText,gridTemplateColumns:style.gridTemplateColumns})}catch{}
+            }
+          }else if(rule.cssRules) walk(rule.cssRules,href)
+        }
+      }
+      for(const sheet of document.styleSheets){
+        try{walk(sheet.cssRules,sheet.href||'inline')}catch{}
+      }
+      return {computed:getComputedStyle(el).gridTemplateColumns,matches}
+    })
+    labelLayout.push({...m,neededWidth:needed,grid:ruleInfo.computed,rules:ruleInfo.matches})
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})

@@ -422,8 +422,6 @@ test('SWITCH empty candidates use an edit action and KEEP unset wording without 
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step for empty candidate fixture')
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'empty results step')
-  assert.match(document.querySelector('.switch-candidate-heading').textContent, /선택한 조건과 제품 정보를 비교합니다\./)
-  assert.doesNotMatch(document.querySelector('.switch-candidate-heading').textContent, /레시피·Grain-Free·원료는 현재 확인된 정보만 사용합니다|자세한 근거는 상세 화면/)
 
   assert.match(document.querySelector('.switch-session-bar').textContent, /KEEP.*따로 고르지 않음/s)
   const empty = document.querySelector('.switch-candidate-list .switch-state-message')

@@ -140,7 +140,10 @@ function nutritionScopeSummary(detail: CompareNutrition | undefined, variants: P
   return nutritionSupplementalFields(detail).length ? `${context} · 보완 자료 포함` : context
 }
 function ingredientDetailContext(detail: CompareIngredients | undefined, variants: ProductVariant[] = [], failed = false, loading = false) {
-  return detailContext(detail, variants, failed, loading)
+  const context = detailContext(detail, variants, failed, loading)
+  const hasSupplemental = Boolean(detail?.supplemental_full_raw_text?.trim() || detail?.supplemental_full_ingredient_names?.length)
+  if (!hasSupplemental) return context
+  return `${context} · ${detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 전체 목록 보완' : '보조 전체 목록 보완'}`
 }
 function hasOverviewListValue(product: CatalogProduct, field: 'targets' | 'features') {
   return field === 'targets' ? product.official_targets.length > 0 : product.features.length > 0
@@ -169,7 +172,7 @@ function IngredientSourceDisclosure({ row }: { row: CompareIngredients | undefin
   return <CompareDisclosure label="출처 원문 보기" className="compare-evidence-disclosure">
     <div className="compare-source-layers">
       {primaryText ? <div><span className="compare-muted">대표 확인 자료 · 출처 원문</span><p className="compare-ingredient-text">{primaryText}</p></div> : null}
-      {supplementalText ? <div><span className="compare-muted">현재 확인 배합 전체 목록 · 출처 원문</span><p className="compare-ingredient-text">{supplementalText}</p></div> : null}
+      {supplementalText ? <div><span className="compare-muted">{row.supplemental_is_current_resolved_formula ? '현재 확인 배합 전체 목록 · 출처 원문' : '보조 전체 목록 · 출처 원문'}</span><p className="compare-ingredient-text">{supplementalText}</p></div> : null}
     </div>
   </CompareDisclosure>
 }

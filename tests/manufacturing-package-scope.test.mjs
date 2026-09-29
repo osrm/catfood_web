@@ -32,7 +32,7 @@ function product(id='product_scope_test', overrides={}) {
 }
 function variant(productId,id,label,rank=1){return {product_id:productId,variant_id:id,package_size_text:label,package_weight_g:null,units_per_sale:1,sale_total_weight_g:null,sales_bundle_status:null,display_rank:rank,variant_count:3,formula_evidence_status:'confirmed',recipe_families:[],recipe_details:[],official_recipe_traits:[],ingredient_term_result_count:0,confirmed_present_ingredient_terms:[],direct_evidence_ingredient_terms:[],flavor_associated_ingredient_terms:[],reviewed_not_found_ingredient_terms:[],insufficient_evidence_ingredient_terms:[]}}
 function scope(productId,variantId,country,rank=1,observationScope='variant'){return {product_id:productId,variant_id:variantId,observation_scope:observationScope,country_code:country,manufacturer:null,plant:null,is_current_resolved_formula:false,display_rank:rank}}
-function primary(productId,country='KR',observationScope='variant'){return {product_id:productId,observation_scope:observationScope,country_code:country,manufacturer:null,plant:null,is_current_resolved_formula:false}}
+function primary(productId,country='KR',observationScope='variant',overrides={}){return {product_id:productId,observation_scope:observationScope,country_code:country,manufacturer:null,plant:null,is_current_resolved_formula:false,...overrides}}
 function deferred(){let resolvePromise,rejectPromise;const promise=new Promise((resolve,reject)=>{resolvePromise=resolve;rejectPromise=reject});return {promise,resolve:resolvePromise,reject:rejectPromise}}
 
 async function bundle(){
@@ -53,11 +53,12 @@ async function settle(){await act(async()=>{await new Promise(resolve=>setTimeou
 async function renderDetail(target){await act(async()=>{root.render(createElement(app.ProductDetail,{product:target,onClose(){},initialTab:'context'}));await Promise.resolve()});await settle()}
 async function renderCompare(items){await act(async()=>{root.render(createElement(app.CompareView,{items,onClose(){},onRemove(){}}));await Promise.resolve()});await settle()}
 function detailManufacturingText(){return [...document.querySelectorAll('.detail-section')].find(node=>node.textContent.includes('제조 정보'))?.textContent??''}
-function routes({variants=[],primaryRow=null,scopeRows=[],manufacturingStatus=200,variantResponse=null}={}){
+function routes({variants=[],primaryRow=null,scopeRows=[],manufacturingStatus=200,variantResponse=null,markets=[],marketStatus=200}={}){
   return async(url)=>{
     if(url.pathname.endsWith('/switch_current_variant_options')) return variantResponse??Response.json(variants)
     if(url.pathname.endsWith('/product_detail_manufacturing')) return manufacturingStatus===200?Response.json(primaryRow?[primaryRow]:[]):new Response('temporary',{status:manufacturingStatus})
     if(url.pathname.endsWith('/product_detail_manufacturing_scope')) return manufacturingStatus===200?Response.json(scopeRows):new Response('temporary',{status:manufacturingStatus})
+    if(url.pathname.endsWith('/product_detail_markets')) return marketStatus===200?Response.json(markets):new Response('temporary',{status:marketStatus})
     return Response.json([])
   }
 }
@@ -67,9 +68,10 @@ test('detail links KR only to the exact 3.5 kg variant and never expands it to 1
   handler=routes({variants:[variant(p.product_id,'v15','1.5 kg',1),variant(p.product_id,'v35','3.5 kg',2),variant(p.product_id,'v8','8 kg',3)],primaryRow:primary(p.product_id),scopeRows:[scope(p.product_id,'v35','KR')]})
   await renderDetail(p)
   const text=detailManufacturingText()
-  assert.match(text,/3\.5 kg · 한국/)
-  assert.doesNotMatch(text,/1\.5 kg · 한국/)
-  assert.doesNotMatch(text,/8 kg · 한국/)
+  assert.match(text,/제조국한국3\.5 kg 포장에서 확인/)
+  assert.match(text,/확인되지 않은 다른 규격에는 적용하지 않습니다/)
+  assert.doesNotMatch(text,/1\.5 kg 포장에서 확인/)
+  assert.doesNotMatch(text,/8 kg 포장에서 확인/)
 })
 
 test('detail preserves multiple countries on one variant and separate country links across variants',async()=>{
@@ -77,8 +79,8 @@ test('detail preserves multiple countries on one variant and separate country li
   handler=routes({variants:[variant(p.product_id,'va','2 kg',1),variant(p.product_id,'vb','4 kg',2)],primaryRow:primary(p.product_id,'US'),scopeRows:[scope(p.product_id,'va','US',1),scope(p.product_id,'va','TH',2),scope(p.product_id,'vb','CA',3)]})
   await renderDetail(p)
   const text=detailManufacturingText()
-  assert.match(text,/2 kg · 미국 · 태국/)
-  assert.match(text,/4 kg · 캐나다/)
+  assert.match(text,/미국 · 태국2 kg 포장에서 확인/)
+  assert.match(text,/캐나다4 kg 포장에서 확인/)
 })
 
 test('product-scope and no-country states remain distinct from variant scope',async()=>{
@@ -99,14 +101,14 @@ test('unmatched variant stays package-scoped while SKU lookup is pending or fail
   const p=product('product_unmatched_fixture'),pending=deferred()
   handler=routes({primaryRow:primary(p.product_id),scopeRows:[scope(p.product_id,'missing_variant','KR')],variantResponse:pending.promise})
   await renderDetail(p)
-  assert.match(detailManufacturingText(),/포장 규격 확인 중 · 한국/)
-  assert.doesNotMatch(detailManufacturingText(),/3\.5 kg · 한국/)
+  assert.match(detailManufacturingText(),/한국포장 규격 확인 중/)
+  assert.doesNotMatch(detailManufacturingText(),/3\.5 kg 포장에서 확인/)
 
   await act(async()=>{pending.reject(new Error('variant failed'));await Promise.resolve()});await settle()
   const text=detailManufacturingText()
-  assert.match(text,/포장 규격 조회 실패 · 한국/)
+  assert.match(text,/한국포장 규격 조회 실패/)
   assert.match(text,/일부 포장 규격은 연결 정보를 확인하지 못했습니다/)
-  assert.doesNotMatch(text,/제품 전체|3\.5 kg · 한국/)
+  assert.doesNotMatch(text,/제품 전체|3\.5 kg 포장에서 확인/)
 })
 
 test('manufacturing request failure is an error and retry re-runs both manufacturing reads',async()=>{
@@ -125,7 +127,7 @@ test('manufacturing request failure is an error and retry re-runs both manufactu
   const retry=[...document.querySelectorAll('[role="alert"] button')].find(node=>node.textContent.includes('다시 시도'));assert.ok(retry)
   await act(async()=>{retry.click();await Promise.resolve()});await settle()
   assert.equal(document.querySelector('[role="alert"]'),null)
-  assert.match(detailManufacturingText(),/3\.5 kg · 한국/)
+  assert.match(detailManufacturingText(),/한국3\.5 kg 포장에서 확인/)
   assert.equal(primaryCalls,2);assert.equal(scopeCalls,2)
 })
 
@@ -137,4 +139,68 @@ test('compare renders the variant-scope boolean as confirmed-package scope, not 
   assert.match(text,/대한민국 · 확인된 포장 기준/)
   assert.match(text,/태국/)
   assert.doesNotMatch(text,/일부 포장 기준|태국 · 확인된 포장 기준/)
+})
+
+
+test('loaded unmatched variant keeps country package-scoped instead of falling back to whole-product meaning',async()=>{
+  const p=product('product_loaded_unmatched')
+  handler=routes({variants:[variant(p.product_id,'other_variant','1.5 kg')],primaryRow:primary(p.product_id),scopeRows:[scope(p.product_id,'missing_variant','KR')]})
+  await renderDetail(p)
+  const text=detailManufacturingText()
+  assert.match(text,/한국연결된 포장 규격을 확인하지 못했습니다/)
+  assert.match(text,/확인되지 않은 다른 규격에는 적용하지 않습니다/)
+  assert.doesNotMatch(text,/1\.5 kg 포장에서 확인|제품 전체/)
+})
+
+test('additional manufacturing facts render only in a default-closed non-empty disclosure',async()=>{
+  const p=product('product_extra_manufacturing')
+  handler=routes({
+    variants:[variant(p.product_id,'v35','3.5 kg')],
+    primaryRow:primary(p.product_id,'KR','variant',{manufacturer:'Maker Co.',plant:'Plant A'}),
+    scopeRows:[scope(p.product_id,'v35','KR')],
+  })
+  await renderDetail(p)
+  const summary=[...document.querySelectorAll('summary')].find(node=>node.textContent.trim()==='추가 제조 정보 보기')
+  assert.ok(summary)
+  assert.equal(summary.parentElement.open,false)
+  summary.parentElement.open=true
+  assert.match(summary.parentElement.textContent,/제조 업체Maker Co\./)
+  assert.match(summary.parentElement.textContent,/제조 공장Plant A/)
+
+  await act(async()=>root.unmount());document.body.innerHTML='<div id="root"></div>';root=createRoot(document.getElementById('root'))
+  const empty=product('product_no_extra_manufacturing')
+  handler=routes({variants:[variant(empty.product_id,'v35','3.5 kg')],primaryRow:primary(empty.product_id),scopeRows:[scope(empty.product_id,'v35','KR')]})
+  await renderDetail(empty)
+  assert.equal([...document.querySelectorAll('summary')].some(node=>node.textContent.trim()==='추가 제조 정보 보기'),false)
+  assert.doesNotMatch(detailManufacturingText(),/제조 업체.*확인하지 못했습니다|공장.*확인하지 못했습니다/)
+})
+
+test('overseas market rows stay intact behind disclosure while empty and error states remain outside',async()=>{
+  const p=product('product_market_disclosure')
+  const market={product_id:p.product_id,country_code:'JP',distribution_status:'current_product_confirmed',formula_correspondence_status:'different_generation',counterpart_name:'Local Name',assessed_at:'2026-09-01',display_rank:1}
+  handler=routes({primaryRow:primary(p.product_id,'TH','product'),markets:[market]})
+  await renderDetail(p)
+  const summary=[...document.querySelectorAll('summary')].find(node=>node.textContent.trim()==='해외 판매 · 배합 보기')
+  assert.ok(summary)
+  assert.equal(summary.parentElement.open,false)
+  assert.equal([...document.querySelectorAll('.detail-section-heading h2')].some(node=>node.textContent.trim()==='해외 판매 · 배합 보기'),false)
+  summary.parentElement.open=true
+  assert.match(summary.parentElement.textContent,/일본/)
+  assert.match(summary.parentElement.textContent,/2026-09-01 확인/)
+  assert.match(summary.parentElement.textContent,/현재 제품 유통 확인/)
+  assert.match(summary.parentElement.textContent,/다른 세대 확인/)
+  assert.match(summary.parentElement.textContent,/Local Name/)
+
+  await act(async()=>root.unmount());document.body.innerHTML='<div id="root"></div>';root=createRoot(document.getElementById('root'))
+  handler=routes({primaryRow:primary(p.product_id,'TH','product'),markets:[]})
+  await renderDetail(p)
+  assert.equal([...document.querySelectorAll('summary')].some(node=>node.textContent.trim()==='해외 판매 · 배합 보기'),false)
+  assert.match(document.body.textContent,/확인된 해외 유통 정보가 없습니다/)
+
+  await act(async()=>root.unmount());document.body.innerHTML='<div id="root"></div>';root=createRoot(document.getElementById('root'))
+  handler=routes({primaryRow:primary(p.product_id,'TH','product'),marketStatus:503})
+  await renderDetail(p)
+  assert.equal([...document.querySelectorAll('summary')].some(node=>node.textContent.trim()==='해외 판매 · 배합 보기'),false)
+  assert.match(document.querySelector('[role="alert"]')?.textContent??'',/유통 정보를 불러오지 못했습니다/)
+  assert.match(document.querySelector('[role="alert"]')?.textContent??'',/다시 시도/)
 })

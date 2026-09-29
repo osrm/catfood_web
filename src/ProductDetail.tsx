@@ -263,13 +263,9 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     variant: variantId ? variants.find((item) => item.variant_id === variantId) ?? null : null,
     countries: Array.from(new Set(manufacturingVariantRows.filter((row) => row.variant_id === variantId).map((row) => row.country_code).filter((code): code is string => Boolean(code)))),
   }))
-  const manufacturingCountryValue = manufacturingVariantGroups.length
-    ? manufacturingVariantGroups.map(({ variant, countries }) => {
-      const scope = variantSizeLabel(variant) ?? (loading.variants ? '포장 규격 확인 중' : errors.variants ? '포장 규격 조회 실패' : '확인한 포장')
-      return `${scope} · ${countries.map(countryLabel).join(' · ')}`
-    }).join(' / ')
-    : Array.from(new Set(manufacturingCountryRows.map((row) => row.country_code).filter((code): code is string => Boolean(code)))).map(countryLabel).join(' · ') || countryLabel(manufacturing?.country_code ?? null)
+  const manufacturingCountryValue = Array.from(new Set(manufacturingCountryRows.map((row) => row.country_code).filter((code): code is string => Boolean(code)))).map(countryLabel).join(' · ') || countryLabel(manufacturing?.country_code ?? null)
   const manufacturingHasUnmatchedVariant = manufacturingVariantGroups.some(({ variant }) => !variant)
+  const hasAdditionalManufacturing = Boolean(manufacturing?.manufacturer?.trim() || manufacturing?.plant?.trim())
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const alternateNutritionValues = basisValues(nutrition).filter((value) => value.amount != null)
@@ -291,7 +287,6 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
     || variant.sale_total_weight_g == null
     || variant.package_weight_g !== variant.sale_total_weight_g
   )
-  const missingManufacturingFields = manufacturing ? [!manufacturing.manufacturer?.trim() ? '제조 업체' : null, !manufacturing.plant?.trim() ? '공장' : null].filter(Boolean) : []
   const contextStatus = loading.manufacturing || loading.markets ? '불러오는 중' : errors.manufacturing && errors.markets ? '조회 실패' : errors.manufacturing || errors.markets ? '일부 조회 실패' : manufacturing || markets.length ? '확인된 정보 있음' : '확인된 정보 없음'
   const standardRows = [
     ['조단백질', 'protein', nutrition?.protein_pct ?? null, nutrition?.protein_qualifier ?? null],
@@ -429,25 +424,43 @@ export default function ProductDetail({ product, onClose, initialTab = 'overview
               {errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={retry} /> : null}
               {!loading.manufacturing && !errors.manufacturing && manufacturing ? <>
                 <div className="detail-fact-lines">
-                  <Fact label="제조국" value={manufacturingCountryValue} />
-                  {manufacturing.manufacturer?.trim() ? <Fact label="제조 업체" value={manufacturing.manufacturer} /> : null}
-                  {manufacturing.plant?.trim() ? <Fact label="제조 공장" value={manufacturing.plant} /> : null}
+                  {manufacturing.observation_scope === 'variant' ? <div className="detail-fact detail-manufacturing-country-fact">
+                    <span>제조국</span>
+                    <div className="detail-manufacturing-country-values">
+                      {manufacturingVariantGroups.length ? manufacturingVariantGroups.map(({ variantId, variant, countries }) => <div className="detail-manufacturing-country-value" key={variantId ?? countries.join('-')}>
+                        <strong>{countries.map(countryLabel).join(' · ')}</strong>
+                        <small>{variant ? `${variantSizeLabel(variant) ?? '확인한 포장'} 포장에서 확인` : loading.variants ? '포장 규격 확인 중' : errors.variants ? '포장 규격 조회 실패' : '연결된 포장 규격을 확인하지 못했습니다'}</small>
+                      </div>) : <div className="detail-manufacturing-country-value">
+                        <strong>{manufacturingCountryValue}</strong>
+                        <small>{loading.variants ? '포장 규격 확인 중' : errors.variants ? '포장 규격 조회 실패' : '확인한 포장 기준'}</small>
+                      </div>}
+                    </div>
+                  </div> : <Fact label="제조국" value={manufacturingCountryValue} />}
                 </div>
-                {missingManufacturingFields.length ? <p className="detail-note">{missingManufacturingFields.join('와 ')} 정보는 확인하지 못했습니다.</p> : null}
-                {manufacturing.observation_scope === 'variant' ? <p className="detail-note">제조국은 확인한 포장을 기준으로 안내합니다. 확인되지 않은 규격에는 적용하지 않습니다.{manufacturingHasUnmatchedVariant ? ' 일부 포장 규격은 연결 정보를 확인하지 못했습니다.' : ''}</p> : null}
+                {manufacturing.observation_scope === 'variant' ? <p className="detail-note">확인되지 않은 다른 규격에는 적용하지 않습니다.{manufacturingHasUnmatchedVariant ? ' 일부 포장 규격은 연결 정보를 확인하지 못했습니다.' : ''}</p> : null}
+                {hasAdditionalManufacturing ? <details className="detail-disclosure detail-manufacturing-disclosure">
+                  <summary>추가 제조 정보 보기</summary>
+                  <div className="detail-fact-lines detail-fact-lines-compact">
+                    {manufacturing.manufacturer?.trim() ? <Fact label="제조 업체" value={manufacturing.manufacturer} /> : null}
+                    {manufacturing.plant?.trim() ? <Fact label="제조 공장" value={manufacturing.plant} /> : null}
+                  </div>
+                </details> : null}
               </> : null}
               {!loading.manufacturing && !errors.manufacturing && !manufacturing ? <div className="detail-empty">확인된 제조 정보가 없습니다.</div> : null}
             </section>
             <section className="detail-section">
-              <div className="detail-section-heading"><h2>해외 판매 · 배합 확인</h2></div>
+              {loading.markets || errors.markets || markets.length === 0 ? <div className="detail-section-heading"><h2>해외 판매 · 배합</h2></div> : null}
               {loading.markets ? <div className="detail-state">유통 정보를 불러오는 중입니다.</div> : null}
               {errors.markets ? <LoadError message={errors.markets} onRetry={retry} /> : null}
-              {!loading.markets && !errors.markets && markets.length ? <div className="detail-market-list">{markets.map((market) => <div className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}>
-                <div><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 미기재'}</span></div>
-                <div><span>유통</span><strong>{distributionLabel(market.distribution_status)}</strong></div>
-                <div><span>한국 제품과의 배합 비교</span><strong>{formulaMarketLabel(market.formula_correspondence_status)}</strong></div>
-                {market.counterpart_name ? <div><span>현지 제품명</span><strong>{market.counterpart_name}</strong></div> : null}
-              </div>)}</div> : null}
+              {!loading.markets && !errors.markets && markets.length ? <details className="detail-disclosure detail-market-disclosure">
+                <summary>해외 판매 · 배합 보기</summary>
+                <div className="detail-market-list">{markets.map((market) => <div className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}>
+                  <div><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 미기재'}</span></div>
+                  <div><span>유통</span><strong>{distributionLabel(market.distribution_status)}</strong></div>
+                  <div><span>한국 제품과의 배합 비교</span><strong>{formulaMarketLabel(market.formula_correspondence_status)}</strong></div>
+                  {market.counterpart_name ? <div><span>현지 제품명</span><strong>{market.counterpart_name}</strong></div> : null}
+                </div>)}</div>
+              </details> : null}
               {!loading.markets && !errors.markets && markets.length === 0 ? <div className="detail-empty">확인된 해외 유통 정보가 없습니다.</div> : null}
             </section>
           </> : null}

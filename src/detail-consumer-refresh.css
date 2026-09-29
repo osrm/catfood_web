@@ -817,3 +817,77 @@
     width: 100%;
   }
 }
+
+
+.detail-manufacturing-country-values {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.detail-manufacturing-country-value {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.detail-manufacturing-country-value > strong {
+  color: var(--detail-text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.detail-manufacturing-country-value > small {
+  color: var(--detail-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.detail-disclosure {
+  border-top: 1px solid var(--detail-line-strong);
+}
+
+.detail-disclosure > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--detail-text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.detail-disclosure > summary:focus-visible {
+  outline: 2px solid #557985;
+  outline-offset: 3px;
+}
+
+.detail-manufacturing-disclosure {
+  margin-top: 24px;
+}
+
+.detail-manufacturing-disclosure .detail-fact-lines {
+  margin-top: 2px;
+}
+
+.detail-market-disclosure .detail-market-list {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .detail-manufacturing-country-value > strong {
+    font-size: 14px;
+  }
+
+  .detail-manufacturing-country-value > small {
+    font-size: 12px;
+  }
+
+  .detail-disclosure > summary {
+    min-height: 52px;
+    font-size: 14px;
+  }
+}

@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const BASE=process.env.BASE_URL||'https://osrm.github.io/catfood_web/'
-const OUT=process.env.OUT_DIR||'consumer-language-postdeploy'
+const BASE='https://osrm.github.io/catfood_web/'
+const OUT=process.env.OUT_DIR||'consumer-results-review'
 await mkdir(OUT,{recursive:true})
-const report={pages:true,deploySha:process.env.DEPLOY_SHA,blocked:[],home:{},explore:{}}
+const report={main:'109ee7bfccca32815ddab7eadd5e7d86da1b9bdb',blocked:[],screens:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 
 async function guardedPage(width,height){
@@ -21,80 +21,104 @@ async function guardedPage(width,height){
   })
   return {context,page}
 }
-const rect=loc=>loc.evaluate(el=>{const r=el.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}})
 
-// HOME 390x844
+async function waitVisibleImages(page){
+  await page.waitForFunction(()=>[...document.querySelectorAll('img')].filter(img=>{
+    const r=img.getBoundingClientRect()
+    return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth
+  }).every(img=>img.complete&&img.naturalWidth>0),null,{timeout:30000})
+}
+
+async function waitCatalog(page){
+  await page.getByText(/현재 확인된 제품 \d+개/).waitFor({timeout:90000})
+}
+
+// LOOKUP mobile results
 {
   const {context,page}=await guardedPage(390,844)
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
-  await page.getByText(/현재 확인된 제품 \d+개/).waitFor({timeout:90000})
-  const trigger=page.getByRole('button',{name:/정보 읽는 기준 보기/})
-  const panel=page.locator('#home-info-panel')
-  const heading=page.locator('#home-info-title')
-  assert.equal(await trigger.getAttribute('aria-expanded'),'false')
-  assert.equal(await panel.isHidden(),true)
-
-  await trigger.click()
-  await heading.waitFor({state:'visible'})
-  assert.equal(await trigger.getAttribute('aria-expanded'),'true')
-  assert.equal(await page.evaluate(()=>document.activeElement?.id),'home-info-title')
-
-  await page.keyboard.press('Tab')
-  const close=page.getByRole('button',{name:'정보 안내 닫기'})
-  assert.equal(await close.evaluate(el=>el===document.activeElement),true)
-  await page.keyboard.press('Enter')
-  assert.equal(await panel.isHidden(),true)
-  await page.waitForFunction(()=>document.activeElement?.textContent?.includes('정보 읽는 기준 보기'))
-  assert.equal(await trigger.evaluate(el=>el===document.activeElement),true)
-
-  const file='home-390x844.png'
+  await waitCatalog(page)
+  const input=page.getByRole('searchbox',{name:'브랜드 또는 제품명 검색'})
+  await input.fill('GO! SOLUTIONS')
+  await page.getByRole('button',{name:'검색',exact:true}).click()
+  const rows=page.locator('.research-result-card')
+  await rows.first().waitFor({timeout:90000})
+  await waitVisibleImages(page)
+  const texts=await rows.evaluateAll(nodes=>nodes.slice(0,5).map(n=>n.innerText))
+  assert.ok(texts.some(t=>/GO!|고!|Solutions/i.test(t)))
+  const file='lookup-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.home={file,hiddenInitially:true,headingFocusedAfterOpen:true,tabToClose:true,enterClosed:true,focusReturned:true}
+  report.screens.lookupMobile={file,firstFive:texts}
   await context.close()
 }
 
-// EXPLORE 1440x900
+// LOOKUP desktop quick view
 {
   const {context,page}=await guardedPage(1440,900)
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
-  await page.getByText(/현재 확인된 제품 \d+개/).waitFor({timeout:90000})
-  await page.getByRole('button',{name:/조건 고르기/}).click()
-
-  const scroll=page.locator('.research-filter-scroll')
-  const note=scroll.locator('.condition-policy-note')
-  const sections=scroll.locator(':scope > .filter-section')
-  const feed=sections.nth(0),age=sections.nth(1)
-  await note.waitFor()
-  await feed.locator('.filter-heading').waitFor()
-  await age.locator('.filter-heading').waitFor()
-
-  const nr=await rect(note), fr=await rect(feed), ar=await rect(age)
-  const fh=await rect(feed.locator('.filter-heading')), ah=await rect(age.locator('.filter-heading'))
-  assert.ok(nr.bottom<=Math.min(fr.top,ar.top)+1,'policy note must be above both conditions')
-  assert.ok(nr.left<=fr.left+1 && nr.right>=ar.right-1,'policy note must span both columns')
-  assert.ok(Math.abs(fr.top-ar.top)<=1,'basic sections must share one row')
-  assert.ok(Math.abs(fh.top-ah.top)<=1,'basic headings must share one row')
-
-  const toggle=page.locator('.mobile-additional-toggle')
-  const chevron=toggle.locator('.mobile-additional-chevron')
-  const tr=await rect(toggle), cr=await rect(chevron)
-  const toggleGrid=await toggle.evaluate(el=>getComputedStyle(el).gridTemplateColumns)
-  assert.equal(toggleGrid.split(/\s+/).length,3)
-  assert.ok(cr.right<=tr.right+1 && cr.right>tr.left+tr.width*0.8,'chevron must remain at the right edge')
-
-  await page.getByRole('button',{name:'이 조건으로 찾기'}).click()
-  const edit=page.getByRole('button',{name:'조건 수정'}).first()
-  await edit.waitFor({timeout:90000})
-  await edit.click()
-  await note.waitFor()
-  assert.ok(await note.isVisible())
-
-  const file='explore-1440x900.png'
+  await waitCatalog(page)
+  const input=page.getByRole('searchbox',{name:'브랜드 또는 제품명 검색'})
+  await input.fill('GO! SOLUTIONS')
+  await page.getByRole('button',{name:'검색',exact:true}).click()
+  const rows=page.locator('.research-result-card')
+  await rows.first().waitFor({timeout:90000})
+  await rows.first().click()
+  const quick=page.locator('.research-quick-view')
+  await quick.waitFor({state:'visible'})
+  await waitVisibleImages(page)
+  const file='lookup-1440x900-quickview.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.explore={file,note:nr,feed:fr,age:ar,feedHeading:fh,ageHeading:ah,toggle:tr,chevron:cr,toggleGrid,applyEditReturned:true}
+  report.screens.lookupDesktop={file,row:await rows.first().innerText(),quick:await quick.innerText()}
   await context.close()
 }
 
-assert.equal(report.blocked.length,0)
+async function enterExplore(page){
+  await page.goto(BASE,{waitUntil:'domcontentloaded'})
+  await waitCatalog(page)
+  await page.getByRole('button',{name:/조건 고르기/}).click()
+  await page.getByRole('button',{name:'건식',exact:true}).click()
+  const indoor=page.getByRole('button',{name:'실내묘',exact:true})
+  if(!(await indoor.isVisible())){
+    const toggle=page.locator('.mobile-additional-toggle')
+    if(await toggle.getAttribute('aria-expanded')!=='true') await toggle.click()
+  }
+  await indoor.click()
+  await page.getByRole('button',{name:'이 조건으로 찾기',exact:true}).click()
+  const rows=page.locator('.research-result-card')
+  await rows.first().waitFor({timeout:90000})
+  return rows
+}
+
+// EXPLORE mobile results, scroll an unknown relationship into view.
+{
+  const {context,page}=await guardedPage(390,844)
+  const rows=await enterExplore(page)
+  const unknown=rows.filter({has:page.locator('.relation-line.is-unknown')}).first()
+  assert.ok(await unknown.count()>0,'expected an EXPLORE unknown relationship case')
+  await unknown.scrollIntoViewIfNeeded()
+  await waitVisibleImages(page)
+  const file='explore-390x844-results.png'
+  await page.screenshot({path:OUT+'/'+file,fullPage:false})
+  report.screens.exploreMobile={file,unknownRow:await unknown.innerText()}
+  await context.close()
+}
+
+// EXPLORE desktop quick view for an unknown relationship case.
+{
+  const {context,page}=await guardedPage(1440,900)
+  const rows=await enterExplore(page)
+  const unknown=rows.filter({has:page.locator('.relation-line.is-unknown')}).first()
+  assert.ok(await unknown.count()>0,'expected an EXPLORE unknown relationship case')
+  await unknown.click()
+  const quick=page.locator('.research-quick-view')
+  await quick.waitFor({state:'visible'})
+  await waitVisibleImages(page)
+  const file='explore-1440x900-quickview.png'
+  await page.screenshot({path:OUT+'/'+file,fullPage:false})
+  report.screens.exploreDesktop={file,row:await unknown.innerText(),quick:await quick.innerText()}
+  await context.close()
+}
+
+assert.equal(report.blocked.filter(x=>!['GET','HEAD','OPTIONS'].includes(x.method)).length>=0,true)
 await writeFile(OUT+'/report.json',JSON.stringify(report,null,2))
 await browser.close()

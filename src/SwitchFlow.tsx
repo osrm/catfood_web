@@ -1533,7 +1533,7 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 제품 정보를 비교합니다.</span><p>레시피·Grain-Free·원료는 현재 확인된 정보만 사용합니다. 자세한 근거는 상세 화면에서 확인할 수 있습니다.</p></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 제품 정보를 비교합니다.</span></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {visibleCandidates.map((evaluation) => {

@@ -34,7 +34,7 @@ async function searchLookup(page){
 }
 async function openExplore(page){
   await page.goto(BASE+'?view=workspace&mode=explore',{waitUntil:'domcontentloaded'})
-  await page.getByText(/\d+ PRODUCTS/).waitFor({timeout:90000})
+  await page.waitForFunction(()=>/\d+\s+PRODUCTS/.test(document.body.textContent||''),null,{timeout:90000})
   const conditionButton=page.getByRole('button',{name:'조건 수정'})
   if(await conditionButton.count()) await conditionButton.first().click()
   else if(await page.getByRole('button',{name:/조건 고르기/}).count()) await page.getByRole('button',{name:/조건 고르기/}).click()

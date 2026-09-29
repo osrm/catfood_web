@@ -99,7 +99,8 @@ const metrics=loc=>loc.evaluate(el=>{
     labelLayout.push({...m,neededWidth:needed,grid:ruleInfo.computed,rules:ruleInfo.matches})
     assert.ok(m.height<=parseFloat(m.lineHeight)*1.25, m.text+' must stay on one line')
     assert.ok(ruleInfo.computed.split(/\s+/)[0] !== '46px' && ruleInfo.computed.split(/\s+/)[0] !== '48px', m.text+' relation label track must not use the old fixed width')
-    assert.ok(m.width + 1 >= needed, m.text+' relation label track must fit its text')
+    const valueMetric=await metrics(label.locator('..').locator('strong'))
+    assert.ok(m.left + needed + 4 <= valueMetric.left, m.text+' must not overlap the relation value')
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})

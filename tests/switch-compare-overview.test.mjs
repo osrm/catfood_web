@@ -293,3 +293,47 @@ test('nutrition and non-SWITCH compare keep candidate-only scope', async () => {
   assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.equal(document.querySelectorAll('.compare-product-head').length, 2)
 })
+
+
+test('SWITCH overview collapses target and feature rows only when current food and every candidate are empty', async () => {
+  const emptyCurrent = product('product_current_empty', '현재브랜드', '빈 현재 사료')
+  const emptyItems = [
+    { product: product('product_empty_a', '후보A', '빈 후보 A') },
+    { product: product('product_empty_b', '후보B', '빈 후보 B') },
+  ]
+  await renderCompare({ currentProduct: emptyCurrent, items: emptyItems })
+
+  const desktopDisclosure = document.querySelector('.compare-switch-overview-desktop > .compare-overview-extra')
+  const mobileDisclosure = document.querySelector('.compare-switch-mobile-overview > .compare-overview-extra')
+  assert.ok(desktopDisclosure)
+  assert.ok(mobileDisclosure)
+  assert.equal(desktopDisclosure.open, false)
+  assert.equal(mobileDisclosure.open, false)
+  assert.equal(desktopDisclosure.querySelector('summary').textContent.trim(), '추가 정보 보기')
+  assert.match(desktopDisclosure.textContent, /제품 표기 대상/)
+  assert.match(desktopDisclosure.textContent, /제품 특징/)
+  assert.match(desktopDisclosure.textContent, /확인된 값 없음/)
+  const visibleDesktopLabels = [...document.querySelectorAll('.compare-switch-overview-desktop > .compare-switch-overview-row > .compare-row-label')].map((node) => node.textContent.trim())
+  assert.equal(visibleDesktopLabels.includes('제품 표기 대상'), false)
+  assert.equal(visibleDesktopLabels.includes('제품 특징'), false)
+})
+
+test('SWITCH overview keeps globally non-empty rows visible even when the selected mobile candidate is empty', async () => {
+  const emptyCandidateItems = [
+    { product: product('product_empty_a2', '후보A', '빈 후보 A') },
+    { product: product('product_empty_b2', '후보B', '빈 후보 B') },
+  ]
+  await renderCompare({ currentProduct: current, items: emptyCandidateItems })
+
+  assert.equal(document.querySelector('.compare-switch-overview-desktop > .compare-overview-extra'), null)
+  assert.equal(document.querySelector('.compare-switch-mobile-overview > .compare-overview-extra'), null)
+  const desktopLabels = [...document.querySelectorAll('.compare-switch-overview-desktop > .compare-switch-overview-row > .compare-row-label')].map((node) => node.textContent.trim())
+  const mobileLabels = [...document.querySelectorAll('.compare-switch-mobile-overview > .compare-mobile-overview-row > .compare-mobile-row-label')].map((node) => node.textContent.trim())
+  assert.ok(desktopLabels.includes('제품 표기 대상'))
+  assert.ok(desktopLabels.includes('제품 특징'))
+  assert.ok(mobileLabels.includes('제품 표기 대상'))
+  assert.ok(mobileLabels.includes('제품 특징'))
+  const targetMobileRow = [...document.querySelectorAll('.compare-switch-mobile-overview > .compare-mobile-overview-row')].find((row) => row.querySelector('.compare-mobile-row-label')?.textContent.trim() === '제품 표기 대상')
+  assert.match(targetMobileRow.textContent, /실내묘/)
+  assert.match(targetMobileRow.textContent, /확인된 값 없음/)
+})

@@ -137,6 +137,7 @@ async function run(width,height){
     const geo=await tableGeometry(page); assert.ok(aligned(geo),JSON.stringify(geo)); report.views[key].overviewGeometry=geo
   }
   await waitVisibleImages(page)
+  await page.evaluate(()=>scrollTo(0,0))
   const overviewFile=`compare-overview-${key}.png`
   await page.screenshot({path:OUT+'/'+overviewFile,fullPage:true})
   report.views[key].overviewFile=overviewFile
@@ -156,6 +157,7 @@ async function run(width,height){
   for(let i=0;i<nutritionDetailCount;i++) assert.equal(await nutritionDetails.nth(i).evaluate(el=>el.open),false)
   if(nutritionDetailCount>0) await pointerToggle(nutritionDetails.first(),key+' nutrition evidence')
   if(width>760){const geo=await tableGeometry(page);assert.ok(aligned(geo),JSON.stringify(geo));report.views[key].nutritionGeometry=geo}
+  await page.evaluate(()=>scrollTo(0,0))
   const nutritionFile=`compare-nutrition-${key}.png`
   await page.screenshot({path:OUT+'/'+nutritionFile,fullPage:true})
   report.views[key].nutritionFile=nutritionFile
@@ -181,10 +183,16 @@ async function run(width,height){
   assert.match(sourceText,/대표 확인 자료 · 출처 원문|현재 확인 배합 전체 목록 · 출처 원문/)
   const visibleRaw=sourceDetails.first().locator('.compare-ingredient-text:visible')
   assert.ok(await visibleRaw.count()>=1)
+  if(width<=760){
+    const openFile=`compare-ingredients-open-${key}.png`
+    await page.screenshot({path:OUT+'/'+openFile,fullPage:true})
+    report.views[key].ingredientOpenFile=openFile
+  }
   const rawOverflow=await visibleRaw.first().evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth}))
   assert.ok(rawOverflow.scrollWidth<=rawOverflow.clientWidth+1,JSON.stringify(rawOverflow))
   await sourceDetails.first().locator('summary').click()
   if(width>760){const geo=await tableGeometry(page);assert.ok(aligned(geo),JSON.stringify(geo));report.views[key].ingredientGeometry=geo}
+  await page.evaluate(()=>scrollTo(0,0))
   const ingredientFile=`compare-ingredients-${key}.png`
   await page.screenshot({path:OUT+'/'+ingredientFile,fullPage:true})
   report.views[key].ingredientFile=ingredientFile

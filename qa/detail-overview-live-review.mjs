@@ -40,6 +40,8 @@ async function openExplore(page){
   else if(await page.getByRole('button',{name:/조건 고르기/}).count()) await page.getByRole('button',{name:/조건 고르기/}).click()
   const scroll=page.locator('.research-filter-scroll')
   await scroll.getByRole('button',{name:'건식',exact:true}).click()
+  const additional=page.locator('.mobile-additional-toggle')
+  if(await additional.getAttribute('aria-expanded')!=='true') await additional.click()
   await scroll.getByRole('button',{name:'실내묘',exact:true}).click()
   await page.getByRole('button',{name:'이 조건으로 찾기'}).click()
   await page.locator('.research-result-card').first().waitFor({timeout:90000})

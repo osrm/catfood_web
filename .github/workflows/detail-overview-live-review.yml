@@ -10,7 +10,7 @@ jobs:
   live-browser:
     runs-on: ubuntu-latest
     env:
-      PRODUCT_SHA: d80468a0d48173bee0d02b0b8306a1e08c6fd92b
+      PRODUCT_SHA: 2ae082c5fd8d39740d4d492936b68e8fa9ac5f8a
     steps:
       - name: Checkout QA harness
         uses: actions/checkout@v5
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout exact product candidate
         uses: actions/checkout@v5
         with:
-          ref: d80468a0d48173bee0d02b0b8306a1e08c6fd92b
+          ref: 2ae082c5fd8d39740d4d492936b68e8fa9ac5f8a
           clean: true
       - uses: actions/setup-node@v5
         with:

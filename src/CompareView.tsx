@@ -229,9 +229,9 @@ function SwitchOverviewRow({ label, currentProduct, items, currentValue, candida
 function MobileOverviewRow({ label, current, candidate }: { label: string; current: ReactNode; candidate: ReactNode }) {
   return <div className="compare-mobile-overview-row"><strong className="compare-mobile-row-label">{label}</strong><div className="compare-mobile-pair"><div><span>현재 사료</span><div>{current}</div></div><div><span>후보</span><div>{candidate}</div></div></div></div>
 }
-function MobileTwoProductOverviewField({ fieldKey, label, items, render }: { fieldKey: string; label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode }) {
+function MobileTwoProductOverviewField({ fieldKey, label, items, render, tone }: { fieldKey: string; label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
   const labelId = `compare-mobile-two-row-${fieldKey}`
-  return <tbody className="compare-mobile-two-product-field">
+  return <tbody className={`compare-mobile-two-product-field${tone ? ` is-${tone}` : ''}`}>
     <tr className="compare-mobile-two-product-label-row">
       <th className="compare-mobile-two-product-row-label" id={labelId} colSpan={2} scope="rowgroup">{label}</th>
     </tr>
@@ -261,30 +261,34 @@ function MobileTwoProductExtraDisclosure({ items, showTargets, showFeatures }: {
   </td></tr></tbody>
 }
 
+function MobileTwoProductHeads({ items, onDetail, onRemove }: { items: CompareItem[]; onDetail: (productId: string) => void; onRemove: (productId: string) => void }) {
+  return <div className="compare-mobile-two-product-heads">
+    {items.map((item, index) => {
+      const product = item.product
+      const nameId = `compare-mobile-two-product-name-${index + 1}-${product.product_id}`
+      return <article className="compare-mobile-two-product-head" key={product.product_id} aria-labelledby={nameId}>
+        <div className="compare-mobile-two-product-identity">
+          {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+          <div className="compare-mobile-two-product-meta">
+            <span className="compare-mobile-two-product-slot">제품 {index + 1}</span>
+            <span className="compare-mobile-two-product-brand">{product.brand}</span>
+          </div>
+        </div>
+        <strong className="compare-mobile-two-product-name" id={nameId}>{product.canonical_name}</strong>
+        <div className="compare-mobile-two-product-actions">
+          <button type="button" aria-label={`${product.brand} ${product.canonical_name} 상세 보기`} onClick={() => onDetail(product.product_id)}>상세 보기</button>
+          <button type="button" aria-label={`${product.brand} ${product.canonical_name} 비교에서 제거`} onClick={() => onRemove(product.product_id)}>제거</button>
+        </div>
+      </article>
+    })}
+  </div>
+}
+
 function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: CompareItem[]; onDetail: (productId: string) => void; onRemove: (productId: string) => void }) {
   const collapseTargets = items.length > 0 && items.every((item) => !hasOverviewListValue(item.product, 'targets'))
   const collapseFeatures = items.length > 0 && items.every((item) => !hasOverviewListValue(item.product, 'features'))
   return <div className="compare-mobile-two-product-overview">
-    <div className="compare-mobile-two-product-heads">
-      {items.map((item, index) => {
-        const product = item.product
-        const nameId = `compare-mobile-two-product-name-${index + 1}-${product.product_id}`
-        return <article className="compare-mobile-two-product-head" key={product.product_id} aria-labelledby={nameId}>
-          <div className="compare-mobile-two-product-identity">
-            {product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
-            <div className="compare-mobile-two-product-meta">
-              <span className="compare-mobile-two-product-slot">제품 {index + 1}</span>
-              <span className="compare-mobile-two-product-brand">{product.brand}</span>
-            </div>
-          </div>
-          <strong className="compare-mobile-two-product-name" id={nameId}>{product.canonical_name}</strong>
-          <div className="compare-mobile-two-product-actions">
-            <button type="button" aria-label={`${product.brand} ${product.canonical_name} 상세 보기`} onClick={() => onDetail(product.product_id)}>상세 보기</button>
-            <button type="button" aria-label={`${product.brand} ${product.canonical_name} 비교에서 제거`} onClick={() => onRemove(product.product_id)}>제거</button>
-          </div>
-        </article>
-      })}
-    </div>
+    <MobileTwoProductHeads items={items} onDetail={onDetail} onRemove={onRemove} />
 
     <table className="compare-mobile-two-product-table">
       <caption className="compare-mobile-two-product-visually-hidden">2개 제품 개요 비교</caption>
@@ -322,6 +326,84 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
     </table>
   </div>
 }
+function MobileTwoProductNutrition({
+  items,
+  nutrition,
+  nutritionByProduct,
+  additionalNutrientKeys,
+  variantsByProduct,
+  variantLookupFailures,
+  variantsLoading,
+  hasBasisSpecificNutrition,
+  onDetail,
+  onRemove,
+}: {
+  items: CompareItem[]
+  nutrition: CompareNutrition[]
+  nutritionByProduct: Map<string, CompareNutrition>
+  additionalNutrientKeys: string[]
+  variantsByProduct: Record<string, ProductVariant[]>
+  variantLookupFailures: string[]
+  variantsLoading: boolean
+  hasBasisSpecificNutrition: boolean
+  onDetail: (productId: string) => void
+  onRemove: (productId: string) => void
+}) {
+  return <div className="compare-mobile-two-product-nutrition">
+    <MobileTwoProductHeads items={items} onDetail={onDetail} onRemove={onRemove} />
+    <table className="compare-mobile-two-product-table compare-mobile-two-product-nutrition-table">
+      <caption className="compare-mobile-two-product-visually-hidden">2개 제품 영양 비교</caption>
+      <thead className="compare-mobile-two-product-key">
+        <tr>
+          {items.map((item, index) => {
+            const headerId = `compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`
+            return <th key={item.product.product_id} id={headerId} scope="col">
+              <span>제품 {index + 1}</span>
+              <strong>{item.product.canonical_name}</strong>
+              <span className="compare-mobile-two-product-visually-hidden">{item.product.brand}</span>
+            </th>
+          })}
+        </tr>
+      </thead>
+
+      <MobileTwoProductSection title="영양 성분" />
+      <MobileTwoProductOverviewField fieldKey="nutrition-energy" label="열량" items={items} tone="metric" render={(item) => {
+        const row = nutritionByProduct.get(item.product.product_id)
+        if (!row) return '미확인'
+        return row.kcal_per_kg != null ? formatNumber(row.kcal_per_kg, ' kcal/kg') : formatNumber(row.kcal_per_100g, ' kcal/100g')
+      }} />
+      <MobileTwoProductOverviewField fieldKey="nutrition-protein" label="조단백질" items={items} tone="metric" render={(item) => {
+        const row = nutritionByProduct.get(item.product.product_id)
+        return formatStandardNutrient(row, 'protein', row?.protein_pct, row?.protein_qualifier)
+      }} />
+      <MobileTwoProductOverviewField fieldKey="nutrition-fat" label="조지방" items={items} tone="metric" render={(item) => {
+        const row = nutritionByProduct.get(item.product.product_id)
+        return formatStandardNutrient(row, 'fat', row?.fat_pct, row?.fat_qualifier)
+      }} />
+      <MobileTwoProductOverviewField fieldKey="nutrition-fiber" label="조섬유" items={items} tone="metric" render={(item) => {
+        const row = nutritionByProduct.get(item.product.product_id)
+        return formatStandardNutrient(row, 'fiber', row?.fiber_pct, row?.fiber_qualifier)
+      }} />
+      <MobileTwoProductOverviewField fieldKey="nutrition-moisture" label="수분" items={items} tone="metric" render={(item) => {
+        const row = nutritionByProduct.get(item.product.product_id)
+        return formatStandardNutrient(row, 'moisture', row?.moisture_pct, row?.moisture_qualifier)
+      }} />
+      <MobileTwoProductOverviewField fieldKey="nutrition-ash" label="조회분" items={items} tone="metric" render={(item) => {
+        const row = nutritionByProduct.get(item.product.product_id)
+        return formatStandardNutrient(row, 'ash', row?.ash_pct, row?.ash_qualifier)
+      }} />
+      {additionalNutrientKeys.map((key) => <MobileTwoProductOverviewField key={key} fieldKey={`nutrition-additional-${key}`} label={additionalNutrientLabel(key, nutrition)} items={items} tone="metric" render={(item) => formatAdditionalNutrient(additionalNutrient(nutritionByProduct.get(item.product.product_id), key))} />)}
+
+      <MobileTwoProductSection title="자료 범위" />
+      <MobileTwoProductOverviewField fieldKey="nutrition-scope" label="적용 범위" items={items} tone="context" render={(item) => <NutritionScope detail={nutritionByProduct.get(item.product.product_id)} variants={variantsByProduct[item.product.product_id]} failed={variantLookupFailures.includes(item.product.product_id)} loading={variantsLoading} />} />
+      {hasBasisSpecificNutrition ? <>
+        <MobileTwoProductSection title="다른 기준의 영양자료" />
+        <MobileTwoProductOverviewField fieldKey="nutrition-basis-specific" label="별도 확인 자료" items={items} tone="context" render={(item) => <span className="compare-muted">{basisSpecificSummary(nutritionByProduct.get(item.product.product_id))}</span>} />
+      </> : null}
+    </table>
+  </div>
+}
+
 function CompareSection({ title, note }: { title: string; note?: string }) { return <div className="compare-section-row"><strong>{title}</strong>{note ? <span>{note}</span> : null}</div> }
 
 export default function CompareView({ items, currentProduct, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
@@ -440,6 +522,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const switchCompare = Boolean(currentProduct)
   const switchOverview = Boolean(currentProduct && tab === 'overview')
   const twoProductOverview = !switchCompare && tab === 'overview' && items.length === 2
+  const twoProductNutrition = !switchCompare && tab === 'nutrition' && items.length === 2 && !nutritionLoading && !nutritionError
   const overviewProducts = currentProduct ? [currentProduct, ...items.map((item) => item.product)] : items.map((item) => item.product)
   const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
   const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
@@ -464,7 +547,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     {tab === 'nutrition' && nutritionLoading ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
-    <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
+    <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
@@ -540,7 +623,8 @@ export default function CompareView({ items, currentProduct, currentVariantText,
         </div> : null}
       </> : <>
         {twoProductOverview ? <MobileTwoProductOverview items={items} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
-        <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
+        {twoProductNutrition ? <MobileTwoProductNutrition items={items} nutrition={nutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={additionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={hasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
+        <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           {items.some(hasRelationData) ? <>

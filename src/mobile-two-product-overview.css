@@ -1,4 +1,5 @@
-.compare-mobile-two-product-overview {
+.compare-mobile-two-product-overview,
+.compare-mobile-two-product-nutrition {
   display: none;
 }
 
@@ -15,21 +16,25 @@
 }
 
 @media (max-width: 760px) {
-  .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-overview) {
+  .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-overview),
+  .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-nutrition) {
     overflow-x: clip;
     overflow-y: visible;
   }
 
-  .compare-table-wrap.is-mobile-two-product-overview {
+  .compare-table-wrap.is-mobile-two-product-overview,
+  .compare-table-wrap.is-mobile-two-product-nutrition {
     overflow-x: visible;
     padding: 18px 16px 28px;
   }
 
-  .compare-table-wrap.is-mobile-two-product-overview .compare-two-product-overview-desktop {
+  .compare-table-wrap.is-mobile-two-product-overview .compare-two-product-overview-desktop,
+  .compare-table-wrap.is-mobile-two-product-nutrition .compare-two-product-nutrition-desktop {
     display: none;
   }
 
-  .compare-mobile-two-product-overview {
+  .compare-mobile-two-product-overview,
+  .compare-mobile-two-product-nutrition {
     display: block;
     min-width: 0;
     border: 1px solid var(--research-line);
@@ -236,4 +241,33 @@
     font-size: 14px;
     line-height: 1.5;
   }
+
+  .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value {
+    color: #132f28;
+    font-size: 15.5px;
+    font-weight: 650;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.015em;
+  }
+
+  .compare-mobile-two-product-field.is-context .compare-mobile-two-product-value {
+    font-size: 14px;
+    line-height: 1.58;
+  }
+
+  .compare-mobile-two-product-nutrition .compare-scope-summary {
+    gap: 7px;
+  }
+
+  .compare-mobile-two-product-nutrition .compare-evidence-disclosure > summary {
+    min-height: 44px;
+    padding: 8px 0;
+    font-size: 12px;
+  }
+
+  .compare-mobile-two-product-nutrition .compare-evidence-details strong {
+    font-size: 12px;
+  }
+
 }

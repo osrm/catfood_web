@@ -89,10 +89,11 @@ async function assertNoHorizontalPageOverflow(page,label){
 for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  const {context,page}=await pageAt(w,h)
  await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${dental.product_id}&detailTab=context`,{waitUntil:'domcontentloaded'})
- await page.getByText('3.5 kg · 한국').waitFor()
- assert.equal(await page.getByText(/1\.5 kg · 한국/).count(),0);assert.equal(await page.getByText(/8 kg · 한국/).count(),0)
+ await page.getByText('3.5 kg 포장에서 확인').waitFor()
+ assert.equal(await page.getByText(/1\.5 kg 포장에서 확인/).count(),0);assert.equal(await page.getByText(/8 kg 포장에서 확인/).count(),0)
+ assert.ok(await page.getByText('한국',{exact:true}).count()>=1)
  await screenshotView(page,`${label}-detail.png`)
- const detailTargets=await assertVisibleNoHorizontalOverflow(page,'.detail-fact strong,.detail-note',`${label} detail manufacturing value`,'3.5 kg · 한국')
+ const detailTargets=await assertVisibleNoHorizontalOverflow(page,'.detail-fact strong,.detail-manufacturing-country-value small,.detail-note',`${label} detail manufacturing value`,'3.5 kg 포장에서 확인')
  const detailPage=await assertNoHorizontalPageOverflow(page,`${label} detail`)
  report.views[`${label}-detail`]={text:(await page.locator('.detail-document').innerText()).slice(0,1800),targets:detailTargets,horizontalLayout:detailPage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
 

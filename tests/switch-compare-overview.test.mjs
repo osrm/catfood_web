@@ -278,6 +278,7 @@ test('nutrition and non-SWITCH compare keep candidate-only scope', async () => {
   assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.equal(document.querySelector('.compare-current-product-head'), null)
   assert.equal(document.querySelectorAll('.compare-product-head').length, 2)
+  assert.equal(document.querySelector('.compare-mobile-two-product-nutrition'), null, 'SWITCH nutrition keeps the existing candidate-only table')
 
   await act(async () => root.unmount())
   root = null

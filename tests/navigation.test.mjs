@@ -279,11 +279,99 @@ test('two-product overview preserves EXPLORE relation semantics and stays scoped
 
   await click('영양')
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
-  assert.ok(document.querySelector('.compare-table'))
+  assert.ok(document.querySelector('.compare-mobile-two-product-nutrition'))
+  assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
 
-  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}%2C${third.product_id}&compareOpen=1`)
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}%2C${third.product_id}&compareOpen=1&compareTab=nutrition`)
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.equal(document.querySelector('.compare-mobile-two-product-nutrition'), null)
   assert.ok(document.querySelector('.compare-table'))
+})
+
+
+test('two-product mobile nutrition preserves values, qualifiers, unknowns, and per-product scope', async () => {
+  const first = products[0], second = products[1]
+  const nutritionRows = [
+    {
+      product_id: first.product_id, variant_id: 'variant_first', observation_scope: 'variant', market_code: 'KR', panel_type: 'guaranteed',
+      protein_pct: 32, protein_qualifier: 'min', fat_pct: 15, fat_qualifier: 'min', fiber_pct: 3, fiber_qualifier: 'max',
+      moisture_pct: 10, moisture_qualifier: 'max', ash_pct: null, ash_qualifier: null,
+      kcal_per_kg: 4100, kcal_per_100g: null, energy_basis: 'as_fed', is_korea_market_observation: true, is_current_resolved_formula: true,
+      additional_nutrients: [{ nutrient_key: 'calcium', raw_name: 'Calcium', amount: 1.2, unit: '%', qualifier: 'min' }],
+      additional_nutrient_count: 1, supplemental_nutrition_fields: ['ash'], supplemental_observation_scope: 'formula',
+      supplemental_market_code: 'KR', supplemental_is_current_resolved_formula: true, basis_specific_nutrition_basis: null, basis_specific_nutrition_values: [],
+    },
+    {
+      product_id: second.product_id, variant_id: 'variant_second', observation_scope: 'variant', market_code: 'KR', panel_type: 'guaranteed',
+      protein_pct: 30, protein_qualifier: 'max', fat_pct: null, fat_qualifier: null, fiber_pct: 4, fiber_qualifier: 'max',
+      moisture_pct: 12, moisture_qualifier: 'max', ash_pct: 8, ash_qualifier: 'reported',
+      kcal_per_kg: null, kcal_per_100g: 380, energy_basis: 'as_fed', is_korea_market_observation: true, is_current_resolved_formula: true,
+      additional_nutrients: [], additional_nutrient_count: 0, supplemental_nutrition_fields: [], supplemental_observation_scope: null,
+      supplemental_market_code: null, supplemental_is_current_resolved_formula: false, basis_specific_nutrition_basis: null, basis_specific_nutrition_values: [],
+    },
+  ]
+  const variant = (productId, variantId, size, weight) => ({
+    product_id: productId, variant_id: variantId, package_size_text: size, package_weight_g: weight, units_per_sale: 1,
+    sale_total_weight_g: weight, sales_bundle_status: null, display_rank: 1, variant_count: 1, formula_evidence_status: 'confirmed',
+    recipe_families: [], recipe_details: [], official_recipe_traits: [], ingredient_term_result_count: 0,
+    confirmed_present_ingredient_terms: [], direct_evidence_ingredient_terms: [], flavor_associated_ingredient_terms: [],
+    reviewed_not_found_ingredient_terms: [], insufficient_evidence_ingredient_terms: [],
+  })
+
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(nutritionRows)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/switch_current_variant_options')) {
+      const filter = url.searchParams.get('product_id') ?? ''
+      if (filter.includes(first.product_id)) return Response.json([variant(first.product_id, 'variant_first', '3 kg', 3000)])
+      if (filter.includes(second.product_id)) return Response.json([variant(second.product_id, 'variant_second', '7.26 kg', 7260)])
+      return Response.json([])
+    }
+    return Response.json([])
+  }
+
+  document.body.innerHTML = '<div id="root"></div>'
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, {
+    items: [{ product: first }, { product: second }],
+    onClose() {},
+    onRemove() {},
+    initialTab: 'nutrition',
+  })))
+  await waitForUi(
+    () => document.querySelector('.compare-mobile-two-product-nutrition')?.textContent.includes('7.26 kg 제품에서 확인'),
+    'two-product mobile nutrition with package scopes rendered',
+  )
+
+  const mobile = document.querySelector('.compare-mobile-two-product-nutrition')
+  assert.ok(mobile)
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-head').length, 2)
+  assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
+  assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
+
+  const valuesFor = (id) => [...mobile.querySelector(id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => cell.textContent.trim())
+  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-energy'), ['4,100 kcal/kg', '380 kcal/100g'])
+  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-protein'), ['32% 이상', '30% 이하'])
+  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-fat'), ['15% 이상', '미확인'])
+  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-ash'), ['미확인', '8%'])
+
+  const calciumValues = valuesFor('#compare-mobile-two-row-nutrition-additional-calcium')
+  assert.deepEqual(calciumValues, ['1.2% 이상', '미확인'])
+
+  const scopeValues = valuesFor('#compare-mobile-two-row-nutrition-scope')
+  assert.match(scopeValues[0], /한국 판매 제품 자료.*3 kg 제품에서 확인.*보완 자료 포함/)
+  assert.match(scopeValues[0], /자료 기준 보기/)
+  assert.match(scopeValues[1], /한국 판매 제품 자료.*7\.26 kg 제품에서 확인/)
+  assert.doesNotMatch(scopeValues[1], /보완 자료 포함/)
+
+  const proteinHeader = mobile.querySelector('#compare-mobile-two-row-nutrition-protein')
+  const proteinCells = [...proteinHeader.closest('tbody').querySelectorAll('td')]
+  assert.ok(proteinCells[0].getAttribute('headers').includes(proteinHeader.id))
+  assert.ok(proteinCells[0].getAttribute('headers').includes('compare-mobile-two-product-column-1-'))
+  assert.ok(proteinCells[1].getAttribute('headers').includes('compare-mobile-two-product-column-2-'))
+
+  installFetch()
 })
 
 

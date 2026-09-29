@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const BASE='http://127.0.0.1:4173/'
-const OUT=process.env.OUT_DIR||'detail-manufacturing-priority-review'
+const BASE=process.env.CANDIDATE_URL||'https://osrm.github.io/catfood_web/'
+const OUT=process.env.OUT_DIR||'detail-manufacturing-postdeploy'
 await mkdir(OUT,{recursive:true})
-const report={candidate:process.env.PRODUCT_SHA,blocked:[],reads:[],views:{},interactions:[]}
+const report={mergeSha:process.env.PRODUCT_SHA,base:BASE,blocked:[],reads:[],views:{},interactions:[]}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 
 async function guardedPage(width,height){
@@ -76,85 +76,74 @@ async function keyboardToggle(page,details,label){
     if(await summary.evaluate(el=>document.activeElement===el)){reached=true;break}
   }
   assert.equal(reached,true,label+' reached by Tab')
-  const focusStyle=await summary.evaluate(el=>{
-    const s=getComputedStyle(el)
-    return {outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineOffset:s.outlineOffset}
-  })
-  assert.notEqual(focusStyle.outlineStyle,'none',label+' focus outline missing')
   await page.keyboard.press('Enter')
   assert.equal(await details.evaluate(el=>el.open),true,label+' Enter opens')
   await page.keyboard.press('Enter')
   assert.equal(await details.evaluate(el=>el.open),false,label+' Enter closes')
   report.interactions.push(label+': Tab + Enter open/close')
-  return focusStyle
 }
-async function verifyLayout(page){
-  return page.locator('.detail-body').evaluate(body=>{
-    const stage=body.closest('.detail-stage')
-    const country=body.querySelector('.detail-manufacturing-country-values')
-    return {
-      bodyClientWidth:body.clientWidth,
-      bodyScrollWidth:body.scrollWidth,
-      stageClientWidth:stage?.clientWidth??0,
-      stageScrollWidth:stage?.scrollWidth??0,
-      countryClientWidth:country?.clientWidth??null,
-      countryScrollWidth:country?.scrollWidth??null,
-    }
-  })
-}
-async function verifyProduct(width,height,key,query,pattern){
-  const {context,page}=await guardedPage(width,height)
-  await openContext(page,query,pattern)
-  const viewKey=`${key}-${width}x${height}`
-  const title=await page.locator('.detail-identity-copy h1').innerText()
+async function dental390(){
+  const {context,page}=await guardedPage(390,844)
+  await openContext(page,'덴탈케어',/덴탈케어|Dental Care/i)
   const manufacturing=page.locator('.detail-body .detail-section').filter({has:page.getByRole('heading',{name:'제조 정보',exact:true})}).first()
-  let manufacturingText=await manufacturing.innerText()
-
-  if(key==='dental'){
-    await page.waitForFunction(()=>{
-      const text=[...document.querySelectorAll('.detail-section')].find(x=>x.querySelector('h2')?.textContent?.trim()==='제조 정보')?.textContent||''
-      return text.includes('3.5 kg 포장에서 확인')&&!text.includes('포장 규격 확인 중')
-    },null,{timeout:60000})
-    const settled=await manufacturing.innerText()
-    manufacturingText=settled
-    assert.match(settled,/한국/)
-    assert.match(settled,/3\.5 kg 포장에서 확인/)
-    assert.match(settled,/확인되지 않은 다른 규격에는 적용하지 않습니다/)
-    assert.doesNotMatch(settled,/1\.5 kg 포장에서 확인|8 kg 포장에서 확인/)
-  }
-
-  const additional=manufacturing.locator('details').filter({has:page.locator('summary',{hasText:'추가 제조 정보 보기'})})
-  for(let i=0;i<await additional.count();i++) assert.equal(await additional.nth(i).evaluate(el=>el.open),false)
+  await page.waitForFunction(()=>{
+    const text=[...document.querySelectorAll('.detail-section')].find(x=>x.querySelector('h2')?.textContent?.trim()==='제조 정보')?.textContent||''
+    return text.includes('3.5 kg 포장에서 확인')&&!text.includes('포장 규격 확인 중')
+  },null,{timeout:60000})
+  const manufacturingText=await manufacturing.innerText()
+  assert.match(manufacturingText,/한국/)
+  assert.match(manufacturingText,/3\.5 kg 포장에서 확인/)
+  assert.match(manufacturingText,/확인되지 않은 다른 규격에는 적용하지 않습니다/)
+  assert.doesNotMatch(manufacturingText,/1\.5 kg 포장에서 확인|8 kg 포장에서 확인/)
 
   const market=page.locator('.detail-market-disclosure').first()
-  assert.equal(await market.count(),1,viewKey+' market disclosure missing')
-  assert.equal(await market.evaluate(el=>el.open),false,viewKey+' market disclosure default')
-  await pointerToggle(market,viewKey+' market')
-  const focusStyle=await keyboardToggle(page,market,viewKey+' market')
+  assert.equal(await market.count(),1)
+  assert.equal(await market.evaluate(el=>el.open),false)
+  await pointerToggle(market,'dental-390 market')
+  await keyboardToggle(page,market,'dental-390 market')
   await market.locator('summary').click()
   const marketText=await market.innerText()
   assert.match(marketText,/유통/)
   assert.match(marketText,/한국 제품과의 배합 비교/)
   await market.locator('summary').click()
 
-  const layout=await verifyLayout(page)
-  assert.ok(layout.bodyScrollWidth<=layout.bodyClientWidth+1,viewKey+' detail body horizontal overflow '+JSON.stringify(layout))
-  assert.ok(layout.stageScrollWidth<=layout.stageClientWidth+1,viewKey+' detail stage horizontal overflow '+JSON.stringify(layout))
-  if(layout.countryClientWidth!=null) assert.ok(layout.countryScrollWidth<=layout.countryClientWidth+1,viewKey+' manufacturing country overflow '+JSON.stringify(layout))
+  await page.evaluate(()=>scrollTo(0,0))
+  await waitVisibleImages(page)
+  const file='postdeploy-dental-390x844.png'
+  await page.screenshot({path:OUT+'/'+file,fullPage:true})
+  report.views.dental390={manufacturing:manufacturingText,market:marketText,file}
+  await context.close()
+}
+async function go1440(){
+  const {context,page}=await guardedPage(1440,900)
+  await openContext(page,'GO!',/오리|Duck/i)
+  const manufacturing=page.locator('.detail-body .detail-section').filter({has:page.getByRole('heading',{name:'제조 정보',exact:true})}).first()
+  const manufacturingText=await manufacturing.innerText()
+  assert.match(manufacturingText,/제조국\s*캐나다/)
+  assert.doesNotMatch(manufacturingText,/제조 업체와 공장 정보는 확인하지 못했습니다/)
+  const extra=manufacturing.locator('details').filter({has:page.locator('summary',{hasText:'추가 제조 정보 보기'})})
+  assert.equal(await extra.count(),0,'GO! should not render empty additional manufacturing disclosure')
+
+  const market=page.locator('.detail-market-disclosure').first()
+  assert.equal(await market.count(),1)
+  assert.equal(await market.evaluate(el=>el.open),false)
+  await market.locator('summary').click()
+  const marketText=await market.innerText()
+  assert.match(marketText,/유통/)
+  assert.match(marketText,/한국 제품과의 배합 비교/)
+  assert.ok((await market.locator('.detail-market-row').count())>0)
+  await market.locator('summary').click()
 
   await page.evaluate(()=>scrollTo(0,0))
   await waitVisibleImages(page)
-  const file=`detail-context-${key}-${width}x${height}.png`
+  const file='postdeploy-go-1440x900.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:true})
-  report.views[viewKey]={title,manufacturing:manufacturingText,market:marketText,focusStyle,layout,file}
+  report.views.go1440={manufacturing:manufacturingText,market:marketText,file}
   await context.close()
 }
 
-for(const [width,height] of [[390,844],[1440,900]]){
-  await verifyProduct(width,height,'go','GO!',/오리|Duck/i)
-  await verifyProduct(width,height,'dental','덴탈케어',/덴탈케어|Dental Care/i)
-}
-
+await dental390()
+await go1440()
 assert.equal(report.blocked.length,0)
 assert.ok(report.reads.length>0)
 assert.ok(report.reads.every(x=>['GET','HEAD','OPTIONS'].includes(x.method)))

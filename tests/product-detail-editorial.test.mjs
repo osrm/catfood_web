@@ -541,12 +541,43 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
   const scopeRow = [...document.querySelectorAll('.compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '적용 범위')
   assert.match(scopeRow.textContent, /한국 판매 제품 자료/)
   assert.match(scopeRow.textContent, /85 g × 6 제품에서 확인/)
+  assert.match(scopeRow.textContent, /현재 확인 배합 전체 목록 보완/)
   const sourceDisclosure = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '출처 원문 보기')
   assert.ok(sourceDisclosure)
   assert.equal(sourceDisclosure.open, false)
   sourceDisclosure.open = true
   assert.match(sourceDisclosure.textContent, /대표 확인 자료 · 출처 원문참치, 닭고기, 기타 원료/)
   assert.match(sourceDisclosure.textContent, /현재 확인 배합 전체 목록 · 출처 원문Tuna, chicken, broth, vitamins and minerals/)
+})
+
+test('comparison labels non-current supplemental ingredient sources as supporting material outside and inside disclosure', async () => {
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+      ...ingredients,
+      supplemental_is_current_resolved_formula: false,
+    }])
+    return Response.json([])
+  }
+
+  await act(async () => {
+    root.render(createElement(app.CompareView, {
+      items: [{ product: target }],
+      onClose() {},
+      onRemove() {},
+      initialTab: 'ingredients',
+    }))
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
+  })
+
+  const scopeRow = [...document.querySelectorAll('.compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '적용 범위')
+  assert.match(scopeRow.textContent, /보조 전체 목록 보완/)
+  assert.doesNotMatch(scopeRow.textContent, /현재 확인 배합 전체 목록 보완/)
+  const sourceDisclosure = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '출처 원문 보기')
+  assert.ok(sourceDisclosure)
+  sourceDisclosure.open = true
+  assert.match(sourceDisclosure.textContent, /보조 전체 목록 · 출처 원문Tuna, chicken, broth, vitamins and minerals/)
+  assert.doesNotMatch(sourceDisclosure.textContent, /현재 확인 배합 전체 목록 · 출처 원문/)
 })
 
 test('comparison does not render empty nutrition or source disclosures', async () => {

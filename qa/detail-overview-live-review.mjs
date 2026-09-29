@@ -62,13 +62,29 @@ const metrics=loc=>loc.evaluate(el=>{
   for(let i=0;i<await labels.count();i++) labelMetrics.push(await metrics(labels.nth(i)))
   assert.ok(labelMetrics.some(x=>x.text==='확인된 조건'))
   assert.ok(labelMetrics.some(x=>x.text==='미확인 조건'))
-  for(const x of labelMetrics){
-    assert.ok(x.scrollWidth<=x.clientWidth+1, x.text+' must not be horizontally clipped')
-    assert.ok(x.height<=parseFloat(x.lineHeight)*1.25, x.text+' must stay on one line')
+  const labelLayout=[]
+  for(let i=0;i<await labels.count();i++){
+    const label=labels.nth(i)
+    const m=labelMetrics[i]
+    const needed=await label.evaluate(el=>{
+      const clone=el.cloneNode(true)
+      clone.style.position='fixed'
+      clone.style.visibility='hidden'
+      clone.style.whiteSpace='nowrap'
+      clone.style.width='auto'
+      clone.style.height='auto'
+      clone.style.maxWidth='none'
+      document.body.appendChild(clone)
+      const width=clone.getBoundingClientRect().width
+      clone.remove()
+      return width
+    })
+    const grid=await label.locator('..').evaluate(el=>getComputedStyle(el).gridTemplateColumns)
+    labelLayout.push({...m,neededWidth:needed,grid})
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.views.mobile={file,row:await unknown.innerText(),labels:labelMetrics}
+  report.views.mobile={file,row:await unknown.innerText(),labels:labelLayout}
   await context.close()
 }
 

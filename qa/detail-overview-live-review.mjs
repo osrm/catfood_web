@@ -24,7 +24,13 @@ async function guardedPage(width,height){
   })
   return {context,page}
 }
-async function waitCatalog(page){await page.getByText(/현재 확인된 제품 \d+개/).waitFor({timeout:90000})}
+async function waitHomeCatalog(page){await page.getByText(/현재 확인된 제품 \d+개/).waitFor({timeout:90000})}
+async function waitWorkspaceCatalog(page){
+  await page.waitForFunction(()=>{
+    const status=document.querySelector('.research-status')?.textContent||''
+    return /\d+ PRODUCTS/.test(status)&&!status.includes('불러오는 중')
+  },null,{timeout:90000})
+}
 async function waitVisibleImages(page){
   await page.waitForFunction(()=>[...document.querySelectorAll('img')].filter(img=>{
     const r=img.getBoundingClientRect()

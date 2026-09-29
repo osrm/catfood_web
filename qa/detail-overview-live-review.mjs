@@ -26,7 +26,7 @@ async function loadedImages(page){
 }
 async function searchLookup(page){
   await page.goto(BASE+'?view=workspace&mode=lookup',{waitUntil:'domcontentloaded'})
-  await page.getByText(/\d+ PRODUCTS/).waitFor({timeout:90000})
+  await page.waitForFunction(()=>/\d+\s+PRODUCTS/.test(document.body.textContent||''),null,{timeout:90000})
   const input=page.locator('.lookup-input')
   await input.fill('GO! SOLUTIONS')
   await input.press('Enter')

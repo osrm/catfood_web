@@ -274,7 +274,7 @@ test('two-product overview preserves EXPLORE relation semantics and stays scoped
   let mobile = document.querySelector('.compare-mobile-two-product-overview')
   assert.ok(mobile)
   assert.match(mobile.textContent, /선택한 조건과 비교/)
-  assert.match(mobile.textContent, /확인됨/)
+  assert.match(mobile.textContent, /확인된 조건/)
   assert.match(mobile.textContent, /건식/)
 
   await click('영양')

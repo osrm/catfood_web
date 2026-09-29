@@ -132,20 +132,46 @@ function detailContext(detail: CompareNutrition | CompareIngredients | undefined
   }
   return [market, scope].filter(Boolean).join(' · ')
 }
-function nutritionDetailContext(detail: CompareNutrition | undefined, variants: ProductVariant[] = [], failed = false, loading = false) {
-  let context = detailContext(detail, variants, failed, loading)
-  const fields = detail?.supplemental_nutrition_fields ?? []
-  if (fields.length) {
-    const fieldLabels = fields.map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' ')).join(' · ')
-    context += ` · ${fieldLabels}: ${detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 자료로 보완' : '보조 영양 근거로 보완'}`
-  }
-  if (detail?.basis_specific_nutrition_values?.some((value) => value.amount != null)) context += detail.basis_specific_nutrition_basis === 'dry_matter' ? ' · 건물 기준 자료 별도 확인' : ' · 다른 기준 자료 별도 확인'
-  return context
+function nutritionSupplementalFields(detail: CompareNutrition | undefined) {
+  return detail?.supplemental_nutrition_fields ?? []
+}
+function nutritionScopeSummary(detail: CompareNutrition | undefined, variants: ProductVariant[] = [], failed = false, loading = false) {
+  const context = detailContext(detail, variants, failed, loading)
+  return nutritionSupplementalFields(detail).length ? `${context} · 보완 자료 포함` : context
 }
 function ingredientDetailContext(detail: CompareIngredients | undefined, variants: ProductVariant[] = [], failed = false, loading = false) {
-  const base = detailContext(detail, variants, failed, loading)
-  if (!(detail?.supplemental_full_ingredient_names?.length || detail?.supplemental_full_raw_text?.trim())) return base
-  return `${base} · ${detail.supplemental_is_current_resolved_formula ? '현재 확인 배합 전체 목록 별도 확인' : '보조 전체 목록 별도 확인'}`
+  return detailContext(detail, variants, failed, loading)
+}
+function hasOverviewListValue(product: CatalogProduct, field: 'targets' | 'features') {
+  return field === 'targets' ? product.official_targets.length > 0 : product.features.length > 0
+}
+function CompareDisclosure({ children, label = '추가 정보 보기', className = '' }: { children: ReactNode; label?: string; className?: string }) {
+  return <details className={`compare-disclosure${className ? ` ${className}` : ''}`}><summary>{label}</summary><div className="compare-disclosure-content">{children}</div></details>
+}
+function NutritionScope({ detail, variants = [], failed = false, loading = false }: { detail: CompareNutrition | undefined; variants?: ProductVariant[]; failed?: boolean; loading?: boolean }) {
+  const fields = nutritionSupplementalFields(detail)
+  const fieldLabels = fields.map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' ')).join(' · ')
+  return <div className="compare-scope-summary">
+    <span className="compare-muted">{nutritionScopeSummary(detail, variants, failed, loading)}</span>
+    {fields.length ? <CompareDisclosure label="자료 기준 보기" className="compare-evidence-disclosure">
+      <div className="compare-evidence-details">
+        <p><span>보완 항목</span><strong>{fieldLabels}</strong></p>
+        <p><span>보완 근거</span><strong>{detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 자료로 보완' : '보조 영양 근거로 보완'}</strong></p>
+      </div>
+    </CompareDisclosure> : null}
+  </div>
+}
+function IngredientSourceDisclosure({ row }: { row: CompareIngredients | undefined }) {
+  if (!row) return <span className="compare-muted">확인된 목록 없음</span>
+  const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', ')
+  const supplementalText = row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.join(', ')
+  if (!primaryText && !supplementalText) return <span className="compare-muted">확인된 목록 없음</span>
+  return <CompareDisclosure label="출처 원문 보기" className="compare-evidence-disclosure">
+    <div className="compare-source-layers">
+      {primaryText ? <div><span className="compare-muted">대표 확인 자료 · 출처 원문</span><p className="compare-ingredient-text">{primaryText}</p></div> : null}
+      {supplementalText ? <div><span className="compare-muted">현재 확인 배합 전체 목록 · 출처 원문</span><p className="compare-ingredient-text">{supplementalText}</p></div> : null}
+    </div>
+  </CompareDisclosure>
 }
 
 function ProductHead({ item, onRemove, onDetail, roleLabel }: { item: CompareItem; onRemove: () => void; onDetail: () => void; roleLabel?: string }) {
@@ -220,8 +246,21 @@ function MobileTwoProductSection({ title }: { title: string }) {
     <tr><th colSpan={2} scope="rowgroup">{title}</th></tr>
   </tbody>
 }
+function MobileTwoProductExtraDisclosure({ items, showTargets, showFeatures }: { items: CompareItem[]; showTargets: boolean; showFeatures: boolean }) {
+  if (!showTargets && !showFeatures) return null
+  return <tbody className="compare-mobile-two-product-extra"><tr><td colSpan={2}>
+    <CompareDisclosure>
+      <table className="compare-mobile-two-product-extra-table">
+        {showTargets ? <MobileTwoProductOverviewField fieldKey="targets-extra" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
+        {showFeatures ? <MobileTwoProductOverviewField fieldKey="features-extra" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
+      </table>
+    </CompareDisclosure>
+  </td></tr></tbody>
+}
 
 function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: CompareItem[]; onDetail: (productId: string) => void; onRemove: (productId: string) => void }) {
+  const collapseTargets = items.length > 0 && items.every((item) => !hasOverviewListValue(item.product, 'targets'))
+  const collapseFeatures = items.length > 0 && items.every((item) => !hasOverviewListValue(item.product, 'features'))
   return <div className="compare-mobile-two-product-overview">
     <div className="compare-mobile-two-product-heads">
       {items.map((item, index) => {
@@ -267,8 +306,9 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
       <MobileTwoProductSection title="제품 기본 정보" />
       <MobileTwoProductOverviewField fieldKey="feed-type" label="사료 형태" items={items} render={(item) => overviewValue(item.product, 'feedType')} />
       <MobileTwoProductOverviewField fieldKey="life-stage" label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
-      <MobileTwoProductOverviewField fieldKey="targets" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} />
-      <MobileTwoProductOverviewField fieldKey="features" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} />
+      {!collapseTargets ? <MobileTwoProductOverviewField fieldKey="targets" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
+      {!collapseFeatures ? <MobileTwoProductOverviewField fieldKey="features" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
+      <MobileTwoProductExtraDisclosure items={items} showTargets={collapseTargets} showFeatures={collapseFeatures} />
 
       <MobileTwoProductSection title="레시피 · 판매 정보" />
       <MobileTwoProductOverviewField fieldKey="recipe-families" label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
@@ -397,6 +437,9 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const switchCompare = Boolean(currentProduct)
   const switchOverview = Boolean(currentProduct && tab === 'overview')
   const twoProductOverview = !switchCompare && tab === 'overview' && items.length === 2
+  const overviewProducts = currentProduct ? [currentProduct, ...items.map((item) => item.product)] : items.map((item) => item.product)
+  const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
+  const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
   const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ''}${switchOverview ? ' is-switch-overview' : ''}`
   const headerCopy = currentProduct
     ? tab === 'overview'
@@ -422,11 +465,15 @@ export default function CompareView({ items, currentProduct, currentVariantText,
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
-          <CompareSection title="제품 기본 정보" note="제품에 표시된 기본 정보를 같은 항목으로 비교합니다." />
+          <CompareSection title="제품 기본 정보" />
           <SwitchOverviewRow label="사료 형태" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'feedType')} candidateValue={(item) => overviewValue(item.product, 'feedType')} />
           <SwitchOverviewRow label="대상 연령" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'lifeStage')} candidateValue={(item) => overviewValue(item.product, 'lifeStage')} />
-          <SwitchOverviewRow label="제품 표기 대상" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'targets')} candidateValue={(item) => overviewValue(item.product, 'targets')} />
-          <SwitchOverviewRow label="제품 특징" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'features')} candidateValue={(item) => overviewValue(item.product, 'features')} />
+          {!collapseTargets ? <SwitchOverviewRow label="제품 표기 대상" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'targets')} candidateValue={(item) => overviewValue(item.product, 'targets')} /> : null}
+          {!collapseFeatures ? <SwitchOverviewRow label="제품 특징" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'features')} candidateValue={(item) => overviewValue(item.product, 'features')} /> : null}
+          {collapseTargets || collapseFeatures ? <CompareDisclosure className="compare-overview-extra">
+            {collapseTargets ? <SwitchOverviewRow label="제품 표기 대상" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'targets')} candidateValue={(item) => overviewValue(item.product, 'targets')} /> : null}
+            {collapseFeatures ? <SwitchOverviewRow label="제품 특징" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'features')} candidateValue={(item) => overviewValue(item.product, 'features')} /> : null}
+          </CompareDisclosure> : null}
           <CompareSection title="레시피 · 판매 정보" note="사용 규격과 제품의 판매 규격을 구분해 표시합니다." />
           <SwitchOverviewRow label="레시피 종류" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'recipeFamilies')} candidateValue={(item) => overviewValue(item.product, 'recipeFamilies')} />
           <SwitchOverviewRow label="주요 레시피" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'recipeDetails')} candidateValue={(item) => overviewValue(item.product, 'recipeDetails')} />
@@ -470,11 +517,15 @@ export default function CompareView({ items, currentProduct, currentVariantText,
             <MobileProductHead role="현재 사료 · 기준" product={currentProduct} variantText={currentVariantText || '사용 규격 모름'} />
             <MobileProductHead role="표시 중인 후보" product={mobileCandidate.product} onDetail={() => openDetail(mobileCandidate.product.product_id)} onRemove={() => removeComparedProduct(mobileCandidate.product.product_id)} />
           </div>
-          <CompareSection title="제품 기본 정보" note="같은 항목의 두 값을 나란히 봅니다." />
+          <CompareSection title="제품 기본 정보" />
           <MobileOverviewRow label="사료 형태" current={overviewValue(currentProduct, 'feedType')} candidate={overviewValue(mobileCandidate.product, 'feedType')} />
           <MobileOverviewRow label="대상 연령" current={overviewValue(currentProduct, 'lifeStage')} candidate={overviewValue(mobileCandidate.product, 'lifeStage')} />
-          <MobileOverviewRow label="제품 표기 대상" current={overviewValue(currentProduct, 'targets')} candidate={overviewValue(mobileCandidate.product, 'targets')} />
-          <MobileOverviewRow label="제품 특징" current={overviewValue(currentProduct, 'features')} candidate={overviewValue(mobileCandidate.product, 'features')} />
+          {!collapseTargets ? <MobileOverviewRow label="제품 표기 대상" current={overviewValue(currentProduct, 'targets')} candidate={overviewValue(mobileCandidate.product, 'targets')} /> : null}
+          {!collapseFeatures ? <MobileOverviewRow label="제품 특징" current={overviewValue(currentProduct, 'features')} candidate={overviewValue(mobileCandidate.product, 'features')} /> : null}
+          {collapseTargets || collapseFeatures ? <CompareDisclosure className="compare-overview-extra">
+            {collapseTargets ? <MobileOverviewRow label="제품 표기 대상" current={overviewValue(currentProduct, 'targets')} candidate={overviewValue(mobileCandidate.product, 'targets')} /> : null}
+            {collapseFeatures ? <MobileOverviewRow label="제품 특징" current={overviewValue(currentProduct, 'features')} candidate={overviewValue(mobileCandidate.product, 'features')} /> : null}
+          </CompareDisclosure> : null}
           <CompareSection title="레시피 · 판매 정보" note="사용 규격은 머리의 현재 사료 정보에 별도로 표시합니다." />
           <MobileOverviewRow label="레시피 종류" current={overviewValue(currentProduct, 'recipeFamilies')} candidate={overviewValue(mobileCandidate.product, 'recipeFamilies')} />
           <MobileOverviewRow label="주요 레시피" current={overviewValue(currentProduct, 'recipeDetails')} candidate={overviewValue(mobileCandidate.product, 'recipeDetails')} />
@@ -490,15 +541,19 @@ export default function CompareView({ items, currentProduct, currentVariantText,
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           {items.some(hasRelationData) ? <>
-            <CompareSection title="선택한 조건과 비교" note="선택한 조건과 각 제품이 어떻게 맞는지 확인합니다." />
+            <CompareSection title="선택한 조건과 비교" />
             <CompareRow label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
           </> : null}
-          <CompareSection title="제품 기본 정보" note="제품에 표시된 기본 정보를 나란히 봅니다." />
+          <CompareSection title="제품 기본 정보" />
           <CompareRow label="사료 형태" items={items} render={(item) => overviewValue(item.product, 'feedType')} />
           <CompareRow label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
-          <CompareRow label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} />
-          <CompareRow label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} />
-          <CompareSection title="레시피 · 판매 정보" note="레시피와 판매 규격을 함께 비교합니다." />
+          {!collapseTargets ? <CompareRow label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
+          {!collapseFeatures ? <CompareRow label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
+          {collapseTargets || collapseFeatures ? <CompareDisclosure className="compare-overview-extra">
+            {collapseTargets ? <CompareRow label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
+            {collapseFeatures ? <CompareRow label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
+          </CompareDisclosure> : null}
+          <CompareSection title="레시피 · 판매 정보" />
           <CompareRow label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
           <CompareRow label="주요 레시피" items={items} render={(item) => overviewValue(item.product, 'recipeDetails')} />
           <CompareRow label="Grain-Free 표기" items={items} render={(item) => overviewValue(item.product, 'grainFree')} />
@@ -507,9 +562,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
         </> : null}
 
         {tab === 'nutrition' && !nutritionLoading && !nutritionError ? <>
-          <CompareSection title="자료 안내" note="같은 기준으로 확인된 일반 표시값만 위 표에서 직접 비교합니다." />
-          <CompareRow label="확인 기준" items={items} tone="context" render={(item) => <span className="compare-muted">{nutritionDetailContext(nutritionByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)}</span>} />
-          <CompareSection title="영양 성분" note="확인된 표시값을 그대로 보여줍니다. 기준이 다른 수치는 합치지 않습니다." />
+          <CompareSection title="영양 성분" note="표시값의 단위·한정자를 그대로 보여줍니다. 다른 기준의 자료는 합치거나 환산하지 않습니다." />
           <CompareRow label="열량" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); if (!row) return '미확인'; return row.kcal_per_kg != null ? formatNumber(row.kcal_per_kg, ' kcal/kg') : formatNumber(row.kcal_per_100g, ' kcal/100g') }} />
           <CompareRow label="조단백질" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'protein', row?.protein_pct, row?.protein_qualifier) }} />
           <CompareRow label="조지방" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'fat', row?.fat_pct, row?.fat_qualifier) }} />
@@ -517,21 +570,21 @@ export default function CompareView({ items, currentProduct, currentVariantText,
           <CompareRow label="수분" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'moisture', row?.moisture_pct, row?.moisture_qualifier) }} />
           <CompareRow label="조회분" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'ash', row?.ash_pct, row?.ash_qualifier) }} />
           {additionalNutrientKeys.map((key) => <CompareRow key={key} label={additionalNutrientLabel(key, nutrition)} items={items} tone="metric" render={(item) => formatAdditionalNutrient(additionalNutrient(nutritionByProduct.get(item.product.product_id), key))} />)}
-          {hasBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="건물 기준 등 다른 기준의 자료는 일반 표시값과 합치거나 환산하지 않습니다." /><CompareRow label="별도 확인 자료" items={items} tone="context" render={(item) => <span className="compare-muted">{basisSpecificSummary(nutritionByProduct.get(item.product.product_id))}</span>} /></> : null}
+          <CompareSection title="자료 범위" />
+          <CompareRow label="적용 범위" items={items} tone="context" render={(item) => <NutritionScope detail={nutritionByProduct.get(item.product.product_id)} variants={variantsByProduct[item.product.product_id]} failed={variantLookupFailures.includes(item.product.product_id)} loading={variantsLoading} />} />
+          {hasBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><CompareRow label="별도 확인 자료" items={items} tone="context" render={(item) => <span className="compare-muted">{basisSpecificSummary(nutritionByProduct.get(item.product.product_id))}</span>} /></> : null}
         </> : null}
 
         {tab === 'ingredients' && !ingredientsLoading && !ingredientsError ? <>
-          <CompareSection title="자료 안내" note="한국어 원료 요약과 제품에 표시된 출처 원문을 구분해 봅니다." />
-          <CompareRow label="확인 기준" items={items} tone="context" render={(item) => <span className="compare-muted">{ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)}</span>} />
           <CompareSection title="원재료" note="검토된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다." />
           <CompareRow label="목록 상태" items={items} render={(item) => { const row = ingredientsByProduct.get(item.product.product_id); if (!row) return '미확인'; const base = row.completeness_status === 'full' ? '전체 목록 확인' : row.completeness_status === 'partial' ? '일부 목록' : row.completeness_status === 'summary' ? '요약 정보' : '상태 미확인'; return row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.length ? `${base} · 전체 목록 보완 있음` : base }} />
+          <CompareRow label="적용 범위" items={items} tone="context" render={(item) => <span className="compare-muted">{ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)}</span>} />
           <CompareRow label="직접 확인 원료" items={items} render={(item) => labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
           <CompareRow label="향미 연관 원료" items={items} render={(item) => labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
-          <CompareRow label="출처 원문" items={items} render={(item) => { const row = ingredientsByProduct.get(item.product.product_id); if (!row) return <span className="compare-muted">확인된 목록 없음</span>; const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', '); const supplementalText = row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.join(', '); return <div><span className="compare-muted">대표 확인 자료 · 출처 원문</span><p className="compare-ingredient-text">{primaryText || '확인된 목록 없음'}</p>{supplementalText ? <><span className="compare-muted">현재 확인 배합 전체 목록 · 출처 원문</span><p className="compare-ingredient-text">{supplementalText}</p></> : null}</div> }} />
+          <CompareRow label="출처 원문" items={items} render={(item) => <IngredientSourceDisclosure row={ingredientsByProduct.get(item.product.product_id)} />} />
         </> : null}
       </div></>}
     </section>
-    {tab === 'nutrition' ? <p className="compare-footnote">영양값은 확인된 표시값과 한정자·단위를 그대로 보존합니다. 기준이 다른 자료는 환산하지 않고 별도 표시합니다.</p> : null}
-    {tab === 'ingredients' ? <p className="compare-footnote">정규화된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다.</p> : null}
+
   </main>
 }

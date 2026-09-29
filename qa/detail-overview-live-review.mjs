@@ -66,41 +66,14 @@ const metrics=loc=>loc.evaluate(el=>{
   for(let i=0;i<await labels.count();i++){
     const label=labels.nth(i)
     const m=labelMetrics[i]
-    const needed=await label.evaluate(el=>{
-      const clone=el.cloneNode(true)
-      clone.style.position='fixed'
-      clone.style.visibility='hidden'
-      clone.style.whiteSpace='nowrap'
-      clone.style.width='auto'
-      clone.style.height='auto'
-      clone.style.maxWidth='none'
-      document.body.appendChild(clone)
-      const width=clone.getBoundingClientRect().width
-      clone.remove()
-      return width
-    })
-    const ruleInfo=await label.locator('..').evaluate(el=>{
-      const matches=[]
-      const walk=(rules,href)=>{
-        for(const rule of rules){
-          if(rule.type===CSSRule.STYLE_RULE){
-            const style=rule.style
-            if(style?.gridTemplateColumns && rule.selectorText){
-              try{if(el.matches(rule.selectorText)) matches.push({href,selector:rule.selectorText,gridTemplateColumns:style.gridTemplateColumns})}catch{}
-            }
-          }else if(rule.cssRules) walk(rule.cssRules,href)
-        }
-      }
-      for(const sheet of document.styleSheets){
-        try{walk(sheet.cssRules,sheet.href||'inline')}catch{}
-      }
-      return {computed:getComputedStyle(el).gridTemplateColumns,matches}
-    })
-    labelLayout.push({...m,neededWidth:needed,grid:ruleInfo.computed,rules:ruleInfo.matches})
+    const relation=label.locator('..')
+    const valueMetric=await metrics(relation.locator('strong'))
+    const grid=await relation.evaluate(el=>getComputedStyle(el).gridTemplateColumns)
+    labelLayout.push({...m,grid,value:valueMetric})
     assert.ok(m.height<=parseFloat(m.lineHeight)*1.25, m.text+' must stay on one line')
-    assert.ok(ruleInfo.computed.split(/\s+/)[0] !== '46px' && ruleInfo.computed.split(/\s+/)[0] !== '48px', m.text+' relation label track must not use the old fixed width')
-    const valueMetric=await metrics(label.locator('..').locator('strong'))
-    assert.ok(m.left + needed + 4 <= valueMetric.left, m.text+' must not overlap the relation value')
+    assert.ok(m.scrollWidth<=m.clientWidth+1, m.text+' must fit inside its label cell')
+    assert.ok(grid.startsWith('88px '), m.text+' relation label track must be 88px')
+    assert.ok(m.right+4<=valueMetric.left, m.text+' must not overlap the relation value')
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})

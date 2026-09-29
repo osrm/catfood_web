@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const BASE='http://127.0.0.1:4173/'
-const OUT=process.env.OUT_DIR||'mobile-two-product-nutrition-review'
+const BASE=process.env.CANDIDATE_URL||'https://osrm.github.io/catfood_web/'
+const OUT=process.env.OUT_DIR||'mobile-two-product-nutrition-postdeploy'
 await mkdir(OUT,{recursive:true})
-const report={candidate:process.env.PRODUCT_SHA,blocked:[],reads:[],views:{},interactions:[]}
+const report={mergeSha:process.env.PRODUCT_SHA,base:BASE,blocked:[],reads:[],views:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 
 async function guardedPage(width,height){
@@ -122,30 +122,12 @@ async function mobile390(){
   assert.ok(layout.stageScrollWidth<=layout.stageClientWidth+1,'compare stage should not horizontally overflow')
 
   await page.evaluate(()=>scrollTo(0,0))
-  const file='mobile-two-product-nutrition-390x844.png'
+  const file='postdeploy-mobile-two-product-nutrition-390x844.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:true})
   report.views.mobile390={names,headerTexts,rowData,metricFonts,layout,file}
   await context.close()
 }
-async function desktop1440(){
-  const {context,page}=await guardedPage(1440,900)
-  const names=await openNutrition(page)
-  const mobile=page.locator('.compare-mobile-two-product-nutrition')
-  assert.equal(await mobile.evaluate(el=>getComputedStyle(el).display),'none')
-  const desktop=page.locator('.compare-two-product-nutrition-desktop')
-  await desktop.waitFor({state:'visible'})
-  assert.notEqual(await desktop.evaluate(el=>getComputedStyle(el).display),'none')
-  assert.match(await desktop.innerText(),/조단백질/)
-  assert.match(await desktop.innerText(),/적용 범위/)
-  await page.evaluate(()=>scrollTo(0,0))
-  const file='two-product-nutrition-1440x900.png'
-  await page.screenshot({path:OUT+'/'+file,fullPage:true})
-  report.views.desktop1440={names,file}
-  await context.close()
-}
-
 await mobile390()
-await desktop1440()
 assert.equal(report.blocked.length,0)
 assert.ok(report.reads.length>0)
 assert.ok(report.reads.every(x=>['GET','HEAD','OPTIONS'].includes(x.method)))

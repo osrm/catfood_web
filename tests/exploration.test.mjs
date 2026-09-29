@@ -178,7 +178,8 @@ test('detail distinguishes a timeout from missing facts and retries successfully
   assert.equal(document.querySelector('[role="alert"]'), null)
   await click('제조 · 유통')
   assert.match(document.body.textContent, /프랑스/)
-  assert.match(document.body.textContent, /제조 업체와 공장 정보는 확인하지 못했습니다/)
+  assert.doesNotMatch(document.body.textContent, /제조 업체와 공장 정보는 확인하지 못했습니다/)
+  assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.trim() === '추가 제조 정보 보기'), false)
   assert.doesNotMatch(document.body.textContent, /실제 제조사|공장 미확인|확인 범위|규격 기준/)
 })
 

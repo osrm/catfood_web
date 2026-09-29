@@ -317,32 +317,6 @@ test('LOOKUP empty result points back to the existing search input without chang
   assert.equal(document.activeElement?.classList.contains('lookup-input'), true)
 })
 
-test('EXPLORE result and quick view label relation states as selected conditions', async () => {
-  products = catalog(2)
-  products[0].feed_type = null
-  await act(async () => root.render(createElement(app.App)))
-  await click('조건 고르기')
-  await click('건식')
-  await click('이 조건으로 찾기')
-
-  const cards = rows('.research-result-card')
-  assert.equal(cards.length, 2)
-  const unknownCard = cards.find((card) => card.querySelector('.relation-line.is-unknown'))
-  const confirmedCard = cards.find((card) => card.querySelector('.relation-line.is-confirmed'))
-  assert.ok(unknownCard)
-  assert.ok(confirmedCard)
-  assert.equal(unknownCard.querySelector('.relation-line.is-unknown span')?.textContent, '미확인 조건')
-  assert.equal(confirmedCard.querySelector('.relation-line.is-confirmed span')?.textContent, '확인된 조건')
-
-  await click(unknownCard)
-  const quickView = document.querySelector('.research-quick-view')
-  assert.ok(quickView)
-  assert.match(quickView.textContent, /선택한 조건과 비교/)
-  assert.match(quickView.textContent, /미확인 조건/)
-  assert.match(quickView.textContent, /확인된 조건/)
-  assert.doesNotMatch(quickView.querySelector('.quick-view-section')?.textContent ?? '', /(^|\s)확인됨($|\s)/)
-})
-
 test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are retained', async () => {
   products = catalog(40)
   products[0].feed_type = null

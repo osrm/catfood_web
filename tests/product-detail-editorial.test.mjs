@@ -486,3 +486,102 @@ test('detail distinguishes request failure from an empty 200 response and retrie
     'product_detail_markets',
   ]) assert.equal(calls.get(key), 2, `${key} is retried with the existing grouped policy`)
 })
+
+
+test('comparison keeps supplemental nutrition and ingredient source layers behind non-empty disclosures', async () => {
+  const nutritionWithBasis = {
+    ...nutrition,
+    basis_specific_nutrition_basis: 'dry_matter',
+    basis_specific_nutrition_values: [
+      { nutrient_key: 'protein', raw_name: '단백질', amount: 42, unit: '%', qualifier: 'min' },
+    ],
+  }
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([nutritionWithBasis])
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([ingredients])
+    return Response.json([])
+  }
+
+  await act(async () => {
+    root.render(createElement(app.CompareView, {
+      items: [{ product: target }],
+      onClose() {},
+      onRemove() {},
+    }))
+    await Promise.resolve()
+  })
+
+  const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
+  await act(async () => {
+    nutritionTab.click()
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
+  })
+
+  assert.match(document.body.textContent, /10% 이상/)
+  assert.match(document.body.textContent, /4\.5% 이상/)
+  assert.match(document.body.textContent, /1% 이하/)
+  assert.match(document.body.textContent, /800 mg\/kg 평균값/)
+  assert.match(document.body.textContent, /보완 자료 포함/)
+  const nutritionDisclosure = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '자료 기준 보기')
+  assert.ok(nutritionDisclosure)
+  assert.equal(nutritionDisclosure.open, false)
+  nutritionDisclosure.open = true
+  assert.match(nutritionDisclosure.textContent, /보완 항목조회분/)
+  assert.match(nutritionDisclosure.textContent, /보완 근거현재 확인 배합 자료로 보완/)
+  assert.match(document.body.textContent, /건물 기준\(Dry Matter\) · 단백질 42% 이상/)
+
+  const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
+  await act(async () => {
+    ingredientsTab.click()
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
+  })
+
+  assert.match(document.body.textContent, /일부 목록 · 전체 목록 보완 있음/)
+  const scopeRow = [...document.querySelectorAll('.compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '적용 범위')
+  assert.match(scopeRow.textContent, /한국 판매 제품 자료/)
+  assert.match(scopeRow.textContent, /85 g × 6 제품에서 확인/)
+  const sourceDisclosure = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '출처 원문 보기')
+  assert.ok(sourceDisclosure)
+  assert.equal(sourceDisclosure.open, false)
+  sourceDisclosure.open = true
+  assert.match(sourceDisclosure.textContent, /대표 확인 자료 · 출처 원문참치, 닭고기, 기타 원료/)
+  assert.match(sourceDisclosure.textContent, /현재 확인 배합 전체 목록 · 출처 원문Tuna, chicken, broth, vitamins and minerals/)
+})
+
+test('comparison does not render empty nutrition or source disclosures', async () => {
+  const noSupplementNutrition = { ...nutrition, supplemental_nutrition_fields: [] }
+  const noSourceIngredients = {
+    ...ingredients,
+    raw_text: null,
+    ingredient_names: [],
+    supplemental_full_raw_text: null,
+    supplemental_full_ingredient_names: [],
+    supplemental_full_ingredient_count: 0,
+  }
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([noSupplementNutrition])
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([noSourceIngredients])
+    return Response.json([])
+  }
+
+  await act(async () => {
+    root.render(createElement(app.CompareView, {
+      items: [{ product: target }],
+      onClose() {},
+      onRemove() {},
+      initialTab: 'nutrition',
+    }))
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
+  })
+  assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.trim() === '자료 기준 보기'), false)
+
+  const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
+  await act(async () => {
+    ingredientsTab.click()
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
+  })
+  assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.trim() === '출처 원문 보기'), false)
+  assert.match(document.body.textContent, /확인된 목록 없음/)
+})

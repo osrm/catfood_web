@@ -64,6 +64,7 @@ const metrics=loc=>loc.evaluate(el=>{
   assert.ok(labelMetrics.some(x=>x.text==='미확인 조건'))
   for(const x of labelMetrics){
     assert.ok(x.scrollWidth<=x.clientWidth+1, x.text+' must not be horizontally clipped')
+    assert.ok(x.height<=parseFloat(x.lineHeight)*1.25, x.text+' must stay on one line')
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})

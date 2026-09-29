@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const BASE='http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'result-relation-candidate'
 await mkdir(OUT,{recursive:true})
-const report={candidate:process.env.PRODUCT_SHA,blocked:[],views:{}}
+const report={candidate:process.env.PRODUCT_SHA,blocked:[],views:{},switch:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 
 async function guardedPage(width,height){
@@ -88,6 +88,44 @@ const metrics=loc=>loc.evaluate(el=>{
   const file='explore-1440x900-quickview.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
   report.views.desktop={file,row:await unknown.innerText(),quick:await section.innerText(),labels:[await metrics(dts.nth(0)),await metrics(dts.nth(1))]}
+  await context.close()
+}
+
+
+// SWITCH desktop heading for AATU salmon 1 kg -> other brand + senior / keep dry + fish.
+{
+  const {context,page}=await guardedPage(1440,900)
+  await page.goto(BASE,{waitUntil:'domcontentloaded'})
+  await waitCatalog(page)
+  await page.getByRole('button',{name:'현재 사료로 시작 →'}).click()
+  await page.locator('.switch-find-search input').fill('AATU')
+  const current=page.locator('.switch-find-result').filter({hasText:/연어/}).first()
+  await current.waitFor({state:'visible',timeout:30000})
+  await current.click()
+  await page.getByRole('button',{name:'이 제품을 현재 사료로 선택 →'}).click()
+  const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first()
+  await sku.waitFor({state:'visible',timeout:30000})
+  await sku.click()
+  await page.locator('.switch-step-actions .switch-primary-action').click()
+  await page.getByRole('button',{name:'다른 브랜드로 보기',exact:true}).click()
+  const changeToggle=page.locator('.switch-change-additional-toggle')
+  if(await changeToggle.isVisible() && await changeToggle.getAttribute('aria-expanded')!=='true') await changeToggle.click()
+  await page.getByRole('button',{name:'시니어',exact:true}).click()
+  await page.locator('.switch-step-actions .switch-primary-action').click()
+  await page.getByRole('heading',{name:'무엇을 그대로 유지할까요?'}).waitFor()
+  await page.getByRole('button',{name:'건식 유지',exact:true}).click()
+  await page.getByRole('button',{name:'생선',exact:true}).click()
+  await page.locator('.switch-step-actions .switch-primary-action').click()
+  const heading=page.locator('.switch-candidate-heading')
+  await heading.waitFor({state:'visible',timeout:30000})
+  const headingText=await heading.innerText()
+  assert.match(headingText,/\d+개의 제품|\d+개 중 \d+개 표시/)
+  assert.match(headingText,/선택한 조건과 제품 정보를 비교합니다\./)
+  assert.doesNotMatch(headingText,/레시피·Grain-Free·원료는 현재 확인된 정보만 사용합니다|자세한 근거는 상세 화면/)
+  await waitVisibleImages(page)
+  const file='switch-1440x900-results.png'
+  await page.screenshot({path:OUT+'/'+file,fullPage:false})
+  report.switch={file,heading:headingText}
   await context.close()
 }
 

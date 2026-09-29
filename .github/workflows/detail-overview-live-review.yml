@@ -10,8 +10,8 @@ jobs:
   live-browser:
     runs-on: ubuntu-latest
     env:
-      DEPLOY_SHA: 109ee7bfccca32815ddab7eadd5e7d86da1b9bdb
       BASE_URL: https://osrm.github.io/catfood_web/
+      SOURCE_SHA: 109ee7bfccca32815ddab7eadd5e7d86da1b9bdb
     steps:
       - name: Checkout QA harness
         uses: actions/checkout@v5
@@ -27,8 +27,8 @@ jobs:
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
           if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
-      - name: Live Pages consumer-language postdeploy QA
-        run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" BASE_URL="$BASE_URL" DEPLOY_SHA="$DEPLOY_SHA" node /tmp/detail-overview-live/detail-overview-live-review.mjs
+      - name: Live Pages results language review
+        run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" BASE_URL="$BASE_URL" SOURCE_SHA="$SOURCE_SHA" node /tmp/detail-overview-live/detail-overview-live-review.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

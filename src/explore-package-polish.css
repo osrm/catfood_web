@@ -438,7 +438,7 @@
 
 .relation-line,
 .research-shell.is-inspecting .relation-line {
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   gap: 8px;
   font-size: 12px;
   line-height: 1.45;

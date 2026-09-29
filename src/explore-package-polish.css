@@ -436,9 +436,9 @@
   overflow-wrap: anywhere;
 }
 
-.relation-line,
-.research-shell.is-inspecting .relation-line {
-  grid-template-columns: 58px minmax(0, 1fr);
+.research-shell .research-results .research-result-card .relation-line,
+.research-shell.is-inspecting .research-results .research-result-card .relation-line {
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 8px;
   font-size: 12px;
   line-height: 1.45;

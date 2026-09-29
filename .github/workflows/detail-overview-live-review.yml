@@ -10,7 +10,7 @@ jobs:
   live-browser:
     runs-on: ubuntu-latest
     env:
-      CANDIDATE_SHA: 44a232eedbc399970dfec3e19fddcceaefd5d60b
+      CANDIDATE_SHA: 8a4f3d205dc9e3cca8a6ecd7e585e41d699895e6
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
     steps:
@@ -25,7 +25,7 @@ jobs:
       - name: Checkout exact product candidate
         uses: actions/checkout@v5
         with:
-          ref: 44a232eedbc399970dfec3e19fddcceaefd5d60b
+          ref: 8a4f3d205dc9e3cca8a6ecd7e585e41d699895e6
           clean: true
       - uses: actions/setup-node@v5
         with:

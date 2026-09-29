@@ -124,8 +124,9 @@ async function run(width,height){
     : page.locator('.compare-table > .compare-overview-extra').first()
   assert.equal(await overviewDisclosure.count(),1,'overview disclosure exists for live all-empty optional facts')
   assert.equal(await overviewDisclosure.evaluate(el=>el.open),false)
-  assert.match(await overviewDisclosure.innerText(),/제품 표기 대상/)
-  assert.match(await overviewDisclosure.innerText(),/제품 특징/)
+  const overviewDisclosureText=await overviewDisclosure.evaluate(el=>el.textContent||'')
+  assert.match(overviewDisclosureText,/제품 표기 대상/)
+  assert.match(overviewDisclosureText,/제품 특징/)
   assert.equal((await page.locator('.compare-section-row').allInnerTexts()).some(x=>/제품에 표시된 기본 정보를 나란히|레시피와 판매 규격을 함께 비교/.test(x)),false)
   await pointerToggle(overviewDisclosure,key+' overview extra')
   if(mobileTwo){

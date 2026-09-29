@@ -296,3 +296,28 @@ test('detail tablist supports arrow-key focus movement', async () => {
   assert.equal(document.activeElement?.id, 'detail-tab-nutrition')
   assert.equal(document.activeElement?.getAttribute('aria-selected'), 'true')
 })
+
+
+test('non-SWITCH overview keeps a partly populated row visible and collapses only rows empty for every product', async () => {
+  const first = { ...products[0], official_targets: ['indoor'], features: [] }
+  const second = { ...products[1], official_targets: [], features: [] }
+  document.body.innerHTML = '<div id="root"></div>'
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, {
+    items: [{ product: first }, { product: second }],
+    onClose() {},
+    onRemove() {},
+  })))
+  await waitForUi(() => document.querySelector('.compare-stage') !== null, 'comparison rendered')
+
+  const visibleRows = [...document.querySelectorAll('.compare-table > .compare-row')]
+  const targetRow = visibleRows.find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '제품 표기 대상')
+  assert.ok(targetRow)
+  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.trim()), ['실내묘', '확인된 값 없음'])
+
+  const disclosure = document.querySelector('.compare-table > .compare-overview-extra')
+  assert.ok(disclosure)
+  assert.equal(disclosure.open, false)
+  assert.match(disclosure.textContent, /제품 특징/)
+  assert.doesNotMatch(disclosure.textContent, /제품 표기 대상/)
+})

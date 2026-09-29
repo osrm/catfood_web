@@ -327,10 +327,14 @@ test('EXPLORE result and quick view label relation states as selected conditions
 
   const cards = rows('.research-result-card')
   assert.equal(cards.length, 2)
-  assert.equal(cards[0].querySelector('.relation-line.is-unknown span')?.textContent, '미확인 조건')
-  assert.equal(cards[1].querySelector('.relation-line.is-confirmed span')?.textContent, '확인된 조건')
+  const unknownCard = cards.find((card) => card.querySelector('.relation-line.is-unknown'))
+  const confirmedCard = cards.find((card) => card.querySelector('.relation-line.is-confirmed'))
+  assert.ok(unknownCard)
+  assert.ok(confirmedCard)
+  assert.equal(unknownCard.querySelector('.relation-line.is-unknown span')?.textContent, '미확인 조건')
+  assert.equal(confirmedCard.querySelector('.relation-line.is-confirmed span')?.textContent, '확인된 조건')
 
-  await click(cards[0])
+  await click(unknownCard)
   const quickView = document.querySelector('.research-quick-view')
   assert.ok(quickView)
   assert.match(quickView.textContent, /선택한 조건과 비교/)

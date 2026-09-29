@@ -46,7 +46,9 @@ async function addLookup(query, namePattern){
 
 await page.goto(BASE,{waitUntil:'domcontentloaded'})
 await waitCatalog()
-await page.getByRole('button',{name:/제품 찾기/}).click()
+const homeSearch=page.getByRole('textbox',{name:'브랜드 또는 제품명 검색'})
+await homeSearch.fill('AATU')
+await page.getByRole('button',{name:'검색',exact:true}).click()
 const input=page.locator('.lookup-input')
 await input.waitFor({state:'visible'})
 

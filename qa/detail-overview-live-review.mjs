@@ -48,7 +48,7 @@ async function exploreOmitted(){
     url.searchParams.set('targets',set.targets)
     url.searchParams.set('features',set.features)
     await page.goto(url.href,{waitUntil:'domcontentloaded'})
-    await waitCatalog(page)
+    await waitWorkspaceCatalog(page)
     await page.locator('.research-result-card').first().waitFor({state:'visible',timeout:30000})
     const cards=page.locator('.research-result-card')
     for(let i=0;i<Math.min(await cards.count(),40);i++){
@@ -68,7 +68,7 @@ async function exploreOmitted(){
 async function compareReturn(){
   const {context,page}=await guardedPage(1440,900)
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
-  await waitCatalog(page)
+  await waitHomeCatalog(page)
   const home=page.locator('.home-entry-search input[type="search"]')
   await home.waitFor({state:'visible',timeout:30000})
   await home.fill('GO!')

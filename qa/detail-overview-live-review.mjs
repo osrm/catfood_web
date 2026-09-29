@@ -113,13 +113,6 @@ async function mobile(){
   await pointerToggle(extra,'390 overview extra')
 
   const wrap=page.locator('.compare-table-wrap')
-  const horizontal=await wrap.evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,before:el.scrollLeft}))
-  assert.ok(horizontal.scrollWidth>horizontal.clientWidth,'mobile compare should be horizontally scrollable')
-  await wrap.evaluate(el=>{el.scrollLeft=el.scrollWidth})
-  await page.waitForFunction(()=>{const el=document.querySelector('.compare-table-wrap');return !!el&&el.scrollLeft>0})
-  horizontal.after=await wrap.evaluate(el=>el.scrollLeft)
-  assert.ok(horizontal.after>0,'actual horizontal scroll did not move')
-  report.mobile.horizontal=horizontal
 
   await setTab(page,'영양')
   await page.waitForFunction(()=>performance.getEntriesByType('resource')
@@ -144,6 +137,31 @@ async function mobile(){
   assert.doesNotMatch(scope,/포장 용량 확인 중/)
   report.mobile.nutritionScope=scope
   report.mobile.variantResponses=variantResponses
+
+  const horizontal=await wrap.evaluate(el=>({clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,before:el.scrollLeft}))
+  assert.ok(horizontal.scrollWidth>horizontal.clientWidth,'nutrition compare should be horizontally scrollable after loading')
+  const box=await wrap.boundingBox()
+  assert.ok(box,'missing nutrition scroll owner bounds')
+  await page.mouse.move(box.x+Math.min(box.width/2,180),box.y+Math.min(box.height/2,300))
+  await page.keyboard.down('Shift')
+  await page.mouse.wheel(0,900)
+  await page.keyboard.up('Shift')
+  await page.waitForFunction(()=>{
+    const el=document.querySelector('.compare-table-wrap')
+    return !!el&&el.scrollLeft>0
+  },null,{timeout:10000})
+  horizontal.after=await wrap.evaluate(el=>el.scrollLeft)
+  assert.ok(horizontal.after>0,'horizontal wheel input did not move nutrition scroll owner')
+
+  const rightScopeCell=scopeRow.locator('.compare-cell').nth(1)
+  const rightVisible=await rightScopeCell.evaluate((cell)=>{
+    const r=cell.getBoundingClientRect()
+    const owner=cell.closest('.compare-table-wrap')?.getBoundingClientRect()
+    return !!owner && r.right>owner.left && r.left<owner.right && r.bottom>owner.top && r.top<owner.bottom
+  })
+  assert.equal(rightVisible,true,'right product nutrition scope cell is not visible after horizontal wheel')
+  report.mobile.horizontal={...horizontal,rightScopeCellVisible:rightVisible}
+
   await wrap.evaluate(el=>{el.scrollLeft=0})
   await page.evaluate(()=>scrollTo(0,0))
   await waitVisibleImages(page)

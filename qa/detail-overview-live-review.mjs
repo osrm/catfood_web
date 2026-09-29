@@ -63,7 +63,7 @@ async function capture(tab,file){
   if(tab!=='개요'){
     await page.getByRole('tab',{name:tab,exact:true}).click()
     if(tab==='영양') await page.getByText('영양 성분',{exact:true}).waitFor({timeout:60000})
-    if(tab==='원재료') await page.getByText('원재료',{exact:true}).last().waitFor({timeout:60000})
+    if(tab==='원재료') { await page.getByText('원재료 정보를 불러오는 중입니다.').waitFor({state:'hidden',timeout:60000}); await page.locator('.compare-row').filter({hasText:'출처 원문'}).waitFor({state:'visible',timeout:60000}) }
   }
   await waitImages()
   await page.screenshot({path:OUT+'/'+file,fullPage:true})

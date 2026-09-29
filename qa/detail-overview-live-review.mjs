@@ -97,6 +97,8 @@ const metrics=loc=>loc.evaluate(el=>{
       return {computed:getComputedStyle(el).gridTemplateColumns,matches}
     })
     labelLayout.push({...m,neededWidth:needed,grid:ruleInfo.computed,rules:ruleInfo.matches})
+    assert.ok(m.height<=parseFloat(m.lineHeight)*1.25, m.text+' must stay on one line')
+    assert.ok(ruleInfo.computed.startsWith('88px '), m.text+' relation label track must be 88px')
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})

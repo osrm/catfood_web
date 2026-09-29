@@ -108,7 +108,7 @@ async function verifyProduct(width,height,key,query,pattern){
   const viewKey=`${key}-${width}x${height}`
   const title=await page.locator('.detail-identity-copy h1').innerText()
   const manufacturing=page.locator('.detail-body .detail-section').filter({has:page.getByRole('heading',{name:'제조 정보',exact:true})}).first()
-  const manufacturingText=await manufacturing.innerText()
+  let manufacturingText=await manufacturing.innerText()
 
   if(key==='dental'){
     await page.waitForFunction(()=>{
@@ -116,6 +116,7 @@ async function verifyProduct(width,height,key,query,pattern){
       return text.includes('3.5 kg 포장에서 확인')&&!text.includes('포장 규격 확인 중')
     },null,{timeout:60000})
     const settled=await manufacturing.innerText()
+    manufacturingText=settled
     assert.match(settled,/한국/)
     assert.match(settled,/3\.5 kg 포장에서 확인/)
     assert.match(settled,/확인되지 않은 다른 규격에는 적용하지 않습니다/)

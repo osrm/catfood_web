@@ -230,6 +230,7 @@
 .relation-line > span {
   color: #717178;
   font-weight: 650;
+  white-space: nowrap;
 }
 
 /* A confirmed relationship is evidence, not a pass state. */

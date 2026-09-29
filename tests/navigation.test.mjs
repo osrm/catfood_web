@@ -321,3 +321,21 @@ test('non-SWITCH overview keeps a partly populated row visible and collapses onl
   assert.match(disclosure.textContent, /제품 특징/)
   assert.doesNotMatch(disclosure.textContent, /제품 표기 대상/)
 })
+
+for (const mode of ['lookup', 'explore']) {
+  test(mode + ' comparison detail labels its actual parent and returns to the same comparison tab', async () => {
+    const ids = products.slice(0, 2).map((product) => product.product_id)
+    const params = new URLSearchParams({ view: 'workspace', mode, q: 'Product', applied: '1', compare: ids.join(','), compareOpen: '1', compareTab: 'nutrition' })
+    await renderApp('https://catfood.test/catfood_web/?' + params)
+    const comparisonUrl = window.location.href
+    await click('상세 보기')
+    const back = document.querySelector('.detail-topbar button')
+    assert.equal(back.textContent, '← 비교로 돌아가기')
+    await click('비교로 돌아가기')
+    assert.equal(document.querySelector('.detail-stage'), null)
+    assert.ok(document.querySelector('.compare-stage'))
+    assert.equal(document.querySelector('.compare-tabs [aria-selected="true"]').textContent, '영양')
+    assert.equal(document.querySelectorAll('.compare-product-head').length, 2)
+    assert.equal(window.location.href, comparisonUrl)
+  })
+}

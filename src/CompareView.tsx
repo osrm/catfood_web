@@ -433,7 +433,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     onRemove(productId)
   }
 
-  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} initialTab={detailTab} onTabChange={onDetailTabChange} />
+  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`

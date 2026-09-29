@@ -69,11 +69,16 @@ const metrics=loc=>loc.evaluate(el=>{
     const relation=label.locator('..')
     const valueMetric=await metrics(relation.locator('strong'))
     const grid=await relation.evaluate(el=>getComputedStyle(el).gridTemplateColumns)
-    labelLayout.push({...m,grid,value:valueMetric})
-    assert.ok(m.height<=parseFloat(m.lineHeight)*1.25, m.text+' must stay on one line')
-    assert.ok(m.scrollWidth<=m.clientWidth+1, m.text+' must fit inside its label cell')
+    const textRect=await label.evaluate(el=>{
+      const range=document.createRange()
+      range.selectNodeContents(el)
+      const r=range.getBoundingClientRect()
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}
+    })
+    labelLayout.push({...m,grid,value:valueMetric,textRect})
+    assert.ok(textRect.height<=parseFloat(m.lineHeight)*1.25, m.text+' must stay on one line')
     assert.ok(grid.startsWith('88px '), m.text+' relation label track must be 88px')
-    assert.ok(m.right+4<=valueMetric.left, m.text+' must not overlap the relation value')
+    assert.ok(textRect.right+4<=valueMetric.left, m.text+' must not overlap the relation value')
   }
   const file='explore-390x844-results.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})

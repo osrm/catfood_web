@@ -230,7 +230,6 @@
 .relation-line > span {
   color: #717178;
   font-weight: 650;
-  white-space: nowrap;
 }
 
 /* A confirmed relationship is evidence, not a pass state. */
@@ -516,7 +515,6 @@
 }
 
 .relation-line {
-  grid-template-columns: 88px minmax(0, 1fr);
   font-size: 11.5px;
 }
 
@@ -565,7 +563,7 @@
 }
 
 .research-shell.is-inspecting .relation-line {
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 46px minmax(0, 1fr);
   font-size: 11px;
 }
 

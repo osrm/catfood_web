@@ -516,7 +516,7 @@
 }
 
 .relation-line {
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   font-size: 11.5px;
 }
 
@@ -565,7 +565,7 @@
 }
 
 .research-shell.is-inspecting .relation-line {
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   font-size: 11px;
 }
 

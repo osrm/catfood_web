@@ -10,43 +10,26 @@ jobs:
   live-browser:
     runs-on: ubuntu-latest
     env:
-      CANDIDATE_SHA: d96de54317e0ea1560b77b346f1c10378dae9313
-      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
-      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      PRODUCT_SHA: 38c6f2d57d472a234c9efe25e8a5b3c068ecb030
+      CANDIDATE_URL: https://osrm.github.io/catfood_web/
     steps:
       - name: Checkout QA harness
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Preserve QA harness outside workspace
-        run: |
-          mkdir -p /tmp/detail-overview-live
-          cp qa/detail-overview-live-review.mjs /tmp/detail-overview-live/
-      - name: Checkout exact product candidate
-        uses: actions/checkout@v5
-        with:
-          ref: d96de54317e0ea1560b77b346f1c10378dae9313
-          clean: true
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run build
       - name: Install browser driver
         run: |
+          mkdir -p /tmp/detail-overview-live
+          cp qa/detail-overview-live-review.mjs /tmp/detail-overview-live/
           cd /tmp/detail-overview-live
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
           if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
-      - name: Serve exact product candidate
-        run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/detail-overview-live-preview.log 2>&1 &
-          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
-          cat /tmp/detail-overview-live-preview.log
-          exit 1
-      - name: Narrow EXPLORE and SWITCH copy QA
-        run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" PRODUCT_SHA="$CANDIDATE_SHA" node /tmp/detail-overview-live/detail-overview-live-review.mjs
+      - name: Narrow live Pages QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" node /tmp/detail-overview-live/detail-overview-live-review.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

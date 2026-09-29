@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const BASE='http://127.0.0.1:4173/'
+const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'result-relation-candidate'
 await mkdir(OUT,{recursive:true})
-const report={candidate:process.env.PRODUCT_SHA,blocked:[],views:{},switch:{}}
+const report={candidate:process.env.PRODUCT_SHA,base:BASE,blocked:[],views:{},switch:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 
 async function guardedPage(width,height){

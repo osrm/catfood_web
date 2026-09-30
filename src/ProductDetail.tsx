@@ -47,6 +47,27 @@ const COUNTRY_LABELS: Record<string, string> = { KR: '한국', US: '미국', CA:
 const ADDITIONAL_NUTRIENT_LABELS: Record<string, string> = { calcium: '칼슘', phosphorus: '인', magnesium: '마그네슘', taurine: '타우린' }
 const BASIS_NUTRIENT_LABELS: Record<string, string> = { protein: '단백질', fat: '지방', fiber: '조섬유', moisture: '수분', ash: '조회분' }
 const SUPPLEMENTAL_NUTRITION_LABELS: Record<string, string> = { energy: '열량', protein: '조단백질', fat: '조지방', fiber: '조섬유', moisture: '수분', ash: '조회분', additional_nutrients: '추가 영양성분' }
+const INGREDIENT_READING_HELP: Readonly<Record<string, string>> = {
+  'De-boned duck': '뼈를 제거한 오리',
+  'whole dried egg': '건조 전란',
+  peas: '완두콩',
+  lentils: '렌틸콩',
+  'pea flour': '완두콩 가루',
+  tapioca: '타피오카',
+  chickpeas: '병아리콩',
+  'chicken fat (preserved with mixed tocopherols)': '닭 지방(혼합 토코페롤로 보존)',
+  flaxseed: '아마씨',
+  salt: '소금',
+  'calcium carbonate': '탄산칼슘',
+  'dried chicory root': '말린 치커리 뿌리',
+  'phosphoric acid': '인산',
+  'choline chloride': '염화콜린',
+  'potassium chloride': '염화칼륨',
+  vitamins: '비타민',
+  minerals: '미네랄',
+  taurine: '타우린',
+  'dried rosemary': '말린 로즈마리',
+}
 
 function valueLabel(value: string, map: Record<string, string>) { return map[value] ?? value.replaceAll('_', ' ') }
 function listLabel(values: string[], map: Record<string, string>) { return values.map((value) => valueLabel(value, map)).join(' · ') }
@@ -272,6 +293,13 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const alternateNutritionValues = basisValues(nutrition).filter((value) => value.amount != null)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
+  const primaryIngredientNames = ingredients?.ingredient_names ?? []
+  const canShowIngredientReadingHelp = Boolean(ingredients?.raw_text?.trim() && primaryIngredientNames.length)
+  const displayedPrimaryIngredientNames = canShowIngredientReadingHelp
+    ? primaryIngredientNames.map((ingredient) => INGREDIENT_READING_HELP[ingredient] ?? ingredient)
+    : primaryIngredientNames
+  const hasIngredientReadingHelp = canShowIngredientReadingHelp
+    && displayedPrimaryIngredientNames.some((ingredient, index) => ingredient !== primaryIngredientNames[index])
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
   const directIngredientLabel = product.direct_evidence_ingredient_terms.length ? listLabel(product.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
@@ -398,8 +426,9 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 <summary>원문 보기</summary>
                 <div className="detail-ingredient-copy">{ingredients.raw_text}</div>
               </details> : null}
-              {ingredients.ingredient_names.length
-                ? <div className="detail-ingredient-list detail-ingredient-list-compact">{ingredients.ingredient_names.map((ingredient, index) => <span key={`primary-${ingredient}-${index}`}>{ingredient}</span>)}</div>
+              {hasIngredientReadingHelp ? <p className="detail-ingredient-reading-help">한국어 읽기 도움</p> : null}
+              {primaryIngredientNames.length
+                ? <div className="detail-ingredient-list detail-ingredient-list-compact">{displayedPrimaryIngredientNames.map((ingredient, index) => <span key={`primary-${primaryIngredientNames[index]}-${index}`}>{ingredient}</span>)}</div>
                 : ingredients.raw_text?.trim()
                   ? <div className="detail-ingredient-copy">{ingredients.raw_text}</div>
                   : <div className="detail-empty">확인된 원재료 목록이 없습니다.</div>}

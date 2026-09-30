@@ -2,15 +2,33 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
-const OUT=process.env.OUT_DIR||'compare-energy-review-output'
-const PRODUCT_SHA=process.env.PRODUCT_SHA||''
+const BASE=process.env.PAGES_URL||'https://osrm.github.io/catfood_web/'
+const OUT=process.env.OUT_DIR||'compare-energy-postdeploy-output'
+const EXPECTED_SHA=process.env.EXPECTED_SHA||''
 const AATU='product_d99406c26240b263'
 const NATURAL='product_b47d3ae674773585'
 const GO='product_a0e685be674c6617'
 
 await mkdir(OUT,{recursive:true})
-const report={productSha:PRODUCT_SHA,blocked:[],reads:[],general:{},switch:{},desktop:{}}
+const report={
+  pagesSha:EXPECTED_SHA,
+  pagesUrl:BASE,
+  blocked:[],
+  reads:[],
+  general:{},
+  switch:{},
+  desktop:{},
+  screenshots:{
+    '01-general-aatu-natural-energy-390x844.png':'viewport after scrolling the energy row into view',
+    '02-general-aatu-natural-scope-390x844.png':'viewport after scrolling the provided-value disclosure into view',
+    '03-general-aatu-natural-full-390.png':'full-page capture; not a single viewport state',
+    '03-switch-aatu-natural-390x844.png':'viewport',
+    '04-switch-aatu-go-390x844.png':'viewport after candidate switch',
+    '05-switch-aatu-go-full-390.png':'full-page capture; not a single viewport state',
+    '06-general-aatu-natural-desktop-1440x900.png':'desktop viewport',
+    '07-switch-energy-desktop-1440x900.png':'desktop viewport',
+  },
+}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
 
@@ -171,6 +189,7 @@ async function mobileSwitch(){
     const table=view.querySelector('.compare-mobile-two-product-table')
     const rows=[...view.querySelectorAll('.compare-mobile-two-product-field.is-metric')]
     const energy=rows.find(row=>row.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim()==='열량')
+    const protein=rows.find(row=>row.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim()==='조단백질')
     return {
       document:{clientWidth:doc.clientWidth,scrollWidth:doc.scrollWidth},
       view:{clientWidth:view.clientWidth,scrollWidth:view.scrollWidth},
@@ -180,6 +199,7 @@ async function mobileSwitch(){
         current:energy.querySelector('.is-current')?.textContent.replace(/\s+/g,' ').trim(),
         candidate:energy.querySelector('.is-candidate')?.textContent.replace(/\s+/g,' ').trim(),
       },
+      proteinCurrent:protein.querySelector('.is-current')?.textContent.replace(/\s+/g,' ').trim(),
       currentEvidence:view.querySelector('.compare-current-nutrition-evidence')?.textContent.replace(/\s+/g,' ').trim(),
       scopes:[...view.querySelectorAll('.compare-mobile-two-product-field')].find(row=>row.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim()==='적용 범위')
         ? [...[...view.querySelectorAll('.compare-mobile-two-product-field')].find(row=>row.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim()==='적용 범위').querySelectorAll('.compare-mobile-two-product-value')].map(x=>x.textContent.replace(/\s+/g,' ').trim())
@@ -193,6 +213,8 @@ async function mobileSwitch(){
   assert.match(naturalMetrics.energy.current,/370 kcal\/100g/)
   assert.match(naturalMetrics.energy.current,/3 kg 자료 · 다른 포장/)
   assert.match(naturalMetrics.energy.candidate,/348 kcal\/100g/)
+  assert.match(naturalMetrics.proteinCurrent,/제품 단위 보완 자료/)
+  assert.doesNotMatch(naturalMetrics.proteinCurrent,/3 kg 자료|다른 포장/)
   assert.match(naturalMetrics.scopes[0],/제공된 열량.*370 kcal\/100g/)
   assert.match(naturalMetrics.scopes[1],/제공된 열량.*3,480 kcal\/kg/)
   assert.match(naturalMetrics.currentEvidence,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
@@ -212,6 +234,8 @@ async function mobileSwitch(){
   const goMetrics=await readMetrics()
   assert.equal(goMetrics.energy.current,currentBefore)
   assert.match(goMetrics.energy.candidate,/422 kcal\/100g/)
+  assert.match(goMetrics.proteinCurrent,/제품 단위 보완 자료/)
+  assert.doesNotMatch(goMetrics.proteinCurrent,/3 kg 자료|다른 포장/)
   assert.match(goMetrics.scopes[1],/제공된 열량.*422 kcal\/100g/)
   await page.screenshot({path:OUT+'/04-switch-aatu-go-390x844.png',fullPage:false})
   await page.screenshot({path:OUT+'/05-switch-aatu-go-full-390.png',fullPage:true})
@@ -250,9 +274,11 @@ async function desktopChecks(){
   const sw=await second.page.evaluate(()=>{
     const table=document.querySelector('.compare-switch-nutrition-desktop')
     const energy=[...table.querySelectorAll('.compare-row.is-metric')].find(row=>row.querySelector('.compare-row-label')?.textContent.trim()==='열량')
+    const protein=[...table.querySelectorAll('.compare-row.is-metric')].find(row=>row.querySelector('.compare-row-label')?.textContent.trim()==='조단백질')
     return {
       productHeads:table.querySelectorAll('.compare-product-head').length,
       energy:[...energy.querySelectorAll('.compare-cell')].map(x=>x.textContent.replace(/\s+/g,' ').trim()),
+      proteinCurrent:protein.querySelector('.compare-cell.is-current')?.textContent.replace(/\s+/g,' ').trim(),
     }
   })
   assert.equal(sw.productHeads,3)
@@ -260,6 +286,8 @@ async function desktopChecks(){
   assert.match(sw.energy[0],/3 kg 자료 · 다른 포장/)
   assert.match(sw.energy[1],/348 kcal\/100g/)
   assert.match(sw.energy[2],/422 kcal\/100g/)
+  assert.match(sw.proteinCurrent,/제품 단위 보완 자료/)
+  assert.doesNotMatch(sw.proteinCurrent,/3 kg 자료|다른 포장/)
   await second.page.screenshot({path:OUT+'/07-switch-energy-desktop-1440x900.png',fullPage:false})
   report.desktop={general,switch:sw}
   await second.context.close()

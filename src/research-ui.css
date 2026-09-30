@@ -969,3 +969,31 @@
     padding-inline: 16px;
   }
 }
+
+
+.research-shell .catalog-inline-state {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--research-line);
+  padding: 14px 18px;
+  background: #fbfcfb;
+  color: var(--research-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.research-shell .catalog-inline-state strong {
+  color: var(--research-text);
+  font-size: 13px;
+}
+
+.research-shell .catalog-inline-state.is-error strong,
+.research-shell .catalog-inline-state.is-error span {
+  color: var(--research-danger);
+}
+
+.research-shell .catalog-inline-state .state-retry {
+  width: fit-content;
+  min-height: 36px;
+  margin-top: 4px;
+}

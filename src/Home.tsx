@@ -187,7 +187,7 @@ export default function Home({
 
               <article className="home-entry-route">
                 <h2>조건으로 찾아보기</h2>
-                <p>명백히 충돌하는 제품만 제외하고, 확인된 조건이 많은 순으로 봅니다. 미확인은 남겨둡니다.</p>
+                <p>사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다.</p>
                 <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
               </article>
             </div>

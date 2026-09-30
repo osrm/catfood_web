@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: d7ec8d14df4b40bc11c94163cceaaa7ad1527ae6
+          ref: 6463bd9dbf79a2db4c8312b3e1c8e1393f135577
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: d7ec8d14df4b40bc11c94163cceaaa7ad1527ae6
+          ref: 6463bd9dbf79a2db4c8312b3e1c8e1393f135577
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc

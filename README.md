@@ -34,11 +34,10 @@ npm run dev
 - 최대 1000행을 읽고 브라우저에서 현재 검색 조건을 적용한다.
 - 전체 판매 규격은 `api.switch_current_variant_options`를 1000행씩 나누어 조회한다. API의 응답 상한 때문에 더 큰 limit 한 번으로 전체를 읽었다고 간주하지 않는다. 중간 페이지 실패 시 부분 목록을 전체 규격처럼 표시하지 않고 대표 규격으로 fallback한다.
 - 빈 normalized array나 미확인 상태를 `없음`으로 추론하지 않는다.
-- `official_target`: 복수 선택 OR
-- `feature`: 복수 선택 AND
-- `recipe_family`: 복수 선택 OR
-- `recipe_detail`: 복수 선택 OR
-- Grain-Free: 명시적 positive claim만 충족
+- 사료 형태와 생애주기는 확인된 값이 선택값과 명백히 충돌할 때만 후보에서 제외한다. 값이 미확인이면 후보에 남긴다.
+- `official_target`, `feature`, `recipe_family`, Grain-Free는 positive 탐색 조건이다. 선택값이 확인되면 confirmed match로 기록하고, 확인되지 않았으면 false로 만들지 않고 unknown으로 남긴다.
+- 위 positive 조건은 각 confirmed match를 독립적으로 세어 확인된 조건이 많은 후보를 먼저 보여준다. boolean OR/AND로 미확인 후보를 탈락시키지 않는다.
+- `recipe_detail`의 추가 좁히기는 선택한 세부 레시피 중 하나 이상이 확인된 제품만 남기는 OR refine이다.
 - 결과 0건이어도 조건을 자동 완화하지 않는다.
 
 선택적으로 활성화되는 decision intake는 범용 clickstream이 아니다. SWITCH/EXPLORE 결과 생성 시 최초 40개 presentation과 명시적인 상세 열기·비교 추가만 Edge Function으로 보고한다. LOOKUP은 수집하지 않으며 intake 실패가 제품 탐색 UI를 막지 않는다.

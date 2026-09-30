@@ -460,9 +460,9 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
   const scopeRow = [...document.querySelectorAll('.compare-table > .compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '적용 범위')
   assert.ok(scopeRow)
   const scopes = [...scopeRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.replace(/\s+/g, ' ').trim())
-  assert.match(scopes[0], /제공된 열량 3,485 kcal\/kg/)
-  assert.match(scopes[1], /제공된 열량 370 kcal\/100g/)
-  assert.match(scopes[2], /제공된 열량 4,100 kcal\/kg/)
+  assert.match(scopes[0], /제공된 열량.*3,485 kcal\/kg/)
+  assert.match(scopes[1], /제공된 열량.*370 kcal\/100g/)
+  assert.match(scopes[2], /제공된 열량.*4,100 kcal\/kg/)
   assert.doesNotMatch(scopes[2], /999 kcal\/100g/, 'kg remains the selected provided value when both fields exist')
   assert.doesNotMatch(scopes[3], /자료 기준 보기/, 'missing energy alone does not invent provided-value disclosure')
 

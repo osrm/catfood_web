@@ -1,0 +1,56 @@
+name: One-off ingredient reading help candidate QA
+on:
+  pull_request:
+    paths:
+      - 'qa/ingredient-reading-help-review.mjs'
+      - '.github/workflows/ingredient-reading-help-review.yml'
+permissions:
+  contents: read
+jobs:
+  candidate-browser:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 20f3959f4565dda58444883c46c52e60a1aba7e2
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Preserve QA harness outside workspace
+        run: |
+          mkdir -p /tmp/ingredient-reading-help-review
+          cp qa/ingredient-reading-help-review.mjs /tmp/ingredient-reading-help-review/
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 20f3959f4565dda58444883c46c52e60a1aba7e2
+          clean: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build exact product candidate
+        run: npm run build
+      - name: Install browser driver
+        run: |
+          cd /tmp/ingredient-reading-help-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact product candidate
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/ingredient-reading-help-preview.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/ingredient-reading-help-preview.log
+          exit 1
+      - name: Narrow GO LID Duck ingredient candidate QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/ingredient-reading-help-output" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/ingredient-reading-help-review/ingredient-reading-help-review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ingredient-reading-help-review
+          path: ingredient-reading-help-output
+          retention-days: 7

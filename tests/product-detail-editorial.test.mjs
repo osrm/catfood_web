@@ -659,7 +659,7 @@ test('comparison labels non-current supplemental ingredient sources as supportin
   assert.doesNotMatch(sourceDisclosure.textContent, /현재 확인 배합 전체 목록 · 출처 원문/)
 })
 
-test('comparison does not render empty nutrition or source disclosures', async () => {
+test('comparison renders provided-energy evidence without inventing an empty ingredient source disclosure', async () => {
   const noSupplementNutrition = { ...nutrition, supplemental_nutrition_fields: [] }
   const noSourceIngredients = {
     ...ingredients,
@@ -685,7 +685,11 @@ test('comparison does not render empty nutrition or source disclosures', async (
     }))
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
   })
-  assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.trim() === '자료 기준 보기'), false)
+  const nutritionEvidence = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '자료 기준 보기')
+  assert.ok(nutritionEvidence)
+  assert.match(nutritionEvidence.textContent, /제공된 열량/)
+  assert.match(nutritionEvidence.textContent, /97 kcal\/100g/)
+  assert.doesNotMatch(nutritionEvidence.textContent, /보완 항목|보완 근거/)
 
   const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
   await act(async () => {

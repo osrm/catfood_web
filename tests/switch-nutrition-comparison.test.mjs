@@ -285,6 +285,12 @@ function mobileCurrentMetric(label) {
   assert.ok(row, `mobile metric row missing: ${label}`)
   return row.querySelector('.compare-mobile-two-product-value.is-current')
 }
+function mobileCandidateMetric(label) {
+  const row = [...document.querySelectorAll('.compare-switch-mobile-nutrition .compare-mobile-two-product-field.is-metric')]
+    .find((node) => node.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim() === label)
+  assert.ok(row, `mobile metric row missing: ${label}`)
+  return row.querySelector('.compare-mobile-two-product-value.is-candidate')
+}
 
 function desktopCurrentMetric(label) {
   const row = [...document.querySelectorAll('.compare-switch-nutrition-desktop .compare-row.is-metric')]
@@ -315,6 +321,9 @@ test('SWITCH nutrition keeps current separate from five candidate reads and pres
   assert.match(mobile.textContent, /한국 판매 제품 자료 · 3 kg 제품에서 확인 · 보완 자료 포함/)
   assert.match(mobile.textContent, /한국 판매 제품 자료 · 7.26 kg 제품에서 확인/)
   assert.match(mobile.textContent, /자료 기준 보기/)
+  assert.match(mobile.textContent, /제공된 열량/)
+  assert.match(mobile.textContent, /370 kcal\/100g/)
+  assert.match(mobile.textContent, /422 kcal\/100g/)
   assert.match(mobile.textContent, /칼슘/)
   assert.match(mobile.textContent, /1.6% 이상/)
 
@@ -339,6 +348,36 @@ test('SWITCH nutrition keeps current separate from five candidate reads and pres
   assert.match(desktopCurrentMetric('조단백질').textContent, /제품 단위 보완 자료/)
   assert.equal(desktopCurrentMetric('조단백질').textContent.includes('다른 포장'), false)
   assert.equal(desktop.querySelectorAll('.compare-remove').length, 5)
+})
+
+test('SWITCH candidate kg energy is normalized to kcal/100g while the provided kg value remains in evidence', async () => {
+  const row = candidateRows[0]
+  const previousKg = row.kcal_per_kg
+  const previous100g = row.kcal_per_100g
+  row.kcal_per_kg = 3485
+  row.kcal_per_100g = null
+  try {
+    await renderSwitch()
+    const candidateEnergy = mobileCandidateMetric('열량')
+    assert.equal(candidateEnergy.textContent.trim(), '348.5 kcal/100g')
+
+    const mobile = document.querySelector('.compare-switch-mobile-nutrition')
+    const scopeRow = [...mobile.querySelectorAll('.compare-mobile-two-product-field')]
+      .find((node) => node.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim() === '적용 범위')
+    assert.ok(scopeRow)
+    const candidateScope = scopeRow.querySelector('.compare-mobile-two-product-value.is-candidate')
+    assert.match(candidateScope.textContent, /자료 기준 보기/)
+    assert.match(candidateScope.textContent, /제공된 열량/)
+    assert.match(candidateScope.textContent, /3,485 kcal\/kg/)
+
+    const desktopEnergy = [...document.querySelectorAll('.compare-switch-nutrition-desktop .compare-row.is-metric')]
+      .find((node) => node.querySelector('.compare-row-label')?.textContent.trim() === '열량')
+    assert.ok(desktopEnergy)
+    assert.match([...desktopEnergy.querySelectorAll('.compare-cell')][1].textContent, /348.5 kcal\/100g/)
+  } finally {
+    row.kcal_per_kg = previousKg
+    row.kcal_per_100g = previous100g
+  }
 })
 
 test('current nutrition failure keeps candidate values visible and offers an isolated retry', async () => {

@@ -51,7 +51,7 @@ async function setupCompare(page){
   await sku.waitFor({state:'visible',timeout:30000})
   await sku.click()
   await page.locator('.switch-step-actions .switch-primary-action').click()
-  await (await visibleButton(page,'특별히 바꾸고 싶은 점 없음')).click()
+  await page.locator('.switch-no-change').click()
   await page.locator('.switch-step-actions .switch-primary-action').click()
   await page.getByRole('heading',{name:'무엇을 그대로 유지할까요?'}).waitFor({state:'visible'})
   await page.getByRole('button',{name:'후보 제품 보기 →'}).click()

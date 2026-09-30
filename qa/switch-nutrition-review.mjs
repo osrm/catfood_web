@@ -189,7 +189,10 @@ async function desktopScenario(){
   await table.waitFor({state:'visible',timeout:90000})
   await page.waitForFunction(()=>{
     const text=document.querySelector('.compare-switch-nutrition-desktop')?.textContent||''
-    return text.includes('370 kcal/100g') && text.includes('422 kcal/100g')
+    return text.includes('370 kcal/100g')
+      && text.includes('422 kcal/100g')
+      && text.includes('한국 판매 제품 자료 · 3 kg 제품에서 확인')
+      && text.includes('한국 판매 제품 자료 · 7.26 kg 제품에서 확인')
   },null,{timeout:90000})
   const text=norm(await table.textContent())
   assert.match(text,/현재 사료 · 기준/)

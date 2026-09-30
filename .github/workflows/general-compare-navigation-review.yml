@@ -33,6 +33,20 @@ jobs:
       - run: npm ci
       - run: node --test tests/restored-explore.test.mjs
 
+  full-product-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 7ae98aeed1f25a1313b0b8897b4d4815b033a339
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
   candidate-browser:
     runs-on: ubuntu-latest
     env:

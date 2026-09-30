@@ -279,6 +279,20 @@ async function renderSwitch(overrides = {}) {
   await settle()
 }
 
+function mobileCurrentMetric(label) {
+  const row = [...document.querySelectorAll('.compare-switch-mobile-nutrition .compare-mobile-two-product-field.is-metric')]
+    .find((node) => node.querySelector('.compare-mobile-two-product-row-label')?.textContent.trim() === label)
+  assert.ok(row, `mobile metric row missing: ${label}`)
+  return row.querySelector('.compare-mobile-two-product-value.is-current')
+}
+
+function desktopCurrentMetric(label) {
+  const row = [...document.querySelectorAll('.compare-switch-nutrition-desktop .compare-row.is-metric')]
+    .find((node) => node.querySelector('.compare-row-label')?.textContent.trim() === label)
+  assert.ok(row, `desktop metric row missing: ${label}`)
+  return row.querySelector('.compare-cell.is-current')
+}
+
 test('SWITCH nutrition keeps current separate from five candidate reads and preserves package/evidence semantics', async () => {
   await renderSwitch()
 
@@ -296,17 +310,34 @@ test('SWITCH nutrition keeps current separate from five candidate reads and pres
   assert.match(mobile.textContent, /33% 이상/)
   assert.match(mobile.textContent, /31% 이상/)
   assert.match(mobile.textContent, /미확인/)
-  assert.match(mobile.textContent, /사용 규격 · 1 kg · 영양 자료 포장 · 3 kg · 다른 포장 자료/)
+  assert.match(mobile.querySelector('.compare-mobile-switch-use-package').textContent, /사용 규격 · 1 kg/)
+  assert.match(mobile.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
   assert.match(mobile.textContent, /한국 판매 제품 자료 · 3 kg 제품에서 확인 · 보완 자료 포함/)
   assert.match(mobile.textContent, /한국 판매 제품 자료 · 7.26 kg 제품에서 확인/)
   assert.match(mobile.textContent, /자료 기준 보기/)
   assert.match(mobile.textContent, /칼슘/)
   assert.match(mobile.textContent, /1.6% 이상/)
 
+  const energy = mobileCurrentMetric('열량')
+  assert.match(energy.textContent, /370 kcal\/100g/)
+  assert.match(energy.textContent, /3 kg 자료 · 다른 포장/)
+  assert.equal(energy.textContent.includes('제품 단위 보완 자료'), false)
+
+  for (const label of ['조단백질', '조지방', '조섬유', '수분', '조회분', '칼슘']) {
+    const metric = mobileCurrentMetric(label)
+    assert.match(metric.textContent, /제품 단위 보완 자료/)
+    assert.equal(metric.textContent.includes('3 kg 자료'), false, `${label} must not inherit representative variant evidence`)
+    assert.equal(metric.textContent.includes('다른 포장'), false, `${label} must not inherit representative package mismatch`)
+  }
+
   const desktop = document.querySelector('.compare-switch-nutrition-desktop')
   assert.ok(desktop)
   assert.equal(desktop.querySelectorAll('.compare-product-head').length, 6)
   assert.match(desktop.querySelector('.compare-current-product-head').textContent, /현재 사료 · 기준/)
+  assert.match(desktop.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
+  assert.match(desktopCurrentMetric('열량').textContent, /3 kg 자료 · 다른 포장/)
+  assert.match(desktopCurrentMetric('조단백질').textContent, /제품 단위 보완 자료/)
+  assert.equal(desktopCurrentMetric('조단백질').textContent.includes('다른 포장'), false)
   assert.equal(desktop.querySelectorAll('.compare-remove').length, 5)
 })
 
@@ -325,43 +356,49 @@ test('current nutrition failure keeps candidate values visible and offers an iso
 
 test('unknown current package stays unknown without inventing a package mismatch', async () => {
   await renderSwitch({ currentVariantId: null, currentVariantText: '사용 규격 모름' })
-  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
-  assert.ok(currentMetric)
-  assert.match(currentMetric.textContent, /사용 규격 · 모름/)
-  assert.match(currentMetric.textContent, /영양 자료 포장 · 3 kg/)
-  assert.equal(currentMetric.textContent.includes('다른 포장 자료'), false)
+  const mobile = document.querySelector('.compare-switch-mobile-nutrition')
+  assert.match(mobile.querySelector('.compare-mobile-switch-use-package').textContent, /사용 규격 · 모름/)
+  assert.match(mobile.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 · 3 kg · 사용 규격과 일치 여부 미확인/)
+  const energy = mobileCurrentMetric('열량')
+  assert.match(energy.textContent, /3 kg 자료/)
+  assert.equal(energy.textContent.includes('다른 포장'), false)
+  assert.match(mobileCurrentMetric('조단백질').textContent, /제품 단위 보완 자료/)
 })
 
 
-test('current variant lookup failure is shown as a lookup failure rather than unknown nutrition', async () => {
+test('current variant lookup failure affects representative variant evidence but not product supplemental metrics', async () => {
   failCurrentVariants = true
   await renderSwitch()
-  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
-  assert.ok(currentMetric)
-  assert.match(currentMetric.textContent, /370 kcal\/100g/)
-  assert.match(currentMetric.textContent, /영양 자료 포장 · 조회 실패/)
-  assert.match(currentMetric.textContent, /다른 포장 자료/)
-  assert.equal(currentMetric.textContent.includes('미확인'), false)
+  const mobile = document.querySelector('.compare-switch-mobile-nutrition')
+  assert.match(mobile.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 포장 · 조회 실패 · 사용 규격과 다른 포장/)
+  const energy = mobileCurrentMetric('열량')
+  assert.match(energy.textContent, /370 kcal\/100g/)
+  assert.match(energy.textContent, /포장 자료 · 조회 실패 · 다른 포장/)
+  assert.equal(energy.textContent.includes('미확인'), false)
+  const protein = mobileCurrentMetric('조단백질')
+  assert.match(protein.textContent, /제품 단위 보완 자료/)
+  assert.equal(protein.textContent.includes('조회 실패'), false)
+  assert.equal(protein.textContent.includes('다른 포장'), false)
 })
 
-test('product-scope current nutrition does not imply linkage to the selected package', async () => {
+test('product-scope representative nutrition stays distinct from product supplemental evidence', async () => {
   currentNutritionScope = 'product'
   await renderSwitch()
-  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
-  assert.ok(currentMetric)
-  assert.match(currentMetric.textContent, /사용 규격 · 1 kg/)
-  assert.match(currentMetric.textContent, /제품 단위 자료 · 사용 포장과 직접 연결되지 않음/)
-  assert.equal(currentMetric.textContent.includes('다른 포장 자료'), false)
+  const mobile = document.querySelector('.compare-switch-mobile-nutrition')
+  assert.match(mobile.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 · 제품 단위 · 사용 포장과 직접 연결되지 않음/)
+  assert.match(mobileCurrentMetric('열량').textContent, /제품 단위 자료/)
+  assert.match(mobileCurrentMetric('조단백질').textContent, /제품 단위 보완 자료/)
+  assert.equal(mobileCurrentMetric('열량').textContent.includes('다른 포장'), false)
 })
 
-test('formula-scope current nutrition stays distinct from selected-package evidence', async () => {
+test('formula-scope representative nutrition does not overwrite product supplemental evidence', async () => {
   currentNutritionScope = 'formula'
   await renderSwitch()
-  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
-  assert.ok(currentMetric)
-  assert.match(currentMetric.textContent, /사용 규격 · 1 kg/)
-  assert.match(currentMetric.textContent, /배합 단위 자료 · 사용 포장과 직접 연결되지 않음/)
-  assert.equal(currentMetric.textContent.includes('다른 포장 자료'), false)
+  const mobile = document.querySelector('.compare-switch-mobile-nutrition')
+  assert.match(mobile.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 · 배합 단위 · 사용 포장과 직접 연결되지 않음/)
+  assert.match(mobileCurrentMetric('열량').textContent, /배합 단위 자료/)
+  assert.match(mobileCurrentMetric('조단백질').textContent, /제품 단위 보완 자료/)
+  assert.equal(mobileCurrentMetric('조단백질').textContent.includes('배합 단위'), false)
 })
 
 test('general two-product nutrition comparison keeps the existing non-SWITCH structure', async () => {

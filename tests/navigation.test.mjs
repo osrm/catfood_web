@@ -449,6 +449,9 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     await click('제품 찾기')
     await waitForUi(() => document.querySelector('.lookup-input') !== null, 'LOOKUP opened from EXPLORE')
     assert.equal(new URL(window.location.href).searchParams.get('compare'), [first.product_id, second.product_id].join(','))
+    assert.equal(new URL(window.location.href).searchParams.get('feed'), '건식')
+    assert.equal(new URL(window.location.href).searchParams.get('age'), 'adult')
+    assert.equal(new URL(window.location.href).searchParams.get('applied'), '1')
     assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
 
     await inputValue(document.querySelector('.lookup-input'), third.canonical_name)
@@ -476,6 +479,8 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     await click('이 조건으로 찾기')
     await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'unchanged EXPLORE conditions reapplied')
     assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
+    assert.equal(new URL(window.location.href).searchParams.get('feed'), '건식')
+    assert.equal(new URL(window.location.href).searchParams.get('age'), 'adult')
     assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
     assert.equal(document.querySelector(`.research-result-card[data-product-id="${third.product_id}"]`), null, 'lookup-added senior product is not auto-treated as matching adult EXPLORE results')
 

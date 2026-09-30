@@ -345,15 +345,25 @@ test('quick view moves focus to close and returns it to the opening product with
   assert.equal(scroller.scrollTop, 137)
 })
 
-test('EXPLORE input states the unknown-data policy once and keeps selection-specific limits nearby', async () => {
+test('EXPLORE guidance keeps the unknown policy in one place and labels recipe refine separately', async () => {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
+  assert.match(document.body.textContent, /사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다\./)
+  assert.doesNotMatch(document.body.textContent, /명백히 충돌하는 제품만 제외/)
+
   await click('조건 고르기')
-  const text = document.body.textContent
-  assert.equal((text.match(/조건 정보가 없는 제품도 결과에 포함됩니다\./g) ?? []).length, 1)
-  assert.doesNotMatch(text, /확인된 불일치만 제외|미확인은 후보에 유지|선택한 조건이 미확인인 제품도 후보에 포함/)
-  assert.match(text, /제품에 표기된 연령 구분을 기준으로 합니다\./)
-  assert.match(text, /Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다\./)
+  const editorText = document.body.textContent
+  assert.match(editorText, /사료 형태·연령과 원하는 조건을 고릅니다\./)
+  assert.equal((editorText.match(/선택한 조건 정보가 없는 제품도 결과에 남습니다\./g) ?? []).length, 1)
+  assert.doesNotMatch(editorText, /명백히 충돌하는 제품만 제외|미확인은 남겨둡니다|조건 정보가 없는 제품도 결과에 포함됩니다/)
+  assert.match(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)
+  assert.match(editorText, /Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다\./)
+
+  await click('이 조건으로 찾기')
+  const refineText = document.body.textContent
+  assert.match(refineText, /주요 레시피/)
+  assert.match(refineText, /선택한 레시피 중 하나 이상이 확인된 제품만 봅니다\./)
+  assert.doesNotMatch(refineText, /명백히 충돌하는 제품만 제외/)
 })
 
 test('LOOKUP empty result points back to the existing search input without changing search behavior', async () => {

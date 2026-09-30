@@ -80,7 +80,8 @@ async function ingredientScenario(){
   await page.waitForFunction(()=>document.querySelector('.detail-source-disclosure')?.hasAttribute('open'))
   assert.equal(await summary.evaluate(el=>document.activeElement===el),true)
   const raw=source.locator('.detail-ingredient-copy')
-  assert.equal((await raw.innerText()).trim(),RAW_TEXT)
+  const rawText=(await raw.innerText()).trim()
+  assert.equal(rawText,RAW_TEXT)
 
   const metrics=await page.evaluate(()=>{
     const doc=document.scrollingElement||document.documentElement
@@ -105,7 +106,7 @@ async function ingredientScenario(){
   await page.keyboard.press('Enter')
   await page.waitForFunction(()=>!document.querySelector('.detail-source-disclosure')?.hasAttribute('open'))
   assert.equal(await summary.evaluate(el=>document.activeElement===el),true)
-  report.ingredient={...metrics,displayed,rawText:(await raw.innerText()).trim(),keyboard:{opened:true,closed:true,focusRetained:true}}
+  report.ingredient={...metrics,displayed,rawText,keyboard:{opened:true,closed:true,focusRetained:true}}
   await context.close()
 }
 

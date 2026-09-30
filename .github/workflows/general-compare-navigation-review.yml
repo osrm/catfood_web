@@ -1,0 +1,33 @@
+name: One-off general compare navigation review
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/general-compare-navigation-review.yml'
+      - 'qa/general-compare-navigation-candidate.mjs'
+permissions:
+  contents: read
+jobs:
+  navigation-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: eb1a21e1b283fedae868ac3f727285b9702326ca
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/navigation.test.mjs
+  restored-explore-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: eb1a21e1b283fedae868ac3f727285b9702326ca
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/restored-explore.test.mjs

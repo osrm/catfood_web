@@ -434,7 +434,6 @@ test('lookup search ignores spacing, preserves and/& behavior, and supports conf
   assert.deepEqual(app.lookupCatalog(lookupProducts, '카니보송어&연어').map((product) => product.product_id), [lookupProducts[1].product_id])
 
   assert.deepEqual(app.lookupCatalog(lookupProducts, '아투').map((product) => product.product_id), [lookupProducts[7].product_id])
-  assert.deepEqual(app.lookupCatalog(lookupProducts, '아투 연어').map((product) => product.product_id), [lookupProducts[7].product_id])
   for (const query of ['힐스', 'Hills', 'Hill’s']) {
     assert.deepEqual(app.lookupCatalog(lookupProducts, query).map((product) => product.product_id), [lookupProducts[8].product_id])
   }

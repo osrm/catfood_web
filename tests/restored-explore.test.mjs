@@ -227,7 +227,7 @@ test('EXPLORE additional disclosure keeps draft state separate from applied sear
 })
 
 
-test('EXPLORE hides compare dock while editing conditions without clearing queued compare IDs', async () => {
+test('EXPLORE preserves queued compare IDs for unchanged reapply and resets them only after an actual condition change', async () => {
   dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore&applied=1&feed=%EA%B1%B4%EC%8B%9D' })
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(
@@ -256,7 +256,14 @@ test('EXPLORE hides compare dock while editing conditions without clearing queue
   assert.match(new URL(window.location.href).searchParams.get('compare') ?? '', new RegExp(queuedId), 'entering condition edit preserves queued compare IDs')
 
   await click('이 조건으로 찾기')
-  await waitForUi(() => document.querySelectorAll('.research-result-card').length === 40, 'results restored after apply')
-  assert.equal(new URL(window.location.href).searchParams.get('compare'), null, 'applying conditions keeps the existing compare reset policy')
-  assert.equal(document.querySelector('.switch-compare-dock'), null, 'compare dock stays cleared after apply reset')
+  await waitForUi(() => document.querySelectorAll('.research-result-card').length === 40 && document.querySelector('.switch-compare-dock') !== null, 'unchanged conditions restored with comparison')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), queuedId, 'reapplying unchanged conditions preserves queued compare IDs')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
+
+  await click(document.querySelector('.criteria-bar > button'))
+  await click('습식')
+  await click('이 조건으로 찾기')
+  await waitForUi(() => document.querySelector('.state-message') !== null, 'changed conditions applied')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), null, 'an actual condition change keeps the existing comparison reset boundary')
+  assert.equal(document.querySelector('.switch-compare-dock'), null, 'changed conditions clear the queued general comparison')
 })

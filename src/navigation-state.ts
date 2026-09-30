@@ -83,7 +83,7 @@ export function navigationSearch(state: NavigationState): string {
   params.set('view', 'workspace')
   if (state.mode !== 'explore') params.set('mode', state.mode)
   if (state.mode === 'lookup' && state.lookupQuery) params.set('q', state.lookupQuery)
-  if (state.mode === 'explore') {
+  if (state.mode !== 'switch') {
     if (!state.editingConditions) params.set('applied', '1')
     if (state.search.feedType) params.set('feed', state.search.feedType)
     if (state.search.lifeStage) params.set('age', state.search.lifeStage)

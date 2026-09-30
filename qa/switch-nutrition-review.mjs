@@ -187,7 +187,10 @@ async function desktopScenario(){
   await setupCompare(page)
   const table=page.locator('.compare-switch-nutrition-desktop')
   await table.waitFor({state:'visible',timeout:90000})
-  await page.waitForFunction(()=>document.querySelector('.compare-switch-nutrition-desktop')?.textContent?.includes('370 kcal/100g'),null,{timeout:90000})
+  await page.waitForFunction(()=>{
+    const text=document.querySelector('.compare-switch-nutrition-desktop')?.textContent||''
+    return text.includes('370 kcal/100g') && text.includes('422 kcal/100g')
+  },null,{timeout:90000})
   const text=norm(await table.textContent())
   assert.match(text,/현재 사료 · 기준/)
   assert.match(text,/AATU/)

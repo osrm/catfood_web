@@ -270,15 +270,15 @@ test('SWITCH overview presents product facts before candidate condition results 
   assert.equal([...document.querySelectorAll('.compare-section-row')].filter((node) => node.textContent.includes('조건 확인 결과는 후보에만 표시합니다.')).length, 2)
 })
 
-test('nutrition and non-SWITCH compare keep candidate-only scope', async () => {
+test('SWITCH nutrition adds the fixed current baseline while non-SWITCH comparison stays candidate-only', async () => {
   await renderCompare()
   const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
   await click(nutritionTab)
-  assert.match(document.querySelector('.compare-header p').textContent, /담아둔 2개 후보의 영양 정보를 비교합니다.*현재 사료는 포함하지 않습니다/s)
+  assert.match(document.querySelector('.compare-header p').textContent, /현재 사료를 기준으로 담아둔 2개 후보의 영양 정보를 같은 항목에서 비교합니다/)
   assert.equal(document.querySelector('.compare-scope-note'), null)
-  assert.equal(document.querySelector('.compare-current-product-head'), null)
-  assert.equal(document.querySelectorAll('.compare-product-head').length, 2)
-  assert.equal(document.querySelector('.compare-mobile-two-product-nutrition'), null, 'SWITCH nutrition keeps the existing candidate-only table')
+  assert.ok(document.querySelector('.compare-switch-nutrition-desktop .compare-current-product-head'))
+  assert.equal(document.querySelectorAll('.compare-switch-nutrition-desktop .compare-product-head').length, 3)
+  assert.ok(document.querySelector('.compare-switch-mobile-nutrition'))
 
   await act(async () => root.unmount())
   root = null

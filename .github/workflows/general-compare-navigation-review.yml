@@ -33,6 +33,32 @@ jobs:
       - run: npm ci
       - run: node --test tests/restored-explore.test.mjs
 
+  exploration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 7ae98aeed1f25a1313b0b8897b4d4815b033a339
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/exploration.test.mjs
+
+  switch-session-navigation-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 7ae98aeed1f25a1313b0b8897b4d4815b033a339
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/switch-session-navigation.test.mjs
+
   full-product-check:
     runs-on: ubuntu-latest
     steps:

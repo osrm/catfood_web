@@ -58,7 +58,14 @@ async function setupCompare(page){
   await page.locator('.switch-candidate-row').first().waitFor({state:'visible',timeout:90000})
 
   const goRow=page.locator('.switch-candidate-row').filter({hasText:/GO! SOLUTIONS/}).filter({hasText:/LID 오리/}).first()
-  await goRow.waitFor({state:'visible',timeout:30000})
+  for(let pageIndex=0;pageIndex<30 && await goRow.count()===0;pageIndex++){
+    const more=page.locator('.load-more')
+    if(await more.count()===0 || !await more.isVisible()) break
+    await more.click()
+    await page.waitForTimeout(40)
+  }
+  assert.ok(await goRow.count()>0,'GO! SOLUTIONS LID 오리 must be present after loading candidate pages')
+  await goRow.scrollIntoViewIfNeeded()
   await goRow.click()
   const addGo=page.locator('.switch-inspector-actions button').first()
   assert.match(norm(await addGo.textContent()),/비교에 추가/)

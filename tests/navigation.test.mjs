@@ -130,6 +130,21 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
   assert.equal(clean.detailProductId, null)
   assert.equal(clean.selectedId, 'a')
   assert.deepEqual(clean.compareIds, ['a', 'c'])
+  const lookupSearch = app.navigationSearch({
+    ...state,
+    screen: 'workspace',
+    mode: 'lookup',
+    lookupQuery: 'Product',
+    editingConditions: false,
+    search: { ...state.search, feedType: '건식', lifeStage: 'adult' },
+  })
+  const restoredLookup = app.parseNavigationState(lookupSearch)
+  assert.equal(restoredLookup.mode, 'lookup')
+  assert.equal(restoredLookup.lookupQuery, 'Product')
+  assert.equal(restoredLookup.search.feedType, '건식')
+  assert.equal(restoredLookup.search.lifeStage, 'adult')
+  assert.equal(restoredLookup.editingConditions, false)
+
   const homeSearch = app.navigationSearch({ ...state, screen: 'home' })
   assert.equal(homeSearch, '')
   assert.equal(app.parseNavigationState(homeSearch).screen, 'home')

@@ -20,13 +20,17 @@
   gap: 5px;
 }
 
-.compare-current-nutrition-metric > small {
+.compare-current-nutrition-metric > small,
+.compare-current-nutrition-evidence {
   display: block;
   color: #68736f;
   font-size: 10.5px;
   line-height: 1.45;
   font-weight: 650;
   letter-spacing: 0;
+}
+
+.compare-current-nutrition-metric > small {
   font-variant-numeric: normal;
 }
 

@@ -1,0 +1,58 @@
+name: One-off SWITCH nutrition candidate QA
+on:
+  pull_request:
+    paths:
+      - 'qa/switch-nutrition-review.mjs'
+      - '.github/workflows/switch-nutrition-review-final.yml'
+permissions:
+  contents: read
+jobs:
+  candidate-browser:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 54d6a6cca395a43a138bb45d4ec1e2f7accef602
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Preserve QA harness outside workspace
+        run: |
+          mkdir -p /tmp/switch-nutrition-review
+          cp qa/switch-nutrition-review.mjs /tmp/switch-nutrition-review/
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 54d6a6cca395a43a138bb45d4ec1e2f7accef602
+          clean: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build exact product candidate
+        run: npm run build
+      - name: Install browser driver
+        run: |
+          cd /tmp/switch-nutrition-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact product candidate
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/switch-nutrition-preview.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/switch-nutrition-preview.log
+          exit 1
+      - name: Narrow SWITCH nutrition real-data QA
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/switch-nutrition-review-output" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/switch-nutrition-review/switch-nutrition-review.mjs
+          cp /tmp/switch-nutrition-review/switch-nutrition-review.mjs "$GITHUB_WORKSPACE/switch-nutrition-review-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: switch-nutrition-review
+          path: switch-nutrition-review-output
+          retention-days: 7

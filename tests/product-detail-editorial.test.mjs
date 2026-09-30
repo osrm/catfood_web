@@ -269,6 +269,84 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
 })
 
 
+test('ingredient tab applies only reviewed exact reading-help names while preserving raw source and order', async () => {
+  const sourceNames = [
+    'De-boned duck', 'duck meal', 'whole dried egg', 'peas', 'lentils', 'pea flour', 'tapioca', 'chickpeas',
+    'chicken fat (preserved with mixed tocopherols)', 'flaxseed', 'natural flavour', 'salt', 'calcium carbonate',
+    'dried chicory root', 'phosphoric acid', 'choline chloride', 'potassium chloride', 'vitamins', 'minerals', 'taurine', 'dried rosemary',
+  ]
+  const expectedDisplay = [
+    '뼈를 제거한 오리', 'duck meal', '건조 전란', '완두콩', '렌틸콩', '완두콩 가루', '타피오카', '병아리콩',
+    '닭 지방(혼합 토코페롤로 보존)', '아마씨', 'natural flavour', '소금', '탄산칼슘',
+    '말린 치커리 뿌리', '인산', '염화콜린', '염화칼륨', '비타민', '미네랄', '타우린', '말린 로즈마리',
+  ]
+  const rawText = sourceNames.join(', ')
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+      ...ingredients,
+      variant_id: null,
+      observation_scope: 'formula',
+      market_code: null,
+      completeness_status: 'full',
+      raw_text: rawText,
+      ingredient_names: sourceNames,
+      ingredient_count: sourceNames.length,
+      is_korea_market_observation: false,
+      is_current_resolved_formula: true,
+      supplemental_full_raw_text: null,
+      supplemental_full_ingredient_names: [],
+      supplemental_full_ingredient_count: 0,
+    }])
+    return Response.json([])
+  }
+  await act(async () => {
+    root.render(createElement(app.ProductDetail, { key: 'ingredients-reading-help', product: target, onClose() {}, initialTab: 'ingredients' }))
+    await Promise.resolve()
+  })
+
+  const list = document.querySelector('.detail-ingredient-list-compact')
+  assert.ok(list)
+  const displayed = [...list.querySelectorAll('span')].map((node) => node.textContent)
+  assert.deepEqual(displayed, expectedDisplay)
+  assert.equal(displayed.length, sourceNames.length)
+  assert.equal(displayed[1], 'duck meal')
+  assert.equal(displayed[10], 'natural flavour')
+  assert.equal(document.querySelector('.detail-ingredient-reading-help')?.textContent, '한국어 읽기 도움')
+  assert.doesNotMatch(document.body.textContent, /검토용/)
+
+  const source = [...document.querySelectorAll('summary')].find((node) => node.textContent === '원문 보기')
+  assert.ok(source)
+  assert.equal(source.parentElement.open, false)
+  source.parentElement.open = true
+  assert.equal(source.parentElement.querySelector('.detail-ingredient-copy')?.textContent, rawText)
+})
+
+test('ingredient reading help never translates partial string matches', async () => {
+  const sourceNames = ['chicken fat', 'pea flour concentrate', 'natural flavour']
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+      ...ingredients,
+      completeness_status: 'full',
+      raw_text: sourceNames.join(', '),
+      ingredient_names: sourceNames,
+      ingredient_count: sourceNames.length,
+      supplemental_full_raw_text: null,
+      supplemental_full_ingredient_names: [],
+      supplemental_full_ingredient_count: 0,
+    }])
+    return Response.json([])
+  }
+  await act(async () => {
+    root.render(createElement(app.ProductDetail, { key: 'ingredients-exact-only', product: target, onClose() {}, initialTab: 'ingredients' }))
+    await Promise.resolve()
+  })
+  const displayed = [...document.querySelectorAll('.detail-ingredient-list-compact span')].map((node) => node.textContent)
+  assert.deepEqual(displayed, sourceNames)
+  assert.equal(document.querySelector('.detail-ingredient-reading-help'), null)
+})
+
 test('ingredient tab uses normalized names as the primary body when source raw text is absent', async () => {
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
@@ -276,7 +354,7 @@ test('ingredient tab uses normalized names as the primary body when source raw t
       ...ingredients,
       completeness_status: 'full',
       raw_text: null,
-      ingredient_names: ['참치', '닭고기'],
+      ingredient_names: ['De-boned duck', 'duck meal', 'natural flavour'],
       supplemental_full_raw_text: null,
       supplemental_full_ingredient_names: [],
       supplemental_full_ingredient_count: 0,
@@ -287,7 +365,8 @@ test('ingredient tab uses normalized names as the primary body when source raw t
     root.render(createElement(app.ProductDetail, { key: 'ingredients-no-raw', product: target, onClose() {}, initialTab: 'ingredients' }))
     await Promise.resolve()
   })
-  assert.match(document.querySelector('.detail-ingredient-list-compact')?.textContent ?? '', /참치닭고기/)
+  assert.equal(document.querySelector('.detail-ingredient-list-compact')?.textContent ?? '', 'De-boned duckduck mealnatural flavour')
+  assert.equal(document.querySelector('.detail-ingredient-reading-help'), null)
   assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent === '원문 보기'), false)
   assert.doesNotMatch(document.body.textContent, /출처 원문/)
 })

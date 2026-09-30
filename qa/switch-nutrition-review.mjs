@@ -230,7 +230,7 @@ async function mobileSwitchScenario(){
   await page.locator('.compare-mobile-candidate-options').waitFor({state:'visible'})
   await page.keyboard.press('Tab')
   await page.keyboard.press('Tab')
-  const focusedOption=await page.evaluate(()=>({tag:document.activeElement?.tagName||'',text:normText(document.activeElement?.textContent)}))
+  const focusedOption=await page.evaluate(()=>({tag:document.activeElement?.tagName||'',text:String(document.activeElement?.textContent||'').replace(/\\s+/g,' ').trim()}))
   assert.equal(focusedOption.tag,'BUTTON')
   await page.keyboard.press('Enter')
   await page.waitForTimeout(50)

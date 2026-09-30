@@ -239,7 +239,10 @@ async function desktopChecks(){
   await setupSwitch(second.page)
   const table=second.page.locator('.compare-switch-nutrition-desktop')
   await table.waitFor({state:'visible',timeout:90000})
-  await second.page.waitForFunction(()=>document.querySelector('.compare-switch-nutrition-desktop')?.textContent?.includes('348 kcal/100g'),null,{timeout:90000})
+  await second.page.waitForFunction(()=>{
+    const text=document.querySelector('.compare-switch-nutrition-desktop')?.textContent||''
+    return text.includes('370 kcal/100g')&&text.includes('348 kcal/100g')&&text.includes('422 kcal/100g')
+  },null,{timeout:90000})
   const sw=await second.page.evaluate(()=>{
     const table=document.querySelector('.compare-switch-nutrition-desktop')
     const energy=[...table.querySelectorAll('.compare-row.is-metric')].find(row=>row.querySelector('.compare-row-label')?.textContent.trim()==='열량')

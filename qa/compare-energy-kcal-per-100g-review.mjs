@@ -77,7 +77,7 @@ async function generalMobile(){
   assert.ok(metrics.view.scrollWidth<=metrics.view.clientWidth+1)
   assert.ok(metrics.table.scrollWidth<=metrics.table.clientWidth+1)
 
-  const energyField=view.locator('.compare-mobile-two-product-field.is-metric').filter({has:view.getByText('열량',{exact:true})}).first()
+  const energyField=view.locator('.compare-mobile-two-product-field.is-metric').filter({hasText:'열량'}).first()
   await energyField.scrollIntoViewIfNeeded()
   await page.screenshot({path:OUT+'/01-general-aatu-natural-energy-390x844.png',fullPage:false})
 

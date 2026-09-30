@@ -1500,6 +1500,7 @@ export default function SwitchFlow({
         <CompareView
           items={compareItems}
           currentProduct={currentProduct}
+          currentVariantId={currentVariantId}
           currentVariantText={currentVariantText}
           initialTab={compareTab}
           onTabChange={changeSwitchCompareTab}

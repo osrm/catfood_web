@@ -181,7 +181,10 @@ async function mobileSwitch(){
   await toggle.click()
   const naturalOption=page.locator('.compare-mobile-candidate-options button').filter({hasText:/내추럴발란스/}).first()
   await naturalOption.click()
-  await page.waitForTimeout(50)
+  await page.waitForFunction(()=>{
+    const text=document.querySelector('.compare-switch-mobile-nutrition')?.textContent||''
+    return text.includes('3 kg 자료 · 다른 포장')&&text.includes('제품 단위 보완 자료')&&text.includes('348 kcal/100g')
+  },null,{timeout:90000})
 
   const readMetrics=()=>page.evaluate(()=>{
     const doc=document.scrollingElement||document.documentElement
@@ -269,7 +272,11 @@ async function desktopChecks(){
   await table.waitFor({state:'visible',timeout:90000})
   await second.page.waitForFunction(()=>{
     const text=document.querySelector('.compare-switch-nutrition-desktop')?.textContent||''
-    return text.includes('370 kcal/100g')&&text.includes('348 kcal/100g')&&text.includes('422 kcal/100g')
+    return text.includes('370 kcal/100g')
+      && text.includes('348 kcal/100g')
+      && text.includes('422 kcal/100g')
+      && text.includes('3 kg 자료 · 다른 포장')
+      && text.includes('제품 단위 보완 자료')
   },null,{timeout:90000})
   const sw=await second.page.evaluate(()=>{
     const table=document.querySelector('.compare-switch-nutrition-desktop')

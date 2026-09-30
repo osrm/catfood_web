@@ -584,7 +584,7 @@ export default function App() {
     const additionalLabels = additionalConditionLabels(draftSearch)
     return <>
       <div className="condition-group-title"><span>기본 조건</span></div>
-      <p className="field-note condition-policy-note">조건 정보가 없는 제품도 결과에 포함됩니다.</p>
+      <p className="field-note condition-policy-note">선택한 조건 정보가 없는 제품도 결과에 남습니다.</p>
       <FilterSection title="사료 형태" hint="선택 시 필수 조건"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
       <FilterSection title="연령" hint="제품 표기 기준"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /><p className="field-note">제품에 표기된 연령 구분을 기준으로 합니다.</p></FilterSection>
       <div className="mobile-additional-disclosure condition-additional-disclosure">
@@ -612,7 +612,7 @@ export default function App() {
       {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 표기" /> : null}
       {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 제품을 봅니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
-      <div className="refine-title">더 좁혀보기</div><FilterSection title="주요 레시피" hint="확인된 정보로 더 좁히기">
+      <div className="refine-title">더 좁혀보기</div><FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
         {refine.recipeDetails.length ? <div className="selected-refinements">{refine.recipeDetails.map((value) => <button className="selected-refinement" key={value} type="button" onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)} ×</button>)}</div> : null}
         <input className="recipe-search" type="search" value={recipeSearch} placeholder="레시피 검색" onChange={(event) => setRecipeSearch(event.target.value)} />
         <div className="recipe-detail-grid">{visibleRecipeDetails.map((value) => <button className={refine.recipeDetails.includes(value) ? 'choice is-active' : 'choice'} key={value} type="button" aria-pressed={refine.recipeDetails.includes(value)} onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)}</button>)}</div>
@@ -661,7 +661,7 @@ export default function App() {
   if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} />
 
   const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'
-  const paneDescription = mode === 'explore' ? '명백히 충돌하는 제품만 제외하고, 확인된 조건이 많은 순으로 봅니다. 미확인은 남겨둡니다.' : '브랜드나 제품명으로 찾습니다.'
+  const paneDescription = mode === 'explore' ? '사료 형태·연령과 원하는 조건을 고릅니다.' : '브랜드나 제품명으로 찾습니다.'
   const waitingForConditions = mode === 'explore' && editingConditions
   const resultCountText = visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`
   const resultSummaryText = loading

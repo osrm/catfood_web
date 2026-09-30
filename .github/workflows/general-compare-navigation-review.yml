@@ -19,6 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test tests/navigation.test.mjs
+
   restored-explore-test:
     runs-on: ubuntu-latest
     steps:
@@ -31,3 +32,57 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test tests/restored-explore.test.mjs
+
+  candidate-browser:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+      PRODUCT_SHA: 7ae98aeed1f25a1313b0b8897b4d4815b033a339
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Preserve QA source outside workspace
+        run: |
+          mkdir -p /tmp/general-compare-navigation-review
+          cp qa/general-compare-navigation-candidate.mjs /tmp/general-compare-navigation-review/
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 7ae98aeed1f25a1313b0b8897b4d4815b033a339
+          clean: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build exact product candidate
+        run: npm run build
+      - name: Install browser driver
+        run: |
+          cd /tmp/general-compare-navigation-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact product candidate
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/general-compare-navigation-vite.log 2>&1 &
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 0.25
+          done
+          cat /tmp/general-compare-navigation-vite.log
+          exit 1
+      - name: Chrome 390 navigation review
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/general-compare-navigation-output" CANDIDATE_URL="http://127.0.0.1:4173/" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/general-compare-navigation-review/general-compare-navigation-candidate.mjs
+          cp /tmp/general-compare-navigation-review/general-compare-navigation-candidate.mjs "$GITHUB_WORKSPACE/general-compare-navigation-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: general-compare-navigation-review
+          path: general-compare-navigation-output
+          retention-days: 7

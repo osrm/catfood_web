@@ -182,6 +182,8 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
 
   await click(document.querySelector('.switch-no-change'))
   assert.equal(document.querySelector('.switch-no-change').classList.contains('is-selected'), true)
+  assert.match(document.querySelector('.switch-no-change').textContent, /유지 조건도 고르지 않으면 전체 후보에서 탐색합니다/)
+  assert.doesNotMatch(document.querySelector('.switch-no-change').textContent, /비슷한 후보/)
   assert.equal(reentryKitten.getAttribute('aria-pressed'), 'false')
   assert.equal(document.querySelector('.switch-change-additional-summary'), null)
   assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '필요할 때만 선택하세요.')

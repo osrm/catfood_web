@@ -77,20 +77,24 @@ async function generalMobile(){
   assert.ok(metrics.view.scrollWidth<=metrics.view.clientWidth+1)
   assert.ok(metrics.table.scrollWidth<=metrics.table.clientWidth+1)
 
-  const scopeRow=[...await view.locator('.compare-mobile-two-product-field').all()].find(async()=>false)
+  const energyField=view.locator('.compare-mobile-two-product-field.is-metric').filter({has:view.getByText('열량',{exact:true})}).first()
+  await energyField.scrollIntoViewIfNeeded()
+  await page.screenshot({path:OUT+'/01-general-aatu-natural-energy-390x844.png',fullPage:false})
+
   const summaries=view.locator('.compare-evidence-disclosure summary')
   assert.ok(await summaries.count()>=2)
   const naturalSummary=summaries.nth(1)
+  await naturalSummary.scrollIntoViewIfNeeded()
   await naturalSummary.focus()
   assert.equal(await naturalSummary.evaluate(el=>document.activeElement===el),true)
   await page.keyboard.press('Enter')
   assert.equal(await naturalSummary.evaluate(el=>el.parentElement?.hasAttribute('open')),true)
   assert.match(norm(await naturalSummary.evaluate(el=>el.parentElement?.textContent||'')),/제공된 열량.*3,480 kcal\/kg/)
   assert.equal(await naturalSummary.evaluate(el=>document.activeElement===el),true)
+  await page.screenshot({path:OUT+'/02-general-aatu-natural-scope-390x844.png',fullPage:false})
   await page.keyboard.press('Enter')
 
-  await page.screenshot({path:OUT+'/01-general-aatu-natural-390x844.png',fullPage:false})
-  await page.screenshot({path:OUT+'/02-general-aatu-natural-full-390.png',fullPage:true})
+  await page.screenshot({path:OUT+'/03-general-aatu-natural-full-390.png',fullPage:true})
   report.general={...metrics,providedValueKeyboard:{opened:true,closed:true,focusRetained:true}}
   await context.close()
 }

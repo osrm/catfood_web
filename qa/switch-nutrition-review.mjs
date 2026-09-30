@@ -110,11 +110,13 @@ async function mobileScenario(){
   assert.match(text,/422 kcal\/100g/)
   assert.match(text,/33% 이상/)
   assert.match(text,/31% 이상/)
-  assert.match(text,/사용 규격 · 1 kg · 영양 자료 포장 · 3 kg · 다른 포장 자료/)
+  assert.match(text,/사용 규격 · 1 kg/)
+  assert.match(text,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
   assert.match(text,/한국 판매 제품 자료 · 3 kg 제품에서 확인 · 보완 자료 포함/)
   assert.match(text,/한국 판매 제품 자료 · 7\.26 kg 제품에서 확인/)
-  assert.ok((text.match(/다른 포장 자료/g)||[]).length>=6,'current-food metric cells must carry the package mismatch note')
-  assert.doesNotMatch(text,/판매 대표.*다른 포장 자료/)
+  assert.match(text,/3 kg 자료 · 다른 포장/)
+  assert.match(text,/제품 단위 보완 자료/)
+  assert.doesNotMatch(text,/판매 대표.*다른 포장/)
 
   const metrics=await page.evaluate(()=>{
     const doc=document.scrollingElement||document.documentElement
@@ -129,13 +131,31 @@ async function mobileScenario(){
       table:{clientWidth:table.clientWidth,scrollWidth:table.scrollWidth},
       metricCellCount:cells.length,
       metricFontSizes:fontSizes,
-      currentMetricTexts:[...view.querySelectorAll('.compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value.is-current')].map(x=>x.textContent.replace(/\s+/g,' ').trim()),
-      candidateMetricTexts:[...view.querySelectorAll('.compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value.is-candidate')].map(x=>x.textContent.replace(/\s+/g,' ').trim()),
+      currentEvidenceSummary:view.querySelector('.compare-current-nutrition-evidence')?.textContent.replace(/\s+/g,' ').trim(),
+      metricRows:[...view.querySelectorAll('.compare-mobile-two-product-field.is-metric')].map(row=>({
+        label:row.querySelector('.compare-mobile-two-product-row-label')?.textContent.replace(/\s+/g,' ').trim(),
+        current:row.querySelector('.compare-mobile-two-product-value.is-current')?.textContent.replace(/\s+/g,' ').trim(),
+        candidate:row.querySelector('.compare-mobile-two-product-value.is-candidate')?.textContent.replace(/\s+/g,' ').trim(),
+      })),
     }
   })
   assert.deepEqual(metrics.metricFontSizes,['15.5px'])
-  assert.ok(metrics.currentMetricTexts.every(value=>value.includes('다른 포장 자료')),'every current-food metric must identify the different evidence package')
-  assert.ok(metrics.candidateMetricTexts.every(value=>!value.includes('다른 포장 자료')),'candidate metrics must not infer a use-package mismatch from representative packaging')
+  assert.match(metrics.currentEvidenceSummary,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
+  const energyMetric=metrics.metricRows.find(row=>row.label==='열량')
+  assert.ok(energyMetric,'energy row must exist')
+  assert.match(energyMetric.current,/370 kcal\/100g/)
+  assert.match(energyMetric.current,/3 kg 자료 · 다른 포장/)
+  assert.doesNotMatch(energyMetric.current,/제품 단위 보완 자료/)
+  for(const label of ['조단백질','조지방','조섬유','수분','조회분']){
+    const row=metrics.metricRows.find(value=>value.label===label)
+    assert.ok(row,`${label} row must exist`)
+    assert.match(row.current,/제품 단위 보완 자료/)
+    assert.doesNotMatch(row.current,/3 kg 자료|다른 포장/)
+  }
+  const supplementalAdditional=metrics.metricRows.filter(row=>!['열량','조단백질','조지방','조섬유','수분','조회분'].includes(row.label) && row.current && !row.current.startsWith('미확인'))
+  assert.ok(supplementalAdditional.length>0,'at least one current-food additional nutrient must be present')
+  assert.ok(supplementalAdditional.every(row=>row.current.includes('제품 단위 보완 자료')),'current-food additional nutrient values must use supplemental product evidence')
+  assert.ok(metrics.metricRows.every(row=>!row.candidate?.includes('다른 포장')),'candidate metrics must not infer a use-package mismatch from representative packaging')
   assert.ok(metrics.document.scrollWidth<=metrics.document.clientWidth+1)
   assert.ok(metrics.view.scrollWidth<=metrics.view.clientWidth+1)
   assert.ok(metrics.table.scrollWidth<=metrics.table.clientWidth+1)
@@ -211,10 +231,21 @@ async function desktopScenario(){
       viewport:{width:innerWidth,height:innerHeight},
       currentHead:t.querySelector('.compare-current-product-head')?.textContent?.replace(/\s+/g,' ').trim(),
       metricRows:rows.length,
-      firstMetricCurrent:rows[0]?.querySelector('.compare-cell.is-current')?.textContent?.replace(/\s+/g,' ').trim(),
+      currentEvidenceSummary:t.querySelector('.compare-current-nutrition-evidence')?.textContent?.replace(/\s+/g,' ').trim(),
+      metricRows:rows.map(row=>({
+        label:row.querySelector('.compare-row-label')?.textContent?.replace(/\s+/g,' ').trim(),
+        current:row.querySelector('.compare-cell.is-current')?.textContent?.replace(/\s+/g,' ').trim(),
+      })),
       productHeads:t.querySelectorAll('.compare-product-head').length,
     }
   })
+  assert.match(metrics.currentEvidenceSummary,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
+  const energyMetric=metrics.metricRows.find(row=>row.label==='열량')
+  const proteinMetric=metrics.metricRows.find(row=>row.label==='조단백질')
+  assert.ok(energyMetric&&proteinMetric)
+  assert.match(energyMetric.current,/3 kg 자료 · 다른 포장/)
+  assert.match(proteinMetric.current,/제품 단위 보완 자료/)
+  assert.doesNotMatch(proteinMetric.current,/3 kg 자료|다른 포장/)
   await page.screenshot({path:OUT+'/switch-nutrition-desktop-1440x900.png',fullPage:false})
   report.desktop={...metrics,text}
   await context.close()

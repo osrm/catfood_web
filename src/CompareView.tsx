@@ -573,7 +573,7 @@ export default function CompareView({ items, currentProduct, currentVariantId, c
   }, [productIds.join('|'), reload])
 
   useEffect(() => {
-    if (!currentProduct) {
+    if (!currentProduct || tab !== 'nutrition') {
       setCurrentNutrition(null)
       setCurrentNutritionLoading(false)
       setCurrentNutritionError(null)
@@ -602,7 +602,7 @@ export default function CompareView({ items, currentProduct, currentVariantId, c
       if (active) setCurrentVariantLookupFailed(true)
     }).finally(() => { if (active) setCurrentVariantsLoading(false) })
     return () => { active = false; controller.abort() }
-  }, [currentProduct?.product_id, currentNutritionReload])
+  }, [currentProduct?.product_id, tab, currentNutritionReload])
 
   function openDetail(productId: string) {
     if (onDetailOpen) onDetailOpen(productId)

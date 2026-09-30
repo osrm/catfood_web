@@ -208,6 +208,9 @@ export default function App() {
   const exploreRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const exploreRunStateKey = useRef<string | null>(null)
   const mobileRefineToggleRef = useRef<HTMLButtonElement | null>(null)
+  const quickViewCloseRef = useRef<HTMLButtonElement | null>(null)
+  const quickViewReturnId = useRef<string | null>(null)
+  const quickViewFocusReturnPending = useRef(false)
   const catalogRequestId = useRef(0)
   const catalogRequest = useRef<{ id: number; controller: AbortController } | null>(null)
 
@@ -448,6 +451,20 @@ export default function App() {
     }, 0)
   }, [visibleProducts.length, detailProductId, compareOpen, loading])
 
+  useEffect(() => {
+    if (selectedProduct || !quickViewFocusReturnPending.current || detailProductId || compareOpen) return
+    const returnId = quickViewReturnId.current
+    quickViewFocusReturnPending.current = false
+    quickViewReturnId.current = null
+    const timer = window.setTimeout(() => {
+      if (!returnId) return
+      const focusTarget = Array.from(document.querySelectorAll<HTMLElement>('[data-product-id]'))
+        .find((element) => element.dataset.productId === returnId)
+      focusTarget?.focus({ preventScroll: true })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [selectedProduct?.product_id, detailProductId, compareOpen, visibleProducts.length])
+
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
     exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
@@ -461,8 +478,19 @@ export default function App() {
   function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
   function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field], value) })) }
   function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, visibleCount: 40, selectedId: null })) }
-  function openExploreProduct(productId: string) { setSelectedId(productId); if (mode === 'explore') recordExploreConsideration(productId, 'detail_open'); replaceHistory(snapshot({ selectedId: productId })) }
-  function closeQuickView() { setSelectedId(null); replaceHistory(snapshot({ selectedId: null })) }
+  function openExploreProduct(productId: string) {
+    quickViewReturnId.current = productId
+    setSelectedId(productId)
+    if (mode === 'explore') recordExploreConsideration(productId, 'detail_open')
+    replaceHistory(snapshot({ selectedId: productId }))
+    window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
+  }
+  function closeQuickView() {
+    quickViewReturnId.current = quickViewReturnId.current ?? selectedId
+    quickViewFocusReturnPending.current = true
+    setSelectedId(null)
+    replaceHistory(snapshot({ selectedId: null }))
+  }
   function toggleCompare(productId: string) {
     const adding = !compareIds.includes(productId) && compareIds.length < 5
     if (adding && mode === 'explore') recordExploreConsideration(productId, 'compare_add')
@@ -556,7 +584,7 @@ export default function App() {
     const additionalLabels = additionalConditionLabels(draftSearch)
     return <>
       <div className="condition-group-title"><span>기본 조건</span></div>
-      <p className="field-note condition-policy-note">조건 정보가 없는 제품도 결과에 포함됩니다.</p>
+      <p className="field-note condition-policy-note">선택한 조건 정보가 없는 제품도 결과에 남습니다.</p>
       <FilterSection title="사료 형태" hint="선택 시 필수 조건"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
       <FilterSection title="연령" hint="제품 표기 기준"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /><p className="field-note">제품에 표기된 연령 구분을 기준으로 합니다.</p></FilterSection>
       <div className="mobile-additional-disclosure condition-additional-disclosure">
@@ -584,7 +612,7 @@ export default function App() {
       {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 표기" /> : null}
       {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 제품을 봅니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
-      <div className="refine-title">더 좁혀보기</div><FilterSection title="주요 레시피" hint="확인된 정보로 더 좁히기">
+      <div className="refine-title">더 좁혀보기</div><FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
         {refine.recipeDetails.length ? <div className="selected-refinements">{refine.recipeDetails.map((value) => <button className="selected-refinement" key={value} type="button" onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)} ×</button>)}</div> : null}
         <input className="recipe-search" type="search" value={recipeSearch} placeholder="레시피 검색" onChange={(event) => setRecipeSearch(event.target.value)} />
         <div className="recipe-detail-grid">{visibleRecipeDetails.map((value) => <button className={refine.recipeDetails.includes(value) ? 'choice is-active' : 'choice'} key={value} type="button" aria-pressed={refine.recipeDetails.includes(value)} onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)}</button>)}</div>
@@ -625,18 +653,24 @@ export default function App() {
   function renderQuickView() {
     if (!selectedProduct) return null
     const isCompared = compareIds.includes(selectedProduct.product_id)
-    return <aside className="research-quick-view is-editorial"><div className="quick-view-topline"><span>빠른 보기</span><button type="button" onClick={closeQuickView}>닫기 ×</button></div><div className="quick-view-scroll"><section className="quick-view-identity"><ProductImage className="quick-view-image" product={selectedProduct} /><div><span>{selectedProduct.brand}</span><h1>{selectedProduct.canonical_name}</h1><p>{selectedProduct.feed_type ?? '형태 미확인'} · {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div></section><div className="quick-view-actions"><button className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !isCompared} onClick={() => toggleCompare(selectedProduct.product_id)}>{isCompared ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { if (mode === 'explore') recordExploreConsideration(selectedProduct.product_id, 'detail_open'); openDetail(selectedProduct.product_id) }}>상세 보기 →</button></div>{selectedEvaluation && activeConditions > 0 ? <section className="quick-view-section"><h2>선택한 조건과 비교</h2><dl className="definition-list"><Definition label="확인된 조건">{selectedEvaluation.confirmedMatches.length ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ') : <span className="unknown-value">확인된 항목 없음</span>}</Definition><Definition label="미확인 조건">{selectedEvaluation.unknowns.length ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ') : <span className="unknown-value">—</span>}</Definition></dl></section> : null}<section className="quick-view-section"><h2>핵심 정보</h2><dl className="definition-list"><Definition label="판매 규격">{packageOptionsLabel(selectedProduct)}</Definition><Definition label="제품 표기 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition><Definition label="제품 특징"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition><Definition label="레시피 종류"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition><Definition label="주요 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition><Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition></dl></section></div></aside>
+    return <aside className="research-quick-view is-editorial"><div className="quick-view-topline"><span>빠른 보기</span><button ref={quickViewCloseRef} type="button" onClick={closeQuickView}>닫기 ×</button></div><div className="quick-view-scroll"><section className="quick-view-identity"><ProductImage className="quick-view-image" product={selectedProduct} /><div><span>{selectedProduct.brand}</span><h1>{selectedProduct.canonical_name}</h1><p>{selectedProduct.feed_type ?? '형태 미확인'} · {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div></section><div className="quick-view-actions"><button className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !isCompared} onClick={() => toggleCompare(selectedProduct.product_id)}>{isCompared ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { if (mode === 'explore') recordExploreConsideration(selectedProduct.product_id, 'detail_open'); openDetail(selectedProduct.product_id) }}>상세 보기 →</button></div>{selectedEvaluation && activeConditions > 0 ? <section className="quick-view-section"><h2>선택한 조건과 비교</h2><dl className="definition-list"><Definition label="확인된 조건">{selectedEvaluation.confirmedMatches.length ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ') : <span className="unknown-value">확인된 항목 없음</span>}</Definition><Definition label="미확인 조건">{selectedEvaluation.unknowns.length ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ') : <span className="unknown-value">—</span>}</Definition></dl></section> : null}<section className="quick-view-section"><h2>핵심 정보</h2><dl className="definition-list"><Definition label="판매 규격">{packageOptionsLabel(selectedProduct)}</Definition><Definition label="제품 표기 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition><Definition label="제품 특징"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition><Definition label="레시피 종류"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition><Definition label="주요 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition><Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition></dl></section></div></aside>
   }
 
   if (detailProduct) return <ProductDetail product={detailProduct} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
-  if (screen === 'home') return <Home productCount={products.length} loading={loading} onStart={startFromHome} />
+  if (screen === 'home') return <Home productCount={products.length} loading={loading} error={Boolean(error)} onRetryCatalog={loadCatalog} onStart={startFromHome} />
   if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} />
 
   const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'
-  const paneDescription = mode === 'explore' ? '원하는 조건을 골라 제품을 좁혀보세요.' : '브랜드나 제품명으로 찾습니다.'
+  const paneDescription = mode === 'explore' ? '사료 형태·연령과 원하는 조건을 고릅니다.' : '브랜드나 제품명으로 찾습니다.'
   const waitingForConditions = mode === 'explore' && editingConditions
+  const resultCountText = visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`
+  const resultSummaryText = loading
+    ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
+    : mode === 'explore' && activeConditions > 0
+      ? `${resultCountText} · 확인된 조건이 많은 순 · 미확인 조건이 있는 제품도 포함`
+      : resultCountText
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
   const showMobileRefine = mobileRefineOpen && mode === 'explore' && !editingConditions && !selectedProduct && !compareOpen && !detailProductId
   const shellClassName = ['research-shell', selectedProduct ? 'is-inspecting' : 'is-browsing', showMobileRefine ? 'is-mobile-refining' : ''].filter(Boolean).join(' ')
-  return <div className={shellClassName}><header className="research-topbar"><button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span>{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{renderLeftPane()}</div>{waitingForConditions ? <div className="condition-actions"><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button></div> : null}</aside> : null}{!waitingForConditions ? <section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{loading ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.' : visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`}</span></div></div><div className="research-results-scroll">{renderResultList()}</div></section> : null}{renderQuickView()}</main>{compareIds.length && !waitingForConditions ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
+  return <div className={shellClassName}><header className="research-topbar"><button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={goHome}>FELINE ARCHIVE</button><nav className="mode-nav" aria-label="탐색 모드"><ModeButton mode="explore" active={mode} label="조건으로 찾기" onClick={changeMode} /><ModeButton mode="lookup" active={mode} label="제품 찾기" onClick={changeMode} /><ModeButton mode="switch" active={mode} label="현재 사료" onClick={changeMode} /></nav><div className="research-status"><span>{products.length || '—'} PRODUCTS</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</div></header>{compareOpen && compareItems.length ? <CompareView items={compareItems} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong><span>{paneDescription}</span>{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{waitingForConditions && loading ? <div className="catalog-inline-state" role="status"><strong>제품 목록을 불러오는 중입니다.</strong><span>조건은 먼저 고를 수 있습니다.</span></div> : null}{waitingForConditions && error ? <div className="catalog-inline-state is-error" role="alert"><strong>제품 목록을 불러오지 못했습니다.</strong><span>선택한 조건은 그대로 유지됩니다.</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div> : null}{renderLeftPane()}</div>{waitingForConditions ? <div className="condition-actions"><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button></div> : null}</aside> : null}{!waitingForConditions ? <section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{resultSummaryText}</span></div></div><div className="research-results-scroll">{renderResultList()}</div></section> : null}{renderQuickView()}</main>{compareIds.length && !waitingForConditions ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
 }

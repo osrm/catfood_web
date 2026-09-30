@@ -85,10 +85,14 @@ const GLOSSARY = [
 export default function Home({
   productCount,
   loading,
+  error,
+  onRetryCatalog,
   onStart,
 }: {
   productCount: number
   loading: boolean
+  error: boolean
+  onRetryCatalog: () => void
   onStart: (mode: HomeMode, query?: string) => void
 }) {
   const [query, setQuery] = useState('')
@@ -96,7 +100,7 @@ export default function Home({
   const infoTriggerRef = useRef<HTMLButtonElement | null>(null)
   const infoHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const trimmedQuery = query.trim()
-  const catalogCount = loading ? '—' : productCount ? productCount.toLocaleString('ko-KR') : '—'
+  const catalogCount = productCount ? productCount.toLocaleString('ko-KR') : '—'
   const demo = isDemoPreview()
 
   function submitLookup(event: FormEvent<HTMLFormElement>) {
@@ -139,8 +143,8 @@ export default function Home({
             <strong className="home-logo">CATFOOD</strong>
             <span>고양이 사료 탐색·비교</span>
           </div>
-          <div className="home-catalog-status" aria-live="polite">
-            현재 확인된 제품 <strong>{catalogCount}개</strong>
+          <div className={error ? 'home-catalog-status is-error' : 'home-catalog-status'} aria-live="polite">
+            {loading ? <span>제품 목록 불러오는 중</span> : error ? <span>제품 목록 조회 실패</span> : <>현재 확인된 제품 <strong>{catalogCount}개</strong></>}
           </div>
         </div>
       </header>
@@ -150,6 +154,11 @@ export default function Home({
           <div className="home-start-copy">
             <h1>사료를 찾는 방법을 고르세요.</h1>
           </div>
+
+          {error ? <div className="home-catalog-error" role="alert">
+            <div><strong>제품 목록을 불러오지 못했습니다.</strong><span>검색이나 조건 탐색을 시작하기 전에 다시 시도해 주세요.</span></div>
+            <button type="button" onClick={onRetryCatalog}>다시 시도</button>
+          </div> : null}
 
           <section className="home-entry-board" aria-label="CATFOOD 시작 방법">
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
@@ -178,7 +187,7 @@ export default function Home({
 
               <article className="home-entry-route">
                 <h2>조건으로 찾아보기</h2>
-                <p>원하는 조건으로 후보를 좁힙니다.</p>
+                <p>사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다.</p>
                 <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
               </article>
             </div>

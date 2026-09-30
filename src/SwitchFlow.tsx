@@ -1321,7 +1321,7 @@ export default function SwitchFlow({
             }}
           >
             <strong>특별히 바꾸고 싶은 점 없음</strong>
-            <span>지금 사료와 비슷한 후보를 보고, 다음 단계에서 꼭 유지할 조건만 고릅니다.</span>
+            <span>바꿀 조건 없이 다음 단계로 갑니다. 유지 조건도 고르지 않으면 전체 후보에서 탐색합니다.</span>
           </button>
 
           <div className="switch-criteria-columns switch-change-desktop-criteria">
@@ -1514,12 +1514,17 @@ export default function SwitchFlow({
       )
     }
 
+    const hasChosenCandidateCriteria = criteriaLabels(change).length > 0 || criteriaLabels(keep).length > 0 || changeBrand || keepBrand || ingredientAvoidTerms.length > 0
     const changeLabels = criteriaLabels(change)
     if (changeBrand) changeLabels.unshift('다른 브랜드')
     changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
     if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
     const keepLabels = criteriaLabels(keep)
     if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`)
+    const candidateCountText = visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`
+    const candidateSummaryText = hasChosenCandidateCriteria
+      ? `${candidateCountText} · 선택한 조건과 제품 정보를 비교합니다.`
+      : `${candidateCountText} · 변경·유지 조건을 고르지 않아 전체 후보에서 탐색합니다.`
     const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
     return (
@@ -1533,7 +1538,7 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`} · 선택한 조건과 제품 정보를 비교합니다.</span></div></div>
+            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div></div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {visibleCandidates.map((evaluation) => {

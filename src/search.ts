@@ -60,6 +60,16 @@ function normalizedLookupText(value: string): string {
     .replace(/\s+/g, '')
 }
 
+const CONFIRMED_BRAND_ALIAS_GROUPS = [
+  ['AATU', '아투'],
+  ["Hill's", 'Hills', 'Hill’s', '힐스'],
+] as const
+
+function confirmedBrandAliases(brand: string): readonly string[] {
+  const normalizedBrand = normalizedLookupText(brand)
+  return CONFIRMED_BRAND_ALIAS_GROUPS.find((group) => group.some((alias) => normalizedLookupText(alias) === normalizedBrand)) ?? []
+}
+
 function conditionLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value.replaceAll('_', ' ')
 }
@@ -70,8 +80,11 @@ export function lookupCatalog(products: CatalogProduct[], query: string): Catalo
   if (!lookupNeedle) return []
 
   return products.filter((product) => {
-    const value = `${product.brand} ${product.canonical_name}`
-    return normalizedText(value).includes(originalNeedle) || normalizedLookupText(value).includes(lookupNeedle)
+    const values = [
+      `${product.brand} ${product.canonical_name}`,
+      ...confirmedBrandAliases(product.brand).map((alias) => `${alias} ${product.canonical_name}`),
+    ]
+    return values.some((value) => normalizedText(value).includes(originalNeedle) || normalizedLookupText(value).includes(lookupNeedle))
   })
 }
 

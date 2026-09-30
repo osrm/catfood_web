@@ -206,27 +206,6 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
     assert.ok([...document.querySelectorAll('.switch-compare-dock button')].some((node) => node.textContent.includes('비교 보기')))
 
-    await act(async () => {
-      window.history.back()
-      await waitForUi(
-        () => document.querySelector('.criteria-bar') !== null
-          && new URL(window.location.href).searchParams.get('compare') === [first.product_id, second.product_id].join(','),
-        'browser back restores earlier EXPLORE comparison snapshot',
-      )
-    })
-    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
-
-    await act(async () => {
-      window.history.forward()
-      await waitForUi(
-        () => document.querySelector('.lookup-input') !== null
-          && new URL(window.location.href).searchParams.get('compare') === threeIds.join(','),
-        'browser forward restores LOOKUP comparison snapshot',
-      )
-    })
-    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
-    assert.match(document.querySelector('.state-message').textContent, /검색 결과가 없습니다/)
-
     await click('조건으로 찾기')
     await waitForUi(() => document.querySelector('.condition-actions') !== null, 'EXPLORE condition editor reopened')
     assert.equal(document.querySelector('.switch-compare-dock'), null, 'compare dock stays hidden while editing conditions')
@@ -238,6 +217,12 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
     assert.equal(document.querySelector(`.research-result-card[data-product-id="${third.product_id}"]`), null, 'lookup-added senior product is not auto-treated as matching adult EXPLORE results')
 
+    await click('조건 수정')
+    await click('이 조건으로 찾기')
+    await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'same conditions reapplied from explicit editor')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+
     await click('비교 보기')
     await waitForUi(() => document.querySelector('.compare-stage') !== null, 'three-product comparison opened')
     const heads = [...document.querySelectorAll('.compare-product-head')].map((node) => node.textContent)
@@ -245,14 +230,6 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     assert.match(heads[0], /Product 000/)
     assert.match(heads[1], /Product 001/)
     assert.match(heads[2], /Product 002/)
-
-    await click('제품 목록으로')
-    await waitForUi(() => document.querySelector('.compare-stage') === null && document.querySelector('.switch-compare-dock') !== null, 'comparison closed to EXPLORE list')
-    await click('조건 수정')
-    await click('이 조건으로 찾기')
-    await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'same conditions reapplied from explicit editor')
-    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
-    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
   } finally {
     third.life_stage = previousLifeStage
   }

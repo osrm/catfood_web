@@ -83,6 +83,9 @@ await page.screenshot({path:OUT+'/01-explore-two-390x844.png',fullPage:false})
 await (await visibleButton('제품 찾기')).click()
 await page.locator('.lookup-input').waitFor({state:'visible'})
 assert.deepEqual(compareParam(),[first.id,second.id])
+assert.equal(new URL(page.url()).searchParams.get('feed'),'건식')
+assert.equal(new URL(page.url()).searchParams.get('age'),'adult')
+assert.equal(new URL(page.url()).searchParams.get('applied'),'1')
 await dockCount(2)
 
 async function findThird(){
@@ -122,8 +125,10 @@ await page.waitForFunction(()=>document.querySelector('.mode-button[aria-current
 await page.locator('.lookup-input').waitFor({state:'visible'})
 await dockCount(3)
 assert.deepEqual(compareParam(),threeIds)
+assert.equal(new URL(page.url()).searchParams.get('feed'),'건식')
+assert.equal(new URL(page.url()).searchParams.get('age'),'adult')
 assert.match(norm(await page.locator('.state-message').textContent()),/검색 결과가 없습니다/)
-report.snapshots.historyForward={url:page.url(),compare:compareParam()}
+report.snapshots.historyForward={url:page.url(),compare:compareParam(),feed:new URL(page.url()).searchParams.get('feed'),age:new URL(page.url()).searchParams.get('age')}
 
 await (await visibleButton('조건으로 찾기')).click()
 await page.locator('.condition-actions').waitFor({state:'visible'})
@@ -134,7 +139,9 @@ report.snapshots.exploreEditor={url:page.url(),compare:compareParam(),dockHidden
 await (await visibleButton('이 조건으로 찾기')).click()
 await dockCount(3)
 assert.deepEqual(compareParam(),threeIds)
-report.snapshots.exploreReapplied={url:page.url(),compare:compareParam()}
+assert.equal(new URL(page.url()).searchParams.get('feed'),'건식')
+assert.equal(new URL(page.url()).searchParams.get('age'),'adult')
+report.snapshots.exploreReapplied={url:page.url(),compare:compareParam(),feed:new URL(page.url()).searchParams.get('feed'),age:new URL(page.url()).searchParams.get('age')}
 await page.screenshot({path:OUT+'/03-explore-three-reapplied-390x844.png',fullPage:false})
 
 await (await visibleButton('조건 수정')).click()

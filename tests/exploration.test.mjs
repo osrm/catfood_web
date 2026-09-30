@@ -405,7 +405,7 @@ test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are re
   assert.doesNotMatch(empty.textContent, /임의로 완화/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
   await click(edit)
-  assert.match(document.body.textContent, /조건 정보가 없는 제품도 결과에 포함됩니다\./)
+  assert.match(document.body.textContent, /선택한 조건 정보가 없는 제품도 결과에 남습니다\./)
 })
 
 test('LOOKUP retains its 120-row batch and does not collect decisions', async () => {

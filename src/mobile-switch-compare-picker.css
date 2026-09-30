@@ -1,5 +1,6 @@
 @media (max-width: 760px) {
-  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-candidate-picker {
+  .is-switch-overview .compare-switch-mobile-overview .compare-mobile-candidate-picker,
+  .is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-candidate-picker {
     gap: 0;
     padding: 0;
     overflow: visible;

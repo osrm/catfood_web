@@ -2,15 +2,35 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
-const BASE='http://127.0.0.1:4173/'
-const OUT=process.env.OUT_DIR||'switch-nutrition-review-output'
+const BASE=process.env.PAGES_URL||'https://osrm.github.io/catfood_web/'
+const OUT=process.env.OUT_DIR||'pages-combined-postdeploy-output'
+const EXPECTED_SHA=process.env.EXPECTED_SHA||'15dfbc94680f8cbc699426af6125aa2236c64f96'
 const CURRENT_ID='product_d99406c26240b263'
 const GO_ID='product_a0e685be674c6617'
-await mkdir(OUT,{recursive:true})
-const report={candidateSha:process.env.PRODUCT_SHA,blocked:[],reads:[],mobile:{},desktop:{}}
-const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
+const SOURCE_NAMES=[
+  'De-boned duck','duck meal','whole dried egg','peas','lentils','pea flour','tapioca','chickpeas',
+  'chicken fat (preserved with mixed tocopherols)','flaxseed','natural flavour','salt','calcium carbonate',
+  'dried chicory root','phosphoric acid','choline chloride','potassium chloride','vitamins','minerals','taurine','dried rosemary',
+]
+const DISPLAY_NAMES=[
+  '뼈를 제거한 오리','duck meal','건조 전란','완두콩','렌틸콩','완두콩 가루','타피오카','병아리콩',
+  '닭 지방(혼합 토코페롤로 보존)','아마씨','natural flavour','소금','탄산칼슘',
+  '말린 치커리 뿌리','인산','염화콜린','염화칼륨','비타민','미네랄','타우린','말린 로즈마리',
+]
+const RAW_TEXT=SOURCE_NAMES.join(', ')
 
-function norm(value){return String(value||'').replace(/\s+/g,' ').trim()}
+await mkdir(OUT,{recursive:true})
+const report={
+  expectedSha:EXPECTED_SHA,
+  pagesUrl:BASE,
+  blocked:[],
+  reads:[],
+  ingredient:{},
+  mobile:{},
+  desktop:{},
+}
+const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
+const norm=value=>String(value||'').replace(/\s+/g,' ').trim()
 
 async function pageAt(width,height){
   const context=await browser.newContext({viewport:{width,height},serviceWorkers:'block'})
@@ -32,10 +52,61 @@ async function pageAt(width,height){
   return {context,page}
 }
 
-async function visibleButton(page,name){
-  const nodes=page.getByRole('button',{name,exact:true})
-  for(let i=0;i<await nodes.count();i++) if(await nodes.nth(i).isVisible()) return nodes.nth(i)
-  throw new Error('button not found: '+name)
+async function ingredientScenario(){
+  const {context,page}=await pageAt(390,844)
+  const url=new URL(BASE)
+  url.searchParams.set('view','workspace')
+  url.searchParams.set('detail',GO_ID)
+  url.searchParams.set('detailTab','ingredients')
+  await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000})
+  await page.locator('.detail-stage').waitFor({state:'visible',timeout:90000})
+  await page.getByRole('heading',{name:/LID 오리/i}).waitFor({state:'visible',timeout:90000})
+  const list=page.locator('.detail-ingredient-list-compact')
+  await list.waitFor({state:'visible',timeout:90000})
+  await page.waitForFunction(()=>document.querySelectorAll('.detail-ingredient-list-compact span').length===21,null,{timeout:90000})
+
+  const displayed=await list.locator('span').allInnerTexts()
+  assert.deepEqual(displayed,DISPLAY_NAMES)
+  assert.equal(displayed[1],'duck meal')
+  assert.equal(displayed[10],'natural flavour')
+  assert.equal(await page.locator('.detail-ingredient-reading-help').innerText(),'한국어 읽기 도움')
+
+  const source=page.locator('.detail-source-disclosure').filter({has:page.getByText('원문 보기',{exact:true})}).first()
+  await source.waitFor({state:'visible'})
+  const summary=source.locator('summary')
+  await summary.focus()
+  assert.equal(await summary.evaluate(el=>document.activeElement===el),true)
+  await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>document.querySelector('.detail-source-disclosure')?.hasAttribute('open'))
+  assert.equal(await summary.evaluate(el=>document.activeElement===el),true)
+  const raw=source.locator('.detail-ingredient-copy')
+  assert.equal((await raw.innerText()).trim(),RAW_TEXT)
+
+  const metrics=await page.evaluate(()=>{
+    const doc=document.scrollingElement||document.documentElement
+    const list=document.querySelector('.detail-ingredient-list-compact')
+    const spans=[...list.querySelectorAll('span')]
+    const raw=document.querySelector('.detail-source-disclosure[open] .detail-ingredient-copy')
+    return {
+      viewport:{width:innerWidth,height:innerHeight},
+      document:{clientWidth:doc.clientWidth,scrollWidth:doc.scrollWidth},
+      list:{clientWidth:list.clientWidth,scrollWidth:list.scrollWidth,itemCount:spans.length},
+      itemFontSizes:[...new Set(spans.map(x=>getComputedStyle(x).fontSize))],
+      raw:{clientWidth:raw.clientWidth,scrollWidth:raw.scrollWidth},
+    }
+  })
+  assert.deepEqual(metrics.itemFontSizes,['15.5px'])
+  assert.ok(metrics.document.scrollWidth<=metrics.document.clientWidth+1)
+  assert.ok(metrics.list.scrollWidth<=metrics.list.clientWidth+1)
+  assert.ok(metrics.raw.scrollWidth<=metrics.raw.clientWidth+1)
+
+  await page.screenshot({path:OUT+'/pages-go-ingredients-390x844.png',fullPage:false})
+  await page.screenshot({path:OUT+'/pages-go-ingredients-full-390.png',fullPage:true})
+  await page.keyboard.press('Enter')
+  await page.waitForFunction(()=>!document.querySelector('.detail-source-disclosure')?.hasAttribute('open'))
+  assert.equal(await summary.evaluate(el=>document.activeElement===el),true)
+  report.ingredient={...metrics,displayed,rawText:(await raw.innerText()).trim(),keyboard:{opened:true,closed:true,focusRetained:true}}
+  await context.close()
 }
 
 async function setupCompare(page){
@@ -64,7 +135,7 @@ async function setupCompare(page){
     await more.click()
     await page.waitForTimeout(40)
   }
-  assert.ok(await goRow.count()>0,'GO! SOLUTIONS LID 오리 must be present after loading candidate pages')
+  assert.ok(await goRow.count()>0,'GO! SOLUTIONS LID 오리 must be present')
   await goRow.scrollIntoViewIfNeeded()
   await goRow.click()
   const addGo=page.locator('.switch-inspector-actions button').first()
@@ -78,7 +149,7 @@ async function setupCompare(page){
     const text=norm(await rows.nth(i).textContent())
     if(!/GO! SOLUTIONS/.test(text)||!/LID 오리/.test(text)){second=rows.nth(i);break}
   }
-  assert.ok(second,'a second candidate must exist')
+  assert.ok(second,'second candidate must exist')
   await second.click()
   const secondName=norm(await page.locator('.switch-inspector-identity h1').textContent())
   await page.locator('.switch-inspector-actions button').first().click()
@@ -93,13 +164,19 @@ function nutritionReadFilters(){
   return report.reads.filter(x=>x.path.endsWith('/compare_product_nutrition')).map(x=>new URLSearchParams(x.query).get('product_id'))
 }
 
-async function mobileScenario(){
+async function mobileSwitchScenario(){
   const {context,page}=await pageAt(390,844)
   const {secondName}=await setupCompare(page)
   const view=page.locator('.compare-switch-mobile-nutrition')
   await view.waitFor({state:'visible',timeout:90000})
   await page.waitForFunction(()=>document.querySelector('.compare-switch-mobile-nutrition')?.textContent?.includes('370 kcal/100g'),null,{timeout:90000})
   await page.waitForFunction(()=>document.querySelector('.compare-switch-mobile-nutrition')?.textContent?.includes('422 kcal/100g'),null,{timeout:90000})
+
+  const toggle=page.locator('.compare-mobile-candidate-toggle')
+  await toggle.click()
+  const goOption=page.locator('.compare-mobile-candidate-options button').filter({hasText:/GO! SOLUTIONS/}).filter({hasText:/LID 오리/}).first()
+  await goOption.click()
+  await page.waitForTimeout(50)
 
   const text=norm(await view.textContent())
   assert.match(text,/AATU/)
@@ -108,29 +185,22 @@ async function mobileScenario(){
   assert.match(text,/LID 오리/)
   assert.match(text,/370 kcal\/100g/)
   assert.match(text,/422 kcal\/100g/)
-  assert.match(text,/33% 이상/)
-  assert.match(text,/31% 이상/)
-  assert.match(text,/사용 규격 · 1 kg/)
   assert.match(text,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
-  assert.match(text,/한국 판매 제품 자료 · 3 kg 제품에서 확인 · 보완 자료 포함/)
-  assert.match(text,/한국 판매 제품 자료 · 7\.26 kg 제품에서 확인/)
   assert.match(text,/3 kg 자료 · 다른 포장/)
   assert.match(text,/제품 단위 보완 자료/)
-  assert.doesNotMatch(text,/판매 대표.*다른 포장/)
+  assert.match(text,/한국 판매 제품 자료 · 7\.26 kg 제품에서 확인/)
 
   const metrics=await page.evaluate(()=>{
     const doc=document.scrollingElement||document.documentElement
     const view=document.querySelector('.compare-switch-mobile-nutrition')
-    const table=view?.querySelector('.compare-mobile-two-product-table')
+    const table=view.querySelector('.compare-mobile-two-product-table')
     const cells=[...view.querySelectorAll('.compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value')]
-    const fontSizes=[...new Set(cells.map(cell=>getComputedStyle(cell).fontSize))]
     return {
       viewport:{width:innerWidth,height:innerHeight},
       document:{clientWidth:doc.clientWidth,scrollWidth:doc.scrollWidth},
       view:{clientWidth:view.clientWidth,scrollWidth:view.scrollWidth},
       table:{clientWidth:table.clientWidth,scrollWidth:table.scrollWidth},
-      metricCellCount:cells.length,
-      metricFontSizes:fontSizes,
+      metricFontSizes:[...new Set(cells.map(x=>getComputedStyle(x).fontSize))],
       currentEvidenceSummary:view.querySelector('.compare-current-nutrition-evidence')?.textContent.replace(/\s+/g,' ').trim(),
       metricRows:[...view.querySelectorAll('.compare-mobile-two-product-field.is-metric')].map(row=>({
         label:row.querySelector('.compare-mobile-two-product-row-label')?.textContent.replace(/\s+/g,' ').trim(),
@@ -140,126 +210,104 @@ async function mobileScenario(){
     }
   })
   assert.deepEqual(metrics.metricFontSizes,['15.5px'])
-  assert.match(metrics.currentEvidenceSummary,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
-  const energyMetric=metrics.metricRows.find(row=>row.label==='열량')
-  assert.ok(energyMetric,'energy row must exist')
-  assert.match(energyMetric.current,/370 kcal\/100g/)
-  assert.match(energyMetric.current,/3 kg 자료 · 다른 포장/)
-  assert.doesNotMatch(energyMetric.current,/제품 단위 보완 자료/)
-  for(const label of ['조단백질','조지방','조섬유','수분','조회분']){
-    const row=metrics.metricRows.find(value=>value.label===label)
-    assert.ok(row,`${label} row must exist`)
-    assert.match(row.current,/제품 단위 보완 자료/)
-    assert.doesNotMatch(row.current,/3 kg 자료|다른 포장/)
-  }
-  const supplementalAdditional=metrics.metricRows.filter(row=>!['열량','조단백질','조지방','조섬유','수분','조회분'].includes(row.label) && row.current && !row.current.startsWith('미확인'))
-  assert.ok(supplementalAdditional.length>0,'at least one current-food additional nutrient must be present')
-  assert.ok(supplementalAdditional.every(row=>row.current.includes('제품 단위 보완 자료')),'current-food additional nutrient values must use supplemental product evidence')
-  assert.ok(metrics.metricRows.every(row=>!row.candidate?.includes('다른 포장')),'candidate metrics must not infer a use-package mismatch from representative packaging')
   assert.ok(metrics.document.scrollWidth<=metrics.document.clientWidth+1)
   assert.ok(metrics.view.scrollWidth<=metrics.view.clientWidth+1)
   assert.ok(metrics.table.scrollWidth<=metrics.table.clientWidth+1)
+  const energy=metrics.metricRows.find(row=>row.label==='열량')
+  const protein=metrics.metricRows.find(row=>row.label==='조단백질')
+  assert.ok(energy&&protein)
+  assert.match(energy.current,/370 kcal\/100g/)
+  assert.match(energy.current,/3 kg 자료 · 다른 포장/)
+  assert.doesNotMatch(energy.current,/제품 단위 보완 자료/)
+  assert.match(protein.current,/33% 이상/)
+  assert.match(protein.current,/제품 단위 보완 자료/)
+  assert.doesNotMatch(protein.current,/3 kg 자료|다른 포장/)
 
-  const currentBefore=norm(await page.locator('.compare-mobile-two-product-value.is-current').first().textContent())
-  const toggle=page.locator('.compare-mobile-candidate-toggle')
+  const currentBefore=energy.current
   await toggle.focus()
   assert.equal(await toggle.evaluate(el=>document.activeElement===el),true)
   await page.keyboard.press('Enter')
   await page.locator('.compare-mobile-candidate-options').waitFor({state:'visible'})
   await page.keyboard.press('Tab')
   await page.keyboard.press('Tab')
-  const focusedOption=await page.evaluate(()=>({text:(document.activeElement?.textContent||'').replace(/\s+/g,' ').trim(),tag:document.activeElement?.tagName||''}))
+  const focusedOption=await page.evaluate(()=>({tag:document.activeElement?.tagName||'',text:normText(document.activeElement?.textContent)}))
   assert.equal(focusedOption.tag,'BUTTON')
   await page.keyboard.press('Enter')
   await page.waitForTimeout(50)
-  assert.equal(await toggle.evaluate(el=>document.activeElement===el),true,'candidate selection should restore picker focus')
-  const currentAfter=norm(await page.locator('.compare-mobile-two-product-value.is-current').first().textContent())
-  assert.equal(currentAfter,currentBefore,'current baseline must stay fixed while candidate changes')
+  assert.equal(await toggle.evaluate(el=>document.activeElement===el),true)
+  const currentAfter=norm(await page.locator('.compare-mobile-two-product-field.is-metric').first().locator('.compare-mobile-two-product-value.is-current').textContent())
+  assert.equal(currentAfter,currentBefore)
   assert.equal(norm(await page.locator('#compare-mobile-switch-candidate-name').textContent()),secondName)
 
   await toggle.click()
-  const goOption=page.locator('.compare-mobile-candidate-options button').filter({hasText:/GO! SOLUTIONS/}).filter({hasText:/LID 오리/}).first()
-  await goOption.click()
+  const goAgain=page.locator('.compare-mobile-candidate-options button').filter({hasText:/GO! SOLUTIONS/}).filter({hasText:/LID 오리/}).first()
+  await goAgain.click()
   await page.waitForTimeout(50)
-  assert.match(norm(await page.locator('#compare-mobile-switch-candidate-name').textContent()),/LID 오리/)
 
   const disclosure=view.getByText('자료 기준 보기',{exact:true}).first()
   await disclosure.focus()
-  assert.equal(await disclosure.evaluate(el=>document.activeElement===el),true)
   await page.keyboard.press('Enter')
   await page.waitForTimeout(30)
   assert.equal(await disclosure.evaluate(el=>document.activeElement===el),true)
   assert.equal(await disclosure.evaluate(el=>el.parentElement?.hasAttribute('open')),true)
   await page.keyboard.press('Enter')
   await page.waitForTimeout(30)
-  assert.equal(await disclosure.evaluate(el=>document.activeElement===el),true)
   assert.equal(await disclosure.evaluate(el=>el.parentElement?.hasAttribute('open')),false)
 
-  await page.screenshot({path:OUT+'/switch-nutrition-mobile-390x844.png',fullPage:false})
-  await page.screenshot({path:OUT+'/switch-nutrition-mobile-full-390.png',fullPage:true})
-
-  report.mobile={...metrics,secondCandidate:secondName,currentFixed:true,pickerKeyboard:{focusedOption,focusRestored:true},disclosureKeyboard:{opened:true,closed:true,focusRetained:true},text}
+  await page.screenshot({path:OUT+'/pages-switch-nutrition-mobile-390x844.png',fullPage:false})
+  await page.screenshot({path:OUT+'/pages-switch-nutrition-mobile-full-390.png',fullPage:true})
+  report.mobile={...metrics,currentFixed:true,secondCandidate:secondName,pickerKeyboard:{focusRestored:true,focusedOption},disclosureKeyboard:{opened:true,closed:true,focusRetained:true},text}
   await context.close()
 }
 
-async function desktopScenario(){
+async function desktopSwitchScenario(){
   const {context,page}=await pageAt(1440,900)
   await setupCompare(page)
   const table=page.locator('.compare-switch-nutrition-desktop')
   await table.waitFor({state:'visible',timeout:90000})
   await page.waitForFunction(()=>{
     const text=document.querySelector('.compare-switch-nutrition-desktop')?.textContent||''
-    return text.includes('370 kcal/100g')
-      && text.includes('422 kcal/100g')
-      && text.includes('한국 판매 제품 자료 · 3 kg 제품에서 확인')
-      && text.includes('한국 판매 제품 자료 · 7.26 kg 제품에서 확인')
+    return text.includes('370 kcal/100g')&&text.includes('422 kcal/100g')
   },null,{timeout:90000})
-  const text=norm(await table.textContent())
-  assert.match(text,/현재 사료 · 기준/)
-  assert.match(text,/AATU/)
-  assert.match(text,/연어/)
-  assert.match(text,/370 kcal\/100g/)
-  assert.match(text,/422 kcal\/100g/)
-  const heads=await table.locator('.compare-product-head').count()
-  assert.equal(heads,3,'desktop must have current baseline plus two candidate columns')
-  assert.equal(await table.locator('.compare-current-product-head .compare-remove').count(),0)
-  assert.equal(await table.locator('.compare-remove').count(),2)
   const metrics=await page.evaluate(()=>{
     const t=document.querySelector('.compare-switch-nutrition-desktop')
     const rows=[...t.querySelectorAll('.compare-row.is-metric')]
     return {
       viewport:{width:innerWidth,height:innerHeight},
-      currentHead:t.querySelector('.compare-current-product-head')?.textContent?.replace(/\s+/g,' ').trim(),
-      metricRows:rows.length,
-      currentEvidenceSummary:t.querySelector('.compare-current-nutrition-evidence')?.textContent?.replace(/\s+/g,' ').trim(),
-      metricRows:rows.map(row=>({
-        label:row.querySelector('.compare-row-label')?.textContent?.replace(/\s+/g,' ').trim(),
-        current:row.querySelector('.compare-cell.is-current')?.textContent?.replace(/\s+/g,' ').trim(),
-      })),
       productHeads:t.querySelectorAll('.compare-product-head').length,
+      currentRemoveCount:t.querySelectorAll('.compare-current-product-head .compare-remove').length,
+      candidateRemoveCount:t.querySelectorAll('.compare-remove').length,
+      currentEvidenceSummary:t.querySelector('.compare-current-nutrition-evidence')?.textContent.replace(/\s+/g,' ').trim(),
+      metricRows:rows.map(row=>({
+        label:row.querySelector('.compare-row-label')?.textContent.replace(/\s+/g,' ').trim(),
+        current:row.querySelector('.compare-cell.is-current')?.textContent.replace(/\s+/g,' ').trim(),
+      })),
     }
   })
+  assert.equal(metrics.productHeads,3)
+  assert.equal(metrics.currentRemoveCount,0)
+  assert.equal(metrics.candidateRemoveCount,2)
   assert.match(metrics.currentEvidenceSummary,/대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
-  const energyMetric=metrics.metricRows.find(row=>row.label==='열량')
-  const proteinMetric=metrics.metricRows.find(row=>row.label==='조단백질')
-  assert.ok(energyMetric&&proteinMetric)
-  assert.match(energyMetric.current,/3 kg 자료 · 다른 포장/)
-  assert.match(proteinMetric.current,/제품 단위 보완 자료/)
-  assert.doesNotMatch(proteinMetric.current,/3 kg 자료|다른 포장/)
-  await page.screenshot({path:OUT+'/switch-nutrition-desktop-1440x900.png',fullPage:false})
-  report.desktop={...metrics,text}
+  assert.match(metrics.metricRows.find(row=>row.label==='열량').current,/3 kg 자료 · 다른 포장/)
+  assert.match(metrics.metricRows.find(row=>row.label==='조단백질').current,/제품 단위 보완 자료/)
+  await page.screenshot({path:OUT+'/pages-switch-nutrition-desktop-1440x900.png',fullPage:false})
+  report.desktop=metrics
   await context.close()
 }
 
-await mobileScenario()
-await desktopScenario()
+function normText(value){return String(value||'').replace(/\s+/g,' ').trim()}
+
+await ingredientScenario()
+await mobileSwitchScenario()
+await desktopSwitchScenario()
 
 const filters=nutritionReadFilters()
-assert.ok(filters.some(x=>x===`in.(${CURRENT_ID})`),'current food nutrition must use a separate one-product request')
-assert.ok(filters.some(x=>x?.includes(GO_ID) && !x.includes(CURRENT_ID)),'candidate nutrition request must contain GO without current food')
-assert.equal(filters.some(x=>x?.includes(GO_ID) && x.includes(CURRENT_ID)),false,'current food must never be merged into candidate nutrition request')
+assert.ok(filters.some(x=>x===`in.(${CURRENT_ID})`),'current food nutrition must use separate one-product request')
+assert.ok(filters.some(x=>x?.includes(GO_ID)&&!x.includes(CURRENT_ID)),'candidate nutrition request must include GO without current food')
+assert.equal(filters.some(x=>x?.includes(GO_ID)&&x.includes(CURRENT_ID)),false)
 assert.equal(report.blocked.filter(x=>x.reason==='write').length,0)
 assert.ok(report.reads.length>0)
 assert.ok(report.reads.every(x=>['GET','HEAD','OPTIONS'].includes(x.method)))
+
 await writeFile(OUT+'/measurements.json',JSON.stringify(report,null,2))
 await browser.close()

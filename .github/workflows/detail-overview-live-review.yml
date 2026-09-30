@@ -1,0 +1,38 @@
+name: One-off live detail overview QA
+on:
+  pull_request:
+    paths:
+      - 'qa/detail-overview-live-review.mjs'
+      - '.github/workflows/detail-overview-live-review.yml'
+permissions:
+  contents: read
+jobs:
+  live-browser:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 31a5c22dc49763223920dbc873a093310ee827b9
+      CANDIDATE_URL: https://osrm.github.io/catfood_web/
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/detail-overview-live
+          cp qa/detail-overview-live-review.mjs /tmp/detail-overview-live/
+          cd /tmp/detail-overview-live
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Narrow PR 74 postdeploy QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" PRODUCT_SHA="$PRODUCT_SHA" CANDIDATE_URL="$CANDIDATE_URL" node /tmp/detail-overview-live/detail-overview-live-review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: detail-overview-live-review
+          path: detail-overview-live-output
+          retention-days: 7

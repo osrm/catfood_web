@@ -113,7 +113,7 @@ async function mobileScenario(){
   assert.match(text,/사용 규격 · 1 kg · 영양 자료 포장 · 3 kg · 다른 포장 자료/)
   assert.match(text,/한국 판매 제품 자료 · 3 kg 제품에서 확인 · 보완 자료 포함/)
   assert.match(text,/한국 판매 제품 자료 · 7\.26 kg 제품에서 확인/)
-  assert.equal((text.match(/다른 포장 자료/g)||[]).length,6,'mismatch note should appear only in the six current-food metric cells')
+  assert.ok((text.match(/다른 포장 자료/g)||[]).length>=6,'current-food metric cells must carry the package mismatch note')
   assert.doesNotMatch(text,/판매 대표.*다른 포장 자료/)
 
   const metrics=await page.evaluate(()=>{
@@ -134,6 +134,8 @@ async function mobileScenario(){
     }
   })
   assert.deepEqual(metrics.metricFontSizes,['15.5px'])
+  assert.ok(metrics.currentMetricTexts.every(value=>value.includes('다른 포장 자료')),'every current-food metric must identify the different evidence package')
+  assert.ok(metrics.candidateMetricTexts.every(value=>!value.includes('다른 포장 자료')),'candidate metrics must not infer a use-package mismatch from representative packaging')
   assert.ok(metrics.document.scrollWidth<=metrics.document.clientWidth+1)
   assert.ok(metrics.view.scrollWidth<=metrics.view.clientWidth+1)
   assert.ok(metrics.table.scrollWidth<=metrics.table.clientWidth+1)

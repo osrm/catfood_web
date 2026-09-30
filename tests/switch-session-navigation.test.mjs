@@ -414,6 +414,96 @@ test('browser back/forward restores SWITCH candidate detail and compare detail e
   assert.deepEqual(session().compareIds, [candidateA.product_id, candidateB.product_id])
 })
 
+test('SWITCH candidate search scans the full evaluated pool and preserves comparison state, paging, and keyboard return focus', async () => {
+  const bulk = Array.from({ length: 50 }, (_, index) => product(
+    `product_search_${String(index).padStart(2, '0')}`,
+    `검색 후보 ${String(index).padStart(2, '0')}`,
+    {
+      brand: '검색브랜드',
+      feed_type: '습식',
+      life_stage: 'adult',
+      official_targets: ['indoor'],
+      features: ['digestive'],
+      recipe_families: ['fish'],
+      recipe_details: ['salmon'],
+      reviewed_not_found_ingredient_terms: ['chicken'],
+    },
+  ))
+  const excluded = product('product_search_excluded', '조건 밖 검색 대상', {
+    brand: '검색브랜드',
+    feed_type: '건식',
+    life_stage: 'adult',
+    official_targets: ['indoor'],
+    reviewed_not_found_ingredient_terms: ['chicken'],
+  })
+  catalogProducts = [current, candidateA, candidateB, singleSku, ...bulk, excluded]
+
+  await renderApp()
+  await reachResultsWithConditions()
+  await act(async () => { await new Promise((resolvePromise) => setTimeout(resolvePromise, 20)) })
+
+  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
+  assert.ok(searchInput)
+  assert.equal(all('.switch-candidate-row').some((node) => node.textContent.includes('검색 후보 49')), false, 'late candidate must not be in the first page before searching')
+
+  const runsBeforeSearch = searchRuns.length
+  await inputValue(searchInput, '검색 후보 49')
+  await waitForUi(() => all('.switch-candidate-row').some((node) => node.textContent.includes('검색 후보 49')), 'late candidate found across full evaluated pool')
+  assert.equal(all('.switch-candidate-row').length, 1)
+  assert.match(document.querySelector('.switch-candidate-heading').textContent, /검색 결과 1개/)
+  assert.equal(searchRuns.length, runsBeforeSearch, 'candidate typing must not create a new decision search run')
+
+  await inputValue(searchInput, '검색브랜드')
+  await waitForUi(() => all('.switch-candidate-row').length === 40, 'candidate search first page')
+  assert.match(document.querySelector('.load-more').textContent, /제품 더 보기 · 10개 남음/)
+  assert.equal(session().visibleCandidateCount, 40, 'changing the search resets the visible page size')
+  await click(document.querySelector('.load-more'))
+  assert.equal(all('.switch-candidate-row').length, 50)
+  assert.equal(document.querySelector('.load-more'), null)
+
+  await inputValue(searchInput, '조건 밖 검색 대상')
+  await waitForUi(() => document.querySelector('.switch-candidate-list .switch-state-message'), 'out-of-condition search stays excluded')
+  const excludedState = document.querySelector('.switch-candidate-list .switch-state-message')
+  assert.match(excludedState.textContent, /이름 검색 결과가 없습니다/)
+  assert.doesNotMatch(document.body.textContent, /조건 밖 검색 대상/)
+  assert.equal(searchRuns.length, runsBeforeSearch)
+
+  await inputValue(searchInput, '검색 후보 49')
+  const targetRow = await (async () => {
+    await waitForUi(() => all('.switch-candidate-row').some((node) => node.textContent.includes('검색 후보 49')), 'target search result')
+    return all('.switch-candidate-row').find((node) => node.textContent.includes('검색 후보 49'))
+  })()
+  await click(targetRow)
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'target inspector')
+  await click('비교에 추가')
+  assert.deepEqual(session().compareIds, ['product_search_49'])
+  await click(document.querySelector('.switch-preview-topline button'))
+  assert.equal(document.activeElement, targetRow, 'closing quick view restores focus to the searched result row')
+  assert.equal(searchInput.value, '검색 후보 49')
+
+  await inputValue(searchInput, '일치하지 않는 검색어')
+  await waitForUi(() => /이름 검색 결과가 없습니다/.test(document.querySelector('.switch-candidate-list .switch-state-message')?.textContent ?? ''), 'zero-name-result state')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /검색 후보 49/)
+  assert.deepEqual(session().compareIds, ['product_search_49'])
+
+  const clear = [...document.querySelectorAll('.switch-candidate-list .state-retry')].find((node) => node.textContent.trim() === '검색 지우기')
+  await click(clear)
+  assert.equal(searchInput.value, '')
+  assert.equal(document.activeElement, searchInput, 'clear action returns focus to candidate search input')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /검색 후보 49/)
+  assert.equal(session().visibleCandidateCount, 40)
+
+  await inputValue(searchInput, '검색 후보 49')
+  await click(document.querySelector('.switch-compare-dock button'))
+  await waitForUi(() => document.querySelector('.compare-stage'), 'compare opens from searched results')
+  await click('제품 목록으로')
+  await waitForUi(() => document.querySelector('.switch-results-stage') && !document.querySelector('.compare-stage'), 'return from compare')
+  assert.equal(searchInput.value, '검색 후보 49', 'candidate search survives compare roundtrip')
+  assert.equal(document.activeElement, document.querySelector('.switch-compare-dock button'), 'returning from compare restores keyboard focus to its trigger')
+  assert.deepEqual(session().compareIds, ['product_search_49'])
+  assert.equal(searchRuns.length, runsBeforeSearch)
+})
+
 test('SWITCH empty candidates use an edit action and KEEP unset wording without relaxing conditions', async () => {
   catalogProducts = [current]
   await renderApp()

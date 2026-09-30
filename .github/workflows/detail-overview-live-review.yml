@@ -10,7 +10,7 @@ jobs:
   live-browser:
     runs-on: ubuntu-latest
     env:
-      PRODUCT_SHA: 09b2739eb24bf10ebb75eae571f38f145b6f301e
+      PRODUCT_SHA: 1a26c84e059a8ba651f4b6c0c4db539ecf277c9d
     steps:
       - name: Checkout QA harness
         uses: actions/checkout@v5
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout exact product candidate
         uses: actions/checkout@v5
         with:
-          ref: 09b2739eb24bf10ebb75eae571f38f145b6f301e
+          ref: 1a26c84e059a8ba651f4b6c0c4db539ecf277c9d
           clean: true
       - uses: actions/setup-node@v5
         with:
@@ -46,7 +46,7 @@ jobs:
           for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
           cat /tmp/detail-overview-live-preview.log
           exit 1
-      - name: Narrow search guidance recovery and focus candidate QA
+      - name: Narrow PR 74 guidance copy candidate QA
         run: OUT_DIR="$GITHUB_WORKSPACE/detail-overview-live-output" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/detail-overview-live/detail-overview-live-review.mjs
       - uses: actions/upload-artifact@v4
         if: always()

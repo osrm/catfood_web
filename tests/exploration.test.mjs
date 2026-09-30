@@ -14,7 +14,7 @@ globalThis.document = dom.window.document
 globalThis.sessionStorage = dom.window.sessionStorage
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const { createRoot } = await import('react-dom/client')
-let root, app, devApp, temp, requests, products, packageOptions, packageFailureOffset
+let root, app, devApp, temp, requests, products, packageOptions, packageFailureOffset, catalogFailure
 const nativeFetch = globalThis.fetch
 
 function catalog(count) {
@@ -70,6 +70,7 @@ beforeEach(() => {
   products = catalog(85)
   packageOptions = []
   packageFailureOffset = null
+  catalogFailure = false
   requests = []
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
@@ -79,7 +80,10 @@ beforeEach(() => {
       return Response.json({ search_run_id: `run-${searchRuns().length}` })
     }
     if (url.pathname.endsWith('/considerations')) return Response.json({ ok: true })
-    if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json(products)
+    if (url.pathname.endsWith('/effective_product_catalog_summary')) {
+      if (catalogFailure) return new Response('Data API 503: internal provenance should never be shown', { status: 503 })
+      return Response.json(products)
+    }
     if (url.pathname.endsWith('/switch_current_variant_options')) {
       const offset = Number(url.searchParams.get('offset') ?? 0)
       if (offset === packageFailureOffset) return new Response('Temporary failure', { status: 503 })
@@ -288,6 +292,59 @@ for (const mode of ['explore', 'switch']) {
   })
 }
 
+
+
+test('EXPLORE keeps unknown candidates, orders confirmed conditions first, and explains result scope', async () => {
+  products = catalog(3)
+  products[0].features = ['hairball', 'digestive']
+  products[1].features = ['hairball']
+  products[2].features = []
+  const params = new URLSearchParams({ view: 'workspace', mode: 'explore', applied: '1', features: 'hairball,digestive' })
+  dom.reconfigure({ url: 'https://catfood.test/?' + params })
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => rows('.research-result-card').length === 3, 'ranked explore candidates rendered')
+  assert.deepEqual(rows('.research-result-card').map((card) => card.dataset.productId), products.map((product) => product.product_id))
+  const summary = document.querySelector('.research-results-heading span')?.textContent ?? ''
+  assert.match(summary, /3개의 제품/)
+  assert.match(summary, /확인된 조건이 많은 순/)
+  assert.match(summary, /미확인 조건이 있는 제품도 포함/)
+  assert.match(rows('.research-result-card')[2].textContent, /미확인 조건/)
+})
+
+test('catalog failure is visible on Home and EXPLORE condition entry, masks internal errors, and retries', async () => {
+  catalogFailure = true
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => document.body.textContent.includes('제품 목록을 불러오지 못했습니다.'), 'home catalog failure')
+  assert.match(document.querySelector('.home-catalog-status')?.textContent ?? '', /제품 목록 조회 실패/)
+  assert.doesNotMatch(document.body.textContent, /Data API|503|internal provenance/)
+  await click('조건 고르기')
+  const conditionAlert = document.querySelector('.catalog-inline-state[role="alert"]')
+  assert.ok(conditionAlert)
+  assert.match(conditionAlert.textContent, /제품 목록을 불러오지 못했습니다/)
+  assert.match(conditionAlert.textContent, /선택한 조건은 그대로 유지됩니다/)
+  assert.doesNotMatch(conditionAlert.textContent, /Data API|503|internal provenance/)
+  catalogFailure = false
+  await click(conditionAlert.querySelector('button'))
+  await waitForUi(() => document.querySelector('.catalog-inline-state[role="alert"]') === null && document.body.textContent.includes('85 PRODUCTS'), 'catalog retry succeeded')
+  assert.equal(document.querySelector('.catalog-inline-state[role="alert"]'), null)
+})
+
+test('quick view moves focus to close and returns it to the opening product without changing list scroll', async () => {
+  await explore()
+  const scroller = document.querySelector('.research-results-scroll')
+  const card = rows('.research-result-card')[12]
+  scroller.scrollTop = 137
+  card.focus()
+  await click(card)
+  await waitForUi(() => document.activeElement?.textContent.includes('닫기'), 'quick view close receives focus')
+  assert.equal(document.activeElement?.closest('.research-quick-view') !== null, true)
+  assert.equal(scroller.scrollTop, 137)
+  await click(document.activeElement)
+  await waitForUi(() => document.activeElement?.dataset.productId === products[12].product_id, 'focus returns to opening product')
+  assert.equal(document.activeElement?.dataset.productId, products[12].product_id)
+  assert.equal(scroller.scrollTop, 137)
+})
+
 test('EXPLORE input states the unknown-data policy once and keeps selection-specific limits nearby', async () => {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
@@ -360,8 +417,8 @@ test('LOOKUP retains its 120-row batch and does not collect decisions', async ()
   assert.equal(considerations().length, 0)
 })
 
-test('lookup search ignores spacing and standalone and/& notation without changing order', () => {
-  const lookupProducts = catalog(7)
+test('lookup search ignores spacing, preserves and/& behavior, and supports confirmed brand aliases without changing identity', () => {
+  const lookupProducts = catalog(9)
   Object.assign(lookupProducts[0], { brand: '로얄캐닌', canonical_name: '인도어' })
   Object.assign(lookupProducts[1], { brand: '카니보', canonical_name: '송어 & 연어' })
   Object.assign(lookupProducts[2], { brand: 'Test', canonical_name: 'Sea Bass & Sea Bream' })
@@ -369,10 +426,21 @@ test('lookup search ignores spacing and standalone and/& notation without changi
   Object.assign(lookupProducts[4], { brand: 'Test', canonical_name: 'Alpha One' })
   Object.assign(lookupProducts[5], { brand: 'Test', canonical_name: 'Alpha Two' })
   Object.assign(lookupProducts[6], { brand: 'Other', canonical_name: 'Standard Recipe' })
+  Object.assign(lookupProducts[7], { brand: 'AATU', canonical_name: 'Salmon' })
+  Object.assign(lookupProducts[8], { brand: "Hill's", canonical_name: 'Adult Chicken' })
 
   assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄 캐닌').map((product) => product.product_id), [lookupProducts[0].product_id])
   assert.deepEqual(app.lookupCatalog(lookupProducts, '로얄캐닌').map((product) => product.product_id), [lookupProducts[0].product_id])
   assert.deepEqual(app.lookupCatalog(lookupProducts, '카니보송어&연어').map((product) => product.product_id), [lookupProducts[1].product_id])
+
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '아투').map((product) => product.product_id), [lookupProducts[7].product_id])
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '아투 연어').map((product) => product.product_id), [lookupProducts[7].product_id])
+  for (const query of ['힐스', 'Hills', 'Hill’s']) {
+    assert.deepEqual(app.lookupCatalog(lookupProducts, query).map((product) => product.product_id), [lookupProducts[8].product_id])
+  }
+  assert.equal(lookupProducts[7].brand, 'AATU')
+  assert.equal(lookupProducts[8].brand, "Hill's")
+  assert.deepEqual(app.lookupCatalog(lookupProducts, '힐즈'), [], 'unconfirmed similar spellings are not added as fuzzy aliases')
 
   for (const query of ['Sea Bass & Sea Bream', 'Sea Bass&Sea Bream', 'Sea Bass and Sea Bream', 'sea bass AND SEA bream']) {
     assert.deepEqual(app.lookupCatalog(lookupProducts, query).map((product) => product.product_id), [lookupProducts[2].product_id])

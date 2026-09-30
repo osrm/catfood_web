@@ -3,13 +3,13 @@ import { chromium } from 'playwright-core'
 import { mkdir, writeFile } from 'node:fs/promises'
 
 const BASE='http://127.0.0.1:4173/'
-const OUT=process.env.OUT_DIR||'search-guidance-recovery-review'
+const OUT=process.env.OUT_DIR||'pr74-copy-review'
 await mkdir(OUT,{recursive:true})
-const report={candidate:process.env.PRODUCT_SHA,blocked:[],reads:[],scenarios:{}}
+const report={candidate:process.env.PRODUCT_SHA,blocked:[],reads:[],screens:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 
-async function guardedPage(width,height){
-  const context=await browser.newContext({viewport:{width,height},serviceWorkers:'block'})
+async function guardedPage(){
+  const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
   const page=await context.newPage()
   await page.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url()),method=req.method()
@@ -27,159 +27,71 @@ async function guardedPage(width,height){
 async function waitCatalog(page){
   await page.getByText(/현재 확인된 제품 \d+개/).waitFor({timeout:90000})
 }
-async function waitWorkspace(page){
-  await page.waitForFunction(()=>/\d+\s*PRODUCTS/.test(document.querySelector('.research-status')?.textContent||''),null,{timeout:90000})
-}
-async function waitImages(page){
-  await page.waitForFunction(()=>[...document.querySelectorAll('img')].filter(img=>{
-    const r=img.getBoundingClientRect()
-    return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth
-  }).every(img=>img.complete&&img.naturalWidth>0),null,{timeout:30000})
-}
-async function startLookup(page,query){
+async function openHome(page){
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
   await waitCatalog(page)
-  const input=page.locator('.home-entry-search input[type="search"]')
-  await input.fill(query)
-  await page.locator('.home-entry-search-submit').click()
-  await page.locator('.lookup-input').waitFor({state:'visible',timeout:30000})
-  await page.locator('.research-result-card').first().waitFor({state:'visible',timeout:30000})
 }
-async function aliasScenario(){
-  const {context,page}=await guardedPage(390,844)
-  await startLookup(page,'아투')
-  const aatu=page.locator('.research-result-card').first()
-  const aatuText=(await aatu.innerText()).replace(/\s+/g,' ').trim()
-  assert.match(aatuText,/AATU/i,'아투 must find the confirmed AATU brand without changing display identity')
-
-  const lookup=page.locator('.lookup-input')
-  await lookup.fill('Hills')
-  await page.locator('.research-result-card').first().waitFor({state:'visible',timeout:30000})
-  const hills=page.locator('.research-result-card').first()
-  const hillsText=(await hills.innerText()).replace(/\s+/g,' ').trim()
-  assert.match(hillsText,/힐스|Hill/i,'Hills must find the confirmed Hill/힐스 brand')
-  const hillsId=await hills.getAttribute('data-product-id')
-  assert.ok(hillsId)
-
-  await lookup.fill('Hill’s')
-  await page.locator('.research-result-card').first().waitFor({state:'visible',timeout:30000})
-  const curlyId=await page.locator('.research-result-card').first().getAttribute('data-product-id')
-  assert.equal(curlyId,hillsId,'Hills and Hill’s must resolve to the same leading catalog product')
-
-  await lookup.fill('힐즈')
-  await page.waitForTimeout(120)
-  const typoCount=await page.locator('.research-result-card').count()
-  assert.equal(typoCount,0,'unconfirmed similar spelling must not become fuzzy alias')
-
-  await lookup.fill('아투')
-  await aatu.waitFor({state:'visible',timeout:30000})
-  await waitImages(page)
-  const file='alias-lookup-390x844.png'
+async function homeScreen(){
+  const {context,page}=await guardedPage()
+  await openHome(page)
+  const route=page.locator('.home-entry-route').filter({hasText:'조건으로 찾아보기'})
+  await route.scrollIntoViewIfNeeded()
+  const text=(await route.innerText()).replace(/\s+/g,' ').trim()
+  assert.match(text,/사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다\./)
+  assert.doesNotMatch(text,/명백히 충돌|미확인은 남겨둡니다/)
+  const file='home-explore-guidance-390x844.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.scenarios.alias={aatuText,hillsText,hillsId,curlyId,unconfirmedTypoCount:typoCount,file}
+  report.screens.home={text,file}
   await context.close()
 }
-async function exploreScenario(){
-  const {context,page}=await guardedPage(390,844)
-  const url=new URL(BASE)
-  url.searchParams.set('view','workspace')
-  url.searchParams.set('mode','explore')
-  url.searchParams.set('applied','1')
-  url.searchParams.set('feed','건식')
-  url.searchParams.set('age','adult')
-  url.searchParams.set('targets','indoor')
-  url.searchParams.set('features','hairball,digestive')
-  await page.goto(url.href,{waitUntil:'domcontentloaded'})
-  await waitWorkspace(page)
-  const heading=page.locator('.research-results-heading span')
+async function conditionScreen(){
+  const {context,page}=await guardedPage()
+  await openHome(page)
+  await page.getByRole('button',{name:'조건 고르기 →'}).click()
+  const heading=page.locator('.research-pane-heading')
   await heading.waitFor({state:'visible',timeout:30000})
-  const summary=(await heading.innerText()).replace(/\s+/g,' ').trim()
-  assert.match(summary,/\d+개의 제품|\d+개 중 \d+개 표시/)
-  assert.match(summary,/확인된 조건이 많은 순/)
-  assert.match(summary,/미확인 조건이 있는 제품도 포함/)
-  const cards=page.locator('.research-result-card')
-  assert.ok(await cards.count()>0)
-  const unknownCards=page.locator('.research-result-card .relation-line.is-unknown')
-  assert.ok(await unknownCards.count()>0,'actual results should preserve visible unknown conditions')
-  await waitImages(page)
-  const file='explore-guidance-390x844.png'
+  const headingText=(await heading.innerText()).replace(/\s+/g,' ').trim()
+  const policy=page.locator('.condition-policy-note')
+  await policy.waitFor({state:'visible'})
+  const policyText=(await policy.innerText()).replace(/\s+/g,' ').trim()
+  assert.match(headingText,/사료 형태·연령과 원하는 조건을 고릅니다\./)
+  assert.equal(policyText,'선택한 조건 정보가 없는 제품도 결과에 남습니다.')
+  const body=(await page.locator('body').innerText()).replace(/\s+/g,' ')
+  assert.equal((body.match(/선택한 조건 정보가 없는 제품도 결과에 남습니다\./g)||[]).length,1)
+  assert.doesNotMatch(body,/명백히 충돌하는 제품만 제외|미확인은 남겨둡니다/)
+  const file='explore-condition-entry-390x844.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.scenarios.explore={summary,cardCount:await cards.count(),unknownLineCount:await unknownCards.count(),file}
+  report.screens.condition={headingText,policyText,file}
   await context.close()
 }
-async function quickViewScenario(width,height,key){
-  const {context,page}=await guardedPage(width,height)
-  await startLookup(page,'아투')
-  const card=page.locator('.research-result-card').first()
-  const id=await card.getAttribute('data-product-id')
-  assert.ok(id)
-  const scroller=page.locator('.research-results-scroll')
-  const before=await scroller.evaluate(el=>({scrollTop:el.scrollTop,windowY:scrollY}))
-  await card.focus()
-  await page.keyboard.press('Enter')
-  const quick=page.locator('.research-quick-view')
-  await quick.waitFor({state:'visible',timeout:30000})
-  const close=quick.locator('.quick-view-topline button')
-  await page.waitForFunction(()=>document.activeElement?.closest('.quick-view-topline')?.querySelector('button')===document.activeElement,null,{timeout:30000})
-  assert.equal(await close.evaluate(el=>document.activeElement===el),true,'quick-view close should receive focus after keyboard open')
-  const openState=await scroller.evaluate(el=>({scrollTop:el.scrollTop,windowY:scrollY}))
-  assert.equal(openState.scrollTop,before.scrollTop,'opening quick view must not reset the list scroller')
-  await waitImages(page)
-  const file=`quick-view-focus-${width}x${height}.png`
+async function recipeScreen(){
+  const {context,page}=await guardedPage()
+  await openHome(page)
+  await page.getByRole('button',{name:'조건 고르기 →'}).click()
+  const dry=page.locator('button.choice').filter({hasText:'건식'}).first()
+  await dry.click()
+  await page.getByRole('button',{name:'이 조건으로 찾기'}).click()
+  const refine=page.getByRole('button',{name:'더 좁혀보기'})
+  await refine.waitFor({state:'visible',timeout:30000})
+  await refine.click()
+  const recipeTitle=page.locator('.filter-section').filter({hasText:'주요 레시피'}).first()
+  await recipeTitle.waitFor({state:'visible',timeout:30000})
+  const note=recipeTitle.locator('.field-note').first()
+  await note.scrollIntoViewIfNeeded()
+  const noteText=(await note.innerText()).replace(/\s+/g,' ').trim()
+  assert.equal(noteText,'선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.')
+  const sectionText=(await recipeTitle.innerText()).replace(/\s+/g,' ').trim()
+  assert.match(sectionText,/확인된 레시피로 좁히기/)
+  assert.doesNotMatch(sectionText,/명백히 충돌|미확인은 남겨둡니다/)
+  const file='explore-recipe-refine-390x844.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  await page.keyboard.press('Enter')
-  await quick.waitFor({state:'detached',timeout:30000})
-  await page.waitForFunction((productId)=>document.activeElement?.getAttribute('data-product-id')===productId,id,{timeout:3000})
-  const after=await page.evaluate((productId)=>({
-    focusedId:document.activeElement?.getAttribute('data-product-id'),
-    windowY:scrollY,
-    listY:document.querySelector('.research-results-scroll')?.scrollTop??null,
-    productId,
-  }),id)
-  assert.equal(after.focusedId,id,'closing quick view must restore focus to the opening result card')
-  assert.equal(after.listY,before.scrollTop,'closing quick view must preserve list scroller position')
-  report.scenarios[key]={productId:id,before,openState,after,file}
-  await context.close()
-}
-async function switchScenario(){
-  const {context,page}=await guardedPage(390,844)
-  await page.goto(BASE,{waitUntil:'domcontentloaded'})
-  await waitCatalog(page)
-  await page.getByRole('button',{name:'현재 사료로 시작 →'}).click()
-  await waitWorkspace(page)
-  const input=page.locator('.switch-find-search input')
-  await input.fill('AATU')
-  const row=page.locator('.switch-find-result').filter({hasText:/연어|Salmon/i}).first()
-  await row.waitFor({state:'visible',timeout:30000})
-  await row.click()
-  await page.getByRole('button',{name:'이 제품을 현재 사료로 선택 →'}).click()
-  await page.getByRole('button',{name:'사용 규격을 모르겠어요'}).click()
-  const noChange=page.locator('.switch-no-change')
-  await noChange.waitFor({state:'visible',timeout:30000})
-  await noChange.click()
-  const noChangeText=(await noChange.innerText()).replace(/\s+/g,' ').trim()
-  assert.match(noChangeText,/유지 조건도 고르지 않으면 전체 후보에서 탐색합니다/)
-  assert.doesNotMatch(noChangeText,/비슷한 후보/)
-  await page.locator('.switch-step-actions .switch-primary-action').click()
-  await page.getByRole('heading',{name:'무엇을 그대로 유지할까요?'}).waitFor({state:'visible',timeout:30000})
-  await page.locator('.switch-step-actions .switch-primary-action').click()
-  await page.locator('.switch-candidate-row').first().waitFor({state:'visible',timeout:30000})
-  const heading=page.locator('.switch-candidate-heading span')
-  const summary=(await heading.innerText()).replace(/\s+/g,' ').trim()
-  assert.match(summary,/변경·유지 조건을 고르지 않아 전체 후보에서 탐색합니다/)
-  assert.doesNotMatch(summary,/비슷한 후보/)
-  await waitImages(page)
-  const file='switch-unfiltered-390x844.png'
-  await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.scenarios.switch={noChangeText,summary,candidateCount:await page.locator('.switch-candidate-row').count(),file}
+  report.screens.recipe={noteText,sectionText,file}
   await context.close()
 }
 
-await aliasScenario()
-await exploreScenario()
-await quickViewScenario(390,844,'quickMobile')
-await quickViewScenario(1440,900,'quickDesktop')
-await switchScenario()
+await homeScreen()
+await conditionScreen()
+await recipeScreen()
 assert.equal(report.blocked.filter(x=>x.reason==='write').length,0)
 assert.ok(report.reads.length>0)
 assert.ok(report.reads.every(x=>['GET','HEAD','OPTIONS'].includes(x.method)))

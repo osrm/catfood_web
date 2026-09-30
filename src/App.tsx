@@ -210,6 +210,7 @@ export default function App() {
   const mobileRefineToggleRef = useRef<HTMLButtonElement | null>(null)
   const quickViewCloseRef = useRef<HTMLButtonElement | null>(null)
   const quickViewReturnId = useRef<string | null>(null)
+  const quickViewFocusReturnPending = useRef(false)
   const resultButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const catalogRequestId = useRef(0)
   const catalogRequest = useRef<{ id: number; controller: AbortController } | null>(null)
@@ -451,6 +452,17 @@ export default function App() {
     }, 0)
   }, [visibleProducts.length, detailProductId, compareOpen, loading])
 
+  useEffect(() => {
+    if (selectedProduct || !quickViewFocusReturnPending.current || detailProductId || compareOpen) return
+    const returnId = quickViewReturnId.current
+    quickViewFocusReturnPending.current = false
+    quickViewReturnId.current = null
+    const timer = window.setTimeout(() => {
+      if (returnId) resultButtonRefs.current.get(returnId)?.focus({ preventScroll: true })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [selectedProduct?.product_id, detailProductId, compareOpen, visibleProducts.length])
+
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
     exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
@@ -472,13 +484,10 @@ export default function App() {
     window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
   }
   function closeQuickView() {
-    const returnId = quickViewReturnId.current ?? selectedId
+    quickViewReturnId.current = quickViewReturnId.current ?? selectedId
+    quickViewFocusReturnPending.current = true
     setSelectedId(null)
     replaceHistory(snapshot({ selectedId: null }))
-    window.setTimeout(() => {
-      if (returnId) resultButtonRefs.current.get(returnId)?.focus({ preventScroll: true })
-      quickViewReturnId.current = null
-    }, 0)
   }
   function toggleCompare(productId: string) {
     const adding = !compareIds.includes(productId) && compareIds.length < 5

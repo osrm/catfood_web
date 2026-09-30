@@ -29,7 +29,8 @@
   }
 
   .compare-table-wrap.is-mobile-two-product-overview .compare-two-product-overview-desktop,
-  .compare-table-wrap.is-mobile-two-product-nutrition .compare-two-product-nutrition-desktop {
+  .compare-table-wrap.is-mobile-two-product-nutrition .compare-two-product-nutrition-desktop,
+  .compare-table-wrap.is-mobile-two-product-nutrition .compare-switch-nutrition-desktop {
     display: none;
   }
 
@@ -268,6 +269,29 @@
 
   .compare-mobile-two-product-nutrition .compare-evidence-details strong {
     font-size: 12px;
+  }
+
+  .compare-current-nutrition-metric {
+    display: grid;
+    gap: 5px;
+  }
+
+  .compare-current-nutrition-metric > small,
+  .compare-mobile-switch-use-package {
+    display: block;
+    color: #68736f;
+    font-size: 10.5px;
+    line-height: 1.45;
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+
+  .compare-current-nutrition-metric > small {
+    font-variant-numeric: normal;
+  }
+
+  .compare-switch-mobile-nutrition .compare-mobile-candidate-picker {
+    border-bottom: 1px solid var(--research-line);
   }
 
 }

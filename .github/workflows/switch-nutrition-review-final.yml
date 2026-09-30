@@ -1,0 +1,42 @@
+name: One-off merged Pages postdeploy QA
+on:
+  pull_request:
+    paths:
+      - 'qa/switch-nutrition-review.mjs'
+      - '.github/workflows/switch-nutrition-review-final.yml'
+permissions:
+  contents: read
+jobs:
+  pages-browser:
+    runs-on: ubuntu-latest
+    env:
+      PAGES_URL: https://osrm.github.io/catfood_web/
+      EXPECTED_SHA: 15dfbc94680f8cbc699426af6125aa2236c64f96
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/pages-postdeploy-review
+          cp qa/switch-nutrition-review.mjs /tmp/pages-postdeploy-review/
+          cd /tmp/pages-postdeploy-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Narrow merged Pages QA
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/pages-combined-postdeploy-output" node /tmp/pages-postdeploy-review/switch-nutrition-review.mjs
+          cp /tmp/pages-postdeploy-review/switch-nutrition-review.mjs "$GITHUB_WORKSPACE/pages-combined-postdeploy-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pages-combined-postdeploy
+          path: pages-combined-postdeploy-output
+          retention-days: 7

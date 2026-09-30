@@ -451,12 +451,6 @@ export default function App() {
     }, 0)
   }, [visibleProducts.length, detailProductId, compareOpen, loading])
 
-  useEffect(() => {
-    if (!selectedProduct || detailProductId || compareOpen) return
-    const timer = window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
-    return () => window.clearTimeout(timer)
-  }, [selectedProduct?.product_id, detailProductId, compareOpen])
-
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
     exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
@@ -475,6 +469,7 @@ export default function App() {
     setSelectedId(productId)
     if (mode === 'explore') recordExploreConsideration(productId, 'detail_open')
     replaceHistory(snapshot({ selectedId: productId }))
+    window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
   }
   function closeQuickView() {
     const returnId = quickViewReturnId.current ?? selectedId

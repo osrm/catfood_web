@@ -19,6 +19,8 @@ const nativeFetch = globalThis.fetch
 let app, root, temp
 let requests = []
 let failCurrentNutrition = false
+let failCurrentVariants = false
+let currentNutritionScope = 'variant'
 
 function product(id, brand, name, overrides = {}) {
   return {
@@ -213,6 +215,8 @@ after(async () => {
 beforeEach(() => {
   requests = []
   failCurrentNutrition = false
+  failCurrentVariants = false
+  currentNutritionScope = 'variant'
   document.body.innerHTML = '<div id="root"></div>'
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
@@ -222,7 +226,15 @@ beforeEach(() => {
     if (url.pathname.endsWith('/compare_product_nutrition')) {
       if (filter === `in.(${current.product_id})`) {
         if (failCurrentNutrition) return new Response('current failed', { status: 500 })
-        return Response.json([currentNutrition])
+        const row = currentNutritionScope === 'variant'
+          ? currentNutrition
+          : {
+              ...currentNutrition,
+              observation_scope: currentNutritionScope,
+              variant_id: null,
+              is_current_resolved_formula: currentNutritionScope === 'formula' ? false : currentNutrition.is_current_resolved_formula,
+            }
+        return Response.json([row])
       }
       if (filter === `in.(${candidates.map((value) => value.product_id).join(',')})`) return Response.json(candidateRows)
       if (filter.includes('product_general_')) return Response.json(candidateRows.slice(0, 2))
@@ -231,7 +243,10 @@ beforeEach(() => {
     if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) {
       const id = filter.replace(/^eq\./, '')
-      if (id === current.product_id) return Response.json(currentVariants)
+      if (id === current.product_id) {
+        if (failCurrentVariants) return new Response('variant failed', { status: 500 })
+        return Response.json(currentVariants)
+      }
       return Response.json(candidateVariants[id] ?? [])
     }
     return Response.json([])
@@ -314,6 +329,38 @@ test('unknown current package stays unknown without inventing a package mismatch
   assert.ok(currentMetric)
   assert.match(currentMetric.textContent, /사용 규격 · 모름/)
   assert.match(currentMetric.textContent, /영양 자료 포장 · 3 kg/)
+  assert.equal(currentMetric.textContent.includes('다른 포장 자료'), false)
+})
+
+
+test('current variant lookup failure is shown as a lookup failure rather than unknown nutrition', async () => {
+  failCurrentVariants = true
+  await renderSwitch()
+  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
+  assert.ok(currentMetric)
+  assert.match(currentMetric.textContent, /370 kcal\/100g/)
+  assert.match(currentMetric.textContent, /영양 자료 포장 · 조회 실패/)
+  assert.match(currentMetric.textContent, /다른 포장 자료/)
+  assert.equal(currentMetric.textContent.includes('미확인'), false)
+})
+
+test('product-scope current nutrition does not imply linkage to the selected package', async () => {
+  currentNutritionScope = 'product'
+  await renderSwitch()
+  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
+  assert.ok(currentMetric)
+  assert.match(currentMetric.textContent, /사용 규격 · 1 kg/)
+  assert.match(currentMetric.textContent, /제품 단위 자료 · 사용 포장과 직접 연결되지 않음/)
+  assert.equal(currentMetric.textContent.includes('다른 포장 자료'), false)
+})
+
+test('formula-scope current nutrition stays distinct from selected-package evidence', async () => {
+  currentNutritionScope = 'formula'
+  await renderSwitch()
+  const currentMetric = document.querySelector('.compare-switch-mobile-nutrition .compare-current-nutrition-metric')
+  assert.ok(currentMetric)
+  assert.match(currentMetric.textContent, /사용 규격 · 1 kg/)
+  assert.match(currentMetric.textContent, /배합 단위 자료 · 사용 포장과 직접 연결되지 않음/)
   assert.equal(currentMetric.textContent.includes('다른 포장 자료'), false)
 })
 

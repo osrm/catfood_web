@@ -129,6 +129,7 @@ async function quickViewScenario(width,height,key){
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
   await page.keyboard.press('Enter')
   await quick.waitFor({state:'detached',timeout:30000})
+  await page.waitForFunction((productId)=>document.activeElement?.getAttribute('data-product-id')===productId,id,{timeout:3000})
   const after=await page.evaluate((productId)=>({
     focusedId:document.activeElement?.getAttribute('data-product-id'),
     windowY:scrollY,

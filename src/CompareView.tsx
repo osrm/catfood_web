@@ -223,8 +223,8 @@ function BaselineSummary() {
 function CompareRow({ label, items, render, tone }: { label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
   return <div className={`compare-row${tone ? ` is-${tone}` : ''}`} style={{ '--compare-count': items.length } as CSSProperties}><div className="compare-row-label">{label}</div>{items.map((item) => <div className="compare-cell" key={item.product.product_id}>{render(item)}</div>)}</div>
 }
-function SwitchOverviewRow({ label, currentProduct, items, currentValue, candidateValue }: { label: string; currentProduct: CatalogProduct; items: CompareItem[]; currentValue: (product: CatalogProduct) => ReactNode; candidateValue: (item: CompareItem) => ReactNode }) {
-  return <div className="compare-row compare-switch-overview-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-row-label">{label}</div><div className="compare-cell is-current">{currentValue(currentProduct)}</div>{items.map((item) => <div className="compare-cell" key={item.product.product_id}>{candidateValue(item)}</div>)}</div>
+function SwitchOverviewRow({ label, currentProduct, items, currentValue, candidateValue, tone }: { label: string; currentProduct: CatalogProduct; items: CompareItem[]; currentValue: (product: CatalogProduct) => ReactNode; candidateValue: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
+  return <div className={`compare-row compare-switch-overview-row${tone ? ` is-${tone}` : ''}`} style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-row-label">{label}</div><div className="compare-cell is-current">{currentValue(currentProduct)}</div>{items.map((item) => <div className="compare-cell" key={item.product.product_id}>{candidateValue(item)}</div>)}</div>
 }
 function MobileOverviewRow({ label, current, candidate }: { label: string; current: ReactNode; candidate: ReactNode }) {
   return <div className="compare-mobile-overview-row"><strong className="compare-mobile-row-label">{label}</strong><div className="compare-mobile-pair"><div><span>현재 사료</span><div>{current}</div></div><div><span>후보</span><div>{candidate}</div></div></div></div>
@@ -247,6 +247,16 @@ function MobileTwoProductOverviewField({ fieldKey, label, items, render, tone }:
 function MobileTwoProductSection({ title }: { title: string }) {
   return <tbody className="compare-mobile-two-product-section">
     <tr><th colSpan={2} scope="rowgroup">{title}</th></tr>
+  </tbody>
+}
+function MobileSwitchNutritionField({ fieldKey, label, current, candidate, tone }: { fieldKey: string; label: string; current: ReactNode; candidate: ReactNode; tone?: CompareRowTone }) {
+  const labelId = `compare-mobile-switch-row-${fieldKey}`
+  return <tbody className={`compare-mobile-two-product-field${tone ? ` is-${tone}` : ''}`}>
+    <tr className="compare-mobile-two-product-label-row"><th className="compare-mobile-two-product-row-label" id={labelId} colSpan={2} scope="rowgroup">{label}</th></tr>
+    <tr className="compare-mobile-two-product-values">
+      <td className="compare-mobile-two-product-value is-current" headers={`${labelId} compare-mobile-switch-current`}>{current}</td>
+      <td className="compare-mobile-two-product-value is-candidate" headers={`${labelId} compare-mobile-switch-candidate`}>{candidate}</td>
+    </tr>
   </tbody>
 }
 function MobileTwoProductExtraDisclosure({ items, showTargets, showFeatures }: { items: CompareItem[]; showTargets: boolean; showFeatures: boolean }) {
@@ -404,11 +414,60 @@ function MobileTwoProductNutrition({
   </div>
 }
 
+function currentUsePackageLabel(currentVariantId: string | null | undefined, currentVariantText?: string) {
+  if (!currentVariantId) return currentVariantText === '사용 규격 모름' ? '사용 규격 · 모름' : '사용 규격 · 미선택'
+  return `사용 규격 · ${currentVariantText || '확인 중'}`
+}
+function currentNutritionPackageNote(
+  detail: CompareNutrition | null,
+  variants: ProductVariant[],
+  currentVariantId: string | null | undefined,
+  currentVariantText: string | undefined,
+  variantFailed: boolean,
+  variantLoading: boolean,
+) {
+  const usePackage = currentUsePackageLabel(currentVariantId, currentVariantText)
+  if (!detail) return usePackage
+  if (detail.observation_scope === 'variant') {
+    const evidenceVariant = detail.variant_id ? variants.find((variant) => variant.variant_id === detail.variant_id) ?? null : null
+    const evidenceSize = variantSizeLabel(evidenceVariant)
+    const evidencePackage = variantLoading
+      ? '영양 자료 포장 · 확인 중'
+      : variantFailed
+        ? '영양 자료 포장 · 조회 실패'
+        : evidenceSize
+          ? `영양 자료 포장 · ${evidenceSize}`
+          : '영양 자료 포장 · 확인값 없음'
+    const mismatch = Boolean(currentVariantId && detail.variant_id && currentVariantId !== detail.variant_id)
+    return `${usePackage} · ${evidencePackage}${mismatch ? ' · 다른 포장 자료' : ''}`
+  }
+  if (detail.observation_scope === 'product') return `${usePackage} · 제품 단위 자료 · 사용 포장과 직접 연결되지 않음`
+  if (detail.observation_scope === 'formula') return `${usePackage} · 배합 단위 자료 · 사용 포장과 직접 연결되지 않음`
+  return `${usePackage} · 자료 범위 ${detail.observation_scope || '미확인'}`
+}
+function CurrentNutritionMetric({ value, detail, variants, currentVariantId, currentVariantText, variantFailed, variantLoading }: {
+  value: ReactNode
+  detail: CompareNutrition | null
+  variants: ProductVariant[]
+  currentVariantId?: string | null
+  currentVariantText?: string
+  variantFailed: boolean
+  variantLoading: boolean
+}) {
+  return <div className="compare-current-nutrition-metric"><span>{value}</span><small>{currentNutritionPackageNote(detail, variants, currentVariantId, currentVariantText, variantFailed, variantLoading)}</small></div>
+}
+function nutritionLoadValue(row: CompareNutrition | undefined | null, loading: boolean, error: string | null, render: (detail: CompareNutrition) => ReactNode, emptyLabel: string) {
+  if (loading) return '조회 중'
+  if (error) return '조회 실패'
+  if (!row) return emptyLabel
+  return render(row)
+}
 function CompareSection({ title, note }: { title: string; note?: string }) { return <div className="compare-section-row"><strong>{title}</strong>{note ? <span>{note}</span> : null}</div> }
 
-export default function CompareView({ items, currentProduct, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
+export default function CompareView({ items, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
   items: CompareItem[]
   currentProduct?: CatalogProduct | null
+  currentVariantId?: string | null
   currentVariantText?: string
   onClose: () => void
   onRemove: (productId: string) => void
@@ -423,6 +482,13 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const [tab, setTab] = useState<CompareTab>(initialTab)
   const [reload, setReload] = useState(0)
   const [nutrition, setNutrition] = useState<CompareNutrition[]>([])
+  const [currentNutrition, setCurrentNutrition] = useState<CompareNutrition | null>(null)
+  const [currentNutritionLoading, setCurrentNutritionLoading] = useState(false)
+  const [currentNutritionError, setCurrentNutritionError] = useState<string | null>(null)
+  const [currentNutritionReload, setCurrentNutritionReload] = useState(0)
+  const [currentVariants, setCurrentVariants] = useState<ProductVariant[]>([])
+  const [currentVariantsLoading, setCurrentVariantsLoading] = useState(false)
+  const [currentVariantLookupFailed, setCurrentVariantLookupFailed] = useState(false)
   const [ingredients, setIngredients] = useState<CompareIngredients[]>([])
   const [variantsByProduct, setVariantsByProduct] = useState<Record<string, ProductVariant[]>>({})
   const [variantLookupFailures, setVariantLookupFailures] = useState<string[]>([])
@@ -466,7 +532,17 @@ export default function CompareView({ items, currentProduct, currentVariantText,
       return a.localeCompare(b, 'ko-KR')
     })
   }, [nutrition])
+  const switchAdditionalNutrientKeys = useMemo(() => {
+    const keys = new Set<string>()
+    ;[...(currentNutrition ? [currentNutrition] : []), ...nutrition].forEach((row) => (row.additional_nutrients ?? []).forEach((value) => { if (value.amount != null) keys.add(value.nutrient_key) }))
+    return [...keys].sort((a, b) => {
+      const ai = ADDITIONAL_NUTRIENT_ORDER.indexOf(a), bi = ADDITIONAL_NUTRIENT_ORDER.indexOf(b)
+      if (ai >= 0 || bi >= 0) { if (ai < 0) return 1; if (bi < 0) return -1; return ai - bi }
+      return a.localeCompare(b, 'ko-KR')
+    })
+  }, [currentNutrition, nutrition])
   const hasBasisSpecificNutrition = useMemo(() => nutrition.some((row) => row.basis_specific_nutrition_values?.some((value) => value.amount != null)), [nutrition])
+  const hasSwitchBasisSpecificNutrition = Boolean(currentNutrition?.basis_specific_nutrition_values?.some((value) => value.amount != null)) || hasBasisSpecificNutrition
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
   const mobileCandidate = items.find((item) => item.product.product_id === mobileCandidateId) ?? items[0] ?? null
   const mobileCandidateIndex = mobileCandidate ? items.findIndex((item) => item.product.product_id === mobileCandidate.product.product_id) : -1
@@ -496,6 +572,38 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     return () => { active = false; controller.abort() }
   }, [productIds.join('|'), reload])
 
+  useEffect(() => {
+    if (!currentProduct) {
+      setCurrentNutrition(null)
+      setCurrentNutritionLoading(false)
+      setCurrentNutritionError(null)
+      setCurrentVariants([])
+      setCurrentVariantsLoading(false)
+      setCurrentVariantLookupFailed(false)
+      return
+    }
+    const controller = new AbortController(); let active = true
+    setCurrentNutrition(null)
+    setCurrentNutritionLoading(true)
+    setCurrentNutritionError(null)
+    setCurrentVariants([])
+    setCurrentVariantsLoading(true)
+    setCurrentVariantLookupFailed(false)
+    fetchCompareNutrition([currentProduct.product_id], controller.signal).then((rows) => {
+      if (active) setCurrentNutrition(rows[0] ?? null)
+    }).catch((reason: unknown) => {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      if (active) setCurrentNutritionError('현재 사료 영양 정보를 불러오지 못했습니다.')
+    }).finally(() => { if (active) setCurrentNutritionLoading(false) })
+    fetchProductVariants(currentProduct.product_id, controller.signal).then((rows) => {
+      if (active) setCurrentVariants(rows)
+    }).catch((reason: unknown) => {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      if (active) setCurrentVariantLookupFailed(true)
+    }).finally(() => { if (active) setCurrentVariantsLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [currentProduct?.product_id, currentNutritionReload])
+
   function openDetail(productId: string) {
     if (onDetailOpen) onDetailOpen(productId)
     else setLocalDetailProductId(productId)
@@ -504,6 +612,37 @@ export default function CompareView({ items, currentProduct, currentVariantText,
     setMobileCandidateId(productId)
     setMobileCandidatePickerOpen(false)
     requestAnimationFrame(() => mobileCandidateToggleRef.current?.focus({ preventScroll: true }))
+  }
+  function renderMobileCandidatePicker() {
+    if (!mobileCandidate || items.length <= 1) return null
+    return <div className={`compare-mobile-candidate-picker${mobileCandidatePickerOpen ? ' is-open' : ''}`} role="group" aria-label="표시할 후보">
+      <button
+        ref={mobileCandidateToggleRef}
+        className="compare-mobile-candidate-toggle"
+        type="button"
+        aria-expanded={mobileCandidatePickerOpen}
+        aria-controls={mobileCandidateOptionsId}
+        onClick={() => setMobileCandidatePickerOpen((open) => !open)}
+      >
+        <span className="compare-mobile-candidate-meta">후보 {items.length}개 · {Math.max(mobileCandidateIndex + 1, 1)}/{items.length}</span>
+        <span className="compare-mobile-candidate-current">
+          <span className="compare-mobile-candidate-brand">{mobileCandidate.product.brand}</span>
+          <strong className="compare-mobile-candidate-name">{mobileCandidate.product.canonical_name}</strong>
+        </span>
+        <span className="compare-mobile-candidate-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id={mobileCandidateOptionsId} className="compare-mobile-candidate-options" hidden={!mobileCandidatePickerOpen}>
+        {items.map((item, index) => <button
+          key={item.product.product_id}
+          data-product-id={item.product.product_id}
+          type="button"
+          aria-pressed={mobileCandidate.product.product_id === item.product.product_id}
+          className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''}
+          onClick={() => selectMobileCandidate(item.product.product_id)}
+          aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}
+        >{item.product.brand} · {item.product.canonical_name}</button>)}
+      </div>
+    </div>
   }
   function removeComparedProduct(productId: string) {
     if (mobileCandidateId === productId) {
@@ -521,17 +660,18 @@ export default function CompareView({ items, currentProduct, currentVariantText,
   const tabId = `compare-tab-${tab}`
   const switchCompare = Boolean(currentProduct)
   const switchOverview = Boolean(currentProduct && tab === 'overview')
+  const switchNutrition = Boolean(currentProduct && tab === 'nutrition')
   const twoProductOverview = !switchCompare && tab === 'overview' && items.length === 2
   const twoProductNutrition = !switchCompare && tab === 'nutrition' && items.length === 2 && !nutritionLoading && !nutritionError
   const overviewProducts = currentProduct ? [currentProduct, ...items.map((item) => item.product)] : items.map((item) => item.product)
   const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
   const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
-  const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ''}${switchOverview ? ' is-switch-overview' : ''}`
+  const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ''}${switchOverview ? ' is-switch-overview' : ''}${switchNutrition ? ' is-switch-nutrition' : ''}`
   const headerCopy = currentProduct
     ? tab === 'overview'
       ? `현재 사료와 ${items.length}개 후보의 제품 정보를 같은 항목으로 비교합니다.`
       : tab === 'nutrition'
-        ? `담아둔 ${items.length}개 후보의 영양 정보를 비교합니다. 현재 사료는 포함하지 않습니다.`
+        ? `현재 사료를 기준으로 담아둔 ${items.length}개 후보의 영양 정보를 같은 항목에서 비교합니다.`
         : `담아둔 ${items.length}개 후보의 원재료 정보를 비교합니다. 현재 사료는 포함하지 않습니다.`
     : `${items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.`
 
@@ -542,12 +682,12 @@ export default function CompareView({ items, currentProduct, currentVariantText,
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}
     >{label}</button>)}</nav>
 
-    {tab === 'nutrition' && nutritionError ? <div className="compare-state is-error" role="alert"><p>{nutritionError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
+    {tab === 'nutrition' && nutritionError && !switchNutrition ? <div className="compare-state is-error" role="alert"><p>{nutritionError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
     {tab === 'ingredients' && ingredientsError ? <div className="compare-state is-error" role="alert"><p>{ingredientsError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
-    {tab === 'nutrition' && nutritionLoading ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
+    {tab === 'nutrition' && nutritionLoading && !switchNutrition ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
-    <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
+    <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition || switchNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
@@ -571,34 +711,7 @@ export default function CompareView({ items, currentProduct, currentVariantText,
         </div>
 
         {mobileCandidate ? <div className="compare-switch-mobile-overview">
-          {items.length > 1 ? <div className={`compare-mobile-candidate-picker${mobileCandidatePickerOpen ? ' is-open' : ''}`} role="group" aria-label="표시할 후보">
-            <button
-              ref={mobileCandidateToggleRef}
-              className="compare-mobile-candidate-toggle"
-              type="button"
-              aria-expanded={mobileCandidatePickerOpen}
-              aria-controls={mobileCandidateOptionsId}
-              onClick={() => setMobileCandidatePickerOpen((open) => !open)}
-            >
-              <span className="compare-mobile-candidate-meta">후보 {items.length}개 · {Math.max(mobileCandidateIndex + 1, 1)}/{items.length}</span>
-              <span className="compare-mobile-candidate-current">
-                <span className="compare-mobile-candidate-brand">{mobileCandidate.product.brand}</span>
-                <strong className="compare-mobile-candidate-name">{mobileCandidate.product.canonical_name}</strong>
-              </span>
-              <span className="compare-mobile-candidate-chevron" aria-hidden="true">⌄</span>
-            </button>
-            <div id={mobileCandidateOptionsId} className="compare-mobile-candidate-options" hidden={!mobileCandidatePickerOpen}>
-              {items.map((item, index) => <button
-                key={item.product.product_id}
-                data-product-id={item.product.product_id}
-                type="button"
-                aria-pressed={mobileCandidate.product.product_id === item.product.product_id}
-                className={mobileCandidate.product.product_id === item.product.product_id ? 'is-active' : ''}
-                onClick={() => selectMobileCandidate(item.product.product_id)}
-                aria-label={`후보 ${index + 1}: ${item.product.brand} ${item.product.canonical_name} 표시`}
-              >{item.product.brand} · {item.product.canonical_name}</button>)}
-            </div>
-          </div> : null}
+          {renderMobileCandidatePicker()}
           <div className="compare-mobile-head-grid">
             <MobileProductHead role="현재 사료 · 기준" product={currentProduct} variantText={currentVariantText || '사용 규격 모름'} />
             <MobileProductHead role="표시 중인 후보" product={mobileCandidate.product} onDetail={() => openDetail(mobileCandidate.product.product_id)} onRemove={() => removeComparedProduct(mobileCandidate.product.product_id)} />
@@ -621,6 +734,64 @@ export default function CompareView({ items, currentProduct, currentVariantText,
           <CompareSection title="선택한 조건" note="조건 확인 결과는 후보에만 표시합니다." />
           <MobileOverviewRow label="후보 조건 확인" current={<BaselineSummary />} candidate={<RelationSummary item={mobileCandidate} />} />
         </div> : null}
+      </> : switchNutrition && currentProduct && mobileCandidate ? <>
+        <div className="compare-switch-nutrition-notices">
+          {currentNutritionError ? <div className="compare-state is-error" role="alert"><p>{currentNutritionError} 후보 영양값은 계속 표시합니다.</p><button type="button" onClick={() => setCurrentNutritionReload((value) => value + 1)}>현재 사료 다시 시도</button></div> : null}
+          {nutritionError ? <div className="compare-state is-error" role="alert"><p>{nutritionError} 현재 사료 영양값은 계속 표시합니다.</p><button type="button" onClick={() => setReload((value) => value + 1)}>후보 다시 시도</button></div> : null}
+        </div>
+        <div className="compare-switch-mobile-nutrition compare-mobile-two-product-nutrition">
+          {renderMobileCandidatePicker()}
+          <div className="compare-mobile-two-product-heads">
+            <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-current-name">
+              <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
+              <span className="compare-mobile-two-product-brand">{currentProduct.brand}</span>
+              <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-current-name">{currentProduct.canonical_name}</strong>
+              <small className="compare-mobile-switch-use-package">{currentUsePackageLabel(currentVariantId, currentVariantText)}</small>
+            </article>
+            <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-candidate-name">
+              <span className="compare-mobile-two-product-slot">표시 중인 후보</span>
+              <span className="compare-mobile-two-product-brand">{mobileCandidate.product.brand}</span>
+              <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-candidate-name">{mobileCandidate.product.canonical_name}</strong>
+              <div className="compare-mobile-two-product-actions">
+                <button type="button" onClick={() => openDetail(mobileCandidate.product.product_id)}>상세 보기</button>
+                <button type="button" onClick={() => removeComparedProduct(mobileCandidate.product.product_id)}>제거</button>
+              </div>
+            </article>
+          </div>
+          <table className="compare-mobile-two-product-table compare-mobile-two-product-nutrition-table">
+            <caption className="compare-mobile-two-product-visually-hidden">현재 사료와 선택한 후보의 영양 비교</caption>
+            <thead className="compare-mobile-two-product-key"><tr>
+              <th id="compare-mobile-switch-current" scope="col"><span>현재 사료</span><strong>{currentProduct.canonical_name}</strong></th>
+              <th id="compare-mobile-switch-candidate" scope="col"><span>후보</span><strong>{mobileCandidate.product.canonical_name}</strong></th>
+            </tr></thead>
+            <MobileTwoProductSection title="영양 성분" />
+            <MobileSwitchNutritionField fieldKey="energy" label="열량" tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => row.kcal_per_kg != null ? formatNumber(row.kcal_per_kg, ' kcal/kg') : formatNumber(row.kcal_per_100g, ' kcal/100g'), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => row.kcal_per_kg != null ? formatNumber(row.kcal_per_kg, ' kcal/kg') : formatNumber(row.kcal_per_100g, ' kcal/100g'), '영양 자료 없음')} />
+            <MobileSwitchNutritionField fieldKey="protein" label="조단백질" tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} />
+            <MobileSwitchNutritionField fieldKey="fat" label="조지방" tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} />
+            <MobileSwitchNutritionField fieldKey="fiber" label="조섬유" tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} />
+            <MobileSwitchNutritionField fieldKey="moisture" label="수분" tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'moisture', row.moisture_pct, row.moisture_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'moisture', row.moisture_pct, row.moisture_qualifier), '영양 자료 없음')} />
+            <MobileSwitchNutritionField fieldKey="ash" label="조회분" tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'ash', row.ash_pct, row.ash_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'ash', row.ash_pct, row.ash_qualifier), '영양 자료 없음')} />
+            {switchAdditionalNutrientKeys.map((key) => <MobileSwitchNutritionField key={key} fieldKey={`additional-${key}`} label={additionalNutrientLabel(key, [...(currentNutrition ? [currentNutrition] : []), ...nutrition])} tone="metric" current={<CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatAdditionalNutrient(additionalNutrient(row, key)), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatAdditionalNutrient(additionalNutrient(row, key)), '영양 자료 없음')} />)}
+            <MobileTwoProductSection title="자료 범위" />
+            <MobileSwitchNutritionField fieldKey="scope" label="적용 범위" tone="context" current={currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : currentNutrition ? <NutritionScope detail={currentNutrition} variants={currentVariants} failed={currentVariantLookupFailed} loading={currentVariantsLoading} /> : '영양 자료 없음'} candidate={nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : nutritionByProduct.get(mobileCandidate.product.product_id) ? <NutritionScope detail={nutritionByProduct.get(mobileCandidate.product.product_id)} variants={variantsByProduct[mobileCandidate.product.product_id]} failed={variantLookupFailures.includes(mobileCandidate.product.product_id)} loading={variantsLoading} /> : '영양 자료 없음'} />
+            {hasSwitchBasisSpecificNutrition ? <><MobileTwoProductSection title="다른 기준의 영양자료" /><MobileSwitchNutritionField fieldKey="basis" label="별도 확인 자료" tone="context" current={currentNutrition ? basisSpecificSummary(currentNutrition) : currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : '영양 자료 없음'} candidate={nutritionByProduct.get(mobileCandidate.product.product_id) ? basisSpecificSummary(nutritionByProduct.get(mobileCandidate.product.product_id)) : nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : '영양 자료 없음'} /></> : null}
+          </table>
+        </div>
+
+        <div className="compare-table compare-switch-nutrition-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
+          <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
+          <CompareSection title="영양 성분" note="표시값의 단위·한정자를 그대로 보여줍니다. 다른 기준의 자료는 합치거나 환산하지 않습니다." />
+          <SwitchOverviewRow label="열량" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => row.kcal_per_kg != null ? formatNumber(row.kcal_per_kg, ' kcal/kg') : formatNumber(row.kcal_per_100g, ' kcal/100g'), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => row.kcal_per_kg != null ? formatNumber(row.kcal_per_kg, ' kcal/kg') : formatNumber(row.kcal_per_100g, ' kcal/100g'), '영양 자료 없음')} />
+          <SwitchOverviewRow label="조단백질" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} />
+          <SwitchOverviewRow label="조지방" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} />
+          <SwitchOverviewRow label="조섬유" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} />
+          <SwitchOverviewRow label="수분" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'moisture', row.moisture_pct, row.moisture_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'moisture', row.moisture_pct, row.moisture_qualifier), '영양 자료 없음')} />
+          <SwitchOverviewRow label="조회분" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'ash', row.ash_pct, row.ash_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'ash', row.ash_pct, row.ash_qualifier), '영양 자료 없음')} />
+          {switchAdditionalNutrientKeys.map((key) => <SwitchOverviewRow key={key} label={additionalNutrientLabel(key, [...(currentNutrition ? [currentNutrition] : []), ...nutrition])} currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatAdditionalNutrient(additionalNutrient(row, key)), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} currentVariantText={currentVariantText} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatAdditionalNutrient(additionalNutrient(row, key)), '영양 자료 없음')} />)}
+          <CompareSection title="자료 범위" />
+          <SwitchOverviewRow label="적용 범위" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : currentNutrition ? <NutritionScope detail={currentNutrition} variants={currentVariants} failed={currentVariantLookupFailed} loading={currentVariantsLoading} /> : '영양 자료 없음'} candidateValue={(item) => nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : nutritionByProduct.get(item.product.product_id) ? <NutritionScope detail={nutritionByProduct.get(item.product.product_id)} variants={variantsByProduct[item.product.product_id]} failed={variantLookupFailures.includes(item.product.product_id)} loading={variantsLoading} /> : '영양 자료 없음'} />
+          {hasSwitchBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><SwitchOverviewRow label="별도 확인 자료" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutrition ? basisSpecificSummary(currentNutrition) : currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : '영양 자료 없음'} candidateValue={(item) => nutritionByProduct.get(item.product.product_id) ? basisSpecificSummary(nutritionByProduct.get(item.product.product_id)) : nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : '영양 자료 없음'} /></> : null}
+        </div>
       </> : <>
         {twoProductOverview ? <MobileTwoProductOverview items={items} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
         {twoProductNutrition ? <MobileTwoProductNutrition items={items} nutrition={nutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={additionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={hasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}

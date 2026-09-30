@@ -53,11 +53,18 @@ async function aliasScenario(){
   assert.match(aatuText,/AATU/i,'아투 must find the confirmed AATU brand without changing display identity')
 
   const lookup=page.locator('.lookup-input')
-  await lookup.fill('힐스')
-  await page.waitForFunction(()=>[...document.querySelectorAll('.research-result-card')].some(el=>/Hill/i.test(el.textContent||'')),null,{timeout:30000})
-  const hills=page.locator('.research-result-card').filter({hasText:/Hill/i}).first()
+  await lookup.fill('Hills')
+  await page.locator('.research-result-card').first().waitFor({state:'visible',timeout:30000})
+  const hills=page.locator('.research-result-card').first()
   const hillsText=(await hills.innerText()).replace(/\s+/g,' ').trim()
-  assert.match(hillsText,/Hill/i,'힐스 must find the confirmed Hill brand')
+  assert.match(hillsText,/힐스|Hill/i,'Hills must find the confirmed Hill/힐스 brand')
+  const hillsId=await hills.getAttribute('data-product-id')
+  assert.ok(hillsId)
+
+  await lookup.fill('Hill’s')
+  await page.locator('.research-result-card').first().waitFor({state:'visible',timeout:30000})
+  const curlyId=await page.locator('.research-result-card').first().getAttribute('data-product-id')
+  assert.equal(curlyId,hillsId,'Hills and Hill’s must resolve to the same leading catalog product')
 
   await lookup.fill('힐즈')
   await page.waitForTimeout(120)
@@ -69,7 +76,7 @@ async function aliasScenario(){
   await waitImages(page)
   const file='alias-lookup-390x844.png'
   await page.screenshot({path:OUT+'/'+file,fullPage:false})
-  report.scenarios.alias={aatuText,hillsText,unconfirmedTypoCount:typoCount,file}
+  report.scenarios.alias={aatuText,hillsText,hillsId,curlyId,unconfirmedTypoCount:typoCount,file}
   await context.close()
 }
 async function exploreScenario(){

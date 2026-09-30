@@ -1,0 +1,62 @@
+name: One-off SWITCH candidate search review
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/switch-candidate-search-review.yml'
+      - 'qa/switch-candidate-search-review.mjs'
+permissions:
+  contents: read
+jobs:
+  candidate-browser:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+      PRODUCT_SHA: e80e0d89bf6f362d46741512563bb5682def4426
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Preserve QA source
+        run: |
+          mkdir -p /tmp/switch-candidate-search-review
+          cp qa/switch-candidate-search-review.mjs /tmp/switch-candidate-search-review/
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
+        with:
+          ref: e80e0d89bf6f362d46741512563bb5682def4426
+          clean: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build exact product candidate
+        run: npm run build
+      - name: Install browser driver
+        run: |
+          cd /tmp/switch-candidate-search-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact product candidate
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/switch-candidate-search-vite.log 2>&1 &
+          for i in {1..40}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 0.25
+          done
+          cat /tmp/switch-candidate-search-vite.log
+          exit 1
+      - name: Chrome SWITCH candidate search review
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/switch-candidate-search-review-output" CANDIDATE_URL="http://127.0.0.1:4173/" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/switch-candidate-search-review/switch-candidate-search-review.mjs
+          cp /tmp/switch-candidate-search-review/switch-candidate-search-review.mjs "$GITHUB_WORKSPACE/switch-candidate-search-review-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: switch-candidate-search-review
+          path: switch-candidate-search-review-output
+          retention-days: 7

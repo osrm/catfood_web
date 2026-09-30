@@ -534,9 +534,11 @@ export default function App() {
   function changeDetailTab(nextTab: DetailTab) { setDetailTab(nextTab); replaceHistory(snapshot({ detailTab: nextTab })) }
   function applyConditions() {
     const nextSearch = draftSearch
-    setVisibleCount(40); setSearch(nextSearch); setRefine(INITIAL_REFINE); setRecipeSearch(''); setEditingConditions(false); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null)
+    const sameAppliedConditions = exploreRunKey(nextSearch, INITIAL_REFINE) === exploreRunKey(search, refine)
+    const nextCompareIds = sameAppliedConditions ? compareIds : []
+    setVisibleCount(40); setSearch(nextSearch); setRefine(INITIAL_REFINE); setRecipeSearch(''); setEditingConditions(false); setSelectedId(null); setCompareIds(nextCompareIds); setCompareOpen(false); setDetailProductId(null)
     beginExploreRun(nextSearch, INITIAL_REFINE)
-    pushHistory(snapshot({ screen: 'workspace', mode: 'explore', search: nextSearch, refine: INITIAL_REFINE, editingConditions: false, selectedId: null, visibleCount: 40, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
+    pushHistory(snapshot({ screen: 'workspace', mode: 'explore', search: nextSearch, refine: INITIAL_REFINE, editingConditions: false, selectedId: null, visibleCount: 40, compareIds: nextCompareIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
   }
   function editConditions() {
     setDraftSearch(search); setSelectedId(null); setEditingConditions(true)
@@ -546,12 +548,14 @@ export default function App() {
   function resetDraft() { setDraftSearch(INITIAL_SEARCH) }
   function changeMode(nextMode: Mode) {
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
-    setMode(nextMode); setScreen('workspace'); setVisibleCount(count); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null)
+    const preserveGeneralCompare = mode !== 'switch' && nextMode !== 'switch'
+    const nextCompareIds = preserveGeneralCompare ? compareIds : []
+    setMode(nextMode); setScreen('workspace'); setVisibleCount(count); setSelectedId(null); setCompareIds(nextCompareIds); setCompareOpen(false); setDetailProductId(null)
     if (nextMode === 'explore') {
       setEditingConditions(true)
       setMobileAdditionalOpen(countAdditionalConditions(search) > 0)
     }
-    pushHistory(snapshot({ mode: nextMode, screen: 'workspace', visibleCount: count, selectedId: null, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview', editingConditions: nextMode === 'explore' ? true : editingConditions, lookupQuery: nextMode === 'lookup' ? lookupQuery : '' }))
+    pushHistory(snapshot({ mode: nextMode, screen: 'workspace', visibleCount: count, selectedId: null, compareIds: nextCompareIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview', editingConditions: nextMode === 'explore' ? true : editingConditions, lookupQuery: nextMode === 'lookup' ? lookupQuery : '' }))
   }
   function startFromHome(nextMode: Mode, query = '') {
     if (nextMode === 'lookup') setLookupQuery(query)

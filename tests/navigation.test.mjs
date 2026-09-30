@@ -166,6 +166,98 @@ test('typing a lookup query replaces URL state instead of adding history entries
   assert.equal(new URL(window.location.href).searchParams.get('q'), 'Product 00')
 })
 
+
+test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup results, unchanged reapply, and history restoration', async () => {
+  const first = products[0], second = products[1], third = products[2]
+  const previousLifeStage = third.life_stage
+  third.life_stage = 'senior'
+  try {
+    const params = new URLSearchParams({
+      view: 'workspace',
+      applied: '1',
+      feed: '건식',
+      age: 'adult',
+      compare: [first.product_id, second.product_id].join(','),
+    })
+    await renderApp('https://catfood.test/catfood_web/?' + params)
+    await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'two-product EXPLORE comparison restored')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), [first.product_id, second.product_id].join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+
+    await click('제품 찾기')
+    await waitForUi(() => document.querySelector('.lookup-input') !== null, 'LOOKUP opened from EXPLORE')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), [first.product_id, second.product_id].join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+
+    await inputValue(document.querySelector('.lookup-input'), third.canonical_name)
+    await waitForUi(() => document.querySelector(`[data-product-id="${third.product_id}"]`) !== null, 'third product lookup result')
+    await act(async () => document.querySelector(`[data-product-id="${third.product_id}"]`).click())
+    await waitForUi(() => document.querySelector('.research-quick-view') !== null, 'third product quick view')
+    await click('비교에 추가')
+    const threeIds = [first.product_id, second.product_id, third.product_id]
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+
+    await click('닫기 ×')
+    await inputValue(document.querySelector('.lookup-input'), 'no-such-product-query')
+    await waitForUi(() => /검색 결과가 없습니다/.test(document.querySelector('.state-message')?.textContent ?? ''), 'zero-result lookup state')
+    assert.equal(document.querySelectorAll('.research-result-card').length, 0)
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+    assert.ok([...document.querySelectorAll('.switch-compare-dock button')].some((node) => node.textContent.includes('비교 보기')))
+
+    await act(async () => {
+      window.history.back()
+      await waitForUi(
+        () => document.querySelector('.criteria-bar') !== null
+          && new URL(window.location.href).searchParams.get('compare') === [first.product_id, second.product_id].join(','),
+        'browser back restores earlier EXPLORE comparison snapshot',
+      )
+    })
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+
+    await act(async () => {
+      window.history.forward()
+      await waitForUi(
+        () => document.querySelector('.lookup-input') !== null
+          && new URL(window.location.href).searchParams.get('compare') === threeIds.join(','),
+        'browser forward restores LOOKUP comparison snapshot',
+      )
+    })
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+    assert.match(document.querySelector('.state-message').textContent, /검색 결과가 없습니다/)
+
+    await click('조건으로 찾기')
+    await waitForUi(() => document.querySelector('.condition-actions') !== null, 'EXPLORE condition editor reopened')
+    assert.equal(document.querySelector('.switch-compare-dock'), null, 'compare dock stays hidden while editing conditions')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','), 'mode re-entry keeps queued comparison in navigation state')
+
+    await click('이 조건으로 찾기')
+    await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'unchanged EXPLORE conditions reapplied')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+    assert.equal(document.querySelector(`.research-result-card[data-product-id="${third.product_id}"]`), null, 'lookup-added senior product is not auto-treated as matching adult EXPLORE results')
+
+    await click('비교 보기')
+    await waitForUi(() => document.querySelector('.compare-stage') !== null, 'three-product comparison opened')
+    const heads = [...document.querySelectorAll('.compare-product-head')].map((node) => node.textContent)
+    assert.equal(heads.length, 3)
+    assert.match(heads[0], /Product 000/)
+    assert.match(heads[1], /Product 001/)
+    assert.match(heads[2], /Product 002/)
+
+    await click('제품 목록으로')
+    await waitForUi(() => document.querySelector('.compare-stage') === null && document.querySelector('.switch-compare-dock') !== null, 'comparison closed to EXPLORE list')
+    await click('조건 수정')
+    await click('이 조건으로 찾기')
+    await waitForUi(() => document.querySelector('.switch-compare-dock') !== null, 'same conditions reapplied from explicit editor')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), threeIds.join(','))
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+  } finally {
+    third.life_stage = previousLifeStage
+  }
+})
+
 test('list expansion, detail navigation, and browser back restore the expanded result list and focus', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product')
   assert.equal(document.querySelectorAll('.research-result-card').length, 120)

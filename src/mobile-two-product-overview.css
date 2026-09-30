@@ -15,6 +15,21 @@
   border: 0;
 }
 
+.compare-current-nutrition-metric {
+  display: grid;
+  gap: 5px;
+}
+
+.compare-current-nutrition-metric > small {
+  display: block;
+  color: #68736f;
+  font-size: 10.5px;
+  line-height: 1.45;
+  font-weight: 650;
+  letter-spacing: 0;
+  font-variant-numeric: normal;
+}
+
 @media (max-width: 760px) {
   .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-overview),
   .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-nutrition) {
@@ -271,12 +286,6 @@
     font-size: 12px;
   }
 
-  .compare-current-nutrition-metric {
-    display: grid;
-    gap: 5px;
-  }
-
-  .compare-current-nutrition-metric > small,
   .compare-mobile-switch-use-package {
     display: block;
     color: #68736f;
@@ -284,10 +293,6 @@
     line-height: 1.45;
     font-weight: 650;
     letter-spacing: 0;
-  }
-
-  .compare-current-nutrition-metric > small {
-    font-variant-numeric: normal;
   }
 
   .compare-switch-mobile-nutrition .compare-mobile-candidate-picker {

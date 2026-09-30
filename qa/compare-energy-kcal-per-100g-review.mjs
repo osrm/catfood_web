@@ -85,7 +85,7 @@ async function generalMobile(){
   assert.equal(await naturalSummary.evaluate(el=>document.activeElement===el),true)
   await page.keyboard.press('Enter')
   assert.equal(await naturalSummary.evaluate(el=>el.parentElement?.hasAttribute('open')),true)
-  assert.match(norm(await naturalSummary.locator('..').textContent()),/제공된 열량.*3,480 kcal\/kg/)
+  assert.match(norm(await naturalSummary.evaluate(el=>el.parentElement?.textContent||'')),/제공된 열량.*3,480 kcal\/kg/)
   assert.equal(await naturalSummary.evaluate(el=>document.activeElement===el),true)
   await page.keyboard.press('Enter')
 

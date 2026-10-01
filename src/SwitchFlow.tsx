@@ -912,7 +912,9 @@ export default function SwitchFlow({
     if (selectedCandidateId || !pendingCandidateFocus.current) return
     const productId = pendingCandidateFocus.current
     pendingCandidateFocus.current = null
-    candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true })
+    const candidateButton = candidateButtonRefs.current.get(productId)
+    if (candidateButton) candidateButton.focus({ preventScroll: true })
+    else candidateSearchInputRef.current?.focus({ preventScroll: true })
   }, [selectedCandidateId])
 
   useLayoutEffect(() => {

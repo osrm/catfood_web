@@ -52,7 +52,10 @@ before(async () => {
   app = await bundle()
 })
 after(async () => { globalThis.fetch = nativeFetch; dom.window.close(); await rm(temp, { recursive: true }) })
-afterEach(async () => { if (root) { await act(async () => root.unmount()); root = null } })
+afterEach(async () => {
+  if (root) { await act(async () => root.unmount()); root = null }
+  window.history.replaceState(null, '', 'https://catfood.test/catfood_web/')
+})
 
 function installFetch() {
   globalThis.fetch = window.fetch = async (input) => {

@@ -36,11 +36,33 @@ import './mobile-switch-compare-header.css'
 import './quick-view-editorial.css'
 import './switch-results-reviewed.css'
 
+type IngredientScrollIntent = {
+  direction: -1 | 1
+  startScrollLeft: number
+}
+
 const ingredientScrollSettleTimers = new WeakMap<HTMLElement, number>()
+const ingredientScrollIntents = new WeakMap<HTMLElement, IngredientScrollIntent>()
+
+function isMobileGeneralIngredients(target: HTMLElement) {
+  return window.innerWidth <= 760
+    && target.id === 'compare-panel-ingredients'
+    && !target.closest('.compare-stage')?.classList.contains('is-switch-compare')
+}
+
+function recordIngredientScrollIntent(target: HTMLElement, direction: -1 | 1) {
+  if (!isMobileGeneralIngredients(target)) return
+  ingredientScrollIntents.set(target, { direction, startScrollLeft: target.scrollLeft })
+}
+
+function nearestScrollPosition(positions: number[], value: number) {
+  return positions.reduce((nearest, position) => (
+    Math.abs(position - value) < Math.abs(nearest - value) ? position : nearest
+  ), positions[0] ?? value)
+}
 
 function alignMobileIngredientColumn(target: HTMLElement) {
-  if (window.innerWidth > 760 || target.id !== 'compare-panel-ingredients') return
-  if (target.closest('.compare-stage')?.classList.contains('is-switch-compare')) return
+  if (!isMobileGeneralIngredients(target)) return
 
   const fixedLabel = target.querySelector<HTMLElement>('.compare-row-label')
   const productHeads = [...target.querySelectorAll<HTMLElement>('.compare-head-row .compare-product-head')]
@@ -49,19 +71,29 @@ function alignMobileIngredientColumn(target: HTMLElement) {
   const current = target.scrollLeft
   const maxScroll = Math.max(0, target.scrollWidth - target.clientWidth)
   const fixedRight = fixedLabel.getBoundingClientRect().right
-  let closest = current
-  let closestDistance = Number.POSITIVE_INFINITY
+  const positions = [...new Set(productHeads.map((head) => (
+    Math.min(maxScroll, Math.max(0, current + head.getBoundingClientRect().left - fixedRight))
+  )))].sort((a, b) => a - b)
+  if (positions.length === 0) return
 
-  productHeads.forEach((head) => {
-    const targetLeft = Math.min(maxScroll, Math.max(0, current + head.getBoundingClientRect().left - fixedRight))
-    const distance = Math.abs(targetLeft - current)
-    if (distance < closestDistance) {
-      closest = targetLeft
-      closestDistance = distance
+  let destination = nearestScrollPosition(positions, current)
+  const intent = ingredientScrollIntents.get(target)
+  ingredientScrollIntents.delete(target)
+
+  if (intent) {
+    const startPosition = nearestScrollPosition(positions, intent.startScrollLeft)
+    const movement = current - intent.startScrollLeft
+    const productWidth = productHeads[0]?.getBoundingClientRect().width ?? 0
+    const shortMovement = Math.abs(movement) > 1 && Math.abs(movement) < productWidth / 2
+    if (shortMovement && destination === startPosition) {
+      const directional = intent.direction > 0
+        ? positions.find((position) => position > startPosition + 1)
+        : [...positions].reverse().find((position) => position < startPosition - 1)
+      if (directional != null) destination = directional
     }
-  })
+  }
 
-  if (Math.abs(closest - current) > 1) target.scrollTo({ left: closest, behavior: 'smooth' })
+  if (Math.abs(destination - current) > 1) target.scrollTo({ left: destination, behavior: 'smooth' })
 }
 
 function syncCompareScroll(event: Event) {
@@ -69,8 +101,7 @@ function syncCompareScroll(event: Event) {
   if (!(target instanceof HTMLElement) || !target.classList.contains('compare-table-wrap')) return
   target.style.setProperty('--compare-scroll-x', `${target.scrollLeft}px`)
 
-  if (window.innerWidth > 760 || target.id !== 'compare-panel-ingredients') return
-  if (target.closest('.compare-stage')?.classList.contains('is-switch-compare')) return
+  if (!isMobileGeneralIngredients(target)) return
 
   const previous = ingredientScrollSettleTimers.get(target)
   if (previous != null) window.clearTimeout(previous)
@@ -81,6 +112,26 @@ function syncCompareScroll(event: Event) {
   ingredientScrollSettleTimers.set(target, timer)
 }
 
+function captureIngredientWheelIntent(event: WheelEvent) {
+  const target = event.target
+  if (!(target instanceof Element)) return
+  const panel = target.closest<HTMLElement>('#compare-panel-ingredients.compare-table-wrap')
+  if (!panel) return
+
+  const horizontalDelta = Math.abs(event.deltaX) > 0 ? event.deltaX : event.shiftKey ? event.deltaY : 0
+  if (Math.abs(horizontalDelta) < 1) return
+  recordIngredientScrollIntent(panel, horizontalDelta > 0 ? 1 : -1)
+}
+
+function captureIngredientKeyIntent(event: KeyboardEvent) {
+  const target = event.target
+  if (!(target instanceof HTMLElement) || target.id !== 'compare-panel-ingredients') return
+  if (event.key === 'ArrowRight') recordIngredientScrollIntent(target, 1)
+  if (event.key === 'ArrowLeft') recordIngredientScrollIntent(target, -1)
+}
+
+document.addEventListener('wheel', captureIngredientWheelIntent, { capture: true, passive: true })
+document.addEventListener('keydown', captureIngredientKeyIntent, true)
 document.addEventListener('scroll', syncCompareScroll, true)
 
 async function start() {

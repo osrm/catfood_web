@@ -1619,7 +1619,7 @@ export default function SwitchFlow({
                         <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
                       </span>
                       <RelationBlock evaluation={evaluation} />
-                      <span className="switch-candidate-open">빠른 보기 →</span>
+                      <span className="switch-candidate-open">보기 →</span>
                     </button>
                     <button
                       className={isCompared ? 'switch-candidate-compare is-added' : 'switch-candidate-compare'}

@@ -57,13 +57,15 @@ async function generalMobile(){
   const url=new URL(BASE)
   url.searchParams.set('view','workspace')
   url.searchParams.set('mode','lookup')
-  url.searchParams.set('q','AATU')
+  url.searchParams.set('q','로얄캐닌')
   await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000})
   await waitCatalog(page)
 
-  const compare=page.locator(`[data-compare-product-id="${AATU}"]`)
-  const row=page.locator(`[data-product-id="${AATU}"]`)
+  const compare=page.locator('.research-result-compare').first()
   await compare.waitFor({state:'visible',timeout:30000})
+  const productId=await compare.getAttribute('data-compare-product-id')
+  assert.ok(productId)
+  const row=page.locator(`[data-product-id="${productId}"]`)
   assert.equal(await page.locator('button button').count(),0,'actions must never nest buttons')
 
   const scroller=page.locator('.research-results-scroll')
@@ -81,7 +83,7 @@ async function generalMobile(){
   assert.equal(await page.locator('.research-quick-view').count(),0)
   assert.equal(await page.locator('.detail-stage').count(),0)
   assert.match(norm(await page.locator('.switch-compare-dock').textContent()),/비교 1\/5/)
-  assert.equal(new URL(page.url()).searchParams.get('q'),'AATU')
+  assert.equal(new URL(page.url()).searchParams.get('q'),'로얄캐닌')
   await compare.scrollIntoViewIfNeeded()
   await page.screenshot({path:OUT+'/01-general-lookup-direct-added-390x844.png',fullPage:false})
 
@@ -96,13 +98,13 @@ async function generalMobile(){
 
   await page.getByRole('button',{name:'조건으로 찾기'}).click()
   await page.locator('.condition-actions').waitFor({state:'visible',timeout:30000})
-  assert.equal(new URL(page.url()).searchParams.get('compare'),AATU)
+  assert.equal(new URL(page.url()).searchParams.get('compare'),productId)
   assert.equal(await page.locator('.switch-compare-dock').count(),0,'dock stays hidden while conditions are edited')
   await page.getByRole('button',{name:'이 조건으로 찾기'}).click()
   await page.locator('.research-results').waitFor({state:'visible',timeout:30000})
-  assert.equal(new URL(page.url()).searchParams.get('compare'),AATU)
+  assert.equal(new URL(page.url()).searchParams.get('compare'),productId)
   assert.match(norm(await page.locator('.switch-compare-dock').textContent()),/비교 1\/5/)
-  const exploreCompare=page.locator(`[data-compare-product-id="${AATU}"]`)
+  const exploreCompare=page.locator(`[data-compare-product-id="${productId}"]`)
   await exploreCompare.waitFor({state:'attached',timeout:30000})
   assert.equal(await exploreCompare.getAttribute('aria-pressed'),'true')
   await exploreCompare.scrollIntoViewIfNeeded()
@@ -110,9 +112,9 @@ async function generalMobile(){
 
   await page.getByRole('button',{name:'제품 찾기'}).click()
   await page.locator('.lookup-input').waitFor({state:'visible',timeout:30000})
-  assert.equal(await page.locator('.lookup-input').inputValue(),'AATU')
-  assert.equal(new URL(page.url()).searchParams.get('compare'),AATU)
-  const lookupCompareAgain=page.locator(`[data-compare-product-id="${AATU}"]`)
+  assert.equal(await page.locator('.lookup-input').inputValue(),'로얄캐닌')
+  assert.equal(new URL(page.url()).searchParams.get('compare'),productId)
+  const lookupCompareAgain=page.locator(`[data-compare-product-id="${productId}"]`)
   await lookupCompareAgain.waitFor({state:'visible',timeout:30000})
   assert.equal(await lookupCompareAgain.getAttribute('aria-pressed'),'true')
 
@@ -131,8 +133,8 @@ async function generalMobile(){
   assert.ok(layout.workspace.scrollWidth<=layout.workspace.clientWidth+1)
 
   report.mobile.general={
-    productId:AATU,
-    query:'AATU',
+    productId,
+    query:'로얄캐닌',
     focusAfterDirectAdd:'compare-control',
     quickViewOpenedByDirectCompare:false,
     detailOpenedByDirectCompare:false,

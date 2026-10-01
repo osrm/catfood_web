@@ -72,24 +72,43 @@ async function generalMobile(){
   assert.equal(await page.locator('button button').count(),0,'actions must never nest buttons')
 
   const scroller=page.locator('.research-results-scroll')
-  await scroller.evaluate(el=>{el.scrollTop=320})
-  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
-  const productId=await scroller.evaluate(el=>{
-    const box=el.getBoundingClientRect()
-    const rows=[...el.querySelectorAll('.research-result-row')]
-    const visible=rows.find(row=>{const r=row.getBoundingClientRect();return r.top>=box.top+8&&r.bottom<=box.bottom-8})
-    return visible?.querySelector('.research-result-compare')?.getAttribute('data-compare-product-id')||null
+  const scrollState=await page.evaluate(()=>{
+    const el=document.querySelector('.research-results-scroll')
+    const useContainer=el.scrollHeight>el.clientHeight+40
+    if(useContainer){
+      el.scrollTop=Math.min(360,Math.max(0,el.scrollHeight-el.clientHeight-40))
+      return {mode:'container',value:el.scrollTop,max:el.scrollHeight-el.clientHeight}
+    }
+    const max=Math.max(0,document.documentElement.scrollHeight-innerHeight)
+    window.scrollTo(0,Math.min(600,Math.max(0,max-80)))
+    return {mode:'document',value:scrollY,max}
   })
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
+  const productId=await page.evaluate((mode)=>{
+    const rows=[...document.querySelectorAll('.research-result-row')]
+    if(mode==='container'){
+      const el=document.querySelector('.research-results-scroll')
+      const box=el.getBoundingClientRect()
+      const visible=rows.find(row=>{const r=row.getBoundingClientRect();return r.top>=box.top+8&&r.bottom<=box.bottom-8})
+      return visible?.querySelector('.research-result-compare')?.getAttribute('data-compare-product-id')||null
+    }
+    const visible=rows.find(row=>{const r=row.getBoundingClientRect();return r.top>=110&&r.bottom<=innerHeight-100})
+    return visible?.querySelector('.research-result-compare')?.getAttribute('data-compare-product-id')||null
+  },scrollState.mode)
   assert.ok(productId,'expected a fully visible product after scrolling the list')
   const compare=page.locator(`[data-compare-product-id="${productId}"]`)
   const row=page.locator(`[data-product-id="${productId}"]`)
   await compare.waitFor({state:'visible',timeout:30000})
 
+  const readScroll=()=>page.evaluate((mode)=>{
+    const el=document.querySelector('.research-results-scroll')
+    return mode==='container'?el.scrollTop:scrollY
+  },scrollState.mode)
   await compare.focus()
-  const addScrollBefore=await scroller.evaluate(el=>el.scrollTop)
+  const addScrollBefore=await readScroll()
   assert.ok(addScrollBefore>100,'list must be materially scrolled before direct add')
   await page.keyboard.press('Enter')
-  const addScrollAfter=await scroller.evaluate(el=>el.scrollTop)
+  const addScrollAfter=await readScroll()
 
   assert.equal(await compare.evaluate(el=>document.activeElement===el),true)
   assert.equal(addScrollAfter,addScrollBefore)
@@ -112,10 +131,10 @@ async function generalMobile(){
   await quick.locator('.quick-view-topline button').click()
   await quick.waitFor({state:'detached',timeout:30000})
 
-  const removeScrollBefore=await scroller.evaluate(el=>el.scrollTop)
+  const removeScrollBefore=await readScroll()
   await compare.focus()
   await page.keyboard.press('Enter')
-  const removeScrollAfter=await scroller.evaluate(el=>el.scrollTop)
+  const removeScrollAfter=await readScroll()
   assert.equal(removeScrollAfter,removeScrollBefore)
   assert.equal(await compare.getAttribute('aria-pressed'),'false')
   assert.equal(await page.locator('.switch-compare-dock').count(),0)
@@ -174,7 +193,7 @@ async function generalMobile(){
     focusAfterDirectAdd:'compare-control',
     quickViewOpenedByDirectCompare:false,
     detailOpenedByDirectCompare:false,
-    listScroll:{add:{before:addScrollBefore,after:addScrollAfter},remove:{before:removeScrollBefore,after:removeScrollAfter}},
+    listScroll:{mode:scrollState.mode,max:scrollState.max,add:{before:addScrollBefore,after:addScrollAfter},remove:{before:removeScrollBefore,after:removeScrollAfter}},
     exploreLookupPreserved:true,
     layout,
   }

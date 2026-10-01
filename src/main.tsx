@@ -51,12 +51,10 @@ function nearestScrollPosition(positions: number[], value: number) {
   ), positions[0] ?? value)
 }
 
-function alignMobileIngredientColumn(target: HTMLElement) {
-  if (!isMobileGeneralIngredients(target)) return
-
+function mobileIngredientScrollPositions(target: HTMLElement) {
   const fixedLabel = target.querySelector<HTMLElement>('.compare-row-label')
   const productHeads = [...target.querySelectorAll<HTMLElement>('.compare-head-row .compare-product-head')]
-  if (!fixedLabel || productHeads.length === 0) return
+  if (!fixedLabel || productHeads.length === 0) return { productHeads, positions: [] as number[] }
 
   const current = target.scrollLeft
   const maxScroll = Math.max(0, target.scrollWidth - target.clientWidth)
@@ -64,7 +62,42 @@ function alignMobileIngredientColumn(target: HTMLElement) {
   const positions = [...new Set(productHeads.map((head) => (
     Math.min(maxScroll, Math.max(0, current + head.getBoundingClientRect().left - fixedRight))
   )))].sort((a, b) => a - b)
+  return { productHeads, positions }
+}
+
+function rememberIngredientAlignedPosition(target: HTMLElement) {
+  if (!isMobileGeneralIngredients(target)) return
+  const { positions } = mobileIngredientScrollPositions(target)
   if (positions.length === 0) return
+  ingredientAlignedScrollPositions.set(target, nearestScrollPosition(positions, target.scrollLeft))
+}
+
+function ingredientPanelFromEvent(event: Event) {
+  for (const item of event.composedPath()) {
+    if (item instanceof HTMLElement && item.id === 'compare-panel-ingredients' && item.classList.contains('compare-table-wrap')) {
+      return item
+    }
+  }
+  return null
+}
+
+function captureIngredientScrollStart(event: Event) {
+  const target = ingredientPanelFromEvent(event)
+  if (target) rememberIngredientAlignedPosition(target)
+}
+
+function captureIngredientKeyStart(event: KeyboardEvent) {
+  if (event.key !== 'Tab' && event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+  captureIngredientScrollStart(event)
+}
+
+function alignMobileIngredientColumn(target: HTMLElement) {
+  if (!isMobileGeneralIngredients(target)) return
+
+  const { productHeads, positions } = mobileIngredientScrollPositions(target)
+  if (positions.length === 0) return
+
+  const current = target.scrollLeft
 
   const previousAligned = ingredientAlignedScrollPositions.get(target)
     ?? nearestScrollPosition(positions, current)
@@ -101,6 +134,8 @@ function syncCompareScroll(event: Event) {
   ingredientScrollSettleTimers.set(target, timer)
 }
 
+document.addEventListener('wheel', captureIngredientScrollStart, { capture: true, passive: true })
+document.addEventListener('keydown', captureIngredientKeyStart, true)
 document.addEventListener('scroll', syncCompareScroll, true)
 
 async function start() {

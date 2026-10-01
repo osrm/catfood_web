@@ -36,10 +36,49 @@ import './mobile-switch-compare-header.css'
 import './quick-view-editorial.css'
 import './switch-results-reviewed.css'
 
+const ingredientScrollSettleTimers = new WeakMap<HTMLElement, number>()
+
+function alignMobileIngredientColumn(target: HTMLElement) {
+  if (window.innerWidth > 760 || target.id !== 'compare-panel-ingredients') return
+  if (target.closest('.compare-stage')?.classList.contains('is-switch-compare')) return
+
+  const fixedLabel = target.querySelector<HTMLElement>('.compare-row-label')
+  const productHeads = [...target.querySelectorAll<HTMLElement>('.compare-head-row .compare-product-head')]
+  if (!fixedLabel || productHeads.length === 0) return
+
+  const current = target.scrollLeft
+  const maxScroll = Math.max(0, target.scrollWidth - target.clientWidth)
+  const fixedRight = fixedLabel.getBoundingClientRect().right
+  let closest = current
+  let closestDistance = Number.POSITIVE_INFINITY
+
+  productHeads.forEach((head) => {
+    const targetLeft = Math.min(maxScroll, Math.max(0, current + head.getBoundingClientRect().left - fixedRight))
+    const distance = Math.abs(targetLeft - current)
+    if (distance < closestDistance) {
+      closest = targetLeft
+      closestDistance = distance
+    }
+  })
+
+  if (Math.abs(closest - current) > 1) target.scrollTo({ left: closest, behavior: 'smooth' })
+}
+
 function syncCompareScroll(event: Event) {
   const target = event.target
   if (!(target instanceof HTMLElement) || !target.classList.contains('compare-table-wrap')) return
   target.style.setProperty('--compare-scroll-x', `${target.scrollLeft}px`)
+
+  if (window.innerWidth > 760 || target.id !== 'compare-panel-ingredients') return
+  if (target.closest('.compare-stage')?.classList.contains('is-switch-compare')) return
+
+  const previous = ingredientScrollSettleTimers.get(target)
+  if (previous != null) window.clearTimeout(previous)
+  const timer = window.setTimeout(() => {
+    ingredientScrollSettleTimers.delete(target)
+    alignMobileIngredientColumn(target)
+  }, 140)
+  ingredientScrollSettleTimers.set(target, timer)
 }
 
 document.addEventListener('scroll', syncCompareScroll, true)

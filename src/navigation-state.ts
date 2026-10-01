@@ -41,7 +41,7 @@ export function parseNavigationState(searchString: string): NavigationState {
   const params = new URLSearchParams(searchString)
   const rawMode = params.get('mode') as AppMode | null
   const mode = rawMode && MODES.has(rawMode) ? rawMode : 'explore'
-  const requestedWorkspace = params.get('view') === 'workspace' || params.has('detail') || params.has('compare') || params.has('q') || params.has('applied')
+  const requestedWorkspace = params.get('view') === 'workspace' || params.has('detail') || params.has('compare') || params.has('q') || params.has('applied') || params.has('criteria')
   const visible = Number.parseInt(params.get('visible') ?? '', 10)
   const compareIds = unique(csv(params.get('compare')), 5)
   const rawDetailTab = params.get('detailTab') as DetailTab | null
@@ -61,7 +61,7 @@ export function parseNavigationState(searchString: string): NavigationState {
     },
     refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36) },
     comparisonCriteriaApplied: params.get('criteria') === '1' || params.get('applied') === '1',
-    editingConditions: params.get('applied') !== '1',
+    editingConditions: mode === 'explore' ? params.get('applied') !== '1' : false,
     selectedId: params.get('selected') || null,
     visibleCount: Number.isFinite(visible) && visible > 0 ? Math.min(visible, 1000) : mode === 'lookup' ? 120 : 40,
     compareIds,

@@ -666,6 +666,7 @@ export default function SwitchFlow({
   const [variantError, setVariantError] = useState<string | null>(null)
   const [keepConflictNotice, setKeepConflictNotice] = useState<string | null>(null)
   const [ingredientSearch, setIngredientSearch] = useState('')
+  const [candidateSearch, setCandidateSearch] = useState('')
   const [changeAdditionalOpen, setChangeAdditionalOpen] = useState(() => step === 'change' && additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
   const previousChangeDisclosureStep = useRef(step)
   const switchRunId = useRef<string | null>(null)
@@ -674,7 +675,10 @@ export default function SwitchFlow({
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
   const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const candidateSearchInputRef = useRef<HTMLInputElement>(null)
+  const compareDockButtonRef = useRef<HTMLButtonElement>(null)
   const pendingCandidateFocus = useRef<string | null>(null)
+  const pendingCompareReturnFocus = useRef(false)
   const pendingExplicitScroll = useRef<{
     source: SwitchExplicitScrollTarget
     intent: SwitchExplicitScrollIntent
@@ -712,6 +716,7 @@ export default function SwitchFlow({
   }
   function openSwitchCompare() {
     if (!compareIds.length) return
+    pendingCompareReturnFocus.current = true
     requestExplicitScroll('compare')
     updateSession((current) => ({ ...current, compareOpen: true, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
   }
@@ -878,7 +883,16 @@ export default function SwitchFlow({
   }, [products, currentProduct, conditions])
 
   const trackedCandidates = candidates.slice(0, 40)
-  const visibleCandidates = candidates.slice(0, visibleCandidateCount)
+  const candidateSearchActive = candidateSearch.trim().length > 0
+  const searchedCandidates = useMemo(() => {
+    if (!candidateSearchActive) return candidates
+    const matchedIds = new Set(
+      lookupCatalog(candidates.map((item) => item.product), candidateSearch)
+        .map((product) => product.product_id),
+    )
+    return candidates.filter((item) => matchedIds.has(item.product.product_id))
+  }, [candidates, candidateSearch, candidateSearchActive])
+  const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
   const changeAdditionalLabels = additionalChangeLabels(change, ingredientAvoidTerms)
@@ -898,8 +912,16 @@ export default function SwitchFlow({
     if (selectedCandidateId || !pendingCandidateFocus.current) return
     const productId = pendingCandidateFocus.current
     pendingCandidateFocus.current = null
-    candidateButtonRefs.current.get(productId)?.focus({ preventScroll: true })
+    const candidateButton = candidateButtonRefs.current.get(productId)
+    if (candidateButton) candidateButton.focus({ preventScroll: true })
+    else candidateSearchInputRef.current?.focus({ preventScroll: true })
   }, [selectedCandidateId])
+
+  useLayoutEffect(() => {
+    if (compareOpen || step !== 'results' || !pendingCompareReturnFocus.current) return
+    pendingCompareReturnFocus.current = false
+    compareDockButtonRef.current?.focus({ preventScroll: true })
+  }, [compareOpen, step])
 
   useLayoutEffect(() => {
     const pending = pendingExplicitScroll.current
@@ -944,6 +966,12 @@ export default function SwitchFlow({
 
   function removeIngredientAvoid(term: string) {
     setIngredientAvoidTerms((current) => current.filter((value) => value !== term))
+  }
+
+  function clearCandidateSearch() {
+    setCandidateSearch('')
+    setVisibleCandidateCount(40)
+    candidateSearchInputRef.current?.focus({ preventScroll: true })
   }
 
   function beginSwitchRun() {
@@ -1022,6 +1050,7 @@ export default function SwitchFlow({
     setVariantError(null)
     setKeepConflictNotice(null)
     setIngredientSearch('')
+    setCandidateSearch('')
   }
 
   function resetCurrentProduct() {
@@ -1039,6 +1068,7 @@ export default function SwitchFlow({
     setPreviewProductId(null)
     setKeepConflictNotice(null)
     setIngredientSearch('')
+    setCandidateSearch('')
     updateSession(createInitialSwitchSession(query), 'replace', null)
   }
 
@@ -1522,10 +1552,18 @@ export default function SwitchFlow({
     if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
     const keepLabels = criteriaLabels(keep)
     if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`)
-    const candidateCountText = visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`
-    const candidateSummaryText = hasChosenCandidateCriteria
-      ? `${candidateCountText} · 선택한 조건과 제품 정보를 비교합니다.`
-      : `${candidateCountText} · 변경·유지 조건을 고르지 않아 전체 후보에서 탐색합니다.`
+    const candidateCountText = candidateSearchActive
+      ? visibleCandidates.length < searchedCandidates.length
+        ? `${searchedCandidates.length}개 중 ${visibleCandidates.length}개 표시`
+        : `검색 결과 ${searchedCandidates.length}개`
+      : visibleCandidates.length < candidates.length
+        ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시`
+        : `${candidates.length}개의 제품`
+    const candidateSummaryText = candidateSearchActive
+      ? `${candidateCountText} · 조건에 맞는 후보에서 브랜드·제품명으로 찾습니다.`
+      : hasChosenCandidateCriteria
+        ? `${candidateCountText} · 선택한 조건과 제품 정보를 비교합니다.`
+        : `${candidateCountText} · 변경·유지 조건을 고르지 않아 전체 후보에서 탐색합니다.`
     const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
     return (
@@ -1539,9 +1577,26 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            <div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div></div>
+            <div className="switch-candidate-heading">
+              <div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div>
+              <div className="switch-candidate-search">
+                <input
+                  ref={candidateSearchInputRef}
+                  type="search"
+                  aria-label="후보 제품 검색"
+                  placeholder="후보 브랜드 또는 제품명 검색"
+                  value={candidateSearch}
+                  onChange={(event) => {
+                    setCandidateSearch(event.target.value)
+                    setVisibleCandidateCount(40)
+                  }}
+                />
+                {candidateSearch ? <button type="button" onClick={clearCandidateSearch}>지우기</button> : null}
+              </div>
+            </div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
+              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 후보에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 return (
@@ -1565,9 +1620,9 @@ export default function SwitchFlow({
                   </button>
                 )
               })}
-              {visibleCandidateCount < candidates.length ? (
+              {visibleCandidateCount < searchedCandidates.length ? (
                 <button className="load-more" type="button" onClick={() => setVisibleCandidateCount((count) => count + 40)}>
-                  제품 더 보기 · {candidates.length - visibleCandidates.length}개 남음
+                  제품 더 보기 · {searchedCandidates.length - visibleCandidates.length}개 남음
                 </button>
               ) : null}
             </div>
@@ -1648,7 +1703,7 @@ export default function SwitchFlow({
           <div className="switch-compare-dock" role="status">
             <strong>비교 {compareIds.length}/5</strong>
             <div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div>
-            <button type="button" onClick={openSwitchCompare}>비교 보기 →</button>
+            <button ref={compareDockButtonRef} type="button" onClick={openSwitchCompare}>비교 보기 →</button>
           </div>
         ) : null}
       </main>

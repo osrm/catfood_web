@@ -227,7 +227,7 @@
 
 .compare-relations p {
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-columns: 82px minmax(0, 1fr);
   gap: 8px;
   margin: 0;
 }
@@ -248,13 +248,51 @@
   color: #315e58;
 }
 
-.compare-relations .is-change span {
+.compare-relations .is-change span,
+.compare-relations .is-different span {
   color: #755c25;
 }
 
 .compare-relations .is-unknown span,
 .compare-relations .is-reviewed span {
   color: #6b6b67;
+}
+
+.compare-applied-criteria {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e1e6e3;
+  background: #f8faf8;
+}
+
+.compare-applied-criteria > strong {
+  flex: 0 0 auto;
+  padding-top: 4px;
+  color: #4e5a55;
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+.compare-applied-criteria > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.compare-applied-criteria span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid #dce3df;
+  background: #fff;
+  color: #30413a;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .compare-muted {
@@ -333,6 +371,21 @@
 }
 
 @media (max-width: 760px) {
+  .compare-applied-criteria {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  .compare-applied-criteria > strong {
+    padding-top: 0;
+    font-size: 11px;
+  }
+
+  .compare-applied-criteria span {
+    font-size: 11px;
+  }
+
   .compare-header {
     align-items: flex-start;
     flex-direction: column;

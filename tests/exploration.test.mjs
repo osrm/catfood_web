@@ -137,6 +137,44 @@ async function waitForUi(predicate, message) {
   })
 }
 
+test('comparison criteria keeps unknown policy and OR recipe meaning without changing search eligibility', () => {
+  const product = products[0]
+  product.life_stage = 'all_life_stages'
+  product.features = []
+  product.recipe_details = ['chicken']
+
+  const search = {
+    feedType: '건식',
+    lifeStage: 'adult',
+    officialTargets: [],
+    features: ['hairball'],
+    recipeFamilies: [],
+    grainFree: false,
+  }
+  const refine = { recipeDetails: ['duck', 'salmon'] }
+  const relation = app.evaluateComparisonCriteria(product, search, refine)
+
+  assert.deepEqual(relation.confirmedMatches, ['형태:건식'])
+  assert.deepEqual(relation.unknowns, ['기능:hairball'])
+  assert.deepEqual(relation.differences, [
+    { kind: 'lifeStage', selectedValues: ['adult'], productValues: ['all_life_stages'] },
+    { kind: 'recipeDetails', selectedValues: ['duck', 'salmon'], productValues: ['chicken'] },
+  ])
+
+  product.life_stage = null
+  product.recipe_details = []
+  const unknownRelation = app.evaluateComparisonCriteria(product, search, refine)
+  assert.match(unknownRelation.unknowns.join(' · '), /제품 표기 생애주기/)
+  assert.match(unknownRelation.unknowns.join(' · '), /주요 레시피/)
+  assert.equal(unknownRelation.differences.length, 0)
+
+  product.life_stage = 'adult'
+  product.recipe_details = ['salmon']
+  const orRelation = app.evaluateComparisonCriteria(product, search, refine)
+  assert.match(orRelation.confirmedMatches.join(' · '), /세부:salmon/)
+  assert.equal(orRelation.differences.some((item) => item.kind === 'recipeDetails'), false, 'one selected recipe match satisfies the OR refine relation')
+})
+
 test('detail preserves supplemental raw ingredients without parsed names', async () => {
   const fallbackFetch = globalThis.fetch
   globalThis.fetch = window.fetch = async (input, init) => {

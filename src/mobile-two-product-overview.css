@@ -1,5 +1,6 @@
 .compare-mobile-two-product-overview,
-.compare-mobile-two-product-nutrition {
+.compare-mobile-two-product-nutrition,
+.compare-mobile-general-pair-picker {
   display: none;
 }
 
@@ -35,6 +36,76 @@
 }
 
 @media (max-width: 760px) {
+  .compare-mobile-general-pair-picker {
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 12px;
+    border: 1px solid var(--research-line);
+    background: #f8f9f8;
+  }
+
+  .compare-mobile-general-pair-summary {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .compare-mobile-general-pair-summary strong {
+    color: #0b2c25;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .compare-mobile-general-pair-summary span {
+    color: var(--research-muted);
+    font-size: 10px;
+    line-height: 1.4;
+    text-align: right;
+  }
+
+  .compare-mobile-general-pair-controls {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .compare-mobile-general-pair-controls label {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+
+  .compare-mobile-general-pair-controls label > span {
+    color: #50605a;
+    font-size: 10px;
+    font-weight: 850;
+  }
+
+  .compare-mobile-general-pair-controls select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 30px 8px 9px;
+    border: 1px solid #c7d2ce;
+    border-radius: 6px;
+    background: #fff;
+    color: #263a34;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 760;
+    line-height: 1.35;
+  }
+
+  .compare-mobile-general-pair-controls select:focus-visible {
+    outline: 2px solid #557985;
+    outline-offset: 2px;
+  }
+
   .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-overview),
   .research-shell > .compare-stage:has(.compare-table-wrap.is-mobile-two-product-nutrition) {
     overflow-x: clip;

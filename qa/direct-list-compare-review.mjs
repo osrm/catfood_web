@@ -140,8 +140,9 @@ async function generalMobile(){
   await quick.locator('.quick-view-topline button').click()
   await quick.waitFor({state:'detached',timeout:30000})
 
-  const removeScrollBefore=await readScroll()
   await compare.focus()
+  const removeScrollBefore=await readScroll()
+  assert.ok(removeScrollBefore>100,'list must be materially scrolled before direct removal')
   await page.keyboard.press('Enter')
   const removeScrollAfter=await readScroll()
   assert.equal(removeScrollAfter,removeScrollBefore)

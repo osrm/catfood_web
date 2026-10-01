@@ -237,12 +237,6 @@
 
   .compare-stage:not(.is-switch-compare) #compare-panel-ingredients.compare-table-wrap {
     scroll-padding-inline-start: var(--compare-mobile-label-width);
-    scroll-snap-type: x mandatory;
-  }
-
-  .compare-stage:not(.is-switch-compare) #compare-panel-ingredients .compare-product-head,
-  .compare-stage:not(.is-switch-compare) #compare-panel-ingredients .compare-cell {
-    scroll-snap-align: start;
   }
 
   .compare-corner,

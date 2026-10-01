@@ -13,7 +13,7 @@ jobs:
       VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
       VITE_DECISION_INTAKE_ENABLED: "false"
-      PRODUCT_SHA: e80e0d89bf6f362d46741512563bb5682def4426
+      PRODUCT_SHA: 42244e32bdd043fe59f76795d211cc49364015fd
     steps:
       - name: Checkout QA harness
         uses: actions/checkout@v5
@@ -26,7 +26,7 @@ jobs:
       - name: Checkout exact product candidate
         uses: actions/checkout@v5
         with:
-          ref: e80e0d89bf6f362d46741512563bb5682def4426
+          ref: 42244e32bdd043fe59f76795d211cc49364015fd
           clean: true
       - uses: actions/setup-node@v5
         with:
@@ -52,7 +52,7 @@ jobs:
           exit 1
       - name: Chrome SWITCH candidate search review
         run: |
-          OUT_DIR="$GITHUB_WORKSPACE/switch-candidate-search-review-output" CANDIDATE_URL="http://127.0.0.1:4173/" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/switch-candidate-search-review/switch-candidate-search-review.mjs
+          OUT_DIR="$GITHUB_WORKSPACE/switch-candidate-focus-review-output" CANDIDATE_URL="http://127.0.0.1:4173/" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/switch-candidate-search-review/switch-candidate-search-review.mjs
           cp /tmp/switch-candidate-search-review/switch-candidate-search-review.mjs "$GITHUB_WORKSPACE/switch-candidate-search-review-output/validation-source.mjs"
       - uses: actions/upload-artifact@v4
         if: always()

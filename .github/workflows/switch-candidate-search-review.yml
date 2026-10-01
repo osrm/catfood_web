@@ -1,4 +1,4 @@
-name: One-off SWITCH candidate search Pages postdeploy review
+name: One-off zero-result dock evidence recapture
 on:
   pull_request:
     paths:
@@ -7,11 +7,8 @@ on:
 permissions:
   contents: read
 jobs:
-  pages-browser:
+  evidence-browser:
     runs-on: ubuntu-latest
-    env:
-      PAGES_URL: https://osrm.github.io/catfood_web/
-      EXPECTED_SHA: df3bbe323d8dc0378b18f23c6ae0f35c29c6f1c2
     steps:
       - name: Checkout QA harness
         uses: actions/checkout@v5
@@ -22,19 +19,19 @@ jobs:
           node-version-file: .nvmrc
       - name: Install browser driver
         run: |
-          mkdir -p /tmp/switch-candidate-search-postdeploy
-          cp qa/switch-candidate-search-review.mjs /tmp/switch-candidate-search-postdeploy/
-          cd /tmp/switch-candidate-search-postdeploy
+          mkdir -p /tmp/zero-dock-evidence
+          cp qa/switch-candidate-search-review.mjs /tmp/zero-dock-evidence/
+          cd /tmp/zero-dock-evidence
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
           if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
-      - name: Chrome Pages postdeploy review
+      - name: Capture stable zero-result compare dock
         run: |
-          OUT_DIR="$GITHUB_WORKSPACE/switch-candidate-search-postdeploy-output" PAGES_URL="$PAGES_URL" EXPECTED_SHA="$EXPECTED_SHA" node /tmp/switch-candidate-search-postdeploy/switch-candidate-search-review.mjs
-          cp /tmp/switch-candidate-search-postdeploy/switch-candidate-search-review.mjs "$GITHUB_WORKSPACE/switch-candidate-search-postdeploy-output/validation-source.mjs"
+          OUT_DIR="$GITHUB_WORKSPACE/zero-dock-evidence-output" node /tmp/zero-dock-evidence/switch-candidate-search-review.mjs
+          cp /tmp/zero-dock-evidence/switch-candidate-search-review.mjs "$GITHUB_WORKSPACE/zero-dock-evidence-output/validation-source.mjs"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: switch-candidate-search-pages-postdeploy
-          path: switch-candidate-search-postdeploy-output
+          name: zero-result-dock-evidence
+          path: zero-dock-evidence-output
           retention-days: 7

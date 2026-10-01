@@ -504,6 +504,41 @@ test('SWITCH candidate search scans the full evaluated pool and preserves compar
   assert.equal(searchRuns.length, runsBeforeSearch)
 })
 
+test('closing a filtered-out SWITCH candidate inspector falls back to candidate search focus without clearing state', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+
+  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
+  assert.ok(searchInput)
+  await inputValue(searchInput, candidateA.canonical_name)
+  await waitForUi(() => all('.switch-candidate-row').some((node) => node.textContent.includes(candidateA.canonical_name)), 'candidate A search result')
+
+  const candidateARow = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))
+  await click(candidateARow)
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'candidate A inspector')
+  await click('비교에 추가')
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+
+  await inputValue(searchInput, '일치하지 않는 검색어')
+  await waitForUi(() => /이름 검색 결과가 없습니다/.test(document.querySelector('.switch-candidate-list .switch-state-message')?.textContent ?? ''), 'candidate A filtered out')
+  assert.equal(document.body.contains(candidateARow), false, 'candidate A button should no longer be rendered')
+  assert.equal(searchInput.value, '일치하지 않는 검색어')
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+
+  const close = document.querySelector('.switch-preview-topline button')
+  close.focus()
+  assert.equal(document.activeElement, close)
+  await click(close)
+  assert.equal(document.querySelector('.switch-candidate-inspector'), null)
+  assert.equal(document.activeElement, searchInput, 'filtered-out candidate close should fall back to candidate search input')
+  assert.equal(searchInput.value, '일치하지 않는 검색어', 'focus fallback must not clear the active query')
+  assert.deepEqual(session().compareIds, [candidateA.product_id], 'focus fallback must not clear compared candidates')
+  assert.equal(session().currentProductId, current.product_id)
+  assert.equal(session().variantSelection.variantId, 'variant_current_1')
+  assert.equal(session().change.feedType, '습식')
+  assert.deepEqual(session().keep.officialTargets, ['indoor'])
+})
+
 test('SWITCH empty candidates use an edit action and KEEP unset wording without relaxing conditions', async () => {
   catalogProducts = [current]
   await renderApp()

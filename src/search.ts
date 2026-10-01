@@ -88,6 +88,93 @@ export function lookupCatalog(products: CatalogProduct[], query: string): Catalo
   })
 }
 
+export type ComparisonCriteriaDifference = {
+  kind: 'feedType' | 'lifeStage' | 'recipeDetails'
+  selectedValues: string[]
+  productValues: string[]
+}
+
+export interface ComparisonCriteriaEvaluation {
+  confirmedMatches: string[]
+  unknowns: string[]
+  differences: ComparisonCriteriaDifference[]
+}
+
+export function evaluateComparisonCriteria(
+  product: CatalogProduct,
+  search: SearchState,
+  refine: RefineState = INITIAL_REFINE,
+): ComparisonCriteriaEvaluation {
+  const confirmedMatches: string[] = []
+  const unknowns: string[] = []
+  const differences: ComparisonCriteriaDifference[] = []
+
+  if (search.feedType) {
+    if (!product.feed_type) {
+      unknowns.push('사료 형태')
+    } else if (product.feed_type === search.feedType) {
+      confirmedMatches.push(`형태:${search.feedType}`)
+    } else {
+      differences.push({ kind: 'feedType', selectedValues: [search.feedType], productValues: [product.feed_type] })
+    }
+  }
+
+  if (search.lifeStage) {
+    if (!product.life_stage) {
+      unknowns.push('제품 표기 생애주기')
+    } else if (product.life_stage === search.lifeStage) {
+      confirmedMatches.push(`생애주기:${search.lifeStage}`)
+    } else {
+      differences.push({ kind: 'lifeStage', selectedValues: [search.lifeStage], productValues: [product.life_stage] })
+    }
+  }
+
+  for (const target of search.officialTargets) {
+    if (product.official_targets.includes(target)) {
+      confirmedMatches.push(`대상:${target}`)
+    } else {
+      unknowns.push(`공식 대상 · ${conditionLabel(target, OFFICIAL_TARGET_LABELS)}`)
+    }
+  }
+
+  for (const feature of search.features) {
+    if (product.features.includes(feature)) {
+      confirmedMatches.push(`기능:${feature}`)
+    } else {
+      unknowns.push(`기능:${feature}`)
+    }
+  }
+
+  for (const family of search.recipeFamilies) {
+    if (product.recipe_families.includes(family)) {
+      confirmedMatches.push(`계열:${family}`)
+    } else {
+      unknowns.push(`레시피 계열 · ${conditionLabel(family, RECIPE_FAMILY_LABELS)}`)
+    }
+  }
+
+  if (search.grainFree) {
+    if (product.official_recipe_traits.includes('grain_free')) {
+      confirmedMatches.push('특성:grain_free')
+    } else {
+      unknowns.push('Grain-Free 공식 표방')
+    }
+  }
+
+  if (refine.recipeDetails.length > 0) {
+    const matches = refine.recipeDetails.filter((value) => product.recipe_details.includes(value))
+    if (matches.length > 0) {
+      confirmedMatches.push(...matches.map((value) => `세부:${value}`))
+    } else if (product.recipe_details.length > 0) {
+      differences.push({ kind: 'recipeDetails', selectedValues: refine.recipeDetails, productValues: product.recipe_details })
+    } else {
+      unknowns.push('주요 레시피')
+    }
+  }
+
+  return { confirmedMatches, unknowns, differences }
+}
+
 export function evaluateCatalog(
   products: CatalogProduct[],
   search: SearchState,

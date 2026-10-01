@@ -26,6 +26,7 @@ export type NavigationState = {
   lookupQuery: string
   search: SearchState
   refine: RefineState
+  comparisonCriteriaApplied: boolean
   editingConditions: boolean
   selectedId: string | null
   visibleCount: number
@@ -40,7 +41,7 @@ export function parseNavigationState(searchString: string): NavigationState {
   const params = new URLSearchParams(searchString)
   const rawMode = params.get('mode') as AppMode | null
   const mode = rawMode && MODES.has(rawMode) ? rawMode : 'explore'
-  const requestedWorkspace = params.get('view') === 'workspace' || params.has('detail') || params.has('compare') || params.has('q') || params.has('applied')
+  const requestedWorkspace = params.get('view') === 'workspace' || params.has('detail') || params.has('compare') || params.has('q') || params.has('applied') || params.has('criteria')
   const visible = Number.parseInt(params.get('visible') ?? '', 10)
   const compareIds = unique(csv(params.get('compare')), 5)
   const rawDetailTab = params.get('detailTab') as DetailTab | null
@@ -59,7 +60,8 @@ export function parseNavigationState(searchString: string): NavigationState {
       grainFree: params.get('grainFree') === '1',
     },
     refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36) },
-    editingConditions: params.get('applied') !== '1',
+    comparisonCriteriaApplied: params.get('criteria') === '1' || params.get('applied') === '1',
+    editingConditions: mode === 'explore' ? params.get('applied') !== '1' : false,
     selectedId: params.get('selected') || null,
     visibleCount: Number.isFinite(visible) && visible > 0 ? Math.min(visible, 1000) : mode === 'lookup' ? 120 : 40,
     compareIds,
@@ -84,7 +86,10 @@ export function navigationSearch(state: NavigationState): string {
   if (state.mode !== 'explore') params.set('mode', state.mode)
   if (state.mode === 'lookup' && state.lookupQuery) params.set('q', state.lookupQuery)
   if (state.mode !== 'switch') {
-    if (!state.editingConditions) params.set('applied', '1')
+    if (state.mode === 'explore' && !state.editingConditions) params.set('applied', '1')
+    if (state.comparisonCriteriaApplied) params.set('criteria', '1')
+  }
+  if (state.mode === 'explore' || (state.mode === 'lookup' && state.comparisonCriteriaApplied)) {
     if (state.search.feedType) params.set('feed', state.search.feedType)
     if (state.search.lifeStage) params.set('age', state.search.lifeStage)
     setCsv(params, 'targets', state.search.officialTargets)

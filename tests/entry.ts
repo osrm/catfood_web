@@ -8,7 +8,7 @@ export * from '../src/navigation-state'
 // SWITCH session regressions exercise App-level persistence and history helpers through this test entry.
 export * from '../src/switch-session'
 export * from '../src/preview-mode'
-export { lookupCatalog } from '../src/search'
+export { evaluateComparisonCriteria, lookupCatalog } from '../src/search'
 export { installDemoPreviewFetch } from '../src/demo-preview'
 export { installRealVisualPreviewFetch } from '../src/real-visual-preview'
 export { installStressPreviewFetch } from '../src/stress-preview'

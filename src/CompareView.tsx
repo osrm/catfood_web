@@ -19,6 +19,7 @@ export type CompareItem = {
   confirmedMatches?: string[]
   keepMatches?: string[]
   changeMatches?: string[]
+  conditionDifferences?: string[]
   unknowns?: string[]
   ingredientReviewedNotFound?: string[]
   ingredientInsufficient?: string[]
@@ -224,15 +225,16 @@ function MobileProductHead({ role, product, variantText, onDetail, onRemove }: {
   </div>
 }
 function hasRelationData(item: CompareItem) {
-  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.unknowns, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
+  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.conditionDifferences, item.unknowns, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
 }
 function RelationSummary({ item }: { item: CompareItem }) {
-  const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []
+  const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], differences = item.conditionDifferences ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []
   if (!hasRelationData(item)) return <span className="compare-muted">비교할 검색 조건 없음</span>
   return <div className="compare-relations">
     {confirmed.length ? <p className="is-confirmed"><span>확인됨</span><strong>{confirmed.join(' · ')}</strong></p> : null}
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
+    {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.join(' · ')}</strong></p> : null}
     {reviewed.length ? <p className="is-reviewed"><span>원료 확인</span><strong>{reviewed.join(' · ')} · 검토한 자료에서 찾지 못함</strong></p> : null}
     {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 판단 근거 부족</strong></p> : null}
     {unknown.length ? <p className="is-unknown"><span>미확인</span><strong>{unknown.join(' · ')}</strong></p> : null}
@@ -506,9 +508,13 @@ function nutritionLoadValue(row: CompareNutrition | undefined | null, loading: b
   return render(row)
 }
 function CompareSection({ title, note }: { title: string; note?: string }) { return <div className="compare-section-row"><strong>{title}</strong>{note ? <span>{note}</span> : null}</div> }
+function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
+  return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
+}
 
-export default function CompareView({ items, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
+export default function CompareView({ items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
   items: CompareItem[]
+  criteriaLabels?: string[]
   currentProduct?: CatalogProduct | null
   currentVariantId?: string | null
   currentVariantText?: string
@@ -731,6 +737,7 @@ export default function CompareView({ items, currentProduct, currentVariantId, c
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
     <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition || switchNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
+      {!switchCompare && tab === 'overview' && criteriaLabels.length ? <AppliedCriteriaSummary labels={criteriaLabels} /> : null}
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>

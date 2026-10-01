@@ -52,7 +52,10 @@ before(async () => {
   app = await bundle()
 })
 after(async () => { globalThis.fetch = nativeFetch; dom.window.close(); await rm(temp, { recursive: true }) })
-afterEach(async () => { if (root) { await act(async () => root.unmount()); root = null } })
+afterEach(async () => {
+  if (root) { await act(async () => root.unmount()); root = null }
+  window.history.replaceState(null, '', 'https://catfood.test/catfood_web/')
+})
 
 function installFetch() {
   globalThis.fetch = window.fetch = async (input) => {
@@ -135,6 +138,7 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
     screen: 'workspace',
     mode: 'lookup',
     lookupQuery: 'Product',
+    comparisonCriteriaApplied: true,
     editingConditions: false,
     search: { ...state.search, feedType: '건식', lifeStage: 'adult' },
   })
@@ -143,7 +147,27 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
   assert.equal(restoredLookup.lookupQuery, 'Product')
   assert.equal(restoredLookup.search.feedType, '건식')
   assert.equal(restoredLookup.search.lifeStage, 'adult')
+  assert.equal(restoredLookup.comparisonCriteriaApplied, true)
   assert.equal(restoredLookup.editingConditions, false)
+  assert.equal(new URLSearchParams(lookupSearch).get('criteria'), '1')
+  assert.equal(new URLSearchParams(lookupSearch).get('applied'), null)
+
+  const pureLookupSearch = app.navigationSearch({
+    ...state,
+    screen: 'workspace',
+    mode: 'lookup',
+    lookupQuery: 'Product',
+    comparisonCriteriaApplied: false,
+    search: { ...state.search, feedType: '건식', lifeStage: 'adult' },
+  })
+  const pureLookupParams = new URLSearchParams(pureLookupSearch)
+  assert.equal(pureLookupParams.get('criteria'), null)
+  assert.equal(pureLookupParams.get('feed'), null)
+  assert.equal(pureLookupParams.get('age'), null)
+
+  const legacyLookup = app.parseNavigationState('?view=workspace&mode=lookup&q=Product&applied=1&feed=건식&age=adult')
+  assert.equal(legacyLookup.comparisonCriteriaApplied, true)
+  assert.equal(legacyLookup.search.lifeStage, 'adult')
 
   const homeSearch = app.navigationSearch({ ...state, screen: 'home' })
   assert.equal(homeSearch, '')
@@ -212,6 +236,180 @@ test('direct list compare stays separate from quick view and persists across EXP
   assert.equal(lookupDirect.getAttribute('aria-pressed'), 'false')
   assert.equal(document.querySelector('.research-quick-view'), null)
   assert.equal(document.querySelector('.switch-compare-dock'), null)
+})
+
+
+test('general comparison carries applied EXPLORE criteria through LOOKUP, known differences, detail, history, and refresh', async () => {
+  const third = products[2]
+  const originalLifeStage = third.life_stage
+  third.life_stage = 'all_life_stages'
+  try {
+    await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
+    const firstTwo = [...document.querySelectorAll('.research-result-compare')].slice(0, 2)
+    assert.equal(firstTwo.length, 2)
+    for (const control of firstTwo) await act(async () => control.click())
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+
+    await click('제품 찾기')
+    let params = new URL(window.location.href).searchParams
+    assert.equal(params.get('criteria'), '1')
+    assert.equal(params.get('feed'), '건식')
+    assert.equal(params.get('age'), 'adult')
+    assert.equal(params.get('applied'), null)
+
+    const input = document.querySelector('.lookup-input')
+    await inputValue(input, third.canonical_name)
+    const thirdCompare = document.querySelector(`[data-compare-product-id="${third.product_id}"]`)
+    assert.ok(thirdCompare, 'hard-conflict product remains available to LOOKUP')
+    await act(async () => thirdCompare.click())
+    assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 3\/5/)
+    await click('비교 보기')
+
+    const criteria = document.querySelector('.compare-applied-criteria')
+    assert.ok(criteria)
+    assert.match(criteria.textContent, /적용 조건/)
+    assert.match(criteria.textContent, /사료 형태 · 건식/)
+    assert.match(criteria.textContent, /연령 · 성묘/)
+
+    const relationRow = [...document.querySelectorAll('.compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.includes('선택한 조건과 비교'))
+    assert.ok(relationRow)
+    const relationCells = [...relationRow.querySelectorAll('.compare-cell')]
+    assert.equal(relationCells.length, 3)
+    assert.match(relationCells[0].textContent, /확인됨/)
+    assert.match(relationCells[2].textContent, /제품 표기 다름/)
+    assert.match(relationCells[2].textContent, /대상 연령 · 제품 표기 전연령 · 선택 성묘/)
+    assert.doesNotMatch(relationCells[2].textContent, /비교할 검색 조건 없음|부적합|급여 불가|안전/)
+
+    const thirdHead = [...document.querySelectorAll('.compare-product-head')].find((head) => head.textContent.includes(third.canonical_name))
+    assert.ok(thirdHead)
+    await act(async () => thirdHead.querySelector('.compare-detail-link').click())
+    assert.ok(document.querySelector('.detail-stage'))
+    await click('비교로 돌아가기')
+    await waitForUi(() => document.querySelector('.compare-stage') !== null, 'detail returns to comparison')
+    assert.match(document.querySelector('.compare-applied-criteria').textContent, /연령 · 성묘/)
+
+    await click('제품 목록으로')
+    await waitForUi(() => document.querySelector('.research-results') !== null, 'comparison returns to lookup list')
+    assert.equal(document.querySelector('.lookup-input').value, third.canonical_name)
+
+    await act(async () => {
+      window.history.forward()
+      await waitForUi(() => document.querySelector('.compare-stage') !== null, 'history forward restores comparison')
+    })
+    assert.match(document.querySelector('.compare-applied-criteria').textContent, /연령 · 성묘/)
+    const refreshUrl = window.location.href
+
+    await act(async () => {
+      window.history.back()
+      await waitForUi(() => document.querySelector('.research-results') !== null && document.querySelector('.compare-stage') === null, 'history returns to a stable lookup list')
+    })
+
+    await act(async () => root.unmount())
+    root = null
+    await renderApp(refreshUrl)
+    assert.ok(document.querySelector('.compare-stage'))
+    assert.match(document.querySelector('.compare-applied-criteria').textContent, /사료 형태 · 건식/)
+    assert.match(document.querySelector('.compare-stage').textContent, /제품 표기 다름/)
+    params = new URL(window.location.href).searchParams
+    assert.equal(params.get('criteria'), '1')
+    assert.equal(params.get('age'), 'adult')
+
+    await click('제품 목록으로')
+    await waitForUi(() => document.querySelector('.research-results') !== null && document.querySelector('.compare-stage') === null, 'refresh scenario finishes on a stable lookup list')
+  } finally {
+    third.life_stage = originalLifeStage
+  }
+})
+
+test('general comparison distinguishes unknown facts and does not invent criteria for pure name search', async () => {
+  const unknownProduct = products[3]
+  const originalLifeStage = unknownProduct.life_stage
+  unknownProduct.life_stage = null
+  try {
+    const contextual = new URL('https://catfood.test/catfood_web/')
+    contextual.searchParams.set('view', 'workspace')
+    contextual.searchParams.set('mode', 'lookup')
+    contextual.searchParams.set('q', unknownProduct.canonical_name)
+    contextual.searchParams.set('criteria', '1')
+    contextual.searchParams.set('feed', '건식')
+    contextual.searchParams.set('age', 'adult')
+    contextual.searchParams.set('compare', unknownProduct.product_id)
+    contextual.searchParams.set('compareOpen', '1')
+    await renderApp(contextual.href)
+
+    assert.match(document.querySelector('.compare-applied-criteria').textContent, /연령 · 성묘/)
+    const contextualText = document.querySelector('.compare-stage').textContent
+    assert.match(contextualText, /미확인/)
+    assert.match(contextualText, /제품 표기 연령/)
+    assert.doesNotMatch(contextualText, /제품 표기 다름.*대상 연령/)
+
+    const pure = new URL('https://catfood.test/catfood_web/')
+    pure.searchParams.set('view', 'workspace')
+    pure.searchParams.set('mode', 'lookup')
+    pure.searchParams.set('q', unknownProduct.canonical_name)
+    pure.searchParams.set('compare', unknownProduct.product_id)
+    pure.searchParams.set('compareOpen', '1')
+    await act(async () => root.unmount())
+    root = null
+    await renderApp(pure.href)
+
+    assert.equal(document.querySelector('.compare-applied-criteria'), null)
+    assert.doesNotMatch(document.querySelector('.compare-stage').textContent, /선택한 조건과 비교|비교할 검색 조건 없음/)
+  } finally {
+    unknownProduct.life_stage = originalLifeStage
+  }
+})
+
+test('unapplied condition edits keep the last applied comparison basis when moving to LOOKUP', async () => {
+  const product = products[4]
+  const originalLifeStage = product.life_stage
+  product.life_stage = 'all_life_stages'
+  try {
+    await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
+    await click('조건 수정')
+    await click('키튼')
+    assert.match(document.querySelector('.condition-draft-count').textContent, /2개/)
+
+    await click('제품 찾기')
+    const params = new URL(window.location.href).searchParams
+    assert.equal(params.get('criteria'), '1')
+    assert.equal(params.get('age'), 'adult', 'LOOKUP serializes the last applied age, not the unapplied draft')
+    assert.equal(params.get('applied'), null)
+
+    const input = document.querySelector('.lookup-input')
+    await inputValue(input, product.canonical_name)
+    const compare = document.querySelector(`[data-compare-product-id="${product.product_id}"]`)
+    await act(async () => compare.click())
+    await click('비교 보기')
+    const compareText = document.querySelector('.compare-stage').textContent
+    assert.match(compareText, /연령 · 성묘/)
+    assert.match(compareText, /제품 표기 전연령 · 선택 성묘/)
+    assert.doesNotMatch(compareText, /선택 키튼|연령 · 키튼/)
+  } finally {
+    product.life_stage = originalLifeStage
+  }
+})
+
+test('starting a new lookup from Home clears prior applied comparison criteria', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
+  await click('FELINE ARCHIVE')
+  assert.equal(window.location.search, '')
+
+  const homeInput = document.querySelector('.home-entry-search input')
+  await inputValue(homeInput, products[5].canonical_name)
+  await act(async () => homeInput.closest('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
+  await waitForUi(() => document.querySelector(`[data-product-id="${products[5].product_id}"]`) !== null, 'fresh Home lookup result')
+
+  const params = new URL(window.location.href).searchParams
+  assert.equal(params.get('criteria'), null)
+  assert.equal(params.get('feed'), null)
+  assert.equal(params.get('age'), null)
+
+  const compare = document.querySelector(`[data-compare-product-id="${products[5].product_id}"]`)
+  await act(async () => compare.click())
+  await click('비교 보기')
+  assert.equal(document.querySelector('.compare-applied-criteria'), null)
+  assert.doesNotMatch(document.querySelector('.compare-stage').textContent, /선택한 조건과 비교|비교할 검색 조건 없음/)
 })
 
 test('direct list compare caps additions at five while keeping selected products removable', async () => {
@@ -609,7 +807,8 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     assert.equal(new URL(window.location.href).searchParams.get('compare'), [first.product_id, second.product_id].join(','))
     assert.equal(new URL(window.location.href).searchParams.get('feed'), '건식')
     assert.equal(new URL(window.location.href).searchParams.get('age'), 'adult')
-    assert.equal(new URL(window.location.href).searchParams.get('applied'), '1')
+    assert.equal(new URL(window.location.href).searchParams.get('criteria'), '1')
+    assert.equal(new URL(window.location.href).searchParams.get('applied'), null, 'LOOKUP keeps the applied comparison basis without pretending its condition editor is applied')
     assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
 
     await inputValue(document.querySelector('.lookup-input'), third.canonical_name)

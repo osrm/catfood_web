@@ -652,7 +652,38 @@ export default function App() {
     if (!resultProducts.length) return mode === 'lookup'
       ? <div className="state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><button className="state-retry" type="button" onClick={focusLookupInput}>검색어 수정</button></div>
       : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span><button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
-    return <div className="research-results-list">{visibleProducts.map((product) => { const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null; const hasExploreCriteria = mode === 'explore' && activeConditions > 0; const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' '); return <button data-product-id={product.product_id} className={cardClass} key={product.product_id} type="button" onClick={() => openExploreProduct(product.product_id)}><ProductImage className="research-result-image" product={product} /><span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>{evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} /> : null : <span className="research-result-facts"><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong><span>주요 레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></span>}<span className="research-result-open">빠른 보기 →</span></button> })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
+    return <div className="research-results-list">{visibleProducts.map((product) => {
+      const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
+      const hasExploreCriteria = mode === 'explore' && activeConditions > 0
+      const isCompared = compareIds.includes(product.product_id)
+      const compareDisabled = compareIds.length >= 5 && !isCompared
+      const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' ')
+      return <div className={isCompared ? 'research-result-row is-compared' : 'research-result-row'} key={product.product_id}>
+        <button
+          data-product-id={product.product_id}
+          className={cardClass}
+          type="button"
+          aria-label={`${product.brand} ${product.canonical_name} 빠른 보기`}
+          onClick={() => openExploreProduct(product.product_id)}
+        >
+          <ProductImage className="research-result-image" product={product} />
+          <span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>
+          {evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} /> : null : <span className="research-result-facts"><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong><span>주요 레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></span>}
+          <span className="research-result-open">빠른 보기 →</span>
+        </button>
+        <button
+          className={isCompared ? 'research-result-compare is-added' : 'research-result-compare'}
+          type="button"
+          data-compare-product-id={product.product_id}
+          aria-pressed={isCompared}
+          aria-label={`${product.canonical_name} ${isCompared ? '비교에서 제거' : '비교에 추가'}`}
+          disabled={compareDisabled}
+          onClick={() => toggleCompare(product.product_id)}
+        >
+          <span>비교</span><strong>{isCompared ? '빼기' : compareDisabled ? '5/5' : '담기'}</strong>
+        </button>
+      </div>
+    })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
   }
   function renderQuickView() {
     if (!selectedProduct) return null

@@ -51,7 +51,11 @@ export function toggleValue(values: string[], value: string): string[] {
 }
 
 function normalizedText(value: string): string {
-  return value.trim().toLocaleLowerCase('ko-KR')
+  return value
+    .trim()
+    .toLocaleLowerCase('ko-KR')
+    .replace(/(^|[^\p{L}\p{N}])and(?=$|[^\p{L}\p{N}])/gu, '$1&')
+    .replace(/\s+/gu, '')
 }
 
 function normalizedLookupText(value: string): string {

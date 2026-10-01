@@ -117,6 +117,12 @@ async function inputValue(element, value) {
     element.dispatchEvent(new window.Event('input', { bubbles: true }))
   })
 }
+async function selectValue(element, value) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(element, value)
+    element.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+}
 
 test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, caps compare at five, and keeps Home round-trippable', () => {
   const state = app.parseNavigationState('?view=workspace&mode=wat&feed=invalid&age=nope&targets=indoor,bad,indoor&features=hairball,bad&recipes=fish,bad&detailTab=nope&compareTab=nope&compare=a,a,b,c,d,e,f&compareOpen=1')
@@ -547,7 +553,7 @@ test('two-product overview exposes paired mobile structure and removal falls bac
   assert.ok(document.querySelector('.research-results'))
 })
 
-test('two-product overview preserves EXPLORE relation semantics and stays scoped away from other tabs/counts', async () => {
+test('paired mobile comparison preserves EXPLORE relation semantics and extends from two to three products', async () => {
   const first = products[0], second = products[1], third = products[2]
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=%EA%B1%B4%EC%8B%9D&compare=${first.product_id}%2C${second.product_id}&compareOpen=1`)
   let mobile = document.querySelector('.compare-mobile-two-product-overview')
@@ -562,9 +568,185 @@ test('two-product overview preserves EXPLORE relation semantics and stays scoped
   assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
 
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}%2C${third.product_id}&compareOpen=1&compareTab=nutrition`)
+  const picker = document.querySelector('.compare-mobile-general-pair-picker')
+  mobile = document.querySelector('.compare-mobile-two-product-nutrition')
+  assert.ok(picker)
+  assert.match(picker.textContent, /담은 제품 3개 · 현재 2개 표시/)
+  assert.ok(mobile)
+  assert.match(mobile.textContent, /Product 000/)
+  assert.match(mobile.textContent, /Product 001/)
+  assert.doesNotMatch(mobile.textContent, /Product 002/)
+  assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
+})
+
+
+test('mobile general comparison selects either side from five products, preserves the pair across tabs and detail, and repairs removal boundaries', async () => {
+  const compared = products.slice(0, 5)
+  const compareParam = compared.map((item) => item.product_id).join('%2C')
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${compareParam}&compareOpen=1`)
+
+  let picker = document.querySelector('.compare-mobile-general-pair-picker')
+  let mobile = document.querySelector('.compare-mobile-two-product-overview')
+  assert.ok(picker)
+  assert.ok(mobile)
+  assert.match(picker.textContent, /담은 제품 5개 · 현재 2개 표시/)
+  let selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects.length, 2)
+  assert.equal(selects[0].value, compared[0].product_id)
+  assert.equal(selects[1].value, compared[1].product_id)
+  assert.equal(selects[0].querySelector(`option[value="${compared[1].product_id}"]`).disabled, true)
+  assert.equal(selects[1].querySelector(`option[value="${compared[0].product_id}"]`).disabled, true)
+
+  const originalCompare = new URL(window.location.href).searchParams.get('compare')
+  await selectValue(selects[0], compared[2].product_id)
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  mobile = document.querySelector('.compare-mobile-two-product-overview')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, compared[2].product_id)
+  assert.equal(selects[1].value, compared[1].product_id)
+  assert.match(mobile.textContent, /Product 002/)
+  assert.match(mobile.textContent, /Product 001/)
+  assert.doesNotMatch(mobile.textContent, /Product 000/)
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), originalCompare, 'display pair never rewrites the stored compare list')
+
+  await click('영양')
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, compared[2].product_id)
+  assert.equal(selects[1].value, compared[1].product_id)
+  assert.ok(document.querySelector('.compare-mobile-two-product-nutrition'))
+
+  await click('개요')
+  mobile = document.querySelector('.compare-mobile-two-product-overview')
+  const detail = mobile.querySelector(`button[aria-label="Test Brand Product 002 상세 보기"]`)
+  assert.ok(detail)
+  await act(async () => detail.click())
+  await waitForUi(() => document.querySelector('.detail-stage') !== null, 'selected pair detail opens')
+  await click('비교로 돌아가기')
+  await waitForUi(() => document.querySelector('.compare-mobile-general-pair-picker') !== null, 'pair picker returns after detail')
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, compared[2].product_id)
+  assert.equal(selects[1].value, compared[1].product_id)
+
+  const reloadedUrl = window.location.href
+  await act(async () => root.unmount())
+  root = null
+  await renderApp(reloadedUrl)
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, compared[0].product_id, 'reload resets display pair to the first stored product')
+  assert.equal(selects[1].value, compared[1].product_id, 'reload resets display pair to the second stored product')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), originalCompare)
+
+  await selectValue(selects[0], compared[2].product_id)
+  mobile = document.querySelector('.compare-mobile-two-product-overview')
+  const removeDisplayed = mobile.querySelector(`button[aria-label="Test Brand Product 002 비교에서 제거"]`)
+  assert.ok(removeDisplayed)
+  await act(async () => removeDisplayed.click())
+  await waitForUi(
+    () => document.querySelector('.compare-mobile-general-pair-picker')?.querySelector('select')?.value === compared[0].product_id,
+    'removed visible product is replaced by a remaining product',
+  )
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, compared[0].product_id)
+  assert.equal(selects[1].value, compared[1].product_id)
+  assert.equal(document.activeElement, selects[0], 'focus moves to the repaired display slot after deleting a displayed product')
+
+  const removeHidden = document.querySelector(`.compare-table button[aria-label="${compared[4].canonical_name} 비교에서 제거"]`)
+  assert.ok(removeHidden)
+  await act(async () => removeHidden.click())
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, compared[0].product_id)
+  assert.equal(selects[1].value, compared[1].product_id, 'removing a hidden product leaves the visible pair unchanged')
+
+  mobile = document.querySelector('.compare-mobile-two-product-overview')
+  await act(async () => mobile.querySelector(`button[aria-label="Test Brand Product 000 비교에서 제거"]`).click())
+  await waitForUi(() => document.querySelector('.compare-mobile-general-pair-picker') === null, 'two-product boundary removes pair picker')
+  mobile = document.querySelector('.compare-mobile-two-product-overview')
+  assert.ok(mobile)
+  assert.match(mobile.textContent, /Product 001/)
+  assert.match(mobile.textContent, /Product 003/)
+  assert.equal(document.activeElement, document.querySelector('.compare-table-wrap'), 'focus moves to the comparison panel when the picker disappears')
+
+  await act(async () => mobile.querySelector(`button[aria-label="Test Brand Product 001 비교에서 제거"]`).click())
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
-  assert.equal(document.querySelector('.compare-mobile-two-product-nutrition'), null)
-  assert.ok(document.querySelector('.compare-table'))
+  assert.ok(document.querySelector('.compare-table'), 'one product falls back to the existing single-product table')
+
+  const removeLast = document.querySelector(`button[aria-label="${compared[3].canonical_name} 비교에서 제거"]`)
+  assert.ok(removeLast)
+  await act(async () => removeLast.click())
+  assert.equal(document.querySelector('.compare-stage'), null)
+  assert.ok(document.querySelector('.research-results'))
+})
+
+test('mobile nutrition derives rows and basis evidence only from the displayed pair', async () => {
+  const first = products[0], second = products[1], third = products[2]
+  const row = (productId, energy, additional = [], basis = []) => ({
+    product_id: productId, variant_id: null, observation_scope: 'product', market_code: 'KR', panel_type: 'reported',
+    protein_pct: 30, protein_qualifier: 'min', fat_pct: 12, fat_qualifier: 'min', fiber_pct: 3, fiber_qualifier: 'max',
+    moisture_pct: 10, moisture_qualifier: 'max', ash_pct: 7, ash_qualifier: 'reported',
+    kcal_per_kg: energy, kcal_per_100g: null, energy_basis: 'direct_label', is_korea_market_observation: true, is_current_resolved_formula: false,
+    additional_nutrients: additional, additional_nutrient_count: additional.length, supplemental_nutrition_fields: [],
+    supplemental_observation_scope: null, supplemental_market_code: null, supplemental_is_current_resolved_formula: false,
+    basis_specific_nutrition_basis: basis.length ? 'dry_matter' : null, basis_specific_nutrition_values: basis,
+  })
+  const nutritionRows = [
+    row(first.product_id, 4100, [{ nutrient_key: 'calcium', raw_name: 'Calcium', amount: 1.2, unit: '%', qualifier: 'min' }]),
+    row(second.product_id, 3800),
+    row(third.product_id, 3600, [{ nutrient_key: 'taurine', raw_name: 'Taurine', amount: 0.12, unit: '%', qualifier: 'min' }], [
+      { nutrient_key: 'protein', raw_name: 'Protein', amount: 34, unit: '%', qualifier: 'reported' },
+    ]),
+  ]
+
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(nutritionRows)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
+    return Response.json([])
+  }
+
+  document.body.innerHTML = '<div id="root"></div>'
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, {
+    items: [{ product: first }, { product: second }, { product: third }],
+    onClose() {},
+    onRemove() {},
+    initialTab: 'nutrition',
+  })))
+  await waitForUi(() => document.querySelector('.compare-mobile-two-product-nutrition')?.textContent.includes('410 kcal/100g'), 'three-product paired nutrition rendered')
+
+  let mobile = document.querySelector('.compare-mobile-two-product-nutrition')
+  let picker = document.querySelector('.compare-mobile-general-pair-picker')
+  assert.ok(mobile)
+  assert.ok(picker)
+  assert.match(mobile.textContent, /Product 000/)
+  assert.match(mobile.textContent, /Product 001/)
+  assert.doesNotMatch(mobile.textContent, /Product 002/)
+  assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-calcium'))
+  assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'), null, 'hidden product does not create an empty additional-nutrient row')
+  assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-specific'), null, 'hidden product does not create basis evidence')
+
+  let selects = [...picker.querySelectorAll('select')]
+  await selectValue(selects[1], third.product_id)
+  await waitForUi(() => document.querySelector('.compare-mobile-two-product-nutrition')?.textContent.includes('360 kcal/100g'), 'selected hidden product nutrition becomes visible')
+  mobile = document.querySelector('.compare-mobile-two-product-nutrition')
+  picker = document.querySelector('.compare-mobile-general-pair-picker')
+  selects = [...picker.querySelectorAll('select')]
+  assert.equal(selects[0].value, first.product_id)
+  assert.equal(selects[1].value, third.product_id)
+  assert.match(mobile.textContent, /Product 000/)
+  assert.match(mobile.textContent, /Product 002/)
+  assert.doesNotMatch(mobile.textContent, /Product 001/)
+  assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'))
+  const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => cell.textContent.trim())
+  assert.deepEqual(taurineValues, ['미확인', '0.12% 이상'])
+  assert.match(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-specific').closest('tbody').textContent, /건물 기준\(Dry Matter\).*단백질 34%/)
+
+  installFetch()
 })
 
 

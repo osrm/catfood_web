@@ -549,9 +549,14 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const [localDetailProductId, setLocalDetailProductId] = useState<string | null>(null)
   const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(() => items[0]?.product.product_id ?? null)
   const [mobileCandidatePickerOpen, setMobileCandidatePickerOpen] = useState(false)
+  const [mobilePairIds, setMobilePairIds] = useState<[string | null, string | null]>(() => [
+    items[0]?.product.product_id ?? null,
+    items[1]?.product.product_id ?? null,
+  ])
   const detailProductId = controlledDetailProductId === undefined ? localDetailProductId : controlledDetailProductId
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
+  const mobilePairSelectRefs = useRef<Array<HTMLSelectElement | null>>([])
   const mobileCandidateOptionsId = useId()
 
   useEffect(() => { setTab(initialTab) }, [initialTab])
@@ -570,7 +575,24 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   }
 
   const productIds = useMemo(() => items.map((item) => item.product.product_id), [items])
+  const mobilePairItems = useMemo(() => {
+    const selected: CompareItem[] = []
+    for (const id of mobilePairIds) {
+      const item = id ? items.find((candidate) => candidate.product.product_id === id) : null
+      if (item && !selected.some((candidate) => candidate.product.product_id === item.product.product_id)) selected.push(item)
+    }
+    for (const item of items) {
+      if (selected.length >= 2) break
+      if (!selected.some((candidate) => candidate.product.product_id === item.product.product_id)) selected.push(item)
+    }
+    return selected.slice(0, 2)
+  }, [items, mobilePairIds])
+  const mobilePairProductIds = mobilePairItems.map((item) => item.product.product_id)
   const nutritionByProduct = useMemo(() => new Map(nutrition.map((row) => [row.product_id, row])), [nutrition])
+  const mobilePairNutrition = useMemo(
+    () => nutrition.filter((row) => mobilePairProductIds.includes(row.product_id)),
+    [nutrition, mobilePairProductIds.join('|')],
+  )
   const ingredientsByProduct = useMemo(() => new Map(ingredients.map((row) => [row.product_id, row])), [ingredients])
   const additionalNutrientKeys = useMemo(() => {
     const keys = new Set<string>()
@@ -581,6 +603,15 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       return a.localeCompare(b, 'ko-KR')
     })
   }, [nutrition])
+  const mobilePairAdditionalNutrientKeys = useMemo(() => {
+    const keys = new Set<string>()
+    mobilePairNutrition.forEach((row) => (row.additional_nutrients ?? []).forEach((value) => { if (value.amount != null) keys.add(value.nutrient_key) }))
+    return [...keys].sort((a, b) => {
+      const ai = ADDITIONAL_NUTRIENT_ORDER.indexOf(a), bi = ADDITIONAL_NUTRIENT_ORDER.indexOf(b)
+      if (ai >= 0 || bi >= 0) { if (ai < 0) return 1; if (bi < 0) return -1; return ai - bi }
+      return a.localeCompare(b, 'ko-KR')
+    })
+  }, [mobilePairNutrition])
   const switchAdditionalNutrientKeys = useMemo(() => {
     const keys = new Set<string>()
     ;[...(currentNutrition ? [currentNutrition] : []), ...nutrition].forEach((row) => (row.additional_nutrients ?? []).forEach((value) => { if (value.amount != null) keys.add(value.nutrient_key) }))
@@ -591,6 +622,10 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
     })
   }, [currentNutrition, nutrition])
   const hasBasisSpecificNutrition = useMemo(() => nutrition.some((row) => row.basis_specific_nutrition_values?.some((value) => value.amount != null)), [nutrition])
+  const mobilePairHasBasisSpecificNutrition = useMemo(
+    () => mobilePairNutrition.some((row) => row.basis_specific_nutrition_values?.some((value) => value.amount != null)),
+    [mobilePairNutrition],
+  )
   const hasSwitchBasisSpecificNutrition = Boolean(currentNutrition?.basis_specific_nutrition_values?.some((value) => value.amount != null)) || hasBasisSpecificNutrition
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
   const mobileCandidate = items.find((item) => item.product.product_id === mobileCandidateId) ?? items[0] ?? null
@@ -599,6 +634,26 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   useEffect(() => {
     setMobileCandidateId((current) => current && productIds.includes(current) ? current : productIds[0] ?? null)
     setMobileCandidatePickerOpen(false)
+  }, [productIds.join('|')])
+
+  useEffect(() => {
+    setMobilePairIds((current) => {
+      const next: [string | null, string | null] = [null, null]
+      const available = new Set(productIds)
+      const used = new Set<string>()
+      current.forEach((id, index) => {
+        if (!id || !available.has(id) || used.has(id)) return
+        next[index] = id
+        used.add(id)
+      })
+      for (let slot = 0; slot < 2; slot += 1) {
+        if (next[slot]) continue
+        const fallback = productIds.find((id) => !used.has(id)) ?? null
+        next[slot] = fallback
+        if (fallback) used.add(fallback)
+      }
+      return next[0] === current[0] && next[1] === current[1] ? current : next
+    })
   }, [productIds.join('|')])
 
   useEffect(() => {
@@ -693,6 +748,45 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       </div>
     </div>
   }
+  function selectMobilePairProduct(slot: 0 | 1, productId: string) {
+    const otherId = mobilePairItems[slot === 0 ? 1 : 0]?.product.product_id ?? null
+    if (!productId || productId === otherId) return
+    setMobilePairIds((current) => {
+      const next: [string | null, string | null] = [current[0], current[1]]
+      next[slot] = productId
+      return next
+    })
+  }
+  function renderMobileGeneralPairPicker() {
+    if (items.length <= 2 || mobilePairItems.length < 2) return null
+    return <div className="compare-mobile-general-pair-picker" role="group" aria-label={`담은 ${items.length}개 제품 중 표시할 두 제품`}>
+      <div className="compare-mobile-general-pair-summary">
+        <strong>표시할 두 제품</strong>
+        <span>담은 제품 {items.length}개 · 현재 2개 표시</span>
+      </div>
+      <div className="compare-mobile-general-pair-controls">
+        {([0, 1] as const).map((slot) => {
+          const selectedId = mobilePairItems[slot]?.product.product_id ?? ''
+          const otherId = mobilePairItems[slot === 0 ? 1 : 0]?.product.product_id ?? null
+          return <label key={slot}>
+            <span>제품 {slot + 1}</span>
+            <select
+              ref={(node) => { mobilePairSelectRefs.current[slot] = node }}
+              value={selectedId}
+              aria-label={`표시 제품 ${slot + 1} 선택`}
+              onChange={(event) => selectMobilePairProduct(slot, event.target.value)}
+            >
+              {items.map((item) => <option
+                key={item.product.product_id}
+                value={item.product.product_id}
+                disabled={item.product.product_id === otherId}
+              >{item.product.brand} · {item.product.canonical_name}</option>)}
+            </select>
+          </label>
+        })}
+      </div>
+    </div>
+  }
   function removeComparedProduct(productId: string) {
     if (mobileCandidateId === productId) {
       const index = items.findIndex((item) => item.product.product_id === productId)
@@ -700,7 +794,14 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       setMobileCandidateId(fallback?.product.product_id ?? null)
       setMobileCandidatePickerOpen(false)
     }
+    const mobilePairSlot = mobilePairItems.findIndex((item) => item.product.product_id === productId)
     onRemove(productId)
+    if (mobilePairSlot >= 0) {
+      requestAnimationFrame(() => {
+        if (items.length - 1 > 2) mobilePairSelectRefs.current[mobilePairSlot]?.focus({ preventScroll: true })
+        else document.querySelector<HTMLElement>('.compare-table-wrap')?.focus({ preventScroll: true })
+      })
+    }
   }
 
   if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} />
@@ -710,8 +811,8 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const switchCompare = Boolean(currentProduct)
   const switchOverview = Boolean(currentProduct && tab === 'overview')
   const switchNutrition = Boolean(currentProduct && tab === 'nutrition')
-  const twoProductOverview = !switchCompare && tab === 'overview' && items.length === 2
-  const twoProductNutrition = !switchCompare && tab === 'nutrition' && items.length === 2 && !nutritionLoading && !nutritionError
+  const twoProductOverview = !switchCompare && tab === 'overview' && items.length >= 2
+  const twoProductNutrition = !switchCompare && tab === 'nutrition' && items.length >= 2 && !nutritionLoading && !nutritionError
   const overviewProducts = currentProduct ? [currentProduct, ...items.map((item) => item.product)] : items.map((item) => item.product)
   const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
   const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
@@ -844,8 +945,8 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
           {hasSwitchBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><SwitchOverviewRow label="별도 확인 자료" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutrition ? basisSpecificSummary(currentNutrition) : currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : '영양 자료 없음'} candidateValue={(item) => nutritionByProduct.get(item.product.product_id) ? basisSpecificSummary(nutritionByProduct.get(item.product.product_id)) : nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : '영양 자료 없음'} /></> : null}
         </div>
       </> : <>
-        {twoProductOverview ? <MobileTwoProductOverview items={items} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
-        {twoProductNutrition ? <MobileTwoProductNutrition items={items} nutrition={nutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={additionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={hasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
+        {twoProductOverview ? <>{renderMobileGeneralPairPicker()}<MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /></> : null}
+        {twoProductNutrition ? <>{renderMobileGeneralPairPicker()}<MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /></> : null}
         <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>

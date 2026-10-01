@@ -31,7 +31,16 @@ const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
 async function settleVisual(page){
   await page.evaluate(async()=>{
     if(document.fonts?.ready) await document.fonts.ready
-    await Promise.all([...document.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true})})))
+    const visible=[...document.images].filter(img=>{
+      const r=img.getBoundingClientRect()
+      return r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth
+    })
+    await Promise.all(visible.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{
+      const done=()=>resolve()
+      img.addEventListener('load',done,{once:true})
+      img.addEventListener('error',done,{once:true})
+      setTimeout(done,5000)
+    })))
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
   })
 }

@@ -797,10 +797,10 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
     const mobilePairSlot = mobilePairItems.findIndex((item) => item.product.product_id === productId)
     onRemove(productId)
     if (mobilePairSlot >= 0) {
-      requestAnimationFrame(() => {
+      window.setTimeout(() => {
         if (items.length - 1 > 2) mobilePairSelectRefs.current[mobilePairSlot]?.focus({ preventScroll: true })
         else document.querySelector<HTMLElement>('.compare-table-wrap')?.focus({ preventScroll: true })
-      })
+      }, 0)
     }
   }
 

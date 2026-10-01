@@ -473,6 +473,28 @@ test('lookup search ignores spacing, preserves and/& behavior, and supports conf
   )
 })
 
+test('EXPLORE direct list compare records compare_add without opening quick view or creating a new search run', async () => {
+  await explore()
+  const direct = rows('.research-result-compare')[0]
+  assert.ok(direct)
+  const searchesBefore = searchRuns().length
+
+  direct.focus()
+  await click(direct)
+  await waitForUi(() => considerations().length === 1, 'direct compare consideration recorded')
+
+  assert.equal(document.activeElement, direct)
+  assert.equal(document.querySelector('.research-quick-view'), null)
+  assert.equal(document.querySelector('.detail-stage'), null)
+  assert.equal(searchRuns().length, searchesBefore)
+  assert.equal(considerations()[0].body.signal_type, 'compare_add')
+  assert.equal(considerations()[0].body.product_id, products[0].product_id)
+
+  await click(direct)
+  assert.equal(considerations().length, 1, 'removing a compared product does not emit another compare_add')
+  assert.equal(document.querySelector('.switch-compare-dock'), null)
+})
+
 test('later candidates still respect the five-product comparison limit', async () => {
   await explore()
   await click('제품 더 보기')

@@ -1599,25 +1599,40 @@ export default function SwitchFlow({
               {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 후보에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
+                const isCompared = compareIds.includes(product.product_id)
+                const compareDisabled = compareIds.length >= 5 && !isCompared
                 return (
-                  <button
-                    className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'}
-                    key={product.product_id}
-                    ref={(node) => {
-                      if (node) candidateButtonRefs.current.set(product.product_id, node)
-                      else candidateButtonRefs.current.delete(product.product_id)
-                    }}
-                    type="button"
-                    onClick={() => openCandidate(product.product_id)}
-                  >
-                    <ProductImage className="switch-candidate-image" product={product} />
-                    <span className="switch-candidate-identity">
-                      <span>{product.brand}</span><strong>{product.canonical_name}</strong>
-                      <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
-                    </span>
-                    <RelationBlock evaluation={evaluation} />
-                    <span className="switch-candidate-open">보기 →</span>
-                  </button>
+                  <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}>
+                    <button
+                      className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'}
+                      ref={(node) => {
+                        if (node) candidateButtonRefs.current.set(product.product_id, node)
+                        else candidateButtonRefs.current.delete(product.product_id)
+                      }}
+                      type="button"
+                      aria-label={`${product.brand} ${product.canonical_name} 빠른 보기`}
+                      onClick={() => openCandidate(product.product_id)}
+                    >
+                      <ProductImage className="switch-candidate-image" product={product} />
+                      <span className="switch-candidate-identity">
+                        <span>{product.brand}</span><strong>{product.canonical_name}</strong>
+                        <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
+                      </span>
+                      <RelationBlock evaluation={evaluation} />
+                      <span className="switch-candidate-open">보기 →</span>
+                    </button>
+                    <button
+                      className={isCompared ? 'switch-candidate-compare is-added' : 'switch-candidate-compare'}
+                      type="button"
+                      data-switch-compare-product-id={product.product_id}
+                      aria-pressed={isCompared}
+                      aria-label={`${product.canonical_name} ${isCompared ? '비교에서 제거' : '비교에 추가'}`}
+                      disabled={compareDisabled}
+                      onClick={() => toggleCompare(product.product_id)}
+                    >
+                      <span>비교</span><strong>{isCompared ? '빼기' : compareDisabled ? '5/5' : '담기'}</strong>
+                    </button>
+                  </div>
                 )
               })}
               {visibleCandidateCount < searchedCandidates.length ? (

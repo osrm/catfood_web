@@ -150,3 +150,90 @@
     margin-top: 18px;
   }
 }
+
+
+/* Candidate row quick view and comparison stay separate keyboard actions. */
+.switch-workflow-shell .switch-candidate-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: stretch;
+  min-width: 0;
+  border-bottom: 1px solid #edf0ee;
+  background: #fff;
+}
+
+.switch-workflow-shell .switch-candidate-item .switch-candidate-row {
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.switch-workflow-shell .switch-candidate-item.is-compared {
+  background: #f7faf8;
+  box-shadow: inset 0 0 0 1px #d4e0db;
+}
+
+.switch-workflow-shell .switch-candidate-compare {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-left: 1px solid #e2e8e5;
+  padding: 8px 6px;
+  background: #fbfcfb;
+  color: var(--consumer-primary-2);
+  cursor: pointer;
+  font: inherit;
+}
+
+.switch-workflow-shell .switch-candidate-compare > span {
+  color: var(--consumer-dim);
+  font-size: 9px;
+  font-weight: 720;
+}
+
+.switch-workflow-shell .switch-candidate-compare > strong {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.switch-workflow-shell .switch-candidate-compare.is-added {
+  border-left-color: #b7cbc2;
+  background: #eaf3ef;
+  color: var(--consumer-primary);
+}
+
+.switch-workflow-shell .switch-candidate-compare.is-added > span {
+  color: var(--consumer-primary-2);
+}
+
+.switch-workflow-shell .switch-candidate-compare:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.switch-workflow-shell .switch-candidate-compare:focus-visible {
+  outline: 3px solid rgba(35, 76, 67, 0.28);
+  outline-offset: 2px;
+}
+
+.switch-results-workspace.is-inspecting .switch-candidate-item {
+  grid-template-columns: minmax(0, 1fr) 64px;
+}
+
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-candidate-item {
+    grid-template-columns: minmax(0, 1fr) 58px;
+  }
+
+  .switch-workflow-shell .switch-candidate-compare {
+    padding: 6px 4px;
+  }
+
+  .switch-workflow-shell .switch-candidate-compare > strong {
+    font-size: 10.5px;
+  }
+}

@@ -539,6 +539,84 @@ test('closing a filtered-out SWITCH candidate inspector falls back to candidate 
   assert.deepEqual(session().keep.officialTargets, ['indoor'])
 })
 
+test('SWITCH list compare toggles directly, stays in sync with quick view/search, and excludes current food from the five-candidate cap', async () => {
+  const directCandidates = Array.from({ length: 6 }, (_, index) => product(
+    `product_direct_${index}`,
+    `직접 비교 후보 ${index + 1}`,
+    {
+      brand: `직접브랜드${index + 1}`,
+      feed_type: '습식',
+      life_stage: 'adult',
+      official_targets: ['indoor'],
+      features: ['digestive'],
+      recipe_families: ['fish'],
+      recipe_details: ['salmon'],
+      reviewed_not_found_ingredient_terms: ['chicken'],
+    },
+  ))
+  catalogProducts = [current, ...directCandidates]
+
+  await renderApp()
+  await reachResultsWithConditions()
+  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
+  assert.ok(searchInput)
+
+  let controls = all('.switch-candidate-compare')
+  assert.equal(controls.length, 6)
+  const first = controls[0]
+  first.focus()
+  await click(first)
+  await waitForUi(() => considerations.length === 1, 'direct compare consideration recorded')
+
+  assert.equal(document.activeElement, first, 'direct SWITCH compare keeps focus on its own control')
+  assert.equal(document.querySelector('.switch-candidate-inspector'), null, 'direct compare does not open quick view')
+  assert.equal(session().selectedCandidateId, null)
+  assert.deepEqual(session().compareIds, [directCandidates[0].product_id])
+  assert.equal(considerations[0].signal_type, 'compare_add')
+  assert.equal(considerations[0].product_id, directCandidates[0].product_id)
+  assert.equal(considerations.some((entry) => entry.signal_type === 'detail_open'), false)
+  assert.equal(searchRuns.length, 1, 'direct compare does not create a new SWITCH search run')
+  assert.equal(first.getAttribute('aria-pressed'), 'true')
+  assert.ok(first.closest('.switch-candidate-item').classList.contains('is-compared'))
+
+  const firstRow = all('.switch-candidate-row').find((node) => node.textContent.includes(directCandidates[0].canonical_name))
+  await click(firstRow)
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'quick view opens separately')
+  assert.match(document.querySelector('.switch-inspector-actions').textContent, /비교에서 제거/)
+  await click(document.querySelector('.switch-preview-topline button'))
+
+  await inputValue(searchInput, '일치하지 않는 검색어')
+  await waitForUi(() => /이름 검색 결과가 없습니다/.test(document.querySelector('.switch-candidate-list .switch-state-message')?.textContent ?? ''), 'zero-result search')
+  assert.deepEqual(session().compareIds, [directCandidates[0].product_id])
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /직접 비교 후보 1/)
+
+  await click('검색 지우기')
+  controls = all('.switch-candidate-compare')
+  assert.equal(controls[0].getAttribute('aria-pressed'), 'true', 'compared state returns with the product after clearing search')
+
+  for (let index = 1; index < 5; index += 1) await click(controls[index])
+  assert.equal(session().compareIds.length, 5)
+  assert.equal(session().compareIds.includes(current.product_id), false, 'current food is not counted as a candidate comparison')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 5\/5/)
+  assert.equal(controls[5].disabled, true, 'sixth unselected candidate is disabled at the cap')
+  assert.equal(controls[0].disabled, false, 'already compared candidate remains removable at the cap')
+
+  controls[0].focus()
+  await click(controls[0])
+  assert.equal(document.activeElement, controls[0])
+  assert.equal(session().compareIds.length, 4)
+  assert.equal(controls[0].getAttribute('aria-pressed'), 'false')
+  assert.equal(controls[5].disabled, false)
+
+  await click(controls[5])
+  assert.equal(session().compareIds.length, 5)
+  await click(document.querySelector('.switch-compare-dock button'))
+  await waitForUi(() => document.querySelector('.compare-stage'), 'SWITCH compare opens with direct-list selections')
+  assert.match(document.querySelector('.compare-stage').textContent, /현재 건식 사료/)
+  assert.match(document.querySelector('.compare-stage').textContent, /직접 비교 후보 6/)
+  assert.doesNotMatch(document.querySelector('.compare-stage').textContent, /직접 비교 후보 1/)
+})
+
 test('SWITCH empty candidates use an edit action and KEEP unset wording without relaxing conditions', async () => {
   catalogProducts = [current]
   await renderApp()

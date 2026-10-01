@@ -28,6 +28,14 @@ const report={
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
 
+async function settleVisual(page){
+  await page.evaluate(async()=>{
+    if(document.fonts?.ready) await document.fonts.ready
+    await Promise.all([...document.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true})})))
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))
+  })
+}
+
 async function pageAt(width,height){
   const context=await browser.newContext({viewport:{width,height},serviceWorkers:'block'})
   const page=await context.newPage()
@@ -61,22 +69,30 @@ async function generalMobile(){
   await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:30000})
   await waitCatalog(page)
 
-  const compare=page.locator('.research-result-compare').first()
-  await compare.waitFor({state:'visible',timeout:30000})
-  const productId=await compare.getAttribute('data-compare-product-id')
-  assert.ok(productId)
-  const row=page.locator(`[data-product-id="${productId}"]`)
   assert.equal(await page.locator('button button').count(),0,'actions must never nest buttons')
 
   const scroller=page.locator('.research-results-scroll')
-  await scroller.evaluate(el=>{el.scrollTop=18})
+  await scroller.evaluate(el=>{el.scrollTop=320})
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
+  const productId=await scroller.evaluate(el=>{
+    const box=el.getBoundingClientRect()
+    const rows=[...el.querySelectorAll('.research-result-row')]
+    const visible=rows.find(row=>{const r=row.getBoundingClientRect();return r.top>=box.top+8&&r.bottom<=box.bottom-8})
+    return visible?.querySelector('.research-result-compare')?.getAttribute('data-compare-product-id')||null
+  })
+  assert.ok(productId,'expected a fully visible product after scrolling the list')
+  const compare=page.locator(`[data-compare-product-id="${productId}"]`)
+  const row=page.locator(`[data-product-id="${productId}"]`)
+  await compare.waitFor({state:'visible',timeout:30000})
+
   await compare.focus()
-  const scrollBefore=await scroller.evaluate(el=>el.scrollTop)
+  const addScrollBefore=await scroller.evaluate(el=>el.scrollTop)
+  assert.ok(addScrollBefore>100,'list must be materially scrolled before direct add')
   await page.keyboard.press('Enter')
-  const scrollAfter=await scroller.evaluate(el=>el.scrollTop)
+  const addScrollAfter=await scroller.evaluate(el=>el.scrollTop)
 
   assert.equal(await compare.evaluate(el=>document.activeElement===el),true)
-  assert.equal(scrollAfter,scrollBefore)
+  assert.equal(addScrollAfter,addScrollBefore)
   assert.equal(await compare.getAttribute('aria-pressed'),'true')
   assert.equal(await compare.locator('..').evaluate(el=>el.classList.contains('is-compared')),true)
   assert.equal(await row.evaluate(el=>el.classList.contains('is-selected')),false,'compared state is distinct from quick-view selection')
@@ -84,7 +100,7 @@ async function generalMobile(){
   assert.equal(await page.locator('.detail-stage').count(),0)
   assert.match(norm(await page.locator('.switch-compare-dock').textContent()),/비교 1\/5/)
   assert.equal(new URL(page.url()).searchParams.get('q'),'로얄캐닌')
-  await compare.scrollIntoViewIfNeeded()
+  await settleVisual(page)
   await page.screenshot({path:OUT+'/01-general-lookup-direct-added-390x844.png',fullPage:false})
 
   await row.click()
@@ -95,6 +111,25 @@ async function generalMobile(){
   assert.match(norm(await quick.locator('.quick-view-actions').textContent()),/비교에서 제거/)
   await quick.locator('.quick-view-topline button').click()
   await quick.waitFor({state:'detached',timeout:30000})
+
+  const removeScrollBefore=await scroller.evaluate(el=>el.scrollTop)
+  await compare.focus()
+  await page.keyboard.press('Enter')
+  const removeScrollAfter=await scroller.evaluate(el=>el.scrollTop)
+  assert.equal(removeScrollAfter,removeScrollBefore)
+  assert.equal(await compare.getAttribute('aria-pressed'),'false')
+  assert.equal(await page.locator('.switch-compare-dock').count(),0)
+
+  await row.click()
+  await quick.waitFor({state:'visible',timeout:30000})
+  assert.match(norm(await quick.locator('.quick-view-actions').textContent()),/비교에 추가/)
+  await quick.locator('.quick-view-topline button').click()
+  await quick.waitFor({state:'detached',timeout:30000})
+
+  await compare.focus()
+  await page.keyboard.press('Enter')
+  assert.equal(await compare.getAttribute('aria-pressed'),'true')
+  assert.match(norm(await page.locator('.switch-compare-dock').textContent()),/비교 1\/5/)
 
   await page.getByRole('button',{name:'조건으로 찾기'}).click()
   await page.locator('.condition-actions').waitFor({state:'visible',timeout:30000})
@@ -108,6 +143,7 @@ async function generalMobile(){
   await exploreCompare.waitFor({state:'attached',timeout:30000})
   assert.equal(await exploreCompare.getAttribute('aria-pressed'),'true')
   await exploreCompare.scrollIntoViewIfNeeded()
+  await settleVisual(page)
   await page.screenshot({path:OUT+'/02-general-explore-preserved-390x844.png',fullPage:false})
 
   await page.getByRole('button',{name:'제품 찾기'}).click()
@@ -138,7 +174,7 @@ async function generalMobile(){
     focusAfterDirectAdd:'compare-control',
     quickViewOpenedByDirectCompare:false,
     detailOpenedByDirectCompare:false,
-    listScroll:{before:scrollBefore,after:scrollAfter},
+    listScroll:{add:{before:addScrollBefore,after:addScrollAfter},remove:{before:removeScrollBefore,after:removeScrollAfter}},
     exploreLookupPreserved:true,
     layout,
   }
@@ -189,6 +225,7 @@ async function switchMobile(){
   assert.equal(await search.inputValue(),'GO!')
   assert.match(norm(await page.locator('.switch-compare-dock').textContent()),/비교 1\/5.*LID 오리/)
   await direct.scrollIntoViewIfNeeded()
+  await settleVisual(page)
   await page.screenshot({path:OUT+'/03-switch-go-direct-added-390x844.png',fullPage:false})
 
   await row.click()
@@ -210,6 +247,7 @@ async function switchMobile(){
     return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,inViewport:r.bottom>0&&r.top<innerHeight,text:el.textContent.replace(/\s+/g,' ').trim()}
   })
   assert.equal(dockZero.inViewport,true)
+  await settleVisual(page)
   await page.screenshot({path:OUT+'/04-switch-zero-dock-centered-390x844.png',fullPage:false})
 
   const clear=zero.getByRole('button',{name:'검색 지우기'})
@@ -285,6 +323,7 @@ async function generalDesktopMaxFive(){
   await controls.nth(5).click()
   assert.match(norm(await page.locator('.switch-compare-dock').textContent()),/비교 5\/5/)
   await page.locator('.switch-compare-dock').scrollIntoViewIfNeeded()
+  await settleVisual(page)
   await page.screenshot({path:OUT+'/05-general-max5-1440x900.png',fullPage:false})
 
   const layout=await page.evaluate(()=>{
@@ -345,6 +384,7 @@ async function switchDesktopSync(){
   assert.equal(await page.locator('button button').count(),0)
 
   await directAgain.scrollIntoViewIfNeeded()
+  await settleVisual(page)
   await page.screenshot({path:OUT+'/06-switch-direct-sync-1440x900.png',fullPage:false})
 
   const layout=await page.evaluate(()=>{

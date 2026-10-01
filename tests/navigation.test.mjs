@@ -296,6 +296,11 @@ test('general comparison carries applied EXPLORE criteria through LOOKUP, known 
     assert.match(document.querySelector('.compare-applied-criteria').textContent, /연령 · 성묘/)
     const refreshUrl = window.location.href
 
+    await act(async () => {
+      window.history.back()
+      await waitForUi(() => document.querySelector('.research-results') !== null && document.querySelector('.compare-stage') === null, 'history returns to a stable lookup list')
+    })
+
     await act(async () => root.unmount())
     root = null
     await renderApp(refreshUrl)
@@ -305,6 +310,9 @@ test('general comparison carries applied EXPLORE criteria through LOOKUP, known 
     params = new URL(window.location.href).searchParams
     assert.equal(params.get('criteria'), '1')
     assert.equal(params.get('age'), 'adult')
+
+    await click('제품 목록으로')
+    await waitForUi(() => document.querySelector('.research-results') !== null && document.querySelector('.compare-stage') === null, 'refresh scenario finishes on a stable lookup list')
   } finally {
     third.life_stage = originalLifeStage
   }

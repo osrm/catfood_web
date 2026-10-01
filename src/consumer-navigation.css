@@ -221,14 +221,22 @@
     grid-template-columns: 1fr;
   }
 
+  .compare-table-wrap {
+    --compare-mobile-label-width: 108px;
+  }
+
   .compare-table {
-    width: calc(108px + (var(--compare-count) * 190px));
-    min-width: calc(108px + (var(--compare-count) * 190px));
+    width: calc(var(--compare-mobile-label-width) + (var(--compare-count) * 190px));
+    min-width: calc(var(--compare-mobile-label-width) + (var(--compare-count) * 190px));
   }
 
   .compare-head-row,
   .compare-row {
-    grid-template-columns: 108px repeat(var(--compare-count), 190px);
+    grid-template-columns: var(--compare-mobile-label-width) repeat(var(--compare-count), 190px);
+  }
+
+  .compare-stage:not(.is-switch-compare) #compare-panel-ingredients.compare-table-wrap {
+    scroll-padding-inline-start: var(--compare-mobile-label-width);
   }
 
   .compare-corner,

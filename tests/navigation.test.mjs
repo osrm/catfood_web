@@ -804,7 +804,8 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
     assert.equal(new URL(window.location.href).searchParams.get('compare'), [first.product_id, second.product_id].join(','))
     assert.equal(new URL(window.location.href).searchParams.get('feed'), '건식')
     assert.equal(new URL(window.location.href).searchParams.get('age'), 'adult')
-    assert.equal(new URL(window.location.href).searchParams.get('applied'), '1')
+    assert.equal(new URL(window.location.href).searchParams.get('criteria'), '1')
+    assert.equal(new URL(window.location.href).searchParams.get('applied'), null, 'LOOKUP keeps the applied comparison basis without pretending its condition editor is applied')
     assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
 
     await inputValue(document.querySelector('.lookup-input'), third.canonical_name)

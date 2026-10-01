@@ -170,6 +170,71 @@ test('direct detail URL restores the selected tab and still provides a way back 
   assert.ok(document.querySelector('.research-results'))
 })
 
+test('direct list compare stays separate from quick view and persists across EXPLORE and LOOKUP', async () => {
+  const first = products[0]
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
+
+  const scroller = document.querySelector('.research-results-scroll')
+  scroller.scrollTop = 91
+  const direct = document.querySelector(`[data-compare-product-id="${first.product_id}"]`)
+  assert.ok(direct)
+  direct.focus()
+  await act(async () => direct.click())
+
+  assert.equal(document.activeElement, direct, 'direct compare keeps keyboard focus on the compare control')
+  assert.equal(scroller.scrollTop, 91, 'direct compare does not move the result list')
+  assert.equal(direct.getAttribute('aria-pressed'), 'true')
+  assert.ok(direct.closest('.research-result-row').classList.contains('is-compared'))
+  assert.equal(document.querySelector('.research-quick-view'), null, 'direct compare must not open quick view')
+  assert.equal(document.querySelector('.detail-stage'), null, 'direct compare must not open detail')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
+
+  const preview = document.querySelector(`[data-product-id="${first.product_id}"]`)
+  await act(async () => preview.click())
+  await waitForUi(() => document.querySelector('.research-quick-view') !== null, 'quick view opens independently')
+  assert.match(document.querySelector('.quick-view-actions').textContent, /비교에서 제거/)
+  await click('닫기 ×')
+
+  await click('제품 찾기')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), first.product_id)
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
+
+  const input = document.querySelector('.lookup-input')
+  await inputValue(input, first.canonical_name)
+  await waitForUi(() => document.querySelector(`[data-product-id="${first.product_id}"]`) !== null, 'compared product visible in lookup')
+  const lookupDirect = document.querySelector(`[data-compare-product-id="${first.product_id}"]`)
+  assert.equal(lookupDirect.getAttribute('aria-pressed'), 'true', 'compared state survives EXPLORE to LOOKUP')
+  assert.ok(lookupDirect.closest('.research-result-row').classList.contains('is-compared'))
+
+  lookupDirect.focus()
+  await act(async () => lookupDirect.click())
+  assert.equal(document.activeElement, lookupDirect)
+  assert.equal(lookupDirect.getAttribute('aria-pressed'), 'false')
+  assert.equal(document.querySelector('.research-quick-view'), null)
+  assert.equal(document.querySelector('.switch-compare-dock'), null)
+})
+
+test('direct list compare caps additions at five while keeping selected products removable', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product')
+  const controls = [...document.querySelectorAll('.research-result-compare')]
+  assert.ok(controls.length >= 6)
+
+  for (let index = 0; index < 5; index += 1) {
+    await act(async () => controls[index].click())
+    assert.equal(controls[index].getAttribute('aria-pressed'), 'true')
+  }
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 5\/5/)
+  assert.equal(controls[5].disabled, true, 'sixth unselected product is disabled at the cap')
+  assert.equal(controls[0].disabled, false, 'already compared product remains removable at the cap')
+
+  controls[0].focus()
+  await act(async () => controls[0].click())
+  assert.equal(document.activeElement, controls[0])
+  assert.equal(controls[0].getAttribute('aria-pressed'), 'false')
+  assert.equal(controls[5].disabled, false, 'removing one product re-enables another candidate')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 4\/5/)
+})
+
 test('typing a lookup query replaces URL state instead of adding history entries', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product')
   const input = document.querySelector('.lookup-input')

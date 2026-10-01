@@ -81,14 +81,22 @@ function ingredientPanelFromEvent(event: Event) {
   return null
 }
 
-function captureIngredientScrollStart(event: Event) {
+function captureIngredientWheelStart(event: WheelEvent) {
   const target = ingredientPanelFromEvent(event)
-  if (target) rememberIngredientAlignedPosition(target)
+  if (!target) return
+
+  const firstProductHead = target.querySelector<HTMLElement>('.compare-head-row .compare-product-head')
+  const productWidth = firstProductHead?.getBoundingClientRect().width ?? 0
+  const horizontalDelta = Math.abs(event.deltaX) > 0 ? event.deltaX : event.shiftKey ? event.deltaY : 0
+  if (productWidth > 0 && Math.abs(horizontalDelta) >= productWidth / 2) {
+    rememberIngredientAlignedPosition(target)
+  }
 }
 
 function captureIngredientKeyStart(event: KeyboardEvent) {
   if (event.key !== 'Tab' && event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
-  captureIngredientScrollStart(event)
+  const target = ingredientPanelFromEvent(event)
+  if (target) rememberIngredientAlignedPosition(target)
 }
 
 function alignMobileIngredientColumn(target: HTMLElement) {
@@ -134,7 +142,7 @@ function syncCompareScroll(event: Event) {
   ingredientScrollSettleTimers.set(target, timer)
 }
 
-document.addEventListener('wheel', captureIngredientScrollStart, { capture: true, passive: true })
+document.addEventListener('wheel', captureIngredientWheelStart, { capture: true, passive: true })
 document.addEventListener('keydown', captureIngredientKeyStart, true)
 document.addEventListener('scroll', syncCompareScroll, true)
 

@@ -1,7 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail from './ProductDetail'
-import './mobile-switch-compare-picker.css'
-import './mobile-two-product-overview.css'
 import {
   fetchCompareIngredients,
   fetchCompareNutrition,
@@ -826,7 +824,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
     : `${items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.`
 
   return <main className={stageClassName}>
-    <header className="compare-header"><div><span>COMPARE</span><h1>제품 비교</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>← 제품 목록으로</button></header>
+    <header className="compare-header"><div><h1>제품 비교</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>← 제품 목록으로</button></header>
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button
       key={key} id={`compare-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`compare-panel-${key}`} tabIndex={tab === key ? 0 : -1}
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}

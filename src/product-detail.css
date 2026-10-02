@@ -1,118 +1,30 @@
-.detail-stage {
-  --detail-bg: #f6f8f9;
-  --detail-surface: #ffffff;
-  --detail-soft: #f0f3f5;
-  --detail-line: #cfd7dc;
-  --detail-line-soft: #e3e8eb;
-  --detail-text: #182226;
-  --detail-muted: #657278;
-  --detail-dim: #8a969b;
-  --detail-accent: #173f4c;
-  --detail-accent-soft: #dbe9ee;
-  --detail-danger: #9a3f39;
-  min-height: 100vh;
-  background: var(--detail-bg);
-  color: var(--detail-text);
-  font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", Inter, sans-serif;
-}
-
+/* Component layout and visual rules. Shared tokens live in styles.css. */
 .detail-stage button {
-  font: inherit;
+  font: inherit
 }
 
 .detail-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  border-bottom: 1px solid var(--detail-line);
-  padding: 0 30px;
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(10px);
+  justify-content: space-between
 }
 
 .detail-topbar > button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--detail-accent);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
+  cursor: pointer
 }
 
 .detail-topbar > span {
   color: var(--detail-dim);
-  font-size: 10px;
   font-weight: 850;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.14em
 }
 
 .detail-identity {
-  display: grid;
-  grid-template-columns: 112px minmax(260px, 1fr) minmax(420px, 0.85fr);
-  gap: 26px;
-  align-items: center;
-  max-width: 1440px;
-  margin: 0 auto;
-  border-right: 1px solid var(--detail-line);
-  border-left: 1px solid var(--detail-line);
-  padding: 30px;
-  background: var(--detail-surface);
-}
-
-.detail-product-image,
-.detail-image-placeholder {
-  width: 112px;
-  height: 112px;
-  border: 1px solid var(--detail-line-soft);
-  border-radius: 8px;
-  background: #f7f8f9;
-  object-fit: contain;
+  max-width: 1440px
 }
 
 .detail-image-placeholder {
-  display: grid;
-  place-items: center;
-  color: var(--detail-dim);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.detail-identity-copy {
-  min-width: 0;
-}
-
-.detail-identity-copy > span {
-  color: var(--detail-accent);
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.detail-identity-copy h1 {
-  max-width: 760px;
-  margin: 7px 0 8px;
-  color: var(--detail-text);
-  font-size: clamp(24px, 2.2vw, 34px);
-  line-height: 1.1;
-  letter-spacing: -0.04em;
-}
-
-.detail-identity-copy p {
-  margin: 0;
-  color: var(--detail-muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.detail-status-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--detail-line);
-  border-left: 1px solid var(--detail-line);
+  font-weight: 700
 }
 
 .detail-fact {
@@ -123,90 +35,36 @@
   border-right: 1px solid var(--detail-line);
   border-bottom: 1px solid var(--detail-line);
   padding: 13px 14px;
-  background: var(--detail-surface);
+  background: var(--detail-surface)
 }
 
 .detail-fact > span {
   color: var(--detail-dim);
-  font-size: 10px;
-  font-weight: 800;
+  font-weight: 800
 }
 
 .detail-fact > strong {
   overflow-wrap: anywhere;
   color: var(--detail-text);
-  font-size: 12px;
   font-weight: 760;
-  line-height: 1.45;
-}
-
-.detail-tabs {
-  position: sticky;
-  top: 56px;
-  z-index: 15;
-  display: flex;
-  max-width: 1440px;
-  margin: 0 auto;
-  border: 1px solid var(--detail-line);
-  border-top: 0;
-  background: var(--detail-surface);
+  line-height: 1.45
 }
 
 .detail-tabs button {
   flex: 0 0 150px;
-  height: 44px;
-  border: 0;
   border-right: 1px solid var(--detail-line-soft);
-  background: transparent;
-  color: var(--detail-muted);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.detail-tabs button:hover,
-.detail-tabs button.is-active {
-  background: var(--detail-accent-soft);
-  color: var(--detail-accent);
-}
-
-.detail-state {
-  max-width: 1440px;
-  margin: 14px auto 0;
-  border: 1px solid var(--detail-line);
-  padding: 12px 16px;
-  background: var(--detail-surface);
-  color: var(--detail-muted);
-  font-size: 11px;
-}
-
-.detail-state.is-error {
-  color: var(--detail-danger);
+  cursor: pointer
 }
 
 .detail-body {
-  display: grid;
-  gap: 18px;
-  max-width: 1440px;
-  margin: 18px auto 60px;
-}
-
-.detail-section {
-  border: 1px solid var(--detail-line);
-  background: var(--detail-surface);
+  gap: 18px
 }
 
 .detail-section-heading {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-  border-bottom: 1px solid var(--detail-line);
-  padding: 18px 20px 16px;
+  grid-template-columns: 42px minmax(0, 1fr)
 }
 
 .detail-section-heading > span {
-  display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
@@ -214,238 +72,980 @@
   background: var(--detail-soft);
   color: var(--detail-accent);
   font-size: 10px;
-  font-weight: 900;
-}
-
-.detail-section-heading h2 {
-  margin: 0;
-  font-size: 17px;
-  letter-spacing: -0.025em;
+  font-weight: 900
 }
 
 .detail-section-heading p {
-  margin: 4px 0 0;
-  color: var(--detail-muted);
-  font-size: 11px;
-  line-height: 1.5;
+  margin: 4px 0 0
 }
 
-.detail-fact-table,
-.detail-nutrition-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-left: 1px solid var(--detail-line-soft);
-  border-top: 1px solid var(--detail-line-soft);
-  margin: 20px;
-}
-
-.detail-nutrition-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.detail-variant-list,
-.detail-market-list {
-  display: grid;
-  margin: 20px;
+.detail-variant-list {
   border-top: 1px solid var(--detail-line);
-  border-left: 1px solid var(--detail-line);
+  border-left: 1px solid var(--detail-line)
 }
 
-.detail-variant-row,
+.detail-market-list {
+  border-left: 1px solid var(--detail-line)
+}
+
+.detail-variant-row {
+  min-width: 0
+}
+
 .detail-market-row {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) minmax(240px, 1.2fr);
-  min-width: 0;
+  min-width: 0
 }
 
-.detail-market-row {
-  grid-template-columns: minmax(160px, 0.65fr) minmax(220px, 1fr) minmax(210px, 0.9fr) minmax(240px, 1.2fr);
-}
-
-.detail-variant-row > div,
-.detail-market-row > div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
+.detail-variant-row > div {
   border-right: 1px solid var(--detail-line);
-  border-bottom: 1px solid var(--detail-line);
-  padding: 13px 15px;
+  border-bottom: 1px solid var(--detail-line)
 }
 
-.detail-variant-row span,
-.detail-market-row span {
-  color: var(--detail-dim);
-  font-size: 9.5px;
-  font-weight: 800;
-}
-
-.detail-variant-row strong,
-.detail-market-row strong {
-  overflow-wrap: anywhere;
-  color: var(--detail-text);
-  font-size: 11.5px;
-  line-height: 1.45;
+.detail-market-row > div {
+  border-right: 1px solid var(--detail-line);
+  border-bottom: 1px solid var(--detail-line)
 }
 
 .detail-evidence-context {
-  margin: 20px 20px 0;
-  border-left: 3px solid var(--detail-accent);
-  padding: 10px 12px;
-  background: var(--detail-soft);
-  color: var(--detail-muted);
-  font-size: 10.5px;
-  font-weight: 750;
-}
-
-.detail-ingredient-copy {
-  margin: 18px 20px 0;
-  border: 1px solid var(--detail-line-soft);
-  padding: 16px;
-  background: #fafbfb;
-  color: #344147;
-  font-size: 12px;
-  line-height: 1.75;
-  white-space: pre-wrap;
+  border-left: 3px solid var(--detail-accent)
 }
 
 .detail-ingredient-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  margin: 12px 20px 0;
-  border-top: 1px solid var(--detail-line-soft);
-  border-left: 1px solid var(--detail-line-soft);
+  border-left: 1px solid var(--detail-line-soft)
 }
 
 .detail-ingredient-list span {
-  border-right: 1px solid var(--detail-line-soft);
-  border-bottom: 1px solid var(--detail-line-soft);
-  padding: 9px 11px;
-  color: #48565c;
-  font-size: 10.5px;
-  line-height: 1.45;
+  border-right: 1px solid var(--detail-line-soft)
 }
 
 .detail-ingredient-list-compact {
   display: flex;
   flex-wrap: wrap;
   gap: 7px 10px;
-  border: 0;
+  border: 0
 }
 
 .detail-ingredient-list-compact span {
   border: 0;
   padding: 0;
   font-size: inherit;
-  line-height: 1.6;
+  line-height: 1.6
 }
 
 .detail-ingredient-list-compact span:not(:last-child)::after {
   content: ' ·';
-  color: #8b9498;
+  color: var(--cf-muted)
+}
+
+@media (max-width: 760px) {.detail-identity {
+    border-right: 0;
+    border-left: 0
+}.detail-ingredient-list:not(.detail-ingredient-list-compact) {
+    grid-template-columns: 1fr
+}.detail-tabs {
+    border-right: 0;
+    border-left: 0
+}.detail-tabs button {
+    flex-basis: 120px
+}.detail-body {
+    margin-top: 12px
+}.detail-section {
+    border-right: 0;
+    border-left: 0
+}.detail-variant-list {
+    margin-right: 16px;
+    margin-left: 16px
+}.detail-market-list {
+    margin-right: 16px;
+    margin-left: 16px
+}.detail-ingredient-copy {
+    margin-right: 16px;
+    margin-left: 16px
+}.detail-ingredient-list {
+    margin-right: 16px;
+    margin-left: 16px
+}.detail-note {
+    margin-right: 16px;
+    margin-left: 16px
+}.detail-empty {
+    margin-right: 16px;
+    margin-left: 16px
+}.detail-evidence-context {
+    margin-right: 16px;
+    margin-left: 16px
+}
+}
+
+.detail-topbar > button {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease
+}
+
+.detail-tabs button {
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease
+}
+
+.detail-stage button:focus-visible {
+  outline: 2px solid var(--cf-line);
+  outline-offset: 2px
+}
+
+.detail-section-heading p {
+  color: var(--cat-muted)
+}
+
+.detail-topbar > span {
+  font-size: max(10.5px, 0.68rem)
+}
+
+.detail-fact > span {
+  font-size: max(10.5px, 0.68rem)
+}
+
+.detail-section-heading p {
+  font-size: max(10.5px, 0.68rem)
+}
+
+.detail-topbar {
+  border-bottom-color: var(--cat-line)
+}
+
+.detail-identity {
+  padding-top: 26px;
+  padding-bottom: 26px
+}
+
+.detail-fact > strong {
+  font-size: 12px
+}
+
+.detail-section-heading p {
+  line-height: 1.55
+}
+
+.detail-topbar {
+  border-bottom: 1px solid var(--detail-line);
+  background: var(--cf-surface);
+  backdrop-filter: blur(10px);
+  box-shadow: none
+}
+
+.detail-topbar > button {
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+  color: var(--cf-ink);
+  font-weight: 500
+}
+
+.detail-topbar > button:hover {
+  color: var(--detail-accent)
+}
+
+.detail-layout {
+  grid-template-columns: minmax(270px, 360px) minmax(0, 740px);
+  gap: clamp(42px, 5vw, 70px);
+  align-items: start
+}
+
+.detail-identity {
+  top: 102px;
+  min-width: 0;
+  box-shadow: none
+}
+
+.detail-identity-copy > span {
+  display: block;
+  text-transform: uppercase
+}
+
+.detail-identity-copy h1 {
+  max-width: none;
+  margin: 0
+}
+
+.detail-identity-copy p {
+  font-weight: 400
+}
+
+.detail-product-image {
+  display: block;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  object-fit: contain
+}
+
+.detail-image-placeholder {
+  border-radius: 4px;
+  background: transparent;
+  object-fit: contain
+}
+
+.detail-image-placeholder {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--detail-line);
+  color: var(--detail-muted);
+  font-size: 12px
+}
+
+.detail-document {
+  min-width: 0
+}
+
+.detail-tabs {
+  position: sticky;
+  z-index: 20;
+  display: grid;
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-top: 1px solid var(--detail-line);
+  border-radius: 4px;
+  box-shadow: none
+}
+
+.detail-tabs button {
+  position: relative;
+  border: 0;
+  background: transparent
+}
+
+.detail-tabs button::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  background: transparent
+}
+
+.detail-tabs button:hover {
+  background: transparent;
+  color: var(--detail-accent)
+}
+
+.detail-tabs button.is-active {
+  font-weight: 700
+}
+
+.detail-tabs button.is-active::after {
+  background: var(--detail-accent)
+}
+
+.detail-body {
+  display: block;
+  max-width: none
+}
+
+.detail-section {
+  overflow: visible;
+  border-bottom: 1px solid var(--detail-line)
+}
+
+.detail-section:last-child {
+  border-bottom: 0
+}
+
+.detail-section-heading {
+  display: block;
+  border: 0
+}
+
+.detail-section-heading h2 {
+  margin: 0;
+  color: var(--detail-text);
+  font-family: var(--cf-font);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.035em
+}
+
+.detail-basis-block h3 {
+  margin: 0;
+  color: var(--detail-text);
+  font-family: var(--cf-font);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -0.035em
+}
+
+.detail-basis-block h3 {
+  font-size: 19px
+}
+
+.detail-section-heading p {
+  display: none
+}
+
+.detail-section-heading > span {
+  display: none
+}
+
+.detail-fact-lines {
+  border-top: 1px solid var(--detail-line-strong)
+}
+
+.detail-fact-lines .detail-fact {
+  display: grid;
+  align-items: baseline;
+  border: 0;
+  background: transparent
+}
+
+.detail-fact-lines .detail-fact > span {
+  color: var(--detail-muted);
+  font-weight: 400
+}
+
+.detail-fact-lines .detail-fact > strong {
+  color: var(--detail-text);
+  font-weight: 500;
+  line-height: 1.6
+}
+
+.detail-fact-lines-compact {
+  margin-top: 4px;
+  border-top-color: var(--detail-line)
+}
+
+.detail-fact-lines-compact .detail-fact {
+  padding: 11px 0
+}
+
+.detail-size-list {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--detail-line);
+  color: var(--cf-ink);
+  line-height: 1.5
+}
+
+.detail-size-list span:not(:last-child)::after {
+  content: "/";
+  color: var(--detail-line-strong)
+}
+
+.detail-summary-meta {
+  margin: 0 0 7px;
+  color: var(--detail-muted);
+  font-size: 12px;
+  line-height: 1.6
+}
+
+.detail-inline-link {
+  margin-top: 18px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--detail-accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer
+}
+
+.detail-inline-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px
+}
+
+.detail-disclosure {
+  border-bottom: 1px solid var(--detail-line)
+}
+
+.detail-disclosure > summary {
+  position: relative;
+  padding: 18px 42px 18px 0;
+  list-style: none
+}
+
+.detail-disclosure > summary::-webkit-details-marker {
+  display: none
+}
+
+.detail-disclosure > summary::after {
+  content: "+";
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  color: var(--cf-muted);
+  font-size: 25px;
+  font-weight: 300;
+  line-height: 1
+}
+
+.detail-disclosure[open] > summary::after {
+  content: "−"
+}
+
+.detail-variant-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border: 0
+}
+
+.detail-variant-row {
+  display: grid;
+  border: 0;
+  border-top: 1px solid var(--detail-line);
+  border-radius: 4px;
+  background: transparent
+}
+
+.detail-variant-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  border: 0
+}
+
+.detail-variant-row span {
+  color: var(--detail-muted);
+  font-size: 11px;
+  font-weight: 400
+}
+
+.detail-market-row span {
+  color: var(--detail-muted);
+  font-size: 11px;
+  font-weight: 400
+}
+
+.detail-variant-row strong {
+  overflow-wrap: anywhere;
+  color: var(--detail-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5
+}
+
+.detail-market-row strong {
+  overflow-wrap: anywhere;
+  color: var(--detail-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5
+}
+
+.detail-energy {
+  border-top: 1px solid var(--detail-line-strong);
+  border-bottom: 1px solid var(--detail-line)
+}
+
+.detail-energy > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--detail-muted);
+  font-size: 12px
+}
+
+.detail-energy > strong {
+  display: inline;
+  color: var(--cf-ink);
+  font-family: var(--cf-font);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  letter-spacing: -0.04em
+}
+
+.detail-energy > small {
+  display: block;
+  margin-top: 9px;
+  color: var(--detail-muted);
+  font-size: 11px;
+  line-height: 1.55
+}
+
+.detail-evidence-context {
+  margin: 16px 0 0;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--detail-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6
+}
+
+.detail-nutrition-list {
+  margin-top: 20px;
+  border-top: 1px solid var(--detail-line-strong)
+}
+
+.detail-nutrition-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline
+}
+
+.detail-nutrition-row > span {
+  color: var(--cf-ink)
+}
+
+.detail-nutrition-row > strong {
+  color: var(--cf-ink);
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: right;
+  font-variant-numeric: tabular-nums
+}
+
+.detail-basis-block {
+  margin-top: 34px;
+  border-top: 1px solid var(--detail-line-strong);
+  padding-top: 22px
+}
+
+.detail-basis-block > p {
+  max-width: 620px;
+  margin: 8px 0 0;
+  color: var(--detail-muted);
+  font-size: 12px;
+  line-height: 1.7
+}
+
+.detail-source-disclosure {
+  margin-top: 24px;
+  border-top: 1px solid var(--detail-line)
+}
+
+.detail-source-disclosure > p {
+  margin: 0 0 12px;
+  color: var(--detail-muted);
+  font-size: 12px;
+  line-height: 1.7
+}
+
+.detail-partial-note {
+  margin: 16px 0 4px;
+  color: var(--cf-ink);
+  font-size: 12px;
+  line-height: 1.7
+}
+
+.detail-ingredient-copy {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--detail-line);
+  border-radius: 4px;
+  padding: 18px 0 22px;
+  background: transparent;
+  color: var(--cf-ink);
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap
+}
+
+.detail-ingredient-list {
+  display: grid;
+  gap: 0 24px;
+  border: 0;
+  border-top: 1px solid var(--detail-line)
+}
+
+.detail-ingredient-list span {
+  border: 0;
+  border-bottom: 1px solid var(--detail-line);
+  border-radius: 4px;
+  padding: 11px 0;
+  background: transparent;
+  color: var(--cf-ink);
+  font-size: 12px;
+  line-height: 1.55
+}
+
+.detail-ingredient-list.detail-ingredient-list-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  border: 0
+}
+
+.detail-ingredient-list.detail-ingredient-list-compact span {
+  min-width: 0;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  font-size: 15.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere
+}
+
+.detail-ingredient-reading-help {
+  margin: 14px 0 8px;
+  font-weight: 500;
+  line-height: 1.6
 }
 
 .detail-note {
-  margin: 16px 20px 20px;
+  max-width: 650px;
+  margin: 14px 0 0;
+  border: 0;
+  padding: 0;
   color: var(--detail-muted);
-  font-size: 10.5px;
-  line-height: 1.6;
+  font-size: 11.5px;
+  line-height: 1.7
+}
+
+.detail-state {
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--detail-line);
+  border-radius: 4px;
+  padding: 18px 0;
+  background: transparent;
+  color: var(--detail-muted);
+  font-size: 13px;
+  line-height: 1.65
 }
 
 .detail-empty {
-  margin: 20px;
-  border: 1px dashed var(--detail-line);
-  padding: 22px;
-  background: #fafbfb;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--detail-line);
+  border-radius: 4px;
+  padding: 18px 0;
+  background: transparent;
   color: var(--detail-muted);
+  font-size: 13px;
+  line-height: 1.65
+}
+
+.detail-state.is-error {
+  color: var(--detail-danger)
+}
+
+.detail-state.is-error p {
+  margin: 0
+}
+
+.detail-state.is-error button {
+  flex: 0 0 auto;
+  border: 1px solid var(--cf-line);
+  padding: 7px 11px;
+  background: transparent;
+  color: var(--detail-danger);
+  cursor: pointer
+}
+
+.detail-market-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--detail-line-strong)
+}
+
+.detail-market-row {
+  display: grid;
+  border: 0;
+  border-bottom: 1px solid var(--detail-line);
+  border-radius: 4px;
+  background: transparent
+}
+
+.detail-market-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  border: 0
+}
+
+.detail-market-row > div:nth-child(even) {
+  padding-left: 18px
+}
+
+@media (max-width: 960px) {.detail-layout {
+    display: block;
+    width: 100%
+}.detail-identity {
+    position: static;
+    display: grid
+}.detail-product-image {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0
+}.detail-image-placeholder {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0
+}.detail-identity-copy {
+    grid-column: 1;
+    grid-row: 1
+}.detail-tabs {
+    margin-top: 0
+}.detail-document {
+    width: 100%
+}
+}
+
+@media (max-width: 560px) {.detail-topbar {
+    height: 56px;
+    padding: 0 22px
+}.detail-topbar > button {
+    font-size: 11px
+}.detail-identity {
+    grid-template-columns: minmax(0, 1fr) 62px;
+    gap: 12px;
+    align-items: center;
+    padding: 26px 22px 24px
+}.detail-product-image {
+    width: 62px;
+    height: 82px
+}.detail-image-placeholder {
+    width: 62px;
+    height: 82px
+}.detail-identity-copy > span {
+    margin-bottom: 12px;
+    font-size: 11px
+}.detail-identity-copy h1 {
+    font-size: 25px;
+    line-height: 1.55
+}.detail-identity-copy p {
+    margin-top: 11px;
+    font-size: 12px
+}.detail-tabs {
+    top: 56px;
+    grid-template-columns: repeat(4, 1fr)
+}.detail-tabs button {
+    height: 54px;
+    padding: 0 4px;
+    font-size: 12px
+}.detail-tabs button::after {
+    right: 14%;
+    left: 14%
+}.detail-body {
+    padding: 0 22px;
+    margin-bottom: 64px
+}.detail-section {
+    padding: 28px 0 30px
+}.detail-section-heading {
+    padding-bottom: 15px
+}.detail-section-heading h2 {
+    font-size: 21px
+}.detail-fact-lines .detail-fact {
+    grid-template-columns: minmax(90px, 102px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 13px 0
+}.detail-fact-lines .detail-fact > span {
+    font-size: 12px
+}.detail-fact-lines .detail-fact > strong {
+    font-size: 14px
+}.detail-size-list {
+    font-size: 15px
+}.detail-size-list span:not(:last-child)::after {
+    margin: 0 9px
+}.detail-variant-row {
+    grid-template-columns: 1fr
+}.detail-market-row {
+    grid-template-columns: 1fr
+}.detail-variant-row > div {
+    border-left: 0;
+    padding: 12px 0
+}.detail-market-row > div {
+    border-left: 0;
+    padding: 12px 0
+}.detail-market-row > div:nth-child(even) {
+    border-left: 0;
+    padding: 12px 0
+}.detail-variant-row > div + div {
+    border-top: 1px solid var(--detail-line)
+}.detail-market-row > div + div {
+    border-top: 1px solid var(--detail-line)
+}.detail-energy > strong {
+    font-size: 32px
+}.detail-nutrition-row {
+    gap: 14px;
+    padding: 15px 0
+}.detail-nutrition-row > span {
+    font-size: 12.5px
+}.detail-nutrition-row > strong {
+    max-width: 190px;
+    font-size: 15px
+}.detail-ingredient-list {
+    grid-template-columns: 1fr
+}.detail-state.is-error {
+    flex-direction: column
+}.detail-stage .detail-state.is-error > p {
+    flex: 0 1 auto;
+    width: 100%
+}
+}
+
+.detail-manufacturing-country-values {
+  display: grid;
+  gap: 10px;
+  min-width: 0
+}
+
+.detail-manufacturing-country-value {
+  display: grid;
+  gap: 3px;
+  min-width: 0
+}
+
+.detail-manufacturing-country-value > strong {
+  color: var(--detail-text);
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere
+}
+
+.detail-manufacturing-country-value > small {
+  color: var(--detail-muted);
+  line-height: 1.55
+}
+
+.detail-disclosure > summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--detail-text);
+  font-weight: 500;
+  line-height: 1.5
+}
+
+.detail-disclosure > summary:focus-visible {
+  outline: 2px solid var(--cf-line);
+  outline-offset: 3px
+}
+
+.detail-manufacturing-disclosure {
+  margin-top: 24px
+}
+
+.detail-manufacturing-disclosure .detail-fact-lines {
+  margin-top: 2px
+}
+
+.detail-market-disclosure .detail-market-list {
+  margin-top: 0
+}
+
+@media (max-width: 760px) {.detail-manufacturing-country-value > strong {
+    font-size: 14px
+}.detail-manufacturing-country-value > small {
+    font-size: 12px
+}.detail-disclosure > summary {
+    min-height: 52px;
+    font-size: 14px
+}
+}
+
+.detail-stage {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain
+}
+
+.research-shell > .detail-stage {
+  grid-row: 2 / -1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto
+}
+
+@supports (height: 100dvh) {.detail-stage {
+    height: 100dvh
+}.research-shell > .detail-stage {
+    height: 100%
+}
+}
+
+.detail-state.is-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px
+}
+
+.detail-state.is-error > p {
+  flex: 1 1 220px;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.6
+}
+
+.detail-state.is-error > button {
+  flex: 0 0 auto;
+  min-width: 88px;
+  min-height: 44px;
+  border-radius: 4px;
+  padding: 0 14px;
+  background: var(--cf-surface);
+  cursor: pointer;
   font-size: 11px;
+  font-weight: 780
 }
 
-@media (max-width: 1100px) {
-  .detail-identity {
-    grid-template-columns: 90px minmax(0, 1fr);
-  }
-
-  .detail-product-image,
-  .detail-image-placeholder {
-    width: 90px;
-    height: 90px;
-  }
-
-  .detail-status-grid {
-    grid-column: 1 / -1;
-  }
-
-  .detail-fact-table {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .detail-market-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.detail-state.is-error > button {
+  border: 1px solid var(--detail-line);
+  color: var(--detail-accent)
 }
 
-@media (max-width: 760px) {
-  .detail-topbar {
-    padding: 0 16px;
-  }
+.detail-tabs button:focus-visible {
+  outline: 3px solid rgba(35, 76, 67, 0.28);
+  outline-offset: 2px
+}
 
-  .detail-identity {
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: 16px;
-    border-right: 0;
-    border-left: 0;
-    padding: 20px 16px;
-  }
+.detail-identity-copy h1 {
+  word-break: keep-all;
+  overflow-wrap: anywhere
+}
 
-  .detail-product-image,
-  .detail-image-placeholder {
-    width: 72px;
-    height: 72px;
-  }
+.detail-ingredient-copy {
+  overflow-wrap: anywhere
+}
 
-  .detail-status-grid,
-  .detail-fact-table,
-  .detail-nutrition-grid,
-  .detail-ingredient-list:not(.detail-ingredient-list-compact) {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-tabs {
+@media (max-width: 760px) {.detail-tabs {
     overflow-x: auto;
-    border-right: 0;
-    border-left: 0;
-  }
+    scrollbar-width: thin
+}.detail-tabs button {
+    min-width: 88px;
+    min-height: 48px
+}
+}
 
-  .detail-tabs button {
-    flex-basis: 120px;
-  }
-
-  .detail-body {
-    margin-top: 12px;
-  }
-
-  .detail-section {
-    border-right: 0;
-    border-left: 0;
-  }
-
-  .detail-variant-row,
-  .detail-market-row {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-fact-table,
-  .detail-nutrition-grid,
-  .detail-variant-list,
-  .detail-market-list,
-  .detail-ingredient-copy,
-  .detail-ingredient-list,
-  .detail-note,
-  .detail-empty,
-  .detail-evidence-context {
-    margin-right: 16px;
-    margin-left: 16px;
-  }
+/* Detail uses the same identity and reading rhythm as the catalog. */
+.detail-stage {background:var(--cf-bg);color:var(--cf-ink);font-family:var(--cf-font)}
+.detail-topbar {position:sticky;top:0;z-index:30}
+.detail-layout {display:block;width:min(1040px,calc(100% - 80px));margin:0 auto}
+.detail-identity {position:static;display:grid;grid-template-columns:130px minmax(0,1fr) auto;align-items:center;gap:32px;padding:40px 0 32px;border:0;border-bottom:1px solid var(--cf-line);background:transparent;margin:0}
+.detail-identity-copy {grid-column:2;grid-row:1;min-width:0}.detail-identity-copy > span {font-size:12px;font-weight:500;color:var(--cf-muted);margin:0 0 10px;letter-spacing:0}
+.detail-identity-copy h1 {font-family:var(--cf-font);font-size:34px;font-weight:800;line-height:1.4;color:var(--cf-ink);letter-spacing:-.04em}
+.detail-identity-copy p {font-size:13px;line-height:1.7;margin:12px 0 0;color:var(--cf-muted)}
+.detail-product-image,.detail-image-placeholder {grid-column:1;grid-row:1;width:130px;height:168px;margin:0;background:transparent;border:0}
+.detail-identity-actions {grid-column:3;grid-row:1;align-self:center}.detail-identity-actions button {padding:10px 20px}
+.detail-tabs {display:flex;flex-direction:row;align-items:center;justify-content:flex-start;position:sticky;top:88px;padding:0;gap:32px;background:var(--cf-bg);border-bottom:1px solid var(--cf-line);margin:0;min-height:60px;height:auto}
+.detail-tabs button {flex:none;font-family:var(--cf-font);min-height:60px;padding:12px 0;min-width:0;font-size:14px;font-weight:600;color:var(--cf-muted);border-radius:0}
+.detail-tabs button.is-active {border-bottom-color:var(--cf-accent);color:var(--cf-ink);background:transparent}
+.detail-body {width:min(850px,100%);margin:30px auto 80px;color:var(--cf-ink);font-size:15px;line-height:1.8}
+.detail-section {border:0;border-radius:0;background:transparent;box-shadow:none;margin:0 0 34px;padding:0}
+.detail-section-heading {padding:0 0 14px;border-bottom:1px solid var(--cf-line);background:transparent;margin:0 0 16px;align-items:baseline;gap:16px}
+.detail-section-heading h2,.detail-basis-block h3 {font-family:var(--cf-font);font-size:19px;font-weight:700;color:var(--cf-ink);letter-spacing:-.025em;line-height:1.5}
+.detail-section-heading span {font-size:12px;line-height:1.7}
+.detail-fact-lines,.detail-fact-lines-compact {padding:0;gap:0}.detail-fact-lines .detail-fact {padding:12px 0;grid-template-columns:150px minmax(0,1fr);border-bottom:1px solid var(--cf-line);font-size:14px;line-height:1.8;min-height:0}
+.detail-fact span {font-size:13px;color:var(--cf-muted)}.detail-fact strong {font-size:15px;font-weight:500;line-height:1.8;color:var(--cf-ink)}
+.detail-size-list {padding:0;gap:22px}.detail-size-list span {background:transparent;border:0;border-radius:0;padding:0;font-size:15px;color:var(--cf-ink)}
+.detail-state,.detail-empty {padding:20px 0;font-size:14px;line-height:1.8;color:var(--cf-muted);background:transparent;border:0}
+.detail-summary-meta,.detail-evidence-context,.detail-note {font-size:12px;line-height:1.8;margin:10px 0;padding:0;color:var(--cf-muted)}
+.detail-disclosure {margin:18px 0;padding:0;background:transparent;border:0;border-top:1px solid var(--cf-line);border-radius:0}
+.detail-disclosure summary {padding:14px 0;font-size:13px;color:var(--cf-ink);line-height:1.7;cursor:pointer}
+.detail-disclosure > div,.detail-disclosure > p {padding:0;font-size:13px;line-height:1.8}
+.detail-nutrition-row {margin:0;padding:12px 0;border-bottom:1px solid var(--cf-line);font-size:15px}.detail-nutrition-row span {font-size:13px}.detail-nutrition-row strong {font-size:15.5px;font-weight:600;color:var(--cf-ink)}
+.detail-energy {padding:14px 0;border:0;background:transparent;margin:0}.detail-energy strong {font-size:28px;font-weight:700;color:var(--cf-ink)}.detail-energy span {font-size:13px}
+.detail-ingredient-list,.detail-ingredient-copy,.detail-source-disclosure {font-size:15.5px;line-height:1.85;overflow-wrap:anywhere;color:var(--cf-ink)}
+.detail-ingredient-list {padding-left:24px;margin:20px 0;columns:2;column-gap:40px}.detail-ingredient-list li {padding:3px 0;font-size:15.5px;break-inside:avoid}
+.detail-ingredient-reading-help {font-size:12px;color:var(--cf-muted);margin-top:16px}
+@media(max-width:760px){
+ .detail-layout {width:calc(100% - 40px)}.detail-identity {grid-template-columns:84px minmax(0,1fr);gap:22px;padding:26px 0}.detail-product-image,.detail-image-placeholder {width:84px;height:120px}.detail-identity-copy h1 {font-size:25px;line-height:1.5}.detail-identity-copy > span {font-size:11px}.detail-identity-copy p {font-size:12px}.detail-identity-actions {grid-column:1/-1;grid-row:2;justify-self:start}.detail-identity-actions button {font-size:13px}.detail-tabs {top:64px;gap:20px;min-height:52px}.detail-tabs button {font-size:12px;min-height:52px}.detail-body {margin:24px 0 60px}.detail-section {margin-bottom:30px}.detail-section-heading h2 {font-size:18px}.detail-fact-lines .detail-fact {grid-template-columns:110px minmax(0,1fr);gap:16px}.detail-fact span {font-size:12px}.detail-fact strong {font-size:14px}.detail-ingredient-list {columns:1}.detail-disclosure summary {font-size:13px}.detail-section-heading {flex-wrap:wrap;gap:6px}
 }

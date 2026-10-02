@@ -221,7 +221,7 @@ async function waitForUi(predicate, message, timeoutMs = 2500) {
 async function renderApp() {
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(app.App)))
-  await waitForUi(() => document.body.textContent.includes('2 PRODUCTS'), 'catalog settles')
+  await waitForUi(() => document.body.textContent.includes('제품 2개'), 'catalog settles')
 }
 
 async function chooseCurrentAndReachChange() {

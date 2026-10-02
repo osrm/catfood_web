@@ -1,3 +1,4 @@
+import SiteHeader from './SiteHeader'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
@@ -302,20 +303,7 @@ function SwitchTopbar({
   onHome: () => void
   onModeChange: (mode: SecondaryMode) => void
 }) {
-  return (
-    <header className="research-topbar">
-      <button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={onHome}>FELINE ARCHIVE</button>
-      <nav className="mode-nav" aria-label="탐색 모드">
-        <button className="mode-button" type="button" onClick={() => onModeChange('explore')}>조건으로 찾기</button>
-        <button className="mode-button" type="button" onClick={() => onModeChange('lookup')}>제품 찾기</button>
-        <button className="mode-button is-active" type="button" aria-current="page">현재 사료</button>
-      </nav>
-      <div className="research-status">
-        <span>{productCount || '—'} PRODUCTS</span>
-        {error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}
-      </div>
-    </header>
-  )
+  return <SiteHeader className="research-topbar" onHome={onHome} active="switch" onModeChange={(mode) => { if (mode !== 'switch') onModeChange(mode) }} status={<><span>제품 {productCount || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />
 }
 
 function ReferenceRail({
@@ -711,7 +699,7 @@ export default function SwitchFlow({
   }
   function closeSwitchDetail() {
     const fallback = { ...activeSession, detailProductId: null, detailTab: 'overview' as const }
-    if (onHistoryBack) onHistoryBack(fallback)
+    if (onHistoryBack) onHistoryBack(fallback, { compareIds: activeSession.compareIds })
     else updateSession(fallback)
   }
   function openSwitchCompare() {
@@ -1116,7 +1104,7 @@ export default function SwitchFlow({
     return (
       <main className="switch-find-stage">
         <section className="switch-find-hero">
-          <span className="switch-eyebrow">CURRENT FOOD</span>
+
           <h1>현재 먹이는 사료를 찾으세요.</h1>
           <p>지금 먹이는 제품과 규격을 선택하면, 다음 사료와 차이를 비교할 수 있습니다.</p>
           <label className="switch-find-search">
@@ -1183,6 +1171,8 @@ export default function SwitchFlow({
                     </p>
                   </div>
                 </section>
+
+                <button className="switch-primary-action switch-current-confirm" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
                 <section className="switch-preview-facts">
                   <dl>
                     <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div>
@@ -1191,7 +1181,6 @@ export default function SwitchFlow({
                   </dl>
                   <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다. 레시피와 원재료는 확인된 정보만 사용합니다.</p>
                 </section>
-                <button className="switch-primary-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
               </div>
             </aside>
           ) : null}
@@ -1726,7 +1715,7 @@ export default function SwitchFlow({
   }
 
   if (detailProduct && !compareOpen) {
-    return <ProductDetail product={detailProduct} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail product={detailProduct} onHome={onHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {

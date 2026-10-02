@@ -182,7 +182,7 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
 
 test('Home navigation clears workspace query state so refresh remains Home', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=product_0000000000000000')
-  await click('FELINE ARCHIVE')
+  await click('CATFOOD')
   assert.equal(window.location.search, '')
   assert.equal(app.parseNavigationState(window.location.search).screen, 'home')
 })
@@ -398,7 +398,7 @@ test('unapplied condition edits keep the last applied comparison basis when movi
 
 test('starting a new lookup from Home clears prior applied comparison criteria', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
-  await click('FELINE ARCHIVE')
+  await click('CATFOOD')
   assert.equal(window.location.search, '')
 
   const homeInput = document.querySelector('.home-entry-search input')
@@ -1039,4 +1039,38 @@ test('general comparison survives EXPLORE and LOOKUP roundtrip, zero lookup resu
   } finally {
     third.life_stage = previousLifeStage
   }
+})
+
+test('detail comparison action preserves additions and removals through browser back with applied criteria', async () => {
+  const [first, second] = products
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&criteria=1&feed=건식&age=adult&compare=${first.product_id}`)
+  await act(async () => document.querySelector(`[data-product-id="${second.product_id}"]`).click())
+  await click('상세 보기')
+  await click('비교에 추가')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), `${first.product_id},${second.product_id}`)
+  await act(async () => { window.history.back(); await waitForUi(() => !document.querySelector('.detail-stage'), 'detail return') })
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), `${first.product_id},${second.product_id}`)
+  assert.equal(new URL(window.location.href).searchParams.get('age'), 'adult')
+  await click('상세 보기')
+  await click('비교에서 제거')
+  await click('돌아가기')
+  await waitForUi(() => !document.querySelector('.detail-stage'), 'detail removal return')
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), first.product_id)
+  assert.equal(new URL(window.location.href).searchParams.get('q'), 'Product')
+})
+
+test('detail comparison cap allows removal but prevents a sixth product', async () => {
+  const compared = products.slice(0, 5)
+  const sixth = products[5]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${compared.map(p => p.product_id).join(',')}&detail=${sixth.product_id}`)
+  const disabled = document.querySelector('.detail-identity-actions button')
+  assert.equal(disabled.disabled, true)
+  await click('돌아가기')
+  await act(async () => document.querySelector(`[data-product-id="${compared[0].product_id}"]`).click())
+  await click('상세 보기')
+  assert.equal(document.querySelector('.detail-identity-actions button').disabled, false)
+  await click('비교에서 제거')
+  await click('돌아가기')
+  await waitForUi(() => !document.querySelector('.detail-stage'), 'cap removal return')
+  assert.equal(new URL(window.location.href).searchParams.get('compare').split(',').length, 4)
 })

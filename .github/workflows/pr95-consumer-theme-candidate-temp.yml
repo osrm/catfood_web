@@ -1,0 +1,63 @@
+name: Temporary PR95 consumer theme candidate
+on:
+  push:
+    branches:
+      - tmp/pr95-consumer-theme-candidate-20261002
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://gnosbstdatkytsyxuapt.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_edpd7duWsG2uagRr-n3IHw_X1hEAjKV
+      VITE_DECISION_INTAKE_ENABLED: "false"
+      PRODUCT_SHA: 090adfd31f07479179449f126b37ea0697c5ad3f
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - name: Preserve QA source
+        run: |
+          mkdir -p /tmp/pr95-consumer-theme
+          cp qa/pr95-consumer-theme-candidate.mjs /tmp/pr95-consumer-theme/
+      - name: Checkout exact product candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 090adfd31f07479179449f126b37ea0697c5ad3f
+          clean: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build exact product candidate
+        run: |
+          test "$(git log -1 --format=%H)" = "$PRODUCT_SHA"
+          npm run build
+      - name: Install browser driver
+        run: |
+          cd /tmp/pr95-consumer-theme
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Serve exact production candidate
+        run: |
+          nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/pr95-vite.log 2>&1 &
+          for i in {1..50}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 0.25
+          done
+          cat /tmp/pr95-vite.log
+          exit 1
+      - name: Review mobile and desktop consumer surfaces
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/pr95-consumer-theme-candidate-output" CANDIDATE_URL="http://127.0.0.1:4173/" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/pr95-consumer-theme/pr95-consumer-theme-candidate.mjs
+          cp /tmp/pr95-consumer-theme/pr95-consumer-theme-candidate.mjs "$GITHUB_WORKSPACE/pr95-consumer-theme-candidate-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr95-consumer-theme-candidate
+          path: pr95-consumer-theme-candidate-output
+          retention-days: 7

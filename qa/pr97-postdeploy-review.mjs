@@ -109,7 +109,7 @@ async function generalFlow(width, height, label) {
   const { context, page } = await pageAt(width, height)
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 30000 })
   await waitHome(page)
-  assert.match(norm(await page.locator('.home-start-copy h1').textContent()), /이 사료와 저 사료, 뭐가 다를까요\?/)
+  assert.match(norm(await page.locator('.home-start-copy h1').textContent()), /이 사료와 저 사료,\s*뭐가 다를까요\?/)
   assert.match(norm(await page.locator('.home-start-copy > p').textContent()), /원재료와 영양 성분을 한곳에서 확인할 수 있어요/)
   await capture(page, `${label}-home`, `01-${label}-home.png`, '.home-shell')
 

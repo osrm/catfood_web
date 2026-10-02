@@ -35,6 +35,7 @@ import './switch-compare-dock-clearance.css'
 import './mobile-switch-compare-header.css'
 import './quick-view-editorial.css'
 import './switch-results-reviewed.css'
+import './consumer-theme-unified.css'
 
 const ingredientScrollSettleTimers = new WeakMap<HTMLElement, number>()
 const ingredientAlignedScrollPositions = new WeakMap<HTMLElement, number>()

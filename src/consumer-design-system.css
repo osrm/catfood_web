@@ -553,6 +553,16 @@ body {
   color: var(--cat-text);
 }
 
+.research-filters,
+.research-results,
+.research-quick-view,
+.research-results-list,
+.research-result-row,
+.research-result-card {
+  border-radius: 0 !important;
+  box-shadow: none;
+}
+
 .research-result-row {
   border-bottom: 1px solid var(--cat-line);
   background: #fff;
@@ -989,6 +999,27 @@ body {
 .switch-workflow-shell {
   background: var(--cat-bg);
   color: var(--cat-text);
+}
+
+.switch-workflow-shell .switch-find-search,
+.switch-workflow-shell .switch-find-body,
+.switch-current-preview,
+.switch-candidate-inspector,
+.switch-candidate-pane,
+.switch-results-workspace,
+.switch-candidate-item,
+.switch-find-result {
+  border-radius: 0 !important;
+  box-shadow: none;
+}
+
+.switch-workflow-shell .switch-find-result-image,
+.switch-workflow-shell .switch-find-result .switch-image-placeholder,
+.switch-preview-image,
+.switch-inspector-image,
+.switch-candidate-image,
+.switch-reference-image {
+  border-radius: 0 !important;
 }
 
 .switch-workflow-shell .research-topbar {

@@ -191,7 +191,7 @@ export default function Home({
               <article className="home-entry-route">
                 <h2>지금 먹이는 사료와 비교</h2>
                 <p>바꾸고 싶은 점을 골라 다른 제품을 찾아보세요.</p>
-                <button type="button" onClick={() => onStart('switch')}>현재 사료 선택 →</button>
+                <button type="button" aria-label="현재 사료로 시작 →" onClick={() => onStart('switch')}>현재 사료 선택 →</button>
               </article>
             </div>
           </section>

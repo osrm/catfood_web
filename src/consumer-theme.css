@@ -1350,3 +1350,174 @@ body,
     height: 146px;
   }
 }
+
+
+/* Final conflict cleanup: retire legacy display substitutions and serif/teal overrides. */
+.home-shell.home-knowledge-shell {
+  --home-ink: var(--cf-text);
+  --home-accent: var(--cf-accent);
+  --home-warm: var(--cf-muted);
+  --home-muted: var(--cf-muted);
+  --home-line: var(--cf-line);
+  --home-soft: var(--cf-soft);
+  --home-paper: var(--cf-surface);
+  background: var(--cf-bg);
+  color: var(--cf-text);
+}
+
+.home-knowledge-shell .home-header {
+  border-bottom-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.home-knowledge-shell .home-entry-board {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.home-knowledge-shell .home-logo,
+.home-knowledge-shell .home-start-copy h1,
+.home-knowledge-shell .home-entry-lookup h2,
+.home-knowledge-shell .home-entry-route h2,
+.home-knowledge-shell .home-section-heading h2,
+.home-knowledge-shell .home-guide h3 {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+}
+
+.home-knowledge-shell .home-catalog-status strong,
+.home-knowledge-shell .home-brand-shortcut,
+.home-knowledge-shell .home-reading-note button {
+  color: var(--cf-accent);
+}
+
+.research-shell .research-brand {
+  color: var(--cf-text);
+  font-size: 18px !important;
+  font-weight: 900;
+}
+
+.research-shell .research-brand::after {
+  content: none !important;
+  display: none !important;
+}
+
+.research-shell .research-results-list {
+  overflow: hidden;
+  border: 1px solid var(--cf-line);
+  border-radius: 0;
+}
+
+.research-shell .research-result-row,
+.research-shell .research-result-card,
+.research-shell .research-result-compare {
+  border-radius: 0;
+}
+
+.research-shell .research-result-card.is-selected {
+  background: var(--cf-soft);
+  box-shadow: inset 3px 0 0 var(--cf-accent);
+}
+
+.research-shell .research-result-open,
+.research-shell .switch-candidate-open,
+.research-shell .switch-find-result-open {
+  color: var(--cf-accent);
+}
+
+.detail-stage .detail-wordmark,
+.detail-stage .detail-identity-copy h1,
+.detail-stage .detail-section-heading h2,
+.detail-stage .detail-supplemental h3,
+.detail-stage .detail-basis-block h3,
+.compare-stage .compare-header h1,
+.compare-stage .compare-product-copy > strong,
+.research-shell .quick-view-identity h1,
+.switch-workflow-shell .switch-find-hero h1,
+.switch-workflow-shell .switch-step-header h1,
+.switch-workflow-shell .switch-preview-identity h2,
+.switch-workflow-shell .switch-inspector-identity h1 {
+  font-family: var(--cf-font);
+}
+
+.detail-stage .detail-wordmark {
+  color: var(--cf-text);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.detail-stage .detail-identity-copy h1 {
+  color: var(--cf-text);
+  font-weight: 900;
+  line-height: 1.24;
+}
+
+.detail-stage .detail-section-heading h2,
+.detail-stage .detail-supplemental h3,
+.detail-stage .detail-basis-block h3 {
+  color: var(--cf-text);
+  font-weight: 850;
+}
+
+.compare-stage .compare-header h1,
+.compare-stage .compare-product-copy > strong {
+  color: var(--cf-text);
+  font-weight: 850;
+}
+
+.compare-stage .compare-table .compare-row .compare-cell {
+  color: var(--cf-text);
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.compare-stage .compare-row.is-context .compare-cell {
+  color: var(--cf-muted);
+  font-size: 13px;
+}
+
+.compare-stage .compare-ingredient-text {
+  color: var(--cf-text);
+  font-size: 15.5px;
+  line-height: 1.65;
+}
+
+.switch-workflow-shell .switch-primary-action,
+.switch-workflow-shell .switch-current-confirm,
+.switch-workflow-shell .switch-compare-dock > button {
+  border-color: var(--cf-accent);
+  background: var(--cf-accent);
+  color: #fff;
+}
+
+.switch-workflow-shell .switch-primary-action:hover:not(:disabled),
+.switch-workflow-shell .switch-current-confirm:hover:not(:disabled),
+.switch-workflow-shell .switch-compare-dock > button:hover {
+  border-color: var(--cf-accent-dark);
+  background: var(--cf-accent-dark);
+  color: #fff;
+}
+
+.switch-workflow-shell .switch-secondary-action,
+.switch-workflow-shell .switch-change-current {
+  border-color: var(--cf-line-strong);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+
+.switch-workflow-shell .switch-step-header > span,
+.switch-workflow-shell .switch-eyebrow,
+.switch-workflow-shell .switch-reference-label {
+  color: var(--cf-accent);
+}
+
+@media (max-width: 760px) {
+  .research-shell .research-brand {
+    font-size: 15px !important;
+  }
+
+  .detail-stage .detail-identity-copy h1 {
+    font-size: 25px;
+    line-height: 1.28;
+  }
+}

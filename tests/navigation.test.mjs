@@ -191,10 +191,10 @@ test('direct detail URL restores the selected tab and still provides a way back 
   const id = products[2].product_id
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${id}&detailTab=nutrition`)
   assert.match(document.body.textContent, /Product 002/)
-  const nutritionTab = document.getElementById('detail-tab-nutrition')
+  const nutritionTab = document.getElementById('detail-tab-ingredients')
   assert.equal(nutritionTab?.getAttribute('aria-selected'), 'true')
   assert.equal(nutritionTab?.getAttribute('aria-controls'), 'detail-panel-nutrition')
-  assert.equal(document.querySelector('[role="tabpanel"]:not([hidden])')?.getAttribute('aria-labelledby'), 'detail-tab-nutrition')
+  assert.equal(document.querySelector('[role="tabpanel"]:not([hidden])')?.getAttribute('aria-labelledby'), 'detail-tab-ingredients')
   await click('제품 목록')
   assert.equal(document.querySelector('.detail-stage'), null)
   assert.ok(document.querySelector('.research-results'))
@@ -919,8 +919,8 @@ test('detail tablist supports arrow-key focus movement', async () => {
   const overview = document.getElementById('detail-tab-overview')
   overview.focus()
   await act(async () => overview.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
-  await waitForUi(() => document.activeElement?.id === 'detail-tab-nutrition', 'nutrition tab receives focus after ArrowRight')
-  assert.equal(document.activeElement?.id, 'detail-tab-nutrition')
+  await waitForUi(() => document.activeElement?.id === 'detail-tab-ingredients', 'ingredients tab receives focus after ArrowRight')
+  assert.equal(document.activeElement?.id, 'detail-tab-ingredients')
   assert.equal(document.activeElement?.getAttribute('aria-selected'), 'true')
 })
 

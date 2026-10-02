@@ -3529,3 +3529,21 @@
  .switch-workflow-shell .switch-change-desktop-criteria {display:none}
  .switch-workflow-shell .switch-change-mobile-criteria {display:block}
 }
+/* Keep identity and actions within reach before longer evidence. */
+.switch-workflow-shell .switch-session-bar {display:grid;grid-template-columns:1.2fr 1fr 1fr auto;align-items:center;min-height:82px}
+.switch-workflow-shell .switch-session-bar > div {padding:14px 18px;min-width:0}
+.switch-workflow-shell .switch-session-bar > button {padding:14px 18px;min-height:44px}
+.switch-workflow-shell .switch-session-bar strong {color:var(--cf-ink)}
+.switch-workflow-shell .switch-candidate-inspector {align-self:start;height:auto;min-height:0}
+.switch-workflow-shell .switch-inspector-scroll {display:block;height:auto;min-height:0;overflow:visible}
+.switch-workflow-shell .switch-inspector-identity {display:grid;grid-template-columns:84px minmax(0,1fr);align-items:center;gap:20px;padding:0 0 20px;min-height:0}
+.switch-workflow-shell .switch-inspector-image,.switch-workflow-shell .switch-inspector-identity .switch-image-placeholder {width:84px;height:112px;max-width:100%;object-fit:contain}
+.switch-workflow-shell .switch-inspector-identity h1 {font-size:25px;line-height:1.4;color:var(--cf-ink)}
+.switch-workflow-shell .switch-inspector-actions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 20px}
+.switch-workflow-shell .switch-inspector-actions > button {min-width:0;width:100%;min-height:44px;height:auto;padding:10px;line-height:1.5}
+@media(max-width:760px){
+ .switch-workflow-shell .switch-session-bar {grid-template-columns:repeat(2,minmax(0,1fr))}
+ .switch-workflow-shell .switch-session-current,.switch-workflow-shell .switch-session-bar > button {grid-column:1/-1}
+ .switch-workflow-shell .switch-inspector-identity {grid-template-columns:72px minmax(0,1fr)}
+ .switch-workflow-shell .switch-inspector-image,.switch-workflow-shell .switch-inspector-identity .switch-image-placeholder {width:72px;height:96px}
+}

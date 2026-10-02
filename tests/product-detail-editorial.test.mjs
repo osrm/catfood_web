@@ -425,6 +425,40 @@ test('overview omits repeated package facts for a confirmed single unit and omit
   assert.match(document.body.textContent, /향미 연관 원료참치/)
 })
 
+test('overview falls back to a full ingredient count when no summary facts exist and leaves no empty fact wrapper', async () => {
+  const product = {
+    ...target,
+    confirmed_present_ingredient_terms: [],
+    direct_evidence_ingredient_terms: [],
+    flavor_associated_ingredient_terms: [],
+  }
+  const names = Array.from({ length: 36 }, (_, index) => `ingredient-${index + 1}`)
+  handler = async (url) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+      ...ingredients,
+      completeness_status: 'full',
+      raw_text: names.join(', '),
+      ingredient_names: names,
+      ingredient_count: names.length,
+      supplemental_full_raw_text: null,
+      supplemental_full_ingredient_names: [],
+      supplemental_full_ingredient_count: 0,
+    }])
+    return Response.json([])
+  }
+  await act(async () => {
+    root.render(createElement(app.ProductDetail, { product, onClose() {} }))
+    await Promise.resolve()
+  })
+
+  const summarySection = [...document.querySelectorAll('.detail-section')].find((node) => node.querySelector('h2')?.textContent === '원재료 요약')
+  assert.ok(summarySection)
+  assert.equal(summarySection.querySelector('.detail-summary-meta')?.textContent, '전체 원재료 36개 확인')
+  assert.equal(summarySection.querySelector('.detail-fact-lines'), null)
+  assert.match(summarySection.textContent, /원재료 보기 →/)
+})
+
 test('overview keeps package details unless the API confirms a matching single unit', async () => {
   const cases = [
     { key: 'bundle', package_size_text: '81 g × 6', sales_bundle_status: 'official_sales_bundle', package_weight_g: 81, units_per_sale: 6, sale_total_weight_g: 486 },

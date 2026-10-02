@@ -1,0 +1,40 @@
+name: QA-only PR97 postdeploy review
+
+on:
+  push:
+    branches:
+      - 'qa/pr97-postdeploy-review-20261002'
+
+permissions:
+  contents: read
+
+jobs:
+  postdeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install Chrome driver
+        run: |
+          mkdir -p /tmp/pr97-postdeploy
+          cp qa/pr97-postdeploy-review.mjs /tmp/pr97-postdeploy/
+          cd /tmp/pr97-postdeploy
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Review deployed Pages
+        env:
+          OUT_DIR: ${{ github.workspace }}/pr97-postdeploy-output
+        run: |
+          node /tmp/pr97-postdeploy/pr97-postdeploy-review.mjs
+          cp /tmp/pr97-postdeploy/pr97-postdeploy-review.mjs "$OUT_DIR/validation-source.mjs"
+          printf '%s\n' 'b418be11a0bba14487303f86a02b50b98da1a37b' > "$OUT_DIR/deployed-merge-sha.txt"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr97-postdeploy-review
+          path: pr97-postdeploy-output
+          retention-days: 7

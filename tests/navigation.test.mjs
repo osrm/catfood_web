@@ -182,7 +182,7 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
 
 test('Home navigation clears workspace query state so refresh remains Home', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=product_0000000000000000')
-  await click('FELINE ARCHIVE')
+  await click('CATFOOD')
   assert.equal(window.location.search, '')
   assert.equal(app.parseNavigationState(window.location.search).screen, 'home')
 })
@@ -398,7 +398,7 @@ test('unapplied condition edits keep the last applied comparison basis when movi
 
 test('starting a new lookup from Home clears prior applied comparison criteria', async () => {
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
-  await click('FELINE ARCHIVE')
+  await click('CATFOOD')
   assert.equal(window.location.search, '')
 
   const homeInput = document.querySelector('.home-entry-search input')

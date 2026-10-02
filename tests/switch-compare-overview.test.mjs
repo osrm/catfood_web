@@ -171,7 +171,7 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   await renderCompare()
   const currentHead = document.querySelector('.compare-current-product-head')
   assert.ok(currentHead)
-  assert.match(currentHead.textContent, /현재 사료 · 기준/)
+  assert.match(currentHead.textContent, /지금 먹이는 사료/)
   assert.match(currentHead.textContent, /현재브랜드/)
   assert.match(currentHead.textContent, /현재 사료 이름 전체/)
   assert.match(currentHead.textContent, /사용 규격 · 1 kg/)

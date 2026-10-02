@@ -304,7 +304,7 @@ function SwitchTopbar({
 }) {
   return (
     <header className="research-topbar">
-      <button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={onHome}>FELINE ARCHIVE</button>
+      <button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={onHome}>CATFOOD</button>
       <nav className="mode-nav" aria-label="탐색 모드">
         <button className="mode-button" type="button" onClick={() => onModeChange('explore')}>조건으로 찾기</button>
         <button className="mode-button" type="button" onClick={() => onModeChange('lookup')}>제품 찾기</button>
@@ -1116,9 +1116,9 @@ export default function SwitchFlow({
     return (
       <main className="switch-find-stage">
         <section className="switch-find-hero">
-          <span className="switch-eyebrow">CURRENT FOOD</span>
+          <span className="switch-eyebrow">지금 먹이는 사료</span>
           <h1>현재 먹이는 사료를 찾으세요.</h1>
-          <p>지금 먹이는 제품과 규격을 선택하면, 다음 사료와 차이를 비교할 수 있습니다.</p>
+          <p>제품과 실제로 먹이는 규격을 고르면 다른 사료와 차이를 비교할 수 있어요.</p>
           <label className="switch-find-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
             <input
@@ -1169,7 +1169,7 @@ export default function SwitchFlow({
 
           {previewProduct ? (
             <aside className="switch-current-preview">
-              <div className="switch-preview-topline"><span>현재 사료 확인</span><button type="button" onClick={() => setPreviewProductId(null)}>닫기 ×</button></div>
+              <div className="switch-preview-topline"><span>지금 먹이는 사료</span><button type="button" onClick={() => setPreviewProductId(null)}>닫기 ×</button></div>
               <div className="switch-preview-scroll">
                 <section className="switch-preview-identity">
                   <ProductImage className="switch-preview-image" product={previewProduct} />
@@ -1183,15 +1183,15 @@ export default function SwitchFlow({
                     </p>
                   </div>
                 </section>
+                <button className="switch-primary-action switch-current-confirm" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
                 <section className="switch-preview-facts">
                   <dl>
                     <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div>
                     <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>판매 규격 수</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
                   </dl>
-                  <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다. 레시피와 원재료는 확인된 정보만 사용합니다.</p>
+                  <p>다음 단계에서 실제로 먹이는 규격을 고를 수 있어요.</p>
                 </section>
-                <button className="switch-primary-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
               </div>
             </aside>
           ) : null}
@@ -1584,7 +1584,7 @@ export default function SwitchFlow({
                   ref={candidateSearchInputRef}
                   type="search"
                   aria-label="후보 제품 검색"
-                  placeholder="후보 브랜드 또는 제품명 검색"
+                  placeholder="브랜드 또는 제품명 검색"
                   value={candidateSearch}
                   onChange={(event) => {
                     setCandidateSearch(event.target.value)

@@ -390,7 +390,7 @@ test('quick view moves focus to close and returns it to the opening product with
 test('EXPLORE guidance keeps the unknown policy in one place and labels recipe refine separately', async () => {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
-  assert.match(document.body.textContent, /사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다\./)
+  assert.match(document.body.textContent, /사료 형태와 연령을 골라 찾아보세요\./)
   assert.doesNotMatch(document.body.textContent, /명백히 충돌하는 제품만 제외/)
 
   await click('조건 고르기')

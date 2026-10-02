@@ -297,7 +297,7 @@ test('catalog 503 retries once, preserves LOOKUP query, and opens quick view', a
 
   await click(all('.research-result-card')[0])
   assert.ok(document.querySelector('.research-quick-view'))
-  assert.match(document.querySelector('.quick-view-topline').textContent, /빠른 보기/)
+  assert.match(document.querySelector('.quick-view-topline').textContent, /제품 정보/)
 })
 
 test('catalog retry preserves applied EXPLORE conditions', async () => {

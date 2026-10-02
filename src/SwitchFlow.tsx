@@ -350,7 +350,7 @@ function ReferenceRail({
         <span>현재 규격</span>
         <strong>{variantText}</strong>
       </div>
-      <button className="switch-change-current" type="button" onClick={onChangeProduct}>지금 사료 다시 선택</button>
+      <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 사료 다시 선택</button>
 
       <ol className="switch-progress" aria-label="현재 사료 전환 단계">
         {steps.map((label, index) => (

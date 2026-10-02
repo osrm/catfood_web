@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import SiteHeader from './SiteHeader'
+import type { CatalogProduct } from './api'
 import { isDemoPreview } from './preview-mode'
 
 type HomeMode = 'switch' | 'explore' | 'lookup'
@@ -84,12 +86,14 @@ const GLOSSARY = [
 
 export default function Home({
   productCount,
+  products = [],
   loading,
   error,
   onRetryCatalog,
   onStart,
 }: {
   productCount: number
+  products?: CatalogProduct[]
   loading: boolean
   error: boolean
   onRetryCatalog: () => void
@@ -102,6 +106,7 @@ export default function Home({
   const trimmedQuery = query.trim()
   const catalogCount = productCount ? productCount.toLocaleString('ko-KR') : '—'
   const demo = isDemoPreview()
+  const examples = products.filter((product, index, all) => product.display_image_url && all.findIndex((other) => other.display_image_url && other.brand === product.brand) === index).slice(0, 2)
 
   function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -137,66 +142,30 @@ export default function Home({
 
   return (
     <div className="home-shell home-knowledge-shell">
-      <header className="home-header">
-        <div className="home-header-inner">
-          <div className="home-brand">
-            <strong className="home-logo">CATFOOD</strong>
-            <span>고양이 사료 탐색·비교</span>
-          </div>
-          <div className={error ? 'home-catalog-status is-error' : 'home-catalog-status'} aria-live="polite">
-            {loading ? <span>제품 목록 불러오는 중</span> : error ? <span>제품 목록 조회 실패</span> : <>현재 확인된 제품 <strong>{catalogCount}개</strong></>}
-          </div>
-        </div>
-      </header>
-
+      <SiteHeader className="home-header" onModeChange={(mode) => onStart(mode)} status={<div className={error ? 'home-catalog-status is-error' : 'home-catalog-status'} aria-live="polite">{loading ? '제품 목록 불러오는 중' : error ? '제품 목록 조회 실패' : <>현재 확인된 제품 <strong>{catalogCount}개</strong></>}</div>} />
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>사료를 찾는 방법을 고르세요.</h1>
-          </div>
-
-          {error ? <div className="home-catalog-error" role="alert">
-            <div><strong>제품 목록을 불러오지 못했습니다.</strong><span>검색이나 조건 탐색을 시작하기 전에 다시 시도해 주세요.</span></div>
-            <button type="button" onClick={onRetryCatalog}>다시 시도</button>
-          </div> : null}
-
-          <section className="home-entry-board" aria-label="CATFOOD 시작 방법">
+            <h1>이 사료와 저 사료,<br />뭐가 다를까요?</h1>
+            <p>원재료와 영양 성분을 한곳에서 확인할 수 있어요.</p>
+            {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
-              <h2 id="home-lookup-title">브랜드·제품명 검색</h2>
+              <h2 id="home-lookup-title" className="visually-hidden">브랜드·제품명 검색</h2>
               <form className="home-entry-search" onSubmit={submitLookup}>
-                <label className="home-entry-search-field">
-                  <span className="home-entry-search-icon" aria-hidden="true" />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="예: GO! SOLUTIONS, 로얄캐닌"
-                    aria-label="브랜드 또는 제품명 검색"
-                  />
-                </label>
+                <label className="home-entry-search-field"><span className="home-entry-search-icon" aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="브랜드 또는 제품명" aria-label="브랜드 또는 제품명 검색" /></label>
                 <button className="home-entry-search-submit" type="submit" disabled={!trimmedQuery}>검색</button>
               </form>
+              <div className="home-brand-shortcuts"><span>브랜드로 찾기</span>{['AATU', 'GO! SOLUTIONS', '로얄캐닌'].map((brand) => <button className="home-brand-shortcut" type="button" key={brand} onClick={() => onStart('lookup', brand)}>{brand}</button>)}</div>
             </section>
-
-            <div className="home-entry-routes">
-              <article className="home-entry-route">
-                <h2>현재 사료에서 바꾸기</h2>
-                <p>지금 먹는 제품을 기준으로 유지할 것과 바꿀 것을 정합니다.</p>
-                <button type="button" onClick={() => onStart('switch')}>현재 사료로 시작 →</button>
-              </article>
-
-              <article className="home-entry-route">
-                <h2>조건으로 찾아보기</h2>
-                <p>사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다.</p>
-                <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
-              </article>
-            </div>
-          </section>
-
-          <section className="home-reading-note" aria-label="정보 안내">
-            <p>표시 기준과 용어가 궁금할 때 확인하세요.</p>
-            <button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button>
-          </section>
+          </div>
+          {examples.length > 0 ? <aside className="home-product-example" aria-label="등록된 제품 예시">
+            <span>등록된 제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
+          </aside> : null}
+          <section className="home-entry-board" aria-label="CATFOOD 시작 방법"><div className="home-entry-routes">
+            <article className="home-entry-route"><span aria-hidden="true">01</span><div><h2>조건으로 사료 찾기</h2><p>사료 형태와 연령을 골라 찾아보세요.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
+            <article className="home-entry-route"><span aria-hidden="true">02</span><div><h2>지금 먹이는 사료와 비교</h2><p>바꾸고 싶은 점을 골라 다른 제품을 찾아보세요.</p></div><button type="button" onClick={() => onStart('switch')}>현재 사료로 시작 →</button></article>
+          </div></section>
+          <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button></section>
         </section>
 
         {demo ? (

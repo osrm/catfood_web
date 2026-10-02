@@ -367,7 +367,7 @@ test('catalog failure is visible on Home and EXPLORE condition entry, masks inte
   assert.doesNotMatch(conditionAlert.textContent, /Data API|503|internal provenance/)
   catalogFailure = false
   await click(conditionAlert.querySelector('button'))
-  await waitForUi(() => document.querySelector('.catalog-inline-state[role="alert"]') === null && document.body.textContent.includes('85 PRODUCTS'), 'catalog retry succeeded')
+  await waitForUi(() => document.querySelector('.catalog-inline-state[role="alert"]') === null && document.body.textContent.includes('제품 85개'), 'catalog retry succeeded')
   assert.equal(document.querySelector('.catalog-inline-state[role="alert"]'), null)
 })
 
@@ -390,12 +390,12 @@ test('quick view moves focus to close and returns it to the opening product with
 test('EXPLORE guidance keeps the unknown policy in one place and labels recipe refine separately', async () => {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
-  assert.match(document.body.textContent, /사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다\./)
+  assert.match(document.body.textContent, /사료 형태와 연령을 골라 찾아보세요\./)
   assert.doesNotMatch(document.body.textContent, /명백히 충돌하는 제품만 제외/)
 
   await click('조건 고르기')
   const editorText = document.body.textContent
-  assert.match(editorText, /사료 형태·연령과 원하는 조건을 고릅니다\./)
+  assert.match(editorText, /사료 형태와 연령, 원하는 조건을 골라주세요\./)
   assert.equal((editorText.match(/선택한 조건 정보가 없는 제품도 결과에 남습니다\./g) ?? []).length, 1)
   assert.doesNotMatch(editorText, /명백히 충돌하는 제품만 제외|미확인은 남겨둡니다|조건 정보가 없는 제품도 결과에 포함됩니다/)
   assert.match(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)

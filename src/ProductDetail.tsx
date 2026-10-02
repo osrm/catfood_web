@@ -15,6 +15,7 @@ import {
   type ProductMarketDetail,
   type ProductVariant,
 } from './api'
+import SiteHeader from './SiteHeader'
 import type { DetailTab } from './navigation-state'
 
 type DetailResource = 'variants' | 'nutrition' | 'ingredients' | 'manufacturing' | 'markets'
@@ -179,9 +180,13 @@ function ProductImage({ product }: { product: CatalogProduct }) {
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
-export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange }: {
+export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, onToggleCompare, compared = false, compareFull = false }: {
   product: CatalogProduct
   onClose: () => void
+  onHome?: () => void
+  onToggleCompare?: () => void
+  compared?: boolean
+  compareFull?: boolean
   backLabel?: string
   initialTab?: DetailTab
   onTabChange?: (tab: DetailTab) => void
@@ -330,10 +335,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const tabId = `detail-tab-${tab}`
 
   return <main className="detail-stage" ref={stageRef}>
-    <header className="detail-topbar" ref={topbarRef}>
-      <strong className="detail-wordmark">CATFOOD</strong>
-      <button type="button" onClick={onClose}>{backLabel}</button>
-    </header>
+    <SiteHeader className="detail-topbar" headerRef={topbarRef} onHome={onHome}><button type="button" onClick={onClose}>{backLabel}</button></SiteHeader>
     <div className="detail-layout">
       <aside className="detail-identity">
         <div className="detail-identity-copy">
@@ -342,6 +344,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
           <p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p>
         </div>
         <ProductImage product={product} />
+        {onToggleCompare ? <div className="detail-identity-actions"><button className={compared ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
       </aside>
       <section className="detail-document">
         <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist" ref={tabsRef}>

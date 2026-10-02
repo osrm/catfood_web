@@ -257,7 +257,7 @@ async function renderApp({ preserveHistory = false } = {}) {
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(app.App)))
-  await waitForUi(() => document.body.textContent.includes(`${catalogProducts.length} PRODUCTS`) || document.body.textContent.includes('연결 오류'), 'catalog settles')
+  await waitForUi(() => document.body.textContent.includes(`제품 ${catalogProducts.length}개`) || document.body.textContent.includes('연결 오류'), 'catalog settles')
 }
 
 async function remountApp() {
@@ -266,7 +266,7 @@ async function remountApp() {
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(app.App)))
-  await waitForUi(() => document.body.textContent.includes(`${catalogProducts.length} PRODUCTS`) || document.body.textContent.includes('연결 오류'), 'remounted catalog settles')
+  await waitForUi(() => document.body.textContent.includes(`제품 ${catalogProducts.length}개`) || document.body.textContent.includes('연결 오류'), 'remounted catalog settles')
 }
 
 async function chooseCurrent(productName = current.canonical_name) {
@@ -835,4 +835,27 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
   const ingredientLine = relationLines.find((line) => line.textContent.includes('원료 확인'))
   assert.ok(ingredientLine)
   assert.equal(ingredientLine.querySelector('strong').textContent.split(' · ').filter(Boolean).length >= 5, true)
+})
+
+test('SWITCH candidate detail comparison changes survive browser and explicit return without changing current SKU or criteria', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await selectCandidate(candidateA.canonical_name)
+  const before = session()
+  await click('상세 보기')
+  await waitForUi(() => document.querySelector('.detail-identity-actions'), 'detail comparison action')
+  await click('비교에 추가')
+  await browserBack(() => document.querySelector('.switch-candidate-inspector') && !document.querySelector('.detail-stage'), 'candidate detail add return')
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+  assert.equal(session().currentProductId, before.currentProductId)
+  assert.deepEqual(session().variantSelection, before.variantSelection)
+  assert.deepEqual(session().change, before.change)
+  assert.deepEqual(session().keep, before.keep)
+  await click('상세 보기')
+  await click('비교에서 제거')
+  await click('돌아가기')
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector') && !document.querySelector('.detail-stage'), 'candidate detail remove return')
+  assert.deepEqual(session().compareIds, [])
+  assert.equal(session().currentProductId, before.currentProductId)
+  assert.deepEqual(session().variantSelection, before.variantSelection)
 })

@@ -3227,3 +3227,14 @@
 .research-shell .definition {font-size:13px;line-height:1.8;gap:16px;grid-template-columns:112px minmax(0,1fr)}
 .research-shell .choice {min-height:42px;font-size:13px;border-radius:4px}
 @media(max-width:760px){.research-shell .definition {grid-template-columns:96px minmax(0,1fr);font-size:12px;gap:10px}}
+/* Neutral reading text; accent is reserved for selected controls and actions. */
+.research-shell .research-workspace:has(.condition-actions) .research-pane-heading strong,
+.research-shell .research-workspace:has(.condition-actions) .condition-group-title > span,
+.research-shell .research-workspace:has(.condition-actions) .filter-heading > span:first-child,
+.research-shell .research-workspace:has(.condition-actions) .choice {color:var(--cf-ink)}
+.research-shell .research-workspace:has(.condition-actions) .research-pane-heading span,
+.research-shell .research-workspace:has(.condition-actions) .condition-group-title small,
+.research-shell .research-workspace:has(.condition-actions) .filter-hint,
+.research-shell .research-workspace:has(.condition-actions) .field-note {color:var(--cf-muted)}
+.research-shell .research-workspace:has(.condition-actions) .choice.is-active {color:var(--cf-accent);border-color:var(--cf-accent);background:var(--cf-accent-soft)}
+.research-shell .research-quick-view .quick-view-actions button:first-child {background:var(--cf-accent);color:white}

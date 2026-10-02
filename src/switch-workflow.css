@@ -3547,3 +3547,9 @@
  .switch-workflow-shell .switch-inspector-identity {grid-template-columns:72px minmax(0,1fr)}
  .switch-workflow-shell .switch-inspector-image,.switch-workflow-shell .switch-inspector-identity .switch-image-placeholder {width:72px;height:96px}
 }
+.switch-workflow-shell .switch-inspector-actions > button:first-child {background:var(--cf-accent);color:white}
+/* Header, current-food summary and workspace spacing leave 234px above the panel. */
+@media(min-width:761px){
+ .switch-workflow-shell .switch-candidate-inspector {position:sticky;top:108px;display:grid;grid-template-rows:auto minmax(0,1fr);height:min(680px,calc(100dvh - 234px));max-height:calc(100dvh - 234px);overflow:hidden}
+ .switch-workflow-shell .switch-inspector-scroll {height:100%;min-height:0;overflow-y:auto;overscroll-behavior-y:contain}
+}

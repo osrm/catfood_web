@@ -1429,3 +1429,8 @@
 @media(max-width:760px){.compare-mobile-two-product-key {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}}
 /* Metric cells retain the reviewed 15.5px reading size in both comparison modes. */
 .compare-stage .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value {font-size:15.5px;line-height:1.65}
+/* Responsive comparison copies must not appear in the desktop table. */
+.compare-stage .compare-mobile-two-product-overview,.compare-stage .compare-mobile-two-product-nutrition,.compare-stage .compare-switch-mobile-overview {display:none}
+@media(max-width:760px){
+ .compare-stage .compare-mobile-two-product-overview,.compare-stage .compare-mobile-two-product-nutrition,.compare-stage .compare-switch-mobile-overview {display:block}
+}

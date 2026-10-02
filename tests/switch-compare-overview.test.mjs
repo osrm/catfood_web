@@ -180,7 +180,7 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.equal(document.querySelectorAll('.compare-switch-overview-desktop .compare-remove').length, 2)
   assert.equal(document.querySelectorAll('.compare-switch-overview-desktop .compare-column-role').length, 3)
   assert.equal(document.querySelector('.compare-scope-note'), null)
-  assert.match(document.querySelector('.compare-header p').textContent, /현재 사료와 2개 후보의 제품 정보를 같은 항목으로 비교합니다/)
+  assert.match(document.querySelector('.compare-header p').textContent, /현재 사료와 비교 제품 2개의 기본 정보를 같은 항목에서 봅니다/)
 
   const productFilters = requests.map((url) => url.searchParams.get('product_id')).filter(Boolean)
   assert.ok(productFilters.length >= 4, `expected compare and variant requests, got ${requests.length}`)
@@ -274,7 +274,7 @@ test('SWITCH nutrition adds the fixed current baseline while non-SWITCH comparis
   await renderCompare()
   const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
   await click(nutritionTab)
-  assert.match(document.querySelector('.compare-header p').textContent, /현재 사료를 기준으로 담아둔 2개 후보의 영양 정보를 같은 항목에서 비교합니다/)
+  assert.match(document.querySelector('.compare-header p').textContent, /현재 사료와 비교 제품 2개의 영양 정보를 같은 항목에서 봅니다/)
   assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.ok(document.querySelector('.compare-switch-nutrition-desktop .compare-current-product-head'))
   assert.equal(document.querySelectorAll('.compare-switch-nutrition-desktop .compare-product-head').length, 3)

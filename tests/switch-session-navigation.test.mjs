@@ -442,7 +442,7 @@ test('SWITCH candidate search scans the full evaluated pool and preserves compar
   await reachResultsWithConditions()
   await act(async () => { await new Promise((resolvePromise) => setTimeout(resolvePromise, 20)) })
 
-  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
+  const searchInput = document.querySelector('input[aria-label="비교할 제품 검색"]')
   assert.ok(searchInput)
   assert.equal(all('.switch-candidate-row').some((node) => node.textContent.includes('검색 후보 49')), false, 'late candidate must not be in the first page before searching')
 
@@ -508,7 +508,7 @@ test('closing a filtered-out SWITCH candidate inspector falls back to candidate 
   await renderApp()
   await reachResultsWithConditions()
 
-  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
+  const searchInput = document.querySelector('input[aria-label="비교할 제품 검색"]')
   assert.ok(searchInput)
   await inputValue(searchInput, candidateA.canonical_name)
   await waitForUi(() => all('.switch-candidate-row').some((node) => node.textContent.includes(candidateA.canonical_name)), 'candidate A search result')
@@ -558,7 +558,7 @@ test('SWITCH list compare toggles directly, stays in sync with quick view/search
 
   await renderApp()
   await reachResultsWithConditions()
-  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
+  const searchInput = document.querySelector('input[aria-label="비교할 제품 검색"]')
   assert.ok(searchInput)
 
   let controls = all('.switch-candidate-compare')
@@ -634,7 +634,7 @@ test('SWITCH empty candidates use an edit action and KEEP unset wording without 
   assert.match(document.querySelector('.switch-session-bar').textContent, /KEEP.*따로 고르지 않음/s)
   const empty = document.querySelector('.switch-candidate-list .switch-state-message')
   assert.ok(empty)
-  assert.match(empty.textContent, /조건에 맞는 후보가 없습니다\.바꿀 조건이나 유지할 조건을 수정해 보세요\./)
+  assert.match(empty.textContent, /조건에 맞는 제품이 없습니다\.바꿀 조건이나 유지할 조건을 수정해 보세요\./)
   assert.doesNotMatch(empty.textContent, /임의로 완화|제약 없음/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
   await click(edit)

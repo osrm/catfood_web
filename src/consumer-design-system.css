@@ -1,0 +1,1392 @@
+:root {
+  --cf-bg: #faf9f6;
+  --cf-surface: #ffffff;
+  --cf-text: #252b2c;
+  --cf-muted: #626b6d;
+  --cf-line: #deded7;
+  --cf-line-soft: #ecece7;
+  --cf-accent: #bc3d2c;
+  --cf-accent-hover: #9f3023;
+  --cf-accent-soft: #f8ece9;
+  --cf-soft: #f4f3ef;
+  --cf-font: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --consumer-bg: var(--cf-bg);
+  --consumer-surface: var(--cf-surface);
+  --consumer-soft: var(--cf-soft);
+  --consumer-soft-strong: #efeee9;
+  --consumer-line: var(--cf-line);
+  --consumer-text: var(--cf-text);
+  --consumer-muted: var(--cf-muted);
+  --consumer-dim: #858d8f;
+  --consumer-primary: var(--cf-accent);
+  --consumer-primary-2: var(--cf-accent-hover);
+  --consumer-primary-soft: var(--cf-accent-soft);
+  --consumer-warm: var(--cf-accent);
+  --consumer-warm-soft: var(--cf-accent-soft);
+
+  --home-ink: var(--cf-text);
+  --home-accent: var(--cf-accent);
+  --home-warm: var(--cf-accent);
+  --home-muted: var(--cf-muted);
+  --home-dim: #858d8f;
+  --home-line: var(--cf-line);
+  --home-soft: var(--cf-soft);
+  --home-paper: var(--cf-bg);
+
+  --cat-bg: var(--cf-bg);
+  --cat-surface: var(--cf-surface);
+  --cat-line: var(--cf-line);
+  --cat-line-soft: var(--cf-line-soft);
+  --cat-text: var(--cf-text);
+  --cat-muted: var(--cf-muted);
+  --cat-accent: var(--cf-accent);
+  --cat-accent-soft: var(--cf-accent-soft);
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--cf-font);
+}
+
+body {
+  color: var(--cf-text);
+  background: var(--cf-bg);
+}
+
+button,
+input,
+select,
+textarea {
+  letter-spacing: -0.01em;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--cf-accent);
+  outline-offset: 2px;
+}
+
+/* Shared consumer surfaces */
+.home-shell,
+.research-shell,
+.detail-stage,
+.compare-stage,
+.switch-workflow-shell,
+.switch-results-stage,
+.switch-find-stage {
+  color: var(--cf-text);
+  background: var(--cf-bg);
+  font-family: var(--cf-font);
+}
+
+.home-header,
+.research-topbar,
+.detail-topbar,
+.compare-header {
+  border-color: var(--cf-line);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.home-logo,
+.research-brand,
+.detail-wordmark {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+  font-weight: 850;
+  letter-spacing: -0.04em;
+}
+
+.primary-action,
+.switch-primary-action,
+.home-entry-search-submit,
+.switch-compare-dock > button {
+  border-color: var(--cf-accent);
+  border-radius: 4px;
+  background: var(--cf-accent);
+  color: #fff;
+  box-shadow: none;
+  font-weight: 750;
+}
+
+.primary-action:hover:not(:disabled),
+.switch-primary-action:hover:not(:disabled),
+.home-entry-search-submit:hover:not(:disabled),
+.switch-compare-dock > button:hover:not(:disabled) {
+  border-color: var(--cf-accent-hover);
+  background: var(--cf-accent-hover);
+}
+
+.secondary-action,
+.switch-secondary-action,
+.state-retry,
+.switch-compare-action {
+  border: 1px solid var(--cf-line);
+  border-radius: 4px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  box-shadow: none;
+}
+
+.choice,
+.switch-choice {
+  border-color: var(--cf-line);
+  border-radius: 4px;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+}
+
+.choice.is-active,
+.switch-choice.is-active,
+.switch-choice[aria-pressed="true"] {
+  border-color: var(--cf-accent);
+  background: var(--cf-accent-soft);
+  color: var(--cf-text);
+  box-shadow: inset 3px 0 0 var(--cf-accent);
+}
+
+/* HOME */
+.home-shell.home-knowledge-shell {
+  background: var(--cf-bg);
+}
+
+.home-knowledge-shell .home-header {
+  height: 64px;
+  border-bottom: 1px solid var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.home-knowledge-shell .home-header-inner,
+.home-knowledge-shell .home-knowledge-main {
+  width: min(1120px, calc(100% - 48px));
+}
+
+.home-knowledge-shell .home-brand {
+  align-items: center;
+}
+
+.home-knowledge-shell .home-logo {
+  font-size: 21px;
+}
+
+.home-catalog-status {
+  color: var(--cf-muted);
+  font-size: 12px;
+}
+
+.home-catalog-status strong {
+  color: var(--cf-text);
+}
+
+.home-knowledge-shell .home-knowledge-main {
+  padding: 52px 0 64px;
+}
+
+.home-knowledge-shell .home-start {
+  padding-bottom: 30px;
+}
+
+.home-knowledge-shell .home-start-copy {
+  max-width: 720px;
+  margin-bottom: 30px;
+}
+
+.home-knowledge-shell .home-start-copy h1 {
+  margin: 0;
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+  font-size: clamp(38px, 4.2vw, 52px);
+  font-weight: 850;
+  line-height: 1.12;
+  letter-spacing: -0.055em;
+}
+
+.home-knowledge-shell .home-start-copy p {
+  margin: 16px 0 0;
+  color: var(--cf-muted);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.home-entry-board {
+  display: grid;
+  grid-template-columns: 1fr;
+  border: 1px solid var(--cf-line);
+  border-radius: 0;
+  background: var(--cf-surface);
+  box-shadow: none;
+}
+
+.home-entry-lookup {
+  padding: 30px 34px 32px;
+}
+
+.home-entry-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.home-entry-lookup h2,
+.home-entry-route h2 {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+}
+
+.home-entry-lookup h2 {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.home-brand-shortcut {
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 1px solid var(--cf-line);
+  padding: 4px 0;
+  background: transparent;
+  color: var(--cf-accent);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.home-entry-search {
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.home-entry-search-field {
+  height: 54px;
+  border: 1px solid #c9c9c1;
+  border-radius: 4px;
+  padding: 0 16px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.home-entry-search-field:focus-within {
+  border-color: var(--cf-accent);
+  box-shadow: 0 0 0 2px rgba(188, 61, 44, 0.09);
+}
+
+.home-entry-search-icon {
+  border-color: var(--cf-muted);
+}
+
+.home-entry-search-icon::after {
+  background: var(--cf-muted);
+}
+
+.home-entry-search-field input {
+  height: 52px;
+  color: var(--cf-text);
+  font-size: 16px;
+}
+
+.home-entry-search-field input::placeholder {
+  color: #8a9192;
+}
+
+.home-entry-search-submit {
+  height: 54px;
+  min-width: 0;
+}
+
+.home-entry-search-submit:disabled {
+  border-color: var(--cf-line);
+  background: #e7e7e1;
+  color: #8c9191;
+}
+
+.home-entry-routes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: none;
+  border-top: 1px solid var(--cf-line);
+  border-left: 0;
+}
+
+.home-entry-route {
+  min-height: 152px;
+  padding: 24px 32px 22px;
+}
+
+.home-entry-route + .home-entry-route {
+  border-top: 0;
+  border-left: 1px solid var(--cf-line);
+}
+
+.home-entry-route h2 {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.home-entry-route p {
+  margin-top: 8px;
+  color: var(--cf-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.home-entry-route > button {
+  margin-top: 15px;
+  border-bottom-color: rgba(188, 61, 44, 0.35);
+  color: var(--cf-accent);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.home-reading-note {
+  margin-top: 24px;
+  border-color: var(--cf-line);
+  color: var(--cf-muted);
+  font-size: 13px;
+}
+
+.home-reading-note button,
+.home-info-close {
+  color: var(--cf-accent);
+}
+
+.home-info-panel,
+.home-knowledge-shell .home-section {
+  border-color: var(--cf-line);
+  background: transparent;
+}
+
+.home-section-heading h2,
+.home-guide h3,
+.home-glossary-item summary {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+}
+
+.home-section-heading > div > span,
+.home-guide-top > span,
+.home-guide-top > small {
+  color: var(--cf-muted);
+}
+
+.home-guide,
+.home-glossary-item,
+.home-safety-item {
+  border-color: var(--cf-line);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* SEARCH / RESULTS */
+.research-shell {
+  --research-bg: var(--cf-bg);
+  --research-surface: var(--cf-surface);
+  --research-soft: var(--cf-soft);
+  --research-soft-2: #efeee9;
+  --research-line: var(--cf-line);
+  --research-line-soft: var(--cf-line-soft);
+  --research-text: var(--cf-text);
+  --research-muted: var(--cf-muted);
+  --research-dim: #858d8f;
+  --research-accent: var(--cf-accent);
+  --research-accent-soft: var(--cf-accent-soft);
+}
+
+.research-topbar {
+  min-height: 64px;
+  border-bottom: 1px solid var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.research-brand {
+  color: var(--cf-text);
+  font-size: 20px;
+}
+
+.research-shell .mode-button,
+.switch-workflow-shell .mode-button {
+  color: var(--cf-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.research-shell .mode-button.is-active,
+.switch-workflow-shell .mode-button.is-active {
+  color: var(--cf-text);
+  box-shadow: inset 0 -2px 0 var(--cf-accent);
+}
+
+.research-status {
+  color: var(--cf-muted);
+  font-size: 11px;
+}
+
+.criteria-bar {
+  border-bottom: 1px solid var(--cf-line);
+  background: var(--cf-soft);
+}
+
+.criteria-label,
+.criteria-chips {
+  color: var(--cf-muted);
+}
+
+.criteria-chips span {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--cf-text);
+}
+
+.criteria-bar > button {
+  color: var(--cf-accent);
+}
+
+.research-workspace,
+.research-filters,
+.research-results,
+.research-quick-view {
+  background: var(--cf-bg);
+}
+
+.research-filters,
+.research-quick-view {
+  border-color: var(--cf-line);
+}
+
+.research-pane-heading,
+.research-results-heading,
+.quick-view-topline {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.research-pane-heading strong,
+.research-results-heading strong,
+.mode-intro strong {
+  color: var(--cf-text);
+  font-size: 16px;
+}
+
+.research-pane-heading span,
+.research-results-heading span,
+.mode-intro span,
+.filter-hint,
+.field-note {
+  color: var(--cf-muted);
+  font-size: 13px;
+}
+
+.filter-section,
+.condition-summary,
+.refine-title {
+  border-color: var(--cf-line-soft);
+}
+
+.filter-heading {
+  color: var(--cf-text);
+  font-size: 14px;
+}
+
+.lookup-input,
+.recipe-search,
+.switch-candidate-search input,
+.switch-find-search input,
+.switch-ingredient-search input {
+  border: 1px solid #c9c9c1;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+  font-size: 15px;
+}
+
+.lookup-input:focus,
+.recipe-search:focus,
+.switch-candidate-search input:focus,
+.switch-find-search input:focus,
+.switch-ingredient-search input:focus {
+  border-color: var(--cf-accent);
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(188, 61, 44, 0.09);
+}
+
+.research-results-list {
+  background: var(--cf-bg);
+}
+
+.research-result-row {
+  border-bottom: 1px solid var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.research-result-row + .research-result-row {
+  margin-top: 0;
+}
+
+.research-result-row.is-compared {
+  box-shadow: inset 3px 0 0 var(--cf-accent);
+}
+
+.research-result-card {
+  background: transparent;
+}
+
+.research-result-image {
+  border: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
+.research-result-brand {
+  color: var(--cf-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.research-result-identity > strong {
+  color: var(--cf-text);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.research-result-meta,
+.research-result-packages {
+  color: var(--cf-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.result-relations,
+.research-result-facts {
+  border-left-color: var(--cf-line);
+  color: var(--cf-text);
+}
+
+.relation-line,
+.research-result-facts {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.relation-line span,
+.research-result-facts > span {
+  color: var(--cf-muted);
+}
+
+.relation-line strong,
+.research-result-facts > strong {
+  color: var(--cf-text);
+  font-weight: 700;
+}
+
+.research-result-open {
+  color: var(--cf-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.research-result-compare {
+  border-color: var(--cf-line);
+  border-radius: 0;
+  background: #fff;
+  color: var(--cf-text);
+}
+
+.research-result-compare.is-added {
+  border-color: var(--cf-accent);
+  background: var(--cf-accent-soft);
+  color: var(--cf-text);
+}
+
+.research-result-compare strong {
+  color: var(--cf-accent);
+}
+
+.load-more {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+  color: var(--cf-accent);
+  font-family: var(--cf-font);
+  font-size: 13px;
+}
+
+.quick-view-identity {
+  border-color: var(--cf-line);
+}
+
+.quick-view-image {
+  border: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
+.quick-view-identity > div > span {
+  color: var(--cf-muted);
+}
+
+.quick-view-identity h1 {
+  color: var(--cf-text);
+  font-size: 22px;
+  font-weight: 850;
+}
+
+.quick-view-identity p {
+  color: var(--cf-muted);
+  font-size: 14px;
+}
+
+.quick-view-section {
+  border-color: var(--cf-line);
+}
+
+.quick-view-section h2 {
+  color: var(--cf-text);
+  font-size: 16px;
+}
+
+.definition {
+  border-color: var(--cf-line-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.definition dt {
+  color: var(--cf-muted);
+}
+
+.definition dd {
+  color: var(--cf-text);
+}
+
+/* PRODUCT DETAIL */
+.detail-stage {
+  background: var(--cf-bg);
+}
+
+.detail-topbar {
+  min-height: 64px;
+  border-bottom: 1px solid var(--cf-line);
+  padding-inline: clamp(18px, 3vw, 40px);
+}
+
+.detail-topbar button {
+  border: 0;
+  background: transparent;
+  color: var(--cf-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.detail-layout {
+  background: var(--cf-bg);
+}
+
+.detail-identity {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.detail-identity-copy > span {
+  color: var(--cf-muted);
+  font-size: 13px;
+}
+
+.detail-identity-copy h1 {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 850;
+  line-height: 1.22;
+}
+
+.detail-identity-copy p {
+  color: var(--cf-muted);
+  font-size: 14px;
+}
+
+.detail-product-image {
+  border: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
+.detail-document,
+.detail-body {
+  background: var(--cf-surface);
+}
+
+.detail-tabs {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.detail-tabs button {
+  color: var(--cf-muted);
+  font-family: var(--cf-font);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.detail-tabs button.is-active {
+  color: var(--cf-text);
+  box-shadow: inset 0 -2px 0 var(--cf-accent);
+}
+
+.detail-section {
+  border-color: var(--cf-line);
+}
+
+.detail-section-heading h2 {
+  color: var(--cf-text);
+  font-size: 19px;
+  font-weight: 820;
+}
+
+.detail-fact,
+.detail-nutrition-row,
+.detail-variant-row,
+.detail-market-row {
+  border-color: var(--cf-line-soft);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.detail-fact span,
+.detail-nutrition-row span,
+.detail-variant-row span,
+.detail-market-row span {
+  color: var(--cf-muted);
+}
+
+.detail-fact strong,
+.detail-nutrition-row strong,
+.detail-variant-row strong,
+.detail-market-row strong {
+  color: var(--cf-text);
+}
+
+.detail-energy {
+  border-color: var(--cf-line);
+  background: var(--cf-soft);
+}
+
+.detail-energy strong {
+  color: var(--cf-text);
+  font-size: 22px;
+}
+
+.detail-evidence-context,
+.detail-summary-meta,
+.detail-partial-note,
+.detail-note {
+  color: var(--cf-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.detail-ingredient-list,
+.detail-ingredient-copy,
+.detail-source-disclosure {
+  font-size: 15.5px;
+  line-height: 1.65;
+}
+
+.detail-ingredient-list li,
+.detail-source-disclosure,
+.detail-disclosure {
+  border-color: var(--cf-line-soft);
+}
+
+.detail-disclosure summary,
+.detail-source-disclosure summary {
+  color: var(--cf-accent);
+  font-weight: 700;
+}
+
+.detail-inline-link {
+  color: var(--cf-accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* COMPARE */
+.compare-stage {
+  background: var(--cf-bg);
+}
+
+.compare-header {
+  border-bottom: 1px solid var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.compare-header h1,
+.compare-header strong {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+}
+
+.compare-tabs {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.compare-tabs button {
+  color: var(--cf-muted);
+  font-family: var(--cf-font);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.compare-tabs button.is-active {
+  color: var(--cf-text);
+  box-shadow: inset 0 -2px 0 var(--cf-accent);
+}
+
+.compare-applied-criteria,
+.compare-baseline-summary,
+.compare-scope-summary {
+  border-color: var(--cf-line);
+  background: var(--cf-soft);
+  color: var(--cf-text);
+}
+
+.compare-product-head,
+.compare-current-product-head {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.compare-product-copy span,
+.compare-mobile-two-product-brand,
+.compare-mobile-product-brand,
+.compare-mobile-candidate-brand {
+  color: var(--cf-muted);
+}
+
+.compare-product-copy strong,
+.compare-mobile-two-product-name,
+.compare-mobile-candidate-name {
+  color: var(--cf-text);
+  font-weight: 820;
+}
+
+.compare-row-label,
+.compare-corner,
+.compare-mobile-row-label,
+.compare-mobile-two-product-row-label {
+  border-color: var(--cf-line);
+  background: var(--cf-soft);
+  color: var(--cf-muted);
+  font-family: var(--cf-font);
+}
+
+.compare-cell,
+.compare-section-row,
+.compare-head-row {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.compare-cell,
+.compare-mobile-two-product-value,
+.compare-mobile-overview-row strong,
+.compare-current-nutrition-metric strong,
+.compare-ingredient-text {
+  color: var(--cf-text);
+  font-size: 15.5px;
+  line-height: 1.5;
+}
+
+.compare-muted,
+.compare-column-role,
+.compare-current-nutrition-evidence {
+  color: var(--cf-muted);
+}
+
+.compare-column-role {
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.compare-detail-link,
+.compare-remove,
+.compare-evidence-details summary,
+.compare-mobile-candidate-toggle {
+  color: var(--cf-accent);
+}
+
+.compare-evidence-details,
+.compare-evidence-disclosure {
+  border-color: var(--cf-line-soft);
+  background: transparent;
+}
+
+/* SWITCH */
+.switch-workflow-shell,
+.switch-find-stage,
+.switch-results-stage {
+  --switch-bg: var(--cf-bg);
+  --switch-panel: var(--cf-surface);
+  --switch-line: var(--cf-line);
+  --switch-text: var(--cf-text);
+  --switch-muted: var(--cf-muted);
+  --switch-accent: var(--cf-accent);
+  --switch-accent-soft: var(--cf-accent-soft);
+  background: var(--cf-bg);
+}
+
+.switch-reference-rail,
+.switch-step-main,
+.switch-find-body,
+.switch-candidate-pane,
+.switch-candidate-inspector,
+.switch-current-preview {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.switch-reference-label,
+.switch-step-header > span,
+.switch-eyebrow {
+  color: var(--cf-muted);
+}
+
+.switch-reference-product strong,
+.switch-reference-sku strong,
+.switch-step-header h1,
+.switch-find-hero h1,
+.switch-candidate-heading strong,
+.switch-preview-identity h2,
+.switch-inspector-identity h1 {
+  color: var(--cf-text);
+  font-family: var(--cf-font);
+}
+
+.switch-step-header h1,
+.switch-find-hero h1 {
+  font-weight: 850;
+}
+
+.switch-step-header > p,
+.switch-find-hero p,
+.switch-preview-identity p,
+.switch-inspector-identity p,
+.switch-candidate-heading span {
+  color: var(--cf-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.switch-progress li {
+  color: var(--cf-muted);
+}
+
+.switch-progress li.is-current,
+.switch-progress li.is-done {
+  color: var(--cf-text);
+}
+
+.switch-progress li.is-current > span,
+.switch-progress li.is-done > span {
+  border-color: var(--cf-accent);
+  background: var(--cf-accent);
+  color: #fff;
+}
+
+.switch-sku-option,
+.switch-no-change,
+.switch-criterion-section,
+.switch-current-facts-summary,
+.switch-keep-change-summary {
+  border-color: var(--cf-line);
+  border-radius: 4px;
+  background: var(--cf-surface);
+  box-shadow: none;
+}
+
+.switch-sku-option.is-selected,
+.switch-no-change.is-selected {
+  border-color: var(--cf-accent);
+  background: var(--cf-accent-soft);
+  box-shadow: inset 3px 0 0 var(--cf-accent);
+}
+
+.switch-current-confirm-action {
+  width: 100%;
+  min-height: 48px;
+  margin: 4px 0 18px;
+  font-size: 15px;
+}
+
+.switch-preview-facts,
+.switch-inspector-section,
+.switch-inspector-decision {
+  border-color: var(--cf-line);
+}
+
+.switch-preview-facts dt,
+.switch-inspector-section dt,
+.switch-inspector-baseline span {
+  color: var(--cf-muted);
+}
+
+.switch-preview-facts dd,
+.switch-inspector-section dd,
+.switch-inspector-baseline strong {
+  color: var(--cf-text);
+}
+
+.switch-find-result,
+.switch-candidate-item {
+  border-color: var(--cf-line);
+  background: var(--cf-surface);
+}
+
+.switch-find-result-image,
+.switch-candidate-image,
+.switch-preview-image,
+.switch-inspector-image,
+.switch-reference-image {
+  border: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
+.switch-find-result-copy > span,
+.switch-candidate-identity > span,
+.switch-inspector-identity > div > span {
+  color: var(--cf-muted);
+  font-size: 12px;
+}
+
+.switch-find-result-copy strong,
+.switch-candidate-identity strong {
+  color: var(--cf-text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.switch-find-result-copy small,
+.switch-candidate-identity small {
+  color: var(--cf-muted);
+  font-size: 13px;
+}
+
+.switch-find-result-open,
+.switch-candidate-open {
+  color: var(--cf-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.switch-candidate-relations {
+  border-color: var(--cf-line);
+}
+
+.switch-relation-line {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.switch-relation-line span {
+  color: var(--cf-muted);
+}
+
+.switch-relation-line strong {
+  color: var(--cf-text);
+}
+
+.switch-candidate-compare {
+  border-color: var(--cf-line);
+  background: #fff;
+  color: var(--cf-text);
+}
+
+.switch-candidate-compare.is-added {
+  border-color: var(--cf-accent);
+  background: var(--cf-accent-soft);
+}
+
+.switch-candidate-compare strong {
+  color: var(--cf-accent);
+}
+
+.switch-session-bar {
+  border-color: var(--cf-line);
+  background: var(--cf-soft);
+}
+
+.switch-session-bar span {
+  color: var(--cf-muted);
+}
+
+.switch-session-bar strong {
+  color: var(--cf-text);
+}
+
+.switch-session-bar button {
+  color: var(--cf-accent);
+}
+
+.switch-compare-dock {
+  border-color: var(--cf-line);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 -8px 24px rgba(37, 43, 44, 0.08);
+}
+
+.switch-compare-dock strong {
+  color: var(--cf-text);
+}
+
+.switch-compare-dock-list {
+  color: var(--cf-muted);
+}
+
+/* Remove legacy decorative treatments where they survive earlier CSS. */
+.home-shell *,
+.research-shell *,
+.detail-stage *,
+.compare-stage *,
+.switch-workflow-shell * {
+  background-image: none;
+}
+
+@media (max-width: 760px) {
+  .home-knowledge-shell .home-header {
+    height: 58px;
+  }
+
+  .home-knowledge-shell .home-header-inner,
+  .home-knowledge-shell .home-knowledge-main {
+    width: calc(100% - 28px);
+  }
+
+  .home-knowledge-shell .home-knowledge-main {
+    padding: 26px 0 42px;
+  }
+
+  .home-knowledge-shell .home-start-copy {
+    margin-bottom: 22px;
+  }
+
+  .home-knowledge-shell .home-start-copy h1 {
+    font-size: 34px;
+    line-height: 1.12;
+  }
+
+  .home-knowledge-shell .home-start-copy p {
+    margin-top: 12px;
+    font-size: 15px;
+  }
+
+  .home-entry-lookup {
+    padding: 20px 18px 18px;
+  }
+
+  .home-entry-heading {
+    align-items: center;
+  }
+
+  .home-entry-lookup h2 {
+    font-size: 19px;
+  }
+
+  .home-entry-search {
+    grid-template-columns: minmax(0, 1fr) 70px;
+    margin-top: 14px;
+  }
+
+  .home-entry-search-field,
+  .home-entry-search-submit {
+    height: 50px;
+  }
+
+  .home-entry-search-field input {
+    height: 48px;
+    font-size: 15px;
+  }
+
+  .home-entry-routes {
+    grid-template-columns: 1fr;
+  }
+
+  .home-entry-route {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .home-entry-route + .home-entry-route {
+    border-top: 1px solid var(--cf-line);
+    border-left: 0;
+  }
+
+  .home-entry-route h2 {
+    font-size: 18px;
+  }
+
+  .home-entry-route p,
+  .home-entry-route > button,
+  .home-reading-note {
+    font-size: 14px;
+  }
+
+  .research-topbar {
+    min-height: 58px;
+  }
+
+  .research-brand {
+    font-size: 18px;
+  }
+
+  .research-shell .mode-button,
+  .switch-workflow-shell .mode-button {
+    font-size: 12px;
+  }
+
+  .research-results-heading strong,
+  .research-pane-heading strong {
+    font-size: 15px;
+  }
+
+  .research-results-heading span,
+  .research-pane-heading span {
+    font-size: 12px;
+  }
+
+  .research-result-row {
+    min-height: 118px;
+  }
+
+  .research-result-image {
+    width: 64px;
+    height: 80px;
+  }
+
+  .research-result-identity > strong {
+    font-size: 15px;
+  }
+
+  .research-result-meta,
+  .research-result-packages,
+  .relation-line,
+  .research-result-facts {
+    font-size: 12.5px;
+  }
+
+  .quick-view-identity h1 {
+    font-size: 21px;
+  }
+
+  .quick-view-section h2 {
+    font-size: 16px;
+  }
+
+  .definition {
+    font-size: 14px;
+  }
+
+  .detail-topbar {
+    min-height: 56px;
+  }
+
+  .detail-identity-copy h1 {
+    font-size: 24px;
+  }
+
+  .detail-tabs button {
+    font-size: 13.5px;
+  }
+
+  .detail-section-heading h2 {
+    font-size: 18px;
+  }
+
+  .detail-fact,
+  .detail-nutrition-row,
+  .detail-variant-row,
+  .detail-market-row {
+    font-size: 14.5px;
+  }
+
+  .detail-ingredient-list,
+  .detail-ingredient-copy,
+  .detail-source-disclosure {
+    font-size: 15.5px;
+  }
+
+  .compare-product-copy strong,
+  .compare-mobile-two-product-name,
+  .compare-mobile-candidate-name {
+    font-size: 14px;
+  }
+
+  .compare-cell,
+  .compare-mobile-two-product-value,
+  .compare-mobile-overview-row strong,
+  .compare-current-nutrition-metric strong,
+  .compare-ingredient-text {
+    font-size: 15.5px;
+  }
+
+  .switch-step-header h1,
+  .switch-find-hero h1 {
+    font-size: 26px;
+  }
+
+  .switch-step-header > p,
+  .switch-find-hero p {
+    font-size: 14px;
+  }
+
+  .switch-current-preview {
+    background: var(--cf-surface);
+  }
+
+  .switch-current-confirm-action {
+    min-height: 50px;
+    margin: 2px 0 16px;
+  }
+
+  .switch-find-result-copy strong,
+  .switch-candidate-identity strong {
+    font-size: 15px;
+  }
+
+  .switch-find-result-copy small,
+  .switch-candidate-identity small,
+  .switch-relation-line {
+    font-size: 12.5px;
+  }
+}
+
+@media (min-width: 761px) {
+  .research-result-image {
+    width: 72px;
+    height: 88px;
+  }
+
+  .quick-view-image,
+  .switch-preview-image,
+  .switch-inspector-image {
+    width: 132px;
+    height: 166px;
+  }
+}

@@ -1521,3 +1521,33 @@ body,
     line-height: 1.28;
   }
 }
+
+
+@media (min-width: 761px) {
+  .home-knowledge-shell .home-entry-board {
+    grid-template-columns: minmax(0, 1.45fr) minmax(230px, 0.55fr) minmax(230px, 0.55fr);
+    align-items: stretch;
+  }
+
+  .home-knowledge-shell .home-entry-routes {
+    display: contents;
+  }
+
+  .home-knowledge-shell .home-entry-route {
+    min-height: 190px;
+    justify-content: center;
+    border-left: 1px solid var(--cf-line);
+    padding: 26px 28px;
+  }
+
+  .home-knowledge-shell .home-entry-route + .home-entry-route {
+    border-top: 0;
+    border-left: 1px solid var(--cf-line);
+  }
+
+  .home-knowledge-shell .home-entry-lookup {
+    min-height: 190px;
+    justify-content: center;
+    padding: 28px 34px;
+  }
+}

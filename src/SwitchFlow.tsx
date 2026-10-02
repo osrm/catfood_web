@@ -1183,7 +1183,7 @@ export default function SwitchFlow({
                     </p>
                   </div>
                 </section>
-                <button className="switch-primary-action switch-current-confirm-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품으로 계속 →</button>
+                <button className="switch-primary-action switch-current-confirm-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
                 <section className="switch-preview-facts">
                   <dl>
                     <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div>

@@ -79,6 +79,12 @@ function completenessLabel(status: string | null) {
   if (status === 'summary') return '요약 정보'
   return '목록 상태 미확인'
 }
+function fullIngredientSummaryLabel(detail: CompareIngredients) {
+  const count = detail.ingredient_count > 0 ? detail.ingredient_count : detail.ingredient_names.length
+  if (count > 0) return `전체 원재료 ${count}개 확인`
+  if (detail.raw_text?.trim()) return '전체 원재료 원문 확인'
+  return completenessLabel(detail.completeness_status)
+}
 function scopeLabel(scope: string) {
   if (scope === 'variant') return '제품 포장에서 확인한 자료'
   if (scope === 'formula') return '배합 자료'
@@ -309,6 +315,10 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
   const directIngredientLabel = product.direct_evidence_ingredient_terms.length ? listLabel(product.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
   const flavorIngredientLabel = product.flavor_associated_ingredient_terms.length ? listLabel(product.flavor_associated_ingredient_terms, RECIPE_LABELS) : null
+  const hasIngredientSummaryFacts = Boolean(directIngredientLabel || flavorIngredientLabel || hasSupplementalFullIngredients)
+  const fullIngredientSummaryFallback = ingredients?.completeness_status === 'full' && !hasIngredientSummaryFacts
+    ? fullIngredientSummaryLabel(ingredients)
+    : null
   const overviewFacts = [
     product.features.length ? ['제품 특징', listLabel(product.features, FEATURE_LABELS)] : null,
     product.official_targets.length ? ['제품 표기 대상', listLabel(product.official_targets, TARGET_LABELS)] : null,
@@ -380,12 +390,12 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
               {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
               {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
               {!loading.ingredients && !errors.ingredients && ingredients ? <>
-                {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : null}
-                <div className="detail-fact-lines detail-fact-lines-compact">
+                {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : fullIngredientSummaryFallback ? <p className="detail-summary-meta">{fullIngredientSummaryFallback}</p> : null}
+                {hasIngredientSummaryFacts ? <div className="detail-fact-lines detail-fact-lines-compact">
                   {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
                   {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
                   {hasSupplementalFullIngredients ? <Fact label="전체 목록 보완" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}
-                </div>
+                </div> : null}
                 <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>원재료 보기 →</button>
               </> : null}
               {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}

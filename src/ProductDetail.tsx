@@ -179,7 +179,7 @@ function ProductImage({ product }: { product: CatalogProduct }) {
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
-export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange }: {
+export default function ProductDetail({ product, onClose, backLabel = '← 사료 목록으로', initialTab = 'overview', onTabChange }: {
   product: CatalogProduct
   onClose: () => void
   backLabel?: string

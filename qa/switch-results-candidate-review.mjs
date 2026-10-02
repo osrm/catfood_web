@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'switch-results-candidate-output'
 await mkdir(OUT,{recursive:true})
-const report={sourceSha:process.env.CANDIDATE_SHA||process.env.GITHUB_SHA,baseSha:'7f49ac85e20e9873f37e70c08995240032168722',blocked:[],scenarios:{}}
+const report={sourceSha:process.env.CANDIDATE_SHA||process.env.GITHUB_SHA,baseSha:process.env.CANDIDATE_BASE_SHA||null,blocked:[],scenarios:{}}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
 const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
 async function pageAt(w,h){
@@ -79,7 +79,7 @@ for(const [key,w,h] of [['boundary-760',760,844],['boundary-761',761,844]]){
  assert.ok(actionCheck.rect.top>=0&&actionCheck.rect.bottom<=700&&actionCheck.hit)
  const scroll=page.locator('.switch-inspector-scroll'),box=await scroll.boundingBox();assert.ok(box);const wheelBefore=await page.evaluate(()=>({windowY:scrollY,inspectorY:document.querySelector('.switch-inspector-scroll')?.scrollTop||0}));await page.mouse.move(box.x+box.width/2,Math.min(699,box.y+box.height/2));await page.mouse.wheel(0,900);await page.waitForTimeout(100)
  const wheelAfter=await page.evaluate(()=>({windowY:scrollY,inspectorY:document.querySelector('.switch-inspector-scroll')?.scrollTop||0}));assert.ok(wheelAfter.windowY>wheelBefore.windowY||wheelAfter.inspectorY>wheelBefore.inspectorY)
- const facts=page.locator('.switch-inspector-section').last();const factsCheck=await facts.evaluate(el=>{const r=el.getBoundingClientRect(),x=Math.max(r.left+1,Math.min(innerWidth-1,r.left+r.width/2)),y=Math.max(r.top+1,Math.min(innerHeight-1,r.top+Math.min(r.height/2,40))),hit=document.elementFromPoint(x,y);return{rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right},center:{x,y},hit:!!hit&&(hit===el||el.contains(hit)),text:(hit?.textContent||'').trim()}})
+ const facts=page.locator('.switch-inspector-section').last();const factsCheck=await facts.evaluate(el=>{const r=el.getBoundingClientRect(),x=Math.max(r.left+1,Math.min(innerWidth-1,r.left+r.width/2)),scroller=el.closest('.switch-inspector-scroll')?.getBoundingClientRect(),visibleTop=Math.max(0,r.top,scroller?.top??0),visibleBottom=Math.min(innerHeight,r.bottom,scroller?.bottom??innerHeight),y=(visibleTop+visibleBottom)/2,hit=document.elementFromPoint(x,y);return{rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right},center:{x,y},hit:!!hit&&(hit===el||el.contains(hit)),text:(hit?.textContent||'').trim()}})
  assert.ok(factsCheck.rect.top<700&&factsCheck.rect.bottom>0&&factsCheck.hit)
  await page.keyboard.press('Home');const closeReach=await tabUntil(page,x=>x.text.includes('닫기 ×'));const addReach=await tabUntil(page,x=>/비교에 추가|비교에서 제거/.test(x.text))
  const focusedCheck=await page.evaluate(()=>{const el=document.activeElement,r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,hit=document.elementFromPoint(x,y);return{rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right},center:{x,y},hit:!!hit&&(hit===el||el.contains(hit)),text:(el.textContent||'').trim()}})

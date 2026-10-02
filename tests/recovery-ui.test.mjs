@@ -359,7 +359,7 @@ test('SKU 503 is distinct from empty data and same-product retry is de-duplicate
     onHome() {}, onModeChange() {}, onRetryCatalog() {},
   })))
   await click(all('.switch-find-result')[0])
-  await click('이 제품을 현재 사료로 선택')
+  await click('이 사료를 현재 사료로 선택')
   await waitForUi(() => document.querySelector('[role="alert"]'), 'variant error')
 
   assert.match(document.querySelector('[role="alert"]').textContent, /판매 규격을 불러오지 못했습니다/)
@@ -403,11 +403,11 @@ test('changing current product aborts stale SKU state and a 200 empty response s
   })))
 
   await click(all('.switch-find-result').find((node) => node.textContent.includes('Alpha Food')))
-  await click('이 제품을 현재 사료로 선택')
+  await click('이 사료를 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('판매 규격을 불러오는 중입니다'), 'alpha loading')
   await click('현재 사료 다시 선택')
   await click(all('.switch-find-result').find((node) => node.textContent.includes('Beta Food')))
-  await click('이 제품을 현재 사료로 선택')
+  await click('이 사료를 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('2 kg'), 'beta variant loaded')
 
   await resolveInAct(alphaResponse, Response.json([variant(alpha.product_id, 'variant_alpha_stale', '9 kg')]))
@@ -416,7 +416,7 @@ test('changing current product aborts stale SKU state and a 200 empty response s
 
   await click('현재 사료 다시 선택')
   await click(all('.switch-find-result').find((node) => node.textContent.includes('Gamma Food')))
-  await click('이 제품을 현재 사료로 선택')
+  await click('이 사료를 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('선택할 수 있는 판매 규격을 확인하지 못했습니다'), 'empty variant response')
   assert.equal(document.querySelector('[role="alert"]'), null)
   assert.deepEqual(calls, [alpha.product_id, beta.product_id, gamma.product_id])

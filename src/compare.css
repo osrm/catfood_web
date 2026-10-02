@@ -1457,3 +1457,123 @@
  .compare-mobile-general-pair-controls label {display:grid;min-width:0;gap:6px;font-size:11px;color:var(--cf-muted)}
  .compare-mobile-general-pair-controls select {width:100%;min-width:0;max-width:100%;min-height:44px;padding:8px;font-family:var(--cf-font);font-size:12px;line-height:1.5;border:1px solid var(--cf-line);border-radius:4px;background:var(--cf-surface);color:var(--cf-ink)}
 }
+
+
+/* General mobile compare: reduce top-of-page chrome without changing SWITCH, ingredients, or desktop. */
+@media (max-width: 760px) {
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 0;
+    padding: 10px 16px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-header > div {
+    display: block;
+    min-width: 0;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-header h1 {
+    font-size: 22px;
+    line-height: 1.3;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-header p {
+    display: none;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-header > button {
+    min-height: 44px;
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-tabs {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-tabs button {
+    min-height: 44px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-table-wrap {
+    padding-top: 8px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-head {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-identity {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 7px;
+    align-items: start;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-identity img,
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder {
+    width: 44px;
+    height: 56px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-meta {
+    display: grid;
+    grid-column: 2;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-brand {
+    grid-column: auto;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-name {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions {
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-picker {
+    gap: 6px;
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-summary {
+    gap: 0;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-summary > strong {
+    display: none;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-summary span {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls {
+    gap: 8px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls label {
+    gap: 3px;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls select {
+    min-height: 44px;
+    padding: 6px;
+  }
+}

@@ -274,7 +274,7 @@ async function chooseCurrent(productName = current.canonical_name) {
   await inputValue(input, productName)
   await waitForUi(() => all('.switch-find-result').some((node) => node.textContent.includes(productName)), 'current product search result')
   await click(all('.switch-find-result').find((node) => node.textContent.includes(productName)))
-  await click('이 사료로 계속')
+  await click('이 제품을 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('현재 먹이는 규격을 골라주세요'), 'SKU step')
 }
 
@@ -294,7 +294,7 @@ async function reachResultsWithConditions({ variantMode = 'variant' } = {}) {
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step')
   if (exactButton('실내묘')) await click(exactButton('실내묘'))
-  await click('비교할 제품 보기')
+  await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'results step')
 }
 
@@ -442,7 +442,7 @@ test('SWITCH candidate search scans the full evaluated pool and preserves compar
   await reachResultsWithConditions()
   await act(async () => { await new Promise((resolvePromise) => setTimeout(resolvePromise, 20)) })
 
-  const searchInput = document.querySelector('input[aria-label="비교할 제품 검색"]')
+  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
   assert.ok(searchInput)
   assert.equal(all('.switch-candidate-row').some((node) => node.textContent.includes('검색 후보 49')), false, 'late candidate must not be in the first page before searching')
 
@@ -508,7 +508,7 @@ test('closing a filtered-out SWITCH candidate inspector falls back to candidate 
   await renderApp()
   await reachResultsWithConditions()
 
-  const searchInput = document.querySelector('input[aria-label="비교할 제품 검색"]')
+  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
   assert.ok(searchInput)
   await inputValue(searchInput, candidateA.canonical_name)
   await waitForUi(() => all('.switch-candidate-row').some((node) => node.textContent.includes(candidateA.canonical_name)), 'candidate A search result')
@@ -558,7 +558,7 @@ test('SWITCH list compare toggles directly, stays in sync with quick view/search
 
   await renderApp()
   await reachResultsWithConditions()
-  const searchInput = document.querySelector('input[aria-label="비교할 제품 검색"]')
+  const searchInput = document.querySelector('input[aria-label="후보 제품 검색"]')
   assert.ok(searchInput)
 
   let controls = all('.switch-candidate-compare')
@@ -628,7 +628,7 @@ test('SWITCH empty candidates use an edit action and KEEP unset wording without 
   await click('특별히 바꾸고 싶은 점 없음')
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step for empty candidate fixture')
-  await click('비교할 제품 보기')
+  await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'empty results step')
 
   assert.match(document.querySelector('.switch-session-bar').textContent, /KEEP.*따로 고르지 않음/s)
@@ -824,7 +824,7 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
   for (const ingredientButton of ingredientButtons) await click(ingredientButton)
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'fixture KEEP')
-  await click('비교할 제품 보기')
+  await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'fixture results')
 
   const row = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))

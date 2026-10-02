@@ -16,7 +16,7 @@ async function visibleButton(page,name){const xs=page.getByRole('button',{name,e
 async function setup(page){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000})
  await page.getByRole('button',{name:'현재 사료로 시작 →'}).click()
- await page.waitForFunction(()=>/\d+\s*PRODUCTS/.test(document.querySelector('.research-status')?.textContent||''),null,{timeout:30000})
+ await page.waitForFunction(()=>/제품\s*\d+개/.test(document.querySelector('.research-status')?.textContent||''),null,{timeout:30000})
  await page.locator('.switch-find-search input').fill('AATU')
  const row=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await row.waitFor({state:'visible'});await row.click()
  await page.getByRole('button',{name:'이 제품을 현재 사료로 선택 →'}).click()

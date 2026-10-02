@@ -141,7 +141,6 @@ export default function Home({
         <div className="home-header-inner">
           <div className="home-brand">
             <strong className="home-logo">CATFOOD</strong>
-            <span>고양이 사료 탐색·비교</span>
           </div>
           <div className={error ? 'home-catalog-status is-error' : 'home-catalog-status'} aria-live="polite">
             {loading ? <span>제품 목록 불러오는 중</span> : error ? <span>제품 목록 조회 실패</span> : <>현재 확인된 제품 <strong>{catalogCount}개</strong></>}
@@ -152,7 +151,8 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>사료를 찾는 방법을 고르세요.</h1>
+            <h1>이 사료와 저 사료,<br />뭐가 다를까요?</h1>
+            <p>원재료와 영양 성분을 한곳에서 확인할 수 있어요.</p>
           </div>
 
           {error ? <div className="home-catalog-error" role="alert">
@@ -162,7 +162,7 @@ export default function Home({
 
           <section className="home-entry-board" aria-label="CATFOOD 시작 방법">
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
-              <h2 id="home-lookup-title">브랜드·제품명 검색</h2>
+              <h2 id="home-lookup-title">브랜드로 찾기</h2>
               <form className="home-entry-search" onSubmit={submitLookup}>
                 <label className="home-entry-search-field">
                   <span className="home-entry-search-icon" aria-hidden="true" />
@@ -180,22 +180,22 @@ export default function Home({
 
             <div className="home-entry-routes">
               <article className="home-entry-route">
-                <h2>현재 사료에서 바꾸기</h2>
-                <p>지금 먹는 제품을 기준으로 유지할 것과 바꿀 것을 정합니다.</p>
-                <button type="button" onClick={() => onStart('switch')}>현재 사료로 시작 →</button>
+                <h2>조건으로 사료 찾기</h2>
+                <p>사료 형태와 연령을 골라 찾아보세요.</p>
+                <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
               </article>
 
               <article className="home-entry-route">
-                <h2>조건으로 찾아보기</h2>
-                <p>사료 형태·연령과 원하는 조건을 골라 제품을 살펴봅니다.</p>
-                <button type="button" onClick={() => onStart('explore')}>조건 고르기 →</button>
+                <h2>지금 먹이는 사료와 비교</h2>
+                <p>바꾸고 싶은 점을 골라 다른 제품을 찾아보세요.</p>
+                <button type="button" onClick={() => onStart('switch')}>비교 시작 →</button>
               </article>
             </div>
           </section>
 
           <section className="home-reading-note" aria-label="정보 안내">
-            <p>표시 기준과 용어가 궁금할 때 확인하세요.</p>
-            <button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button>
+            <p>표시 방법과 용어가 궁금하면 여기서 볼 수 있어요.</p>
+            <button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 표시 방법 보기 →</button>
           </section>
         </section>
 
@@ -234,7 +234,7 @@ export default function Home({
           <section className="home-section home-guides" aria-labelledby="home-guides-title">
             <div className="home-section-heading">
               <div>
-                <span>HOW TO READ</span>
+                <span>읽는 방법</span>
                 <h2 id="home-guides-title">비교할 때 알아두면 좋은 4가지</h2>
               </div>
               <p>제품 정보를 읽을 때 헷갈리기 쉬운 기준만 짧게 정리했습니다.</p>
@@ -254,7 +254,7 @@ export default function Home({
           <section className="home-section home-glossary" aria-labelledby="home-glossary-title">
             <div className="home-section-heading">
               <div>
-                <span>GLOSSARY</span>
+                <span>용어</span>
                 <h2 id="home-glossary-title">용어집</h2>
               </div>
               <p>제품 상세와 비교 화면에서 자주 쓰는 용어입니다.</p>
@@ -270,11 +270,6 @@ export default function Home({
             </div>
           </section>
 
-          <section className="home-home-principles" aria-label="CATFOOD 정보 표시 원칙">
-            <div><span>01</span><strong>확인과 미확인을 구분</strong><p>확인되지 않은 값을 ‘없음’으로 바꾸지 않습니다.</p></div>
-            <div><span>02</span><strong>선택한 조건을 그대로 적용</strong><p>선택한 조건을 자동으로 바꾸거나 완화하지 않습니다.</p></div>
-            <div><span>03</span><strong>점수로 대신 결정하지 않음</strong><p>순위 대신 확인된 사실과 차이를 보여줍니다.</p></div>
-          </section>
         </section>
       </main>
     </div>

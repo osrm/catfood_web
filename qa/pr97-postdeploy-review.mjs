@@ -138,7 +138,7 @@ async function generalFlow(width, height, label) {
   await page.getByRole('tab', { name: '원재료', exact: true }).click()
   const rawSummary = page.locator('.detail-source-disclosure summary').filter({ hasText: '원문 보기' }).first()
   await rawSummary.waitFor({ state: 'visible', timeout: 90000 })
-  await rawSumary.click()
+  await rawSummary.click()
   const rawText = page.locator('.detail-source-disclosure .detail-ingredient-copy').first()
   await rawText.waitFor({ state: 'visible', timeout: 30000 })
   const raw = norm(await rawText.textContent())

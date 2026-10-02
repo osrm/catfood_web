@@ -255,11 +255,11 @@ async function switchResults() {
     onHome() {}, onModeChange() {},
   })))
   await click(document.querySelector('.switch-find-result'))
-  await click('이 제품을 현재 사료로 선택')
+  await click('이 사료를 현재 사료로 선택')
   await click('사용 규격을 모르겠어요')
   await click('특별히 바꾸고 싶은 점 없음')
   await click('다음 →')
-  await click('후보 제품 보기')
+  await click('비교할 제품 보기')
 }
 
 for (const mode of ['explore', 'switch']) {
@@ -322,7 +322,7 @@ for (const mode of ['explore', 'switch']) {
     assert.equal(considerations().length, 1)
     await click('조건 수정')
     if (mode === 'switch') await click('다음 →')
-    await click(mode === 'explore' ? '이 조건으로 찾기' : '후보 제품 보기')
+    await click(mode === 'explore' ? '이 조건으로 찾기' : '비교할 제품 보기')
     assert.equal(rows(selector).length, 40)
     if (mode === 'explore') {
       assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /비교 2\/5/, 'unchanged EXPLORE reapply preserves the queued general comparison')

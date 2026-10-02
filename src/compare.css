@@ -1434,3 +1434,15 @@
 @media(max-width:760px){
  .compare-stage .compare-mobile-two-product-overview,.compare-stage .compare-mobile-two-product-nutrition,.compare-stage .compare-switch-mobile-overview {display:block}
 }
+/* Desktop comparison rows share the same column grid as their product headers. */
+@media(min-width:761px){
+ .compare-stage .compare-table {display:block;width:100%;min-width:0}
+ .compare-stage .compare-head-row,.compare-stage .compare-row {display:grid;grid-template-columns:150px repeat(var(--compare-count),minmax(0,1fr));align-items:stretch}
+ .compare-stage .compare-corner {padding:18px;display:flex;align-items:flex-end;min-height:0}
+ .compare-stage .compare-product-head {min-width:0;height:auto}
+ .compare-stage .compare-product-identity {display:flex;align-items:center;gap:18px;min-width:0}
+ .compare-stage .compare-product-copy {display:grid;gap:6px;min-width:0}
+ .compare-stage .compare-product-copy small {font-size:11px;line-height:1.7;color:var(--cf-muted)}
+ .compare-stage .compare-row-label {padding:16px 18px;min-width:0}
+ .compare-stage .compare-cell {min-width:0;overflow-wrap:anywhere}
+}

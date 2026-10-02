@@ -294,7 +294,7 @@ async function reachResultsWithConditions({ variantMode = 'variant' } = {}) {
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step')
   if (exactButton('실내묘')) await click(exactButton('실내묘'))
-  await click('후보 제품 보기')
+  await click('비교할 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'results step')
 }
 
@@ -628,7 +628,7 @@ test('SWITCH empty candidates use an edit action and KEEP unset wording without 
   await click('특별히 바꾸고 싶은 점 없음')
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step for empty candidate fixture')
-  await click('후보 제품 보기')
+  await click('비교할 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'empty results step')
 
   assert.match(document.querySelector('.switch-session-bar').textContent, /KEEP.*따로 고르지 않음/s)
@@ -824,7 +824,7 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
   for (const ingredientButton of ingredientButtons) await click(ingredientButton)
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'fixture KEEP')
-  await click('후보 제품 보기')
+  await click('비교할 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'fixture results')
 
   const row = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))

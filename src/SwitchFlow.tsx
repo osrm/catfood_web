@@ -306,9 +306,9 @@ function SwitchTopbar({
     <header className="research-topbar">
       <button className="research-brand" type="button" aria-label="CATFOOD 홈으로 이동" onClick={onHome}>FELINE ARCHIVE</button>
       <nav className="mode-nav" aria-label="탐색 모드">
-        <button className="mode-button" type="button" onClick={() => onModeChange('explore')}>조건으로 찾기</button>
-        <button className="mode-button" type="button" onClick={() => onModeChange('lookup')}>제품 찾기</button>
-        <button className="mode-button is-active" type="button" aria-current="page">현재 사료</button>
+        <button className="mode-button" type="button" onClick={() => onModeChange('explore')}>조건 찾기</button>
+        <button className="mode-button" type="button" onClick={() => onModeChange('lookup')}>제품 검색</button>
+        <button className="mode-button is-active" type="button" aria-current="page">사료 바꾸기</button>
       </nav>
       <div className="research-status">
         <span>{productCount || '—'} PRODUCTS</span>
@@ -330,11 +330,11 @@ function ReferenceRail({
   onChangeProduct: () => void
 }) {
   const activeIndex = currentStepIndex(step)
-  const steps = ['현재 제품', '사용 규격', '바꿀 것', '유지할 것', '후보']
+  const steps = ['현재 사료', '사용 규격', '바꿀 것', '유지할 것', '다른 사료']
 
   return (
     <aside className="switch-reference-rail">
-      <div className="switch-reference-label">CURRENT</div>
+      <div className="switch-reference-label">현재 사료</div>
       <div className="switch-reference-product">
         <ProductImage className="switch-reference-image" product={product} />
         <div>
@@ -1116,8 +1116,8 @@ export default function SwitchFlow({
     return (
       <main className="switch-find-stage">
         <section className="switch-find-hero">
-          <span className="switch-eyebrow">CURRENT FOOD</span>
-          <h1>현재 먹이는 사료를 찾으세요.</h1>
+          <span className="switch-eyebrow">현재 사료</span>
+          <h1>지금 먹이는 사료를 찾아보세요.</h1>
           <p>지금 먹이는 제품과 규격을 선택하면, 다음 사료와 차이를 비교할 수 있습니다.</p>
           <label className="switch-find-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
@@ -1183,15 +1183,15 @@ export default function SwitchFlow({
                     </p>
                   </div>
                 </section>
+                <button className="switch-primary-action switch-current-confirm" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
                 <section className="switch-preview-facts">
                   <dl>
                     <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div>
                     <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div>
                     <div><dt>판매 규격 수</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
                   </dl>
-                  <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다. 레시피와 원재료는 확인된 정보만 사용합니다.</p>
+                  <p>다음 단계에서 실제로 먹이는 용량을 고릅니다. 레시피와 원재료는 확인된 정보만 사용합니다.</p>
                 </section>
-                <button className="switch-primary-action" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
               </div>
             </aside>
           ) : null}
@@ -1515,7 +1515,7 @@ export default function SwitchFlow({
                   step: 'results',
                 }), 'push', 'step')
               }}
-            >후보 제품 보기 →</button>
+            >다른 사료 보기 →</button>
           </div>
         </main>
       </div>
@@ -1560,31 +1560,31 @@ export default function SwitchFlow({
         ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시`
         : `${candidates.length}개의 제품`
     const candidateSummaryText = candidateSearchActive
-      ? `${candidateCountText} · 조건에 맞는 후보에서 브랜드·제품명으로 찾습니다.`
+      ? `${candidateCountText} · 조건에 맞는 사료에서 브랜드·제품명으로 찾아보세요.`
       : hasChosenCandidateCriteria
-        ? `${candidateCountText} · 선택한 조건과 제품 정보를 비교합니다.`
-        : `${candidateCountText} · 변경·유지 조건을 고르지 않아 전체 후보에서 탐색합니다.`
+        ? `${candidateCountText} · 고른 조건과 제품 정보를 비교해 볼 수 있어요.`
+        : `${candidateCountText} · 바꿀 점과 유지할 점을 고르지 않아 전체 사료에서 찾습니다.`
     const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
     return (
       <main className="switch-results-stage">
         <div className="switch-session-bar">
-          <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
-          <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
-          <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
+          <div className="switch-session-current"><span>현재 사료</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
+          <div><span>바꿀 점</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
+          <div><span>유지할 점</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
           <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
         </div>
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
             <div className="switch-candidate-heading">
-              <div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div>
+              <div><strong>다른 사료</strong><span>{candidateSummaryText}</span></div>
               <div className="switch-candidate-search">
                 <input
                   ref={candidateSearchInputRef}
                   type="search"
-                  aria-label="후보 제품 검색"
-                  placeholder="후보 브랜드 또는 제품명 검색"
+                  aria-label="다른 사료 검색"
+                  placeholder="브랜드 또는 제품명 검색"
                   value={candidateSearch}
                   onChange={(event) => {
                     setCandidateSearch(event.target.value)
@@ -1595,8 +1595,8 @@ export default function SwitchFlow({
               </div>
             </div>
             <div className="switch-candidate-list">
-              {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
-              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 후보에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}
+              {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 사료가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
+              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 사료에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 const isCompared = compareIds.includes(product.product_id)
@@ -1645,7 +1645,7 @@ export default function SwitchFlow({
 
           {selectedCandidate ? (
             <aside className="switch-candidate-inspector">
-              <div className="switch-preview-topline"><span>후보 제품</span><button type="button" onClick={() => closeCandidate(selectedCandidate.product.product_id)}>닫기 ×</button></div>
+              <div className="switch-preview-topline"><span>다른 사료</span><button type="button" onClick={() => closeCandidate(selectedCandidate.product.product_id)}>닫기 ×</button></div>
               <div className="switch-inspector-scroll">
                 <section className="switch-inspector-identity">
                   <ProductImage className="switch-inspector-image" product={selectedCandidate.product} />
@@ -1678,8 +1678,8 @@ export default function SwitchFlow({
                 </div>
 
                 <section className="switch-inspector-section switch-inspector-decision">
-                  <h2>선택한 조건과 비교</h2>
-                  <div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
+                  <h2>고른 조건과 비교</h2>
+                  <div className="switch-inspector-baseline"><span>현재 사료</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
                   <dl>
                     <div><dt>유지 조건</dt><dd>{selectedCandidate.keepMatches.join(' · ') || '확인된 항목 없음'}</dd></div>
                     <div><dt>변경 조건</dt><dd>{selectedCandidate.changeMatches.join(' · ') || '확인된 항목 없음'}</dd></div>

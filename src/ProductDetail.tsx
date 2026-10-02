@@ -21,8 +21,8 @@ type DetailResource = 'variants' | 'nutrition' | 'ingredients' | 'manufacturing'
 
 const TABS: Array<[DetailTab, string]> = [
   ['overview', '개요'],
-  ['nutrition', '영양'],
   ['ingredients', '원재료'],
+  ['nutrition', '영양'],
   ['context', '제조 · 유통'],
 ]
 const INITIAL_LOADING: Record<DetailResource, boolean> = { variants: true, nutrition: true, ingredients: true, manufacturing: true, markets: true }

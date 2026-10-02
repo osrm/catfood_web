@@ -714,15 +714,15 @@ summary:focus-visible {
   font-size: 14px;
 }
 
-.compare-cell {
+.compare-stage .compare-table .compare-row .compare-cell {
   color: var(--cf-text);
   font-size: 15.5px;
   line-height: 1.55;
 }
 
-.compare-cell strong,
-.compare-nutrition-value,
-.compare-ingredient-value {
+.compare-stage .compare-table .compare-row .compare-cell strong,
+.compare-stage .compare-nutrition-value,
+.compare-stage .compare-ingredient-value {
   font-size: 15.5px;
 }
 
@@ -1036,10 +1036,10 @@ summary:focus-visible {
     font-size: 13.5px;
   }
 
-  .compare-cell,
-  .compare-cell strong,
-  .compare-nutrition-value,
-  .compare-ingredient-value {
+  .compare-stage .compare-table .compare-row .compare-cell,
+  .compare-stage .compare-table .compare-row .compare-cell strong,
+  .compare-stage .compare-nutrition-value,
+  .compare-stage .compare-ingredient-value {
     font-size: 15.5px;
   }
 

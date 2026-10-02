@@ -191,10 +191,10 @@ test('direct detail URL restores the selected tab and still provides a way back 
   const id = products[2].product_id
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${id}&detailTab=nutrition`)
   assert.match(document.body.textContent, /Product 002/)
-  const nutritionTab = document.getElementById('detail-tab-ingredients')
+  const nutritionTab = document.getElementById('detail-tab-nutrition')
   assert.equal(nutritionTab?.getAttribute('aria-selected'), 'true')
   assert.equal(nutritionTab?.getAttribute('aria-controls'), 'detail-panel-nutrition')
-  assert.equal(document.querySelector('[role="tabpanel"]:not([hidden])')?.getAttribute('aria-labelledby'), 'detail-tab-ingredients')
+  assert.equal(document.querySelector('[role="tabpanel"]:not([hidden])')?.getAttribute('aria-labelledby'), 'detail-tab-nutrition')
   await click('제품 목록')
   assert.equal(document.querySelector('.detail-stage'), null)
   assert.ok(document.querySelector('.research-results'))

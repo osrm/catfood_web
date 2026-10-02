@@ -210,7 +210,7 @@ function ProductHead({ item, onRemove, onDetail, roleLabel }: { item: CompareIte
 }
 function CurrentProductHead({ product, variantText, evidenceNote }: { product: CatalogProduct; variantText?: string; evidenceNote?: ReactNode }) {
   return <div className="compare-product-head compare-current-product-head">
-    <span className="compare-column-role">현재 사료 · 기준</span>
+    <span className="compare-column-role">지금 먹이는 사료</span>
     <div className="compare-product-identity">{product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}<div className="compare-product-copy"><span>{product.brand}</span><strong>{product.canonical_name}</strong><small>사용 규격 · {variantText || '사용 규격 모름'}</small>{evidenceNote ? <small className="compare-current-nutrition-evidence">{evidenceNote}</small> : null}<small>판매 규격 · {representativePackageLabel(product)}</small></div></div>
   </div>
 }

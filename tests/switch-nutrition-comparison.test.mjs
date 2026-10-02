@@ -342,7 +342,7 @@ test('SWITCH nutrition keeps current separate from five candidate reads and pres
   const desktop = document.querySelector('.compare-switch-nutrition-desktop')
   assert.ok(desktop)
   assert.equal(desktop.querySelectorAll('.compare-product-head').length, 6)
-  assert.match(desktop.querySelector('.compare-current-product-head').textContent, /현재 사료 · 기준/)
+  assert.match(desktop.querySelector('.compare-current-product-head').textContent, /지금 먹이는 사료/)
   assert.match(desktop.querySelector('.compare-current-nutrition-evidence').textContent, /대표 영양 자료 · 3 kg · 사용 규격과 다른 포장/)
   assert.match(desktopCurrentMetric('열량').textContent, /3 kg 자료 · 다른 포장/)
   assert.match(desktopCurrentMetric('조단백질').textContent, /제품 단위 보완 자료/)

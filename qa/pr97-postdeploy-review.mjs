@@ -157,7 +157,7 @@ async function generalFlow(width, height, label) {
   assert.ok(detailScope.length > 0)
   report.assertions[`${label}-detail`] = { compareState: '비교에서 제거', rawTextLength: raw.length, energy: energyText, scope: detailScope }
 
-  await page.getByRole('button', { name: /䯌아렌 기/ }).first().click()
+  await page.locator('.detail-topbar .site-header-actions button').click()
   await page.locator('.research-results').waitFor({ state: 'visible', timeout: 30000 })
   if (await quick.isVisible().catch(() => false)) await quick.locator('.quick-view-topline button').click()
 

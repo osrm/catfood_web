@@ -189,7 +189,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   })))
 
   await click(all('.switch-find-result').find((node) => node.textContent.includes('현재 건식 사료')))
-  await click('이 제품을 현재 사료로 선택')
+  await click('이 사료를 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('선택할 수 있는 판매 규격을 확인하지 못했습니다'), 'empty variants')
   await click('사용 규격을 모르겠어요')
   await click('특별히 바꾸고 싶은 점 없음')
@@ -222,7 +222,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   assert.equal(exactButton('가금류'), undefined)
   assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must survive')
 
-  await click('후보 제품 보기')
+  await click('비교할 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'switch results')
   const session = document.querySelector('.switch-session-bar').textContent
   assert.match(session, /CHANGE.*다른 브랜드.*습식.*시니어.*생선.*피함 · 닭/s)

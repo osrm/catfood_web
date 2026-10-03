@@ -157,13 +157,13 @@ export default function Home({
               <div className="home-brand-shortcuts"><span>브랜드로 찾기</span>{['AATU', 'GO! SOLUTIONS', '로얄캐닌'].map((brand) => <button className="home-brand-shortcut" type="button" key={brand} onClick={() => onStart('lookup', brand)}>{brand}</button>)}</div>
             </section>
           </div>
-          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 예시">
-            <span>제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
-          </aside> : null}
           <section className="home-entry-board" aria-label="CATFOOD 시작 방법"><div className="home-entry-routes">
             <article className="home-entry-route"><div><h2>새 사료를 찾는다면</h2><p>사료 형태·연령과 원하는 조건으로.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
             <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>유지할 점과 바꿀 점을 기준으로.</p></div><button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button></article>
           </div></section>
+          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 예시">
+            <span>제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
+          </aside> : null}
           <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button></section>
         </section>
 

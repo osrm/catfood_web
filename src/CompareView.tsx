@@ -814,7 +814,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const overviewProducts = currentProduct ? [currentProduct, ...items.map((item) => item.product)] : items.map((item) => item.product)
   const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
   const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
-  const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ''}${switchOverview ? ' is-switch-overview' : ''}${switchNutrition ? ' is-switch-nutrition' : ''}`
+  const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ' is-general-compare'}${switchOverview ? ' is-switch-overview' : ''}${switchNutrition ? ' is-switch-nutrition' : ''}${!switchCompare && tab === 'overview' ? ' is-general-overview' : ''}${!switchCompare && tab === 'nutrition' ? ' is-general-nutrition' : ''}`
   const headerCopy = currentProduct
     ? tab === 'overview'
       ? `현재 사료와 ${items.length}개 후보의 제품 정보를 같은 항목으로 비교합니다.`

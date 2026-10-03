@@ -562,10 +562,12 @@ test('paired mobile comparison preserves EXPLORE relation semantics and extends 
   assert.match(mobile.textContent, /확인됨/)
   assert.match(mobile.textContent, /건식/)
 
+  assert.ok(document.querySelector('.compare-stage.is-general-compare.is-general-overview'))
   await click('영양')
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
   assert.ok(document.querySelector('.compare-mobile-two-product-nutrition'))
   assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
+  assert.ok(document.querySelector('.compare-stage.is-general-compare.is-general-nutrition'))
 
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${first.product_id}%2C${second.product_id}%2C${third.product_id}&compareOpen=1&compareTab=nutrition`)
   const picker = document.querySelector('.compare-mobile-general-pair-picker')

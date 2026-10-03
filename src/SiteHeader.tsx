@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react'
+import './catalog-design-refresh.css'
 
 export type BrowseMode = 'explore' | 'lookup' | 'switch'
 

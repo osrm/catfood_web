@@ -372,8 +372,8 @@
   overflow-wrap: anywhere;
 }
 
-.research-result-meta,
-.research-result-packages {
+.research-shell .research-results .research-result-card .research-result-meta,
+.research-shell .research-results .research-result-card .research-result-packages {
   overflow: visible;
   color: var(--atlas-muted);
   font-size: 12px;
@@ -491,8 +491,8 @@
 .detail-product-image,
 .detail-image-placeholder {
   width: 100%;
-  height: 260px;
-  margin-top: 24px;
+  height: 168px;
+  margin-top: 0;
   background: transparent;
   object-fit: contain;
 }
@@ -509,7 +509,9 @@
 }
 
 .detail-tabs button {
+  min-width: 44px;
   min-height: 52px;
+  padding: 12px 10px;
   color: var(--atlas-muted);
   font-size: 13px;
 }
@@ -519,8 +521,8 @@
 }
 
 .detail-section {
-  padding-top: 24px;
-  padding-bottom: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
   border-bottom-color: var(--atlas-line);
 }
 
@@ -741,8 +743,8 @@
   object-fit: contain;
 }
 
-.switch-find-result-copy > span,
-.switch-candidate-identity > span,
+.switch-workflow-shell .switch-find-result-copy > span,
+.switch-workflow-shell .switch-candidate-identity > span,
 .switch-preview-identity > div > span,
 .switch-inspector-identity > div > span {
   color: var(--atlas-muted);
@@ -765,8 +767,8 @@
   overflow-wrap: anywhere;
 }
 
-.switch-find-result-copy > small,
-.switch-candidate-identity > small {
+.switch-workflow-shell .switch-find-result-copy > small,
+.switch-workflow-shell .switch-candidate-identity > small {
   overflow: visible;
   color: var(--atlas-muted);
   font-size: 12px;
@@ -954,8 +956,8 @@
     font-size: 14px;
   }
 
-  .research-result-meta,
-  .research-result-packages,
+  .research-shell .research-results .research-result-card .research-result-meta,
+  .research-shell .research-results .research-result-card .research-result-packages,
   .result-relations,
   .relation-line,
   .research-result-facts,
@@ -983,8 +985,8 @@
 
   .detail-product-image,
   .detail-image-placeholder {
-    height: 150px;
-    margin-top: 16px;
+    height: 120px;
+    margin-top: 0;
   }
 
   .detail-tabs button {
@@ -993,8 +995,8 @@
   }
 
   .detail-section {
-    padding-top: 20px;
-    padding-bottom: 22px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .detail-section-heading h2,
@@ -1077,12 +1079,20 @@
     font-size: 14px;
   }
 
-  .switch-find-result-copy > small,
-  .switch-candidate-identity > small,
+  .switch-workflow-shell .switch-find-result-copy > small,
+  .switch-workflow-shell .switch-candidate-identity > small,
   .switch-preview-facts,
   .switch-inspector-section,
   .switch-ingredient-note,
   .switch-option-empty {
     font-size: 12px;
+  }
+}
+
+/* Keep the thumbnail inside its existing 52px track when quick view narrows the list. */
+@media (min-width: 761px) {
+  .switch-workflow-shell .switch-results-workspace.is-inspecting .switch-candidate-image {
+    width: 52px;
+    height: 72px;
   }
 }

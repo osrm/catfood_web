@@ -553,6 +553,10 @@ function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCond
   }
 }
 
+function candidateRelationLabel(label: string) {
+  return label.startsWith('형태 · ') ? label.slice('형태 · '.length) : label
+}
+
 function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
   const hasAny = evaluation.keepMatches.length > 0
     || evaluation.changeMatches.length > 0
@@ -565,10 +569,10 @@ function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
   return (
     <div className="switch-candidate-relations">
       {evaluation.keepMatches.length > 0 ? (
-        <div className="switch-relation-line is-keep"><span>유지 조건</span><strong>{evaluation.keepMatches.join(' · ')}</strong></div>
+        <div className="switch-relation-line is-keep"><strong>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</strong><span>유지할 조건</span></div>
       ) : null}
       {evaluation.changeMatches.length > 0 ? (
-        <div className="switch-relation-line is-change"><span>변경 조건</span><strong>{evaluation.changeMatches.join(' · ')}</strong></div>
+        <div className="switch-relation-line is-change"><strong>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</strong><span>바꿀 조건</span></div>
       ) : null}
       {evaluation.ingredientReviewedNotFound.length > 0 ? (
         <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.join(' · ')} · 검토한 자료에서 찾지 못함</strong></div>
@@ -1548,11 +1552,9 @@ export default function SwitchFlow({
       : visibleCandidates.length < candidates.length
         ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시`
         : `${candidates.length}개의 제품`
-    const candidateSummaryText = candidateSearchActive
-      ? `${candidateCountText} · 조건에 맞는 후보에서 브랜드·제품명으로 찾습니다.`
-      : hasChosenCandidateCriteria
-        ? `${candidateCountText} · 선택한 조건과 제품 정보를 비교합니다.`
-        : `${candidateCountText} · 변경·유지 조건을 고르지 않아 전체 후보에서 탐색합니다.`
+    const candidateSummaryText = hasChosenCandidateCriteria
+      ? candidateCountText
+      : `${candidateCountText} · 추가 조건 없이 탐색 중`
     const comparedNames = compareItems.map((item) => item.product.canonical_name)
 
     return (
@@ -1573,7 +1575,7 @@ export default function SwitchFlow({
                   ref={candidateSearchInputRef}
                   type="search"
                   aria-label="후보 제품 검색"
-                  placeholder="후보 브랜드 또는 제품명 검색"
+                  placeholder="브랜드 또는 제품명"
                   value={candidateSearch}
                   onChange={(event) => {
                     setCandidateSearch(event.target.value)

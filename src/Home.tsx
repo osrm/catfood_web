@@ -146,8 +146,7 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>고양이 사료를 고를 때</h1>
-            <p>원재료와 영양 성분을 확인하고, 궁금한 제품을 함께 비교해 보세요.</p>
+            <h1>고양이 사료 찾기</h1>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
               <h2 id="home-lookup-title" className="visually-hidden">브랜드·제품명 검색</h2>
@@ -158,14 +157,14 @@ export default function Home({
               <div className="home-brand-shortcuts"><span>브랜드로 찾기</span>{['AATU', 'GO! SOLUTIONS', '로얄캐닌'].map((brand) => <button className="home-brand-shortcut" type="button" key={brand} onClick={() => onStart('lookup', brand)}>{brand}</button>)}</div>
             </section>
           </div>
-          {examples.length > 0 ? <aside className="home-product-example" aria-label="등록 제품 일부">
-            <span>등록 제품 일부 · 검색 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
+          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 예시">
+            <span>제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
           </aside> : null}
           <section className="home-entry-board" aria-label="CATFOOD 시작 방법"><div className="home-entry-routes">
-            <article className="home-entry-route"><span aria-hidden="true">01</span><div><h2>조건으로 사료 찾기</h2><p>사료 형태와 연령을 골라 찾아보세요.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
-            <article className="home-entry-route"><span aria-hidden="true">02</span><div><h2>지금 먹이는 사료와 비교</h2><p>바꾸고 싶은 점을 골라 다른 제품을 찾아보세요.</p></div><button type="button" onClick={() => onStart('switch')}>현재 사료로 시작 →</button></article>
+            <article className="home-entry-route"><div><h2>새 사료를 찾는다면</h2><p>사료 형태·연령과 원하는 조건으로.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
+            <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>유지할 점과 바꿀 점을 기준으로.</p></div><button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button></article>
           </div></section>
-          <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button></section>
+          <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button></section>
         </section>
 
         {demo ? (

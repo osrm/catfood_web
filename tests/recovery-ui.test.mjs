@@ -223,7 +223,7 @@ test('HOME information guide opens optionally, moves focus with reduced-motion s
     await act(async () => root.render(createElement(app.App)))
     await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 1개'), 'catalog loaded on home')
 
-    const trigger = button('정보 읽는 기준 보기')
+    const trigger = button('정보 안내 →')
     const panel = document.getElementById('home-info-panel')
     const heading = document.getElementById('home-info-title')
     assert.ok(trigger)

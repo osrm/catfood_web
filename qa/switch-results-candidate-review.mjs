@@ -15,7 +15,7 @@ async function pageAt(w,h){
 async function visibleButton(page,name){const xs=page.getByRole('button',{name,exact:true});for(let i=0;i<await xs.count();i++)if(await xs.nth(i).isVisible())return xs.nth(i);throw new Error('button not found '+name)}
 async function setup(page){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000})
- await page.getByRole('button',{name:'현재 사료로 시작 →'}).click()
+ await page.getByRole('button',{name:'먹이는 사료 찾기 →'}).click()
  await page.waitForFunction(()=>/제품\s*\d+개/.test(document.querySelector('.research-status')?.textContent||'')||Boolean(document.querySelector('.research-status .is-error')),null,{timeout:30000})
  if(await page.locator('.research-status .is-error').count()){
   report.catalogRetries??=[];report.catalogRetries.push({viewport:page.viewportSize(),message:await page.locator('.switch-state-message.is-error').textContent()})

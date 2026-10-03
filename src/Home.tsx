@@ -59,15 +59,15 @@ const GUIDES = [
 
 const GLOSSARY = [
   {
-    term: 'Product · 제품',
+    term: '제품',
     definition: '브랜드와 제품명으로 구분되는 하나의 판매 제품입니다.',
   },
   {
-    term: 'Formula · 배합',
+    term: '배합',
     definition: '원재료와 영양 정보가 연결되는 실제 레시피입니다. 같은 제품도 시기나 시장에 따라 달라질 수 있습니다.',
   },
   {
-    term: 'SKU · 규격',
+    term: '판매 규격',
     definition: '중량이나 묶음 수처럼 실제로 판매되는 용량·포장 단위입니다.',
   },
   {
@@ -146,8 +146,7 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>이 사료와 저 사료,<br />뭐가 다를까요?</h1>
-            <p>원재료와 영양 성분을 한곳에서 확인할 수 있어요.</p>
+            <h1>고양이 사료 찾기</h1>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
               <h2 id="home-lookup-title" className="visually-hidden">브랜드·제품명 검색</h2>
@@ -158,21 +157,21 @@ export default function Home({
               <div className="home-brand-shortcuts"><span>브랜드로 찾기</span>{['AATU', 'GO! SOLUTIONS', '로얄캐닌'].map((brand) => <button className="home-brand-shortcut" type="button" key={brand} onClick={() => onStart('lookup', brand)}>{brand}</button>)}</div>
             </section>
           </div>
-          {examples.length > 0 ? <aside className="home-product-example" aria-label="등록된 제품 예시">
-            <span>등록된 제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
-          </aside> : null}
           <section className="home-entry-board" aria-label="CATFOOD 시작 방법"><div className="home-entry-routes">
-            <article className="home-entry-route"><span aria-hidden="true">01</span><div><h2>조건으로 사료 찾기</h2><p>사료 형태와 연령을 골라 찾아보세요.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
-            <article className="home-entry-route"><span aria-hidden="true">02</span><div><h2>지금 먹이는 사료와 비교</h2><p>바꾸고 싶은 점을 골라 다른 제품을 찾아보세요.</p></div><button type="button" onClick={() => onStart('switch')}>현재 사료로 시작 →</button></article>
+            <article className="home-entry-route"><div><h2>새 사료를 찾는다면</h2><p>사료 형태·연령과 원하는 조건으로.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
+            <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>유지할 점과 바꿀 점을 기준으로.</p></div><button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button></article>
           </div></section>
-          <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 읽는 기준 보기 →</button></section>
+          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 예시">
+            <span>제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
+          </aside> : null}
+          <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button></section>
         </section>
 
         {demo ? (
           <section className="home-section home-safety" aria-labelledby="home-safety-title">
             <div className="home-section-heading">
               <div>
-                <span>SAFETY &amp; NOTICES</span>
+                <span>안전 공지</span>
                 <h2 id="home-safety-title">공식 리콜 및 생산분 안전 공지</h2>
               </div>
               <p>공식 공지의 제품명, 규격, lot, 유통 범위를 확인해 해당 여부를 구분합니다.</p>
@@ -194,7 +193,7 @@ export default function Home({
         <section id="home-info-panel" className="home-info-panel" aria-labelledby="home-info-title" hidden={!infoOpen}>
           <div className="home-section-heading home-info-heading">
             <div>
-              <span>INFO</span>
+              <span>정보</span>
               <h2 id="home-info-title" ref={infoHeadingRef} tabIndex={-1}>정보 안내</h2>
             </div>
             <button className="home-info-close" type="button" onClick={closeReadingGuide}>정보 안내 닫기</button>
@@ -203,7 +202,7 @@ export default function Home({
           <section className="home-section home-guides" aria-labelledby="home-guides-title">
             <div className="home-section-heading">
               <div>
-                <span>HOW TO READ</span>
+                <span>읽는 법</span>
                 <h2 id="home-guides-title">비교할 때 알아두면 좋은 4가지</h2>
               </div>
               <p>제품 정보를 읽을 때 헷갈리기 쉬운 기준만 짧게 정리했습니다.</p>
@@ -223,7 +222,7 @@ export default function Home({
           <section className="home-section home-glossary" aria-labelledby="home-glossary-title">
             <div className="home-section-heading">
               <div>
-                <span>GLOSSARY</span>
+                <span>용어</span>
                 <h2 id="home-glossary-title">용어집</h2>
               </div>
               <p>제품 상세와 비교 화면에서 자주 쓰는 용어입니다.</p>

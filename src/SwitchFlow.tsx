@@ -1560,9 +1560,16 @@ export default function SwitchFlow({
     return (
       <main className="switch-results-stage">
         <div className="switch-session-bar">
-          <div className="switch-session-current"><span>CURRENT</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
-          <div><span>CHANGE</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
-          <div><span>KEEP</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
+          <div className="switch-results-title"><h1>다음 사료 살펴보기</h1></div>
+          <div className="switch-session-current">
+            <span>지금 먹이는 사료</span>
+            <div className="switch-session-current-product">
+              <ProductImage className="switch-session-current-image" product={currentProduct} />
+              <div><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
+            </div>
+          </div>
+          <div><span>바꿀 조건</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
+          <div><span>유지할 조건</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
           <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
         </div>
 

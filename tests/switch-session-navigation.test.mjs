@@ -373,13 +373,13 @@ test('CHANGE KEEP ingredient avoidance and compare selection survive LOOKUP roun
   await click(exactButton('현재 사료'))
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'SWITCH results after mode roundtrip')
   const summary = document.querySelector('.switch-session-bar').textContent
-  assert.match(summary, /CHANGE.*습식.*피함 · 닭/s)
-  assert.match(summary, /KEEP.*실내묘/s)
+  assert.match(summary, /바꿀 조건.*습식.*피함 · 닭/s)
+  assert.match(summary, /유지할 조건.*실내묘/s)
   assert.match(document.querySelector('.switch-compare-dock').textContent, /전환 습식 A/)
   const runsBeforeRemount = searchRuns.length
   await remountApp()
   assert.ok(document.querySelector('.switch-results-stage'))
-  assert.match(document.querySelector('.switch-session-bar').textContent, /CHANGE.*습식.*피함 · 닭/s)
+  assert.match(document.querySelector('.switch-session-bar').textContent, /바꿀 조건.*습식.*피함 · 닭/s)
   assert.equal(searchRuns.length, runsBeforeRemount, 'restoration must not replay an old analytics search run')
 })
 
@@ -631,7 +631,7 @@ test('SWITCH empty candidates use an edit action and KEEP unset wording without 
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'empty results step')
 
-  assert.match(document.querySelector('.switch-session-bar').textContent, /KEEP.*따로 고르지 않음/s)
+  assert.match(document.querySelector('.switch-session-bar').textContent, /유지할 조건.*따로 고르지 않음/s)
   const empty = document.querySelector('.switch-candidate-list .switch-state-message')
   assert.ok(empty)
   assert.match(empty.textContent, /조건에 맞는 후보가 없습니다\.바꿀 조건이나 유지할 조건을 수정해 보세요\./)

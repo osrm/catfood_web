@@ -84,6 +84,14 @@ const GLOSSARY = [
   },
 ]
 
+function getHomeExampleFacts(product: CatalogProduct) {
+  const labels: Record<string, string> = {kitten: '키튼', adult: '성묘', senior: '시니어', all_life_stages: '전연령', gestation_lactation_and_kitten: '임신·수유·키튼'}
+  return {
+    meta: [product.feed_type ?? '형태 미확인', product.life_stage ? labels[product.life_stage] ?? product.life_stage : '연령 미확인'].join(' · '),
+    packageText: product.representative_package_size_text ? `판매 대표 규격 · ${product.representative_package_size_text}` : null,
+  }
+}
+
 export default function Home({
   productCount,
   products = [],
@@ -146,7 +154,7 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>고양이 사료 찾기</h1>
+            <h1>어떤 사료를 찾으세요?</h1>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
               <h2 id="home-lookup-title" className="visually-hidden">브랜드·제품명 검색</h2>
@@ -162,7 +170,17 @@ export default function Home({
             <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>유지할 점과 바꿀 점을 기준으로.</p></div><button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button></article>
           </div></section>
           {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 예시">
-            <span>제품 예시</span><div className="home-example-products">{examples.map((product) => <button type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}><img src={product.display_image_url!} alt="" /><span>{product.brand}</span><strong>{product.canonical_name}</strong></button>)}</div>
+            <span>제품 예시</span>
+            <div className="home-example-products">{examples.map((product) => {
+              const facts = getHomeExampleFacts(product)
+              return <button className="home-example-product" type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}>
+                <img src={product.display_image_url!} alt="" />
+                <span className="home-example-brand">{product.brand}</span>
+                <strong>{product.canonical_name}</strong>
+                {facts.meta ? <small className="home-example-meta">{facts.meta}</small> : null}
+                {facts.packageText ? <small className="home-example-package">{facts.packageText}</small> : null}
+              </button>
+            })}</div>
           </aside> : null}
           <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button></section>
         </section>

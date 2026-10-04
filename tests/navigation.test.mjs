@@ -744,7 +744,7 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
   assert.match(mobile.textContent, /Product 002/)
   assert.doesNotMatch(mobile.textContent, /Product 001/)
   assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'))
-  const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => cell.textContent.trim())
+  const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
   assert.deepEqual(taurineValues, ['미확인', '0.12% 이상'])
   assert.match(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-specific').closest('tbody').textContent, /건물 기준\(Dry Matter\).*단백질 34%/)
 
@@ -813,7 +813,7 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
   assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
 
-  const valuesFor = (id) => [...mobile.querySelector(id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => cell.textContent.trim())
+  const valuesFor = (id) => [...mobile.querySelector(id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-energy'), ['410 kcal/100g', '380 kcal/100g'])
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-protein'), ['32% 이상', '30% 이하'])
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-fat'), ['15% 이상', '미확인'])
@@ -897,7 +897,7 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
 
   const energyRow = [...document.querySelectorAll('.compare-table > .compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '열량')
   assert.ok(energyRow)
-  assert.deepEqual([...energyRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.trim()), [
+  assert.deepEqual([...energyRow.querySelectorAll('.compare-cell')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim()), [
     '348.5 kcal/100g',
     '370 kcal/100g',
     '410 kcal/100g',
@@ -942,7 +942,7 @@ test('non-SWITCH overview keeps a partly populated row visible and collapses onl
   const visibleRows = [...document.querySelectorAll('.compare-table > .compare-row')]
   const targetRow = visibleRows.find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '제품 표기 대상')
   assert.ok(targetRow)
-  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.trim()), ['실내묘', '확인된 값 없음'])
+  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim()), ['실내묘', '확인된 값 없음'])
 
   const disclosure = document.querySelector('.compare-table > .compare-overview-extra')
   assert.ok(disclosure)
@@ -1075,4 +1075,47 @@ test('detail comparison cap allows removal but prevents a sixth product', async 
   await click('돌아가기')
   await waitForUi(() => !document.querySelector('.detail-stage'), 'cap removal return')
   assert.equal(new URL(window.location.href).searchParams.get('compare').split(',').length, 4)
+})
+
+async function renderEnergyFixture(rows) {
+  document.body.innerHTML = '<div id="root"></div>'
+  globalThis.fetch = window.fetch = async input => {
+    const url = new URL(String(input))
+    return Response.json(url.pathname.endsWith('/compare_product_nutrition') ? rows : [])
+  }
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, {items: rows.map(row => ({product: products.find(p => p.product_id === row.product_id)})), initialTab: 'nutrition', onClose() {}, onRemove() {}})))
+  await waitForUi(() => document.querySelectorAll('.compare-state').length === 0 && document.querySelector('.compare-mobile-two-product-nutrition-table'), 'energy comparison loaded')
+}
+function energyFixture(index, kg, per100g) {
+  return {product_id: products[index].product_id, observation_scope: 'product', market_code: null, variant_id: null, kcal_per_kg: kg, kcal_per_100g: per100g, protein_pct: 33, protein_qualifier: 'min', fat_pct: 15, fat_qualifier: 'min', fiber_pct: 2, fiber_qualifier: 'max', moisture_pct: 10, moisture_qualifier: 'max', ash_pct: null, ash_qualifier: null, additional_nutrients: [], supplemental_nutrition_fields: []}
+}
+
+test('energy bars compare actual normalized values on a common zero-based axis and keep guarantees as text', async () => {
+  await renderEnergyFixture([energyFixture(0, 3485, 999), energyFixture(1, null, 422), energyFixture(2, null, null)])
+  const bars = [...document.querySelectorAll('.compare-energy-bar')]
+  assert.equal(bars.length, 4, 'two known energy values in mobile pair and desktop; unknown has no bar')
+  assert.ok(bars.every(bar => bar.getAttribute('aria-label').includes('0부터 500 kcal/100g')))
+  assert.ok(bars.some(bar => bar.textContent === '' && bar.getAttribute('aria-label').includes('348.5 kcal/100g')))
+  assert.ok(bars.some(bar => Math.abs(parseFloat(bar.firstElementChild.style.width) - 69.7) < 1e-9))
+  assert.ok(bars.some(bar => Math.abs(parseFloat(bar.firstElementChild.style.width) - 84.4) < 1e-9))
+  assert.match(document.body.textContent, /미확인/)
+  assert.ok([...document.querySelectorAll('.compare-mobile-two-product-field')].filter(row => row.textContent.includes('조단백질') || row.textContent.includes('조지방')).every(row => !row.querySelector('.compare-energy-bar') && row.textContent.includes('이상')))
+})
+
+test('zero energy remains known and values above 500 expand the energy axis without clipping', async () => {
+  await renderEnergyFixture([energyFixture(0, null, 0), energyFixture(1, null, 1200)])
+  const bars = [...document.querySelectorAll('.compare-energy-bar')]
+  assert.equal(bars.length, 4)
+  assert.ok(bars.every(bar => bar.getAttribute('aria-label').includes('0부터 1200 kcal/100g')))
+  assert.ok(bars.some(bar => bar.firstElementChild.style.width === '0%' && bar.getAttribute('aria-label').endsWith('0 kcal/100g')))
+  assert.ok(bars.some(bar => bar.firstElementChild.style.width === '100%'))
+})
+
+test('invalid kg energy cannot silently fall back to a different 100g value or create a zero bar', async () => {
+  await renderEnergyFixture([energyFixture(0, -10, 422), energyFixture(1, null, null)])
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  assert.match(document.body.textContent, /-1 kcal\/100g/)
+  assert.match(document.body.textContent, /미확인/)
+  assert.doesNotMatch(document.body.textContent, /422 kcal\/100g/)
 })

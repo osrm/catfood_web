@@ -359,7 +359,7 @@ test('SWITCH candidate kg energy is normalized to kcal/100g while the provided k
   try {
     await renderSwitch()
     const candidateEnergy = mobileCandidateMetric('열량')
-    assert.equal(candidateEnergy.textContent.trim(), '348.5 kcal/100g')
+    assert.equal(candidateEnergy.querySelector('.compare-energy-number').textContent.trim(), '348.5 kcal/100g')
 
     const mobile = document.querySelector('.compare-switch-mobile-nutrition')
     const scopeRow = [...mobile.querySelectorAll('.compare-mobile-two-product-field')]

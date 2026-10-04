@@ -2387,3 +2387,9 @@ textarea {
 .switch-workflow-shell .switch-results-stage .switch-candidate-pane{border:0}
 .switch-results-stage .switch-session-current-product .switch-image-placeholder{width:72px;height:82px}
 @media(max-width:760px){.switch-results-stage .switch-session-current-product .switch-image-placeholder{width:64px;height:72px}}
+@media(max-width:360px){
+ .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-actions{grid-template-columns:minmax(0,1fr)}
+ .detail-identity{grid-template-columns:84px minmax(0,1fr);padding:18px 0}
+ .detail-product-image,.detail-image-placeholder{width:84px;height:116px}
+ .detail-identity-copy h1{font-size:21px}
+}

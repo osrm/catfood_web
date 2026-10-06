@@ -1963,7 +1963,7 @@ textarea {
 }
 
 .detail-section {
-  border-bottom-color: var(--atlas-line);
+  border-bottom-color: color-mix(in srgb, var(--atlas-line) 55%, transparent);
 }
 
 .detail-section-heading h2 {
@@ -2590,11 +2590,6 @@ textarea {
 }
 
 .compare-stage .compare-remove {
-  min-width: 44px;
-  width: 44px;
-  min-height: 44px;
-  padding: 0;
-  border-radius: 0;
   font-size: 13px;
 }
 
@@ -2604,7 +2599,27 @@ textarea {
 
 @media (min-width: 761px) {
   .compare-stage .compare-product-copy > span {
-    padding-inline-end: 48px;
+    padding-inline-end: 0;
+  }
+
+  .compare-stage .compare-remove {
+    top: auto;
+    bottom: 18px;
+    min-width: 44px;
+    width: 44px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0;
+    border-color: transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--atlas-muted);
+  }
+
+  .compare-stage .compare-remove:hover,
+  .compare-stage .compare-remove:focus-visible {
+    background: var(--atlas-row-tint);
+    color: var(--atlas-ink);
   }
 }
 

@@ -2569,6 +2569,12 @@ textarea {
   line-height: 1.5;
 }
 
+@media (min-width: 761px) {
+  .compare-stage .compare-product-copy > span {
+    padding-inline-end: 24px;
+  }
+}
+
 .compare-stage .compare-cell,
 .compare-stage .compare-table .compare-row .compare-cell,
 .compare-stage .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value,

@@ -2755,3 +2755,8 @@ summary:focus-visible,
   outline-color: var(--atlas-focus);
 }
 /* === End color role refinement === */
+
+/* Keep both words in the selected SWITCH control in the same state color. */
+.switch-results-stage .switch-candidate-compare.is-added > span {
+  color: inherit;
+}

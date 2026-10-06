@@ -2646,3 +2646,112 @@ textarea {
 .home-example-products .home-example-action{grid-column:2;justify-self:start;margin-top:4px;color:var(--atlas-accent);font-size:13px;line-height:1.5;font-weight:550}
 .home-example-products .home-example-product img{grid-row:1/6}
 .home-example-products .home-example-product:hover .home-example-action{text-decoration:underline;text-underline-offset:3px}
+
+/* === Color role refinement: consumer primary / selection / data === */
+:root {
+  --atlas-primary: #a8442b;
+  --atlas-primary-hover: #8f3723;
+  --atlas-selection: #536b73;
+  --atlas-selection-bg: #eef2f2;
+  --atlas-data: #39413e;
+  --atlas-data-track: #d9dfdc;
+  --atlas-row-tint: #f7f7f7;
+  --atlas-soft: var(--atlas-row-tint);
+  --atlas-soft-2: var(--atlas-row-tint);
+  --atlas-focus: #7d3525;
+  --atlas-accent: var(--atlas-primary);
+  --cf-accent: var(--atlas-primary);
+}
+
+/* Brand expression: primary is visible in the service mark and real primary actions. */
+.site-wordmark::before {
+  background: var(--atlas-primary);
+}
+
+.home-entry-search-submit:not(:disabled),
+:is(.research-shell, .switch-workflow-shell, .detail-stage) :is(.primary-action, .switch-primary-action):not(:disabled) {
+  border-color: var(--atlas-primary);
+  background: var(--atlas-primary);
+  color: #fff;
+}
+
+.home-entry-search-submit:not(:disabled):hover,
+:is(.research-shell, .switch-workflow-shell, .detail-stage) :is(.primary-action, .switch-primary-action):not(:disabled):hover {
+  border-color: var(--atlas-primary-hover);
+  background: var(--atlas-primary-hover);
+}
+
+.home-example-products .home-example-action,
+.research-shell[data-catalog-mode="lookup"] .research-result-link,
+.detail-inline-link {
+  color: var(--atlas-primary);
+}
+
+/* Product-brand facts are facts, not action or quality signals. */
+.home-example-brand,
+.research-shell[data-catalog-mode="lookup"] .research-result-brand,
+.detail-identity-copy > span {
+  color: var(--atlas-ink) !important;
+}
+
+.switch-reference-label,
+.switch-step-header > span,
+.switch-session-bar > div > span,
+.switch-session-current > span {
+  color: var(--atlas-muted);
+}
+
+/* Navigation and selected-for-comparison state use a separate non-ranking cue. */
+.site-header.site-header .mode-button.is-active::after {
+  background: var(--atlas-selection);
+}
+
+.detail-tabs button.is-active,
+.compare-stage .compare-tabs button.is-active {
+  color: var(--atlas-ink);
+  border-bottom-color: var(--atlas-selection);
+  box-shadow: inset 0 -2px 0 var(--atlas-selection);
+}
+
+.research-shell .research-result-row.is-compared,
+.research-shell[data-catalog-mode="lookup"] .research-result-row.is-compared,
+.switch-results-stage .switch-candidate-item.is-compared,
+.switch-find-result.is-selected {
+  background: var(--atlas-selection-bg);
+  box-shadow: inset 2px 0 0 var(--atlas-selection);
+}
+
+.research-shell .research-result-compare.is-added,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare.is-added,
+.research-shell .switch-compare-action.is-added,
+.switch-workflow-shell .switch-compare-action.is-added,
+.switch-results-stage .switch-candidate-compare.is-added {
+  border-color: var(--atlas-selection);
+  background: var(--atlas-selection-bg);
+  color: var(--atlas-selection);
+}
+
+/* Comparison-table rhythm remains neutral rather than sharing selection color. */
+.compare-stage .compare-row.is-different .compare-cell,
+.compare-stage .compare-row:nth-child(even) .compare-cell {
+  background: var(--atlas-row-tint);
+}
+
+/* Energy is a shared-axis data graphic, not a primary action or recommendation signal. */
+.compare-energy-bar {
+  background: var(--atlas-data-track);
+}
+
+.compare-energy-bar > span {
+  background: var(--atlas-data);
+}
+
+/* Preserve the existing focus geometry while separating focus from selection state. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.detail-disclosure > summary:focus-visible {
+  outline-color: var(--atlas-focus);
+}
+/* === End color role refinement === */

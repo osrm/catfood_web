@@ -1,19 +1,23 @@
 # Consumer frontend design
 
-All production screens share `SiteHeader` and the `--cf-*` tokens in `styles.css`: warm white background, white surfaces, dark text, neutral dividers, red actions, and Noto Sans KR. Red marks an action or selection; it does not rank products or imply suitability.
+All five screen families share SiteHeader and pinned Pretendard Variable. Product identity, readable facts and existing actions lead; evidence remains available on demand. The paper background is white, text and product-brand facts are neutral, enabled primary actions use a paprika accent, selected products and active navigation use slate, and comparison energy graphics use gray. These roles do not rank products or imply suitability.
 
 ## Stylesheet ownership
 
-`main.tsx` loads six stylesheets in order: `styles.css` (tokens and shared controls/header), `home.css`, `research-ui.css` (EXPLORE/LOOKUP and quick view), `product-detail.css`, `compare.css`, and `switch-workflow.css`. Existing structural rules, responsive layouts and focus handling are consolidated into those owners. Historical refinement/override files remain in Git for reference but are not imported; do not resume layering them over the shared theme.
+main.tsx imports seven stylesheets in order: styles.css, home.css, research-ui.css, product-detail.css, compare.css, switch-workflow.css, and catalog-design-refresh.css. The first six retain structural, responsive and interaction rules. catalog-design-refresh.css owns the shared visual treatment and its screen-specific typography/composition adjustments; its --atlas-* tokens are the active design roles. Shared structural controls continue to use --cf-*.
+
+Edit the current rules in their owner rather than importing another historical refinement stylesheet or creating a separate theme per screen. Check computed styles where existing selectors overlap; a source declaration alone does not establish the rendered result.
 
 ## Reading and interaction
 
-HOME begins with search and two paths, followed by actual catalog examples. Example products come from the loaded public catalog, are labeled as examples, and are not recommendations. Empty/error/loading states stay explicit.
+HOME begins with search, followed by the two existing entry paths and actual catalog records. Package images identify products alongside full names, form/age and representative selling-package facts. Examples come from the loaded public catalog and are not recommendations. Existing empty/error/loading states, search handlers and reading-guide focus behavior remain.
 
-Product identity precedes actions and facts. Detail comparison actions use the existing comparison handlers and five-product cap. Returning from detail preserves changes to the basket. SWITCH keeps its own current product, selected package and candidate basket.
+Product identity precedes actions and facts. Detail comparison actions use the existing handlers and five-product cap. Returning from detail preserves basket changes. SWITCH keeps its own current product, selected package and candidate basket.
 
-Nutrition units, minimum/maximum qualifiers, missing values, item-level supplemental evidence, Product/SKU/Formula and market scopes are unchanged. Original ingredients and the existing reviewed reading-help mappings are preserved. Mobile nutrition keeps two values together; ingredients retain the reviewed horizontal alignment and keyboard behavior.
+Nutrition units, minimum/maximum qualifiers, missing values, item-level supplemental evidence, Product/SKU/Formula and market scopes remain. Original ingredients and reviewed reading-help mappings remain. Mobile nutrition keeps two values together; ingredients retain the reviewed horizontal alignment and keyboard behavior.
 
 ## Validation
 
-Use the production build with public read data at 390 x 844 and 1440 x 900. Install write/analytics guards before the first navigation. Check all five screen families plus detail/basket return, current-food selection, condition context and ingredient scroll. Record local candidate evidence separately from deployed Pages evidence. Draft PR review does not authorize merge or deployment.
+Use a production build with public read data. Install write/analytics guards before the first navigation and await data, fonts and visible images before capturing evidence. Verify changed composition at narrow, intermediate and desktop widths, long names and controls; check the state contracts affected by the actual change. Numeric row counts and contrast measurements support review but do not prove visual brand quality.
+
+Record source SHA and distinguish candidate evidence from deployed Pages evidence. Draft PR review does not authorize merge, deployment or a human study.

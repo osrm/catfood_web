@@ -2080,7 +2080,7 @@ textarea {
     min-width: 0;
     padding: 0;
     border: 0;
-    border-top: 5px solid var(--atlas-accent);
+    border-top: 1px solid var(--atlas-line);
     background: transparent;
     box-shadow: none;
   }
@@ -2213,7 +2213,7 @@ textarea {
     position: static;
     padding: 0;
     border: 0;
-    border-top: 5px solid var(--atlas-accent);
+    border-top: 1px solid var(--atlas-line);
     background: transparent;
     box-shadow: none;
   }
@@ -2485,7 +2485,9 @@ textarea {
 }
 
 .research-shell[data-catalog-mode="lookup"] .research-result-link,
-.research-shell[data-catalog-mode="lookup"] .research-result-compare {
+.research-shell[data-catalog-mode="lookup"] .research-result-compare,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare > span,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare > strong {
   font-size: 13px;
 }
 
@@ -2549,9 +2551,21 @@ textarea {
   line-height: 1.6;
 }
 
+.compare-stage .compare-table .compare-row .compare-row-label,
 .compare-stage .compare-row-label,
 .compare-stage .compare-mobile-two-product-row-label {
   font-size: 13px;
+  line-height: 1.5;
+}
+
+.compare-stage .compare-section-row strong,
+.compare-stage .compare-section-row span,
+.compare-stage .compare-detail-link,
+.compare-stage .compare-remove {
+  font-size: 13px;
+}
+
+.compare-stage .compare-section-row span {
   line-height: 1.5;
 }
 

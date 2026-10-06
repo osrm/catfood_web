@@ -2808,3 +2808,15 @@ summary:focus-visible,
 .switch-results-stage .switch-candidate-compare.is-added > span {
   color: inherit;
 }
+
+/* Restored keyboard focus must remain visible over the comparison surfaces. */
+.compare-stage .compare-mobile-general-pair-controls select:focus-visible {
+  outline: 2px solid var(--atlas-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.compare-stage .compare-table-wrap:focus-visible {
+  outline: 2px solid var(--atlas-focus);
+  outline-offset: -2px;
+}

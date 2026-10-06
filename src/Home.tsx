@@ -169,8 +169,8 @@ export default function Home({
             <article className="home-entry-route"><div><h2>새 사료를 찾는다면</h2><p>사료 형태·연령과 원하는 조건으로.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
             <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>유지할 점과 바꿀 점을 기준으로.</p></div><button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button></article>
           </div></section>
-          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 예시">
-            <span>제품 예시</span>
+          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 정보 예시">
+            <span>사료 정보 둘러보기</span>
             <div className="home-example-products">{examples.map((product) => {
               const facts = getHomeExampleFacts(product)
               return <button className="home-example-product" type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}>
@@ -179,6 +179,7 @@ export default function Home({
                 <strong>{product.canonical_name}</strong>
                 {facts.meta ? <small className="home-example-meta">{facts.meta}</small> : null}
                 {facts.packageText ? <small className="home-example-package">{facts.packageText}</small> : null}
+                <span className="home-example-action" aria-hidden="true">찾기 →</span>
               </button>
             })}</div>
           </aside> : null}

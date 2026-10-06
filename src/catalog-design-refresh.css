@@ -1372,9 +1372,9 @@ textarea {
 }
 
 .home-start {
-  grid-template-columns: minmax(280px, .82fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(300px, .96fr) minmax(0, 1.04fr);
   grid-template-areas: "search examples" "routes examples" "reading examples";
-  gap: 12px clamp(32px, 5vw, 72px);
+  gap: 10px clamp(36px, 4vw, 56px);
   align-items: start;
 }
 
@@ -1387,15 +1387,15 @@ textarea {
   max-width: 520px;
   margin: 0;
   color: var(--atlas-ink);
-  font-size: clamp(34px, 3.4vw, 46px);
-  font-weight: 700;
-  line-height: 1.16;
-  letter-spacing: -.04em;
+  font-size: clamp(32px, 2.9vw, 40px);
+  font-weight: 680;
+  line-height: 1.22;
+  letter-spacing: -.035em;
   word-break: keep-all;
 }
 
 .home-entry-lookup {
-  margin-top: 28px;
+  margin-top: 24px;
   max-width: 540px;
 }
 
@@ -1474,14 +1474,15 @@ textarea {
 .home-entry-route h2 {
   margin-bottom: 2px;
   color: var(--atlas-ink);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 680;
+  line-height: 1.45;
 }
 
 .home-entry-route p {
   color: var(--atlas-muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .home-entry-route > button {
@@ -1496,82 +1497,92 @@ textarea {
 .home-product-example {
   grid-area: examples;
   min-width: 0;
-  padding: 20px 24px 16px;
+  padding: 4px 0 0;
   border: 0;
-  border-top: 6px solid var(--atlas-accent);
   border-radius: 0;
-  background: var(--atlas-soft);
+  background: transparent;
 }
 
 .home-product-example > span {
   display: block;
-  margin: 0 0 10px;
-  color: var(--atlas-ink);
-  font-size: 15px;
-  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
 }
 
 .home-example-products {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
-  border-top: 1px solid var(--atlas-line);
+  border-bottom: 1px solid var(--atlas-line);
 }
 
 .home-example-products .home-example-product {
   display: grid;
-  grid-template-rows: auto auto auto auto auto;
-  align-content: start;
+  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
+  align-items: center;
+  align-content: center;
+  gap: 2px 16px;
   min-width: 0;
-  min-height: 44px;
-  padding: 14px 16px 8px;
+  min-height: 112px;
+  padding: 12px 0;
   border: 0;
+  border-top: 1px solid var(--atlas-line);
   background: transparent;
   color: var(--atlas-ink);
   text-align: left;
 }
 
-.home-example-product + .home-example-products .home-example-product { border-left: 1px solid var(--atlas-line); }
+.home-example-products .home-example-product + .home-example-product { border-top: 1px solid var(--atlas-line); }
 
 .home-example-products img {
-  width: 100%;
-  height: 156px;
+  grid-column: 1;
+  grid-row: 1 / 5;
+  width: 88px;
+  height: 96px;
   margin: 0;
-  padding: 8px;
+  padding: 4px;
   background: transparent;
   object-fit: contain;
 }
 
 .home-example-brand {
+  grid-column: 2;
   display: block;
-  margin: 10px 0 3px;
+  margin: 0 0 2px;
   color: var(--atlas-accent) !important;
-  font-size: 12px !important;
-  font-weight: 700;
+  font-size: 12.5px !important;
+  font-weight: 680;
+  line-height: 1.45;
 }
 
 .home-example-products strong {
+  grid-column: 2;
   display: block;
   color: var(--atlas-ink);
   font-size: 16px;
-  font-weight: 700;
-  line-height: 1.48;
+  font-weight: 680;
+  line-height: 1.5;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
 .home-example-meta,
 .home-example-package {
+  grid-column: 2;
   display: block;
-  margin-top: 5px;
+  margin-top: 3px;
   color: var(--atlas-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.5;
   word-break: keep-all;
 }
 
-.home-example-package { margin-top: 2px; }
+.home-example-package { margin-top: 1px; }
 
 .home-reading-note {
   grid-area: reading;
@@ -2393,3 +2404,225 @@ textarea {
  .detail-product-image,.detail-image-placeholder{width:84px;height:116px}
  .detail-identity-copy h1{font-size:21px}
 }
+
+
+/* === 2026-10-06 hierarchy refinement: typography only outside HOME composition === */
+@media (max-width: 760px) {
+  .home-start-copy h1 {
+    max-width: 340px;
+    font-size: 30px;
+    font-weight: 680;
+    line-height: 1.22;
+  }
+
+  .home-start {
+    grid-template-areas: "search" "routes" "examples" "reading";
+    gap: 18px;
+  }
+
+  .home-product-example {
+    margin: 0;
+    padding: 0;
+  }
+
+  .home-product-example > span {
+    margin-bottom: 6px;
+  }
+
+  .home-example-products .home-example-product {
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    gap: 2px 12px;
+    min-height: 100px;
+    padding: 10px 0;
+  }
+
+  .home-example-products img {
+    grid-column: 1;
+    grid-row: 1 / 5;
+    width: 72px;
+    height: 84px;
+    padding: 2px;
+  }
+
+  .home-example-products strong {
+    font-size: 15.5px;
+    line-height: 1.48;
+  }
+
+  .home-example-meta,
+  .home-example-package {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
+/* LOOKUP — product name first, supporting facts remain readable. */
+.research-shell[data-catalog-mode="lookup"] .research-results-heading strong {
+  color: var(--atlas-ink);
+  font-size: 19px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-brand {
+  font-size: 12.5px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-identity strong {
+  font-size: 16.5px;
+  font-weight: 680;
+  line-height: 1.48;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-results .research-result-card .research-result-meta,
+.research-shell[data-catalog-mode="lookup"] .research-results .research-result-card .research-result-packages,
+.research-shell[data-catalog-mode="lookup"] .research-result-facts {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-link,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare {
+  font-size: 13px;
+}
+
+/* DETAIL — reduce headline contrast without reducing factual text. */
+.detail-identity-copy h1 {
+  font-size: 26px;
+  font-weight: 740;
+  line-height: 1.34;
+  letter-spacing: -.025em;
+}
+
+.detail-identity-copy p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.detail-section-heading h2,
+.detail-basis-block h3 {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.detail-fact-lines .detail-fact > span,
+.detail-variant-row span,
+.detail-market-row span,
+.detail-summary-meta,
+.detail-evidence-context,
+.detail-note,
+.detail-disclosure > summary,
+.detail-basis-block > p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.detail-fact-lines .detail-fact > strong,
+.detail-variant-row strong,
+.detail-market-row strong {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.detail-nutrition-row > strong,
+.detail-ingredient-copy,
+.detail-ingredient-list,
+.detail-ingredient-list-compact,
+.detail-ingredient-list li,
+.detail-ingredient-list-compact li {
+  font-size: 15.5px;
+}
+
+/* COMPARE — keep numeric values prominent, raise supporting evidence one step. */
+.compare-stage .compare-header h1 {
+  font-size: 24px;
+  font-weight: 740;
+  line-height: 1.3;
+}
+
+.compare-stage .compare-header p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.compare-stage .compare-row-label,
+.compare-stage .compare-mobile-two-product-row-label {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.compare-stage .compare-cell,
+.compare-stage .compare-table .compare-row .compare-cell,
+.compare-stage .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value,
+.compare-stage .compare-current-nutrition-metric,
+.compare-stage .compare-ingredient-text {
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+
+.compare-stage .compare-product-copy > span,
+.compare-stage .compare-column-role,
+.compare-stage .compare-product-copy small,
+.compare-stage .compare-mobile-two-product-brand,
+.compare-stage .compare-current-nutrition-evidence,
+.compare-stage .compare-evidence-details span,
+.compare-stage .compare-evidence-details strong,
+.compare-stage .compare-evidence-disclosure > summary,
+.compare-stage .compare-disclosure-content {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* SWITCH — preserve candidate-name/relation QA contract while softening headings. */
+.switch-results-title h1,
+.switch-find-hero h1,
+.switch-step-header h1 {
+  font-size: 25px;
+  font-weight: 740;
+  line-height: 1.28;
+  letter-spacing: -.03em;
+}
+
+.switch-results-stage .switch-candidate-identity > strong {
+  font-size: 17px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.switch-workflow-shell .switch-relation-line > strong,
+.switch-workflow-shell .switch-relation-line > span {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.switch-session-current-product strong,
+.switch-results-stage .switch-session-bar > div > strong {
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.5;
+}
+
+.switch-session-current-product small,
+.switch-workflow-shell .switch-candidate-identity > small,
+.switch-preview-facts,
+.switch-inspector-section {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .detail-identity-copy h1 { font-size: 22px; }
+  .compare-stage .compare-header h1 { font-size: 23px; }
+  .switch-results-title h1,
+  .switch-find-hero h1,
+  .switch-step-header h1 { font-size: 24px; }
+}
+/* === End 2026-10-06 hierarchy refinement === */
+
+.home-example-products .home-example-action{grid-column:2;justify-self:start;margin-top:4px;color:var(--atlas-accent);font-size:13px;line-height:1.5;font-weight:550}
+.home-example-products .home-example-product img{grid-row:1/6}
+.home-example-products .home-example-product:hover .home-example-action{text-decoration:underline;text-underline-offset:3px}

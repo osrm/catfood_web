@@ -1416,6 +1416,8 @@ textarea {
 }
 
 .home-entry-search:focus-within { border-color: var(--atlas-primary); }
+.home-entry-search:has(input:focus-visible) { border-color: transparent; outline: 2px solid var(--atlas-focus); outline-offset: 2px; }
+.home-entry-search input:focus-visible { outline: none; }
 .home-entry-search-icon { display: none; }
 .home-entry-search-field { min-width: 0; }
 
@@ -2450,6 +2452,7 @@ textarea {
   .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-heads {gap:12px;border-bottom:1px solid var(--atlas-line);padding-bottom:8px;}
   .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-head {padding:0;gap:6px;}
   .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-head + .compare-mobile-two-product-head {border-left:0;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-name {font-size:15.5px;font-weight:650;line-height:1.45;}
   .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions {gap:6px;margin-top:auto;font-size:13px;font-weight:550;}
   .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions button {min-height:44px;padding:0;border:0;border-radius:0;background:transparent;color:var(--atlas-primary);}
   .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions button:last-child {color:var(--atlas-muted);}

@@ -1,6 +1,6 @@
 # Consumer frontend design
 
-All five screen families share SiteHeader and pinned Pretendard Variable. Product identity, readable facts and existing actions lead; evidence remains available on demand. The paper background is white, text and product-brand facts are neutral, enabled primary actions use a paprika accent, selected products and active navigation use slate, and comparison energy graphics use gray. These roles do not rank products or imply suitability.
+All five screen families share SiteHeader and pinned Pretendard Variable body text. HOME and comparison use a limited Noto Serif KR400/500 title role from the official Google Fonts CDN. Product identity, readable facts and existing actions lead; evidence remains available on demand. The canvas uses warm paper, record surfaces are white, text and product-brand facts are neutral, enabled primary actions use deep green, selection/navigation retain their separate slate role, and energy graphics use gray. These roles do not rank products or imply suitability.
 
 ## Stylesheet ownership
 
@@ -10,14 +10,18 @@ Edit the current rules in their owner rather than importing another historical r
 
 ## Reading and interaction
 
-HOME begins with search, followed by the two existing entry paths and actual catalog records. Package images identify products alongside full names, form/age and representative selling-package facts. Examples come from the loaded public catalog and are not recommendations. Existing empty/error/loading states, search handlers and reading-guide focus behavior remain.
+HOME begins with a wide search area, followed by two subordinate entry paths and actual white catalog records. Title, package photography and full product names form the visual hierarchy. Package images identify products alongside full names, form/age and representative selling-package facts. Examples come from the loaded public catalog and are not recommendations. Existing empty/error/loading states, search handlers and reading-guide focus behavior remain.
 
 Product identity precedes actions and facts. Detail comparison actions use the existing handlers and five-product cap. Returning from detail preserves basket changes. SWITCH keeps its own current product, selected package and candidate basket.
 
-Nutrition units, minimum/maximum qualifiers, missing values, item-level supplemental evidence, Product/SKU/Formula and market scopes remain. Original ingredients and reviewed reading-help mappings remain. Mobile nutrition keeps two values together; ingredients retain the reviewed horizontal alignment and keyboard behavior.
+Nutrition units, minimum/maximum qualifiers, missing values, item-level supplemental evidence, Product/SKU/Formula and market scopes remain. Original ingredients and reviewed reading-help mappings remain. General mobile overview/nutrition reduces enclosing boxes and vertical rules, using horizontal separators and label/value hierarchy. Mobile nutrition keeps two values together; ingredients retain the reviewed horizontal alignment and keyboard behavior.
 
 ## Validation
 
 Use a production build with public read data. Install write/analytics guards before the first navigation and await data, fonts and visible images before capturing evidence. Verify changed composition at narrow, intermediate and desktop widths, long names and controls; check the state contracts affected by the actual change. Numeric row counts and contrast measurements support review but do not prove visual brand quality.
 
 Record source SHA and distinguish candidate evidence from deployed Pages evidence. Draft PR review does not authorize merge, deployment or a human study.
+
+## Design provenance
+
+The latest Stitch native screens were inspected and were not approved as complete screens: they invented archive copy, facts/features and inconsistent comparison chrome. Limited serif/sans roles, HOME composition and its actual warm-paper/deep-green treatment inform the implementation. Keeping Pretendard body text and simplifying comparison are Codex interpretations. Native source and actual React candidate evidence are kept separately; no human/design approval is implied.

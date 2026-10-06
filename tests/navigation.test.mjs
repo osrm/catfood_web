@@ -1159,6 +1159,7 @@ function energyFixture(index, kg, per100g) {
 
 test('energy bars compare actual normalized values on a common zero-based axis and keep guarantees as text', async () => {
   await renderEnergyFixture([energyFixture(0, 3485, 999), energyFixture(1, null, 422), energyFixture(2, null, null)])
+  await act(async () => document.querySelector('.compare-nutrition-tools > button').click())
   const bars = [...document.querySelectorAll('.compare-energy-bar')]
   assert.equal(bars.length, 4, 'two known energy values in mobile pair and desktop; unknown has no bar')
   assert.ok(bars.every(bar => bar.getAttribute('aria-label').includes('0부터 500 kcal/100g')))
@@ -1171,6 +1172,7 @@ test('energy bars compare actual normalized values on a common zero-based axis a
 
 test('zero energy remains known and values above 500 expand the energy axis without clipping', async () => {
   await renderEnergyFixture([energyFixture(0, null, 0), energyFixture(1, null, 1200)])
+  await act(async () => document.querySelector('.compare-nutrition-tools > button').click())
   const bars = [...document.querySelectorAll('.compare-energy-bar')]
   assert.equal(bars.length, 4)
   assert.ok(bars.every(bar => bar.getAttribute('aria-label').includes('0부터 1200 kcal/100g')))
@@ -1184,4 +1186,67 @@ test('invalid kg energy cannot silently fall back to a different 100g value or c
   assert.match(document.body.textContent, /-1 kcal\/100g/)
   assert.match(document.body.textContent, /미확인/)
   assert.doesNotMatch(document.body.textContent, /422 kcal\/100g/)
+})
+
+test('nutrition starts with exact values and preserves values, URL and control focus when graph format changes', async () => {
+  await renderEnergyFixture([energyFixture(0, 3485, null), energyFixture(1, null, 422)])
+  const toggle = document.querySelector('.compare-nutrition-tools > button')
+  const values = () => [...document.querySelectorAll('.compare-energy-number')].map(node => node.textContent)
+  const before = values(), url = window.location.href
+  assert.equal(toggle.getAttribute('aria-pressed'), 'false')
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  toggle.focus()
+  await act(async () => toggle.click())
+  assert.equal(toggle.getAttribute('aria-pressed'), 'true')
+  assert.equal(document.activeElement, toggle)
+  assert.deepEqual(values(), before)
+  assert.equal(window.location.href, url)
+  await act(async () => toggle.click())
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  assert.deepEqual(values(), before)
+})
+
+test('reading explanation follows known min/max amounts rather than absent values or reported qualifiers', async () => {
+  const row = energyFixture(0, null, 370)
+  row.protein_pct = null; row.fat_pct = null; row.fiber_pct = null; row.moisture_pct = null
+  row.ash_pct = 8; row.ash_qualifier = 'reported'
+  await renderEnergyFixture([row, { ...row, product_id: products[1].product_id }])
+  assert.equal(document.querySelectorAll('.compare-nutrition-tools details').length, 0)
+  await act(async () => root.unmount()); root = null
+  row.additional_nutrients = [{ nutrient_key: 'calcium', amount: 0, unit: '%', qualifier: 'min' }]
+  await renderEnergyFixture([row, { ...row, product_id: products[1].product_id }])
+  assert.equal(document.querySelectorAll('.compare-nutrition-tools details').length, 2)
+  assert.match(document.querySelector('.compare-nutrition-tools details').textContent, /최소값.*최대값.*실제 함량 차이/)
+})
+
+test('a graph is unavailable when only missing or invalid energy is provided', async () => {
+  await renderEnergyFixture([energyFixture(0, -10, 422), energyFixture(1, null, null)])
+  assert.ok([...document.querySelectorAll('.compare-nutrition-tools > button')].every(button => button.disabled && button.getAttribute('aria-pressed') === 'false'))
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  assert.match(document.body.textContent, /-1 kcal\/100g/)
+})
+
+test('a pure comparison starts with overview and exposes no nutrition tools before nutrition is requested', async () => {
+  document.body.innerHTML = '<div id="root"></div>'
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, { items: products.slice(0, 2).map(product => ({ product })), onClose() {}, onRemove() {} })))
+  assert.equal(document.querySelector('.compare-tabs [aria-selected="true"]').textContent, '개요')
+  assert.equal(document.querySelectorAll('.compare-nutrition-tools').length, 0)
+})
+
+test('mobile guarantee help follows the displayed pair rather than a hidden third product', async () => {
+  const first = energyFixture(0, null, 370), second = energyFixture(1, null, 348), third = energyFixture(2, null, 422)
+  for (const row of [first, second]) {
+    row.protein_qualifier = 'reported'; row.fat_qualifier = 'reported'
+    row.fiber_qualifier = 'reported'; row.moisture_qualifier = 'reported'
+  }
+  await renderEnergyFixture([first, second, third])
+  assert.ok(document.querySelector('.compare-nutrition-tools-desktop details'))
+  assert.equal(document.querySelector('.compare-nutrition-tools-mobile details'), null)
+  const select = document.querySelector('.compare-mobile-general-pair-picker select')
+  await act(async () => {
+    select.value = third.product_id
+    select.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+  assert.ok(document.querySelector('.compare-nutrition-tools-mobile details'))
 })

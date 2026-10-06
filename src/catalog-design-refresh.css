@@ -2877,3 +2877,33 @@ summary:focus-visible,
   outline: 2px solid var(--atlas-focus);
   outline-offset: -2px;
 }
+
+/* Optional visual reading; nutrition facts remain available in either format. */
+.compare-stage .compare-nutrition-tools {
+  display: flex; flex-wrap: wrap; align-items: start; gap: 0 18px;
+  width: 100%; padding: 0; border-bottom: 1px solid var(--atlas-line);
+  color: var(--atlas-ink); font-size: 13px; line-height: 1.55;
+}
+.compare-stage .compare-nutrition-tools > button,
+.compare-stage .compare-nutrition-tools > details > summary {
+  display: inline-flex; align-items: center; min-width: 44px; min-height: 44px;
+  margin: 0; padding: 0 4px; border: 0; border-radius: 0;
+  background: transparent; color: var(--atlas-muted); font: inherit; font-weight: 600; cursor: pointer;
+}
+.compare-stage .compare-nutrition-tools > button[aria-pressed="true"] {
+  color: var(--atlas-ink); text-decoration: underline; text-underline-offset: 4px;
+}
+.compare-stage .compare-nutrition-tools > button:disabled { opacity: .55; cursor: default; }
+.compare-stage .compare-nutrition-tools > details { margin: 0; min-width: 0; flex: 1; }
+.compare-stage .compare-nutrition-tools > details > summary::after { content: '＋'; margin-left: 7px; }
+.compare-stage .compare-nutrition-tools > details[open] > summary::after { content: '−'; }
+.compare-stage .compare-nutrition-tools > details > summary::-webkit-details-marker { display: none; }
+.compare-stage .compare-nutrition-tools p { margin: 0 4px 12px; color: var(--atlas-muted); font-size: 13px; line-height: 1.6; }
+.compare-stage .compare-nutrition-tools > button:focus-visible,
+.compare-stage .compare-nutrition-tools > details > summary:focus-visible { outline: 2px solid var(--atlas-focus); outline-offset: -2px; }
+.compare-stage .compare-nutrition-tools-mobile { display: none; }
+@media (max-width: 760px) {
+  .compare-stage .compare-nutrition-tools-desktop { display: none; }
+  .compare-stage .compare-nutrition-tools-mobile { display: block; }
+  .compare-stage .compare-nutrition-tools { gap: 0 12px; }
+}

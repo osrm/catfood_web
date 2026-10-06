@@ -25,3 +25,7 @@ Record source SHA and distinguish candidate evidence from deployed Pages evidenc
 ## Design provenance
 
 The latest Stitch native screens were inspected and were not approved as complete screens: they invented archive copy, facts/features and inconsistent comparison chrome. Limited serif/sans roles, HOME composition and its actual warm-paper/deep-green treatment inform the implementation. Keeping Pretendard body text and simplifying comparison are Codex interpretations. Native source and actual React candidate evidence are kept separately; no human/design approval is implied.
+
+## Comparison reading choices
+
+Comparison keeps overview as the default and preserves applied criteria and tab/history. Nutrition starts with the exact provided/normalized values; a local format button enables the existing zero-based, common-axis energy graphic. This does not rank products, infer health or change values, order or URLs. A closed min/max explanation appears only when known min/max amounts exist in the displayed products; qualifiers with missing amounts do not trigger it. Mobile uses its displayed pair/current+candidate; desktop uses all shown columns. Evidence, original units and item-level supplemental scopes remain. These are reversible design judgments informed by decision research, not measured improvements in human preference, understanding or choice. The independent concept with a large photo stage, energy-first secondary navigation and a 22 kcal difference headline is not adopted.

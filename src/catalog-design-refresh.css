@@ -500,6 +500,65 @@
 .switch-compare-dock > button {
   min-height: 44px;
 }
+/* SWITCH basket is secondary to product reading; preserve its fixed position and clearance. */
+.switch-workflow-shell .switch-results-stage > .switch-compare-dock {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 2px;
+  background: var(--atlas-surface);
+  color: var(--atlas-ink);
+  box-shadow: none;
+}
+.switch-workflow-shell .switch-compare-dock > strong {
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.switch-workflow-shell .switch-compare-dock-list {
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--atlas-muted);
+  opacity: 1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.switch-workflow-shell .switch-compare-dock > button {
+  grid-column: 3;
+  grid-row: 1;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--atlas-primary);
+  border-radius: 2px;
+  background: var(--atlas-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.switch-workflow-shell .switch-compare-dock > button:hover {
+  background: var(--atlas-primary-hover);
+  border-color: var(--atlas-primary-hover);
+}
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-results-stage:has(> .switch-compare-dock) {
+    --switch-compare-dock-height: 94px;
+  }
+  .switch-workflow-shell .switch-results-stage > .switch-compare-dock {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 8px 12px;
+  }
+  .switch-workflow-shell .switch-compare-dock > button { grid-column: 2; }
+  .switch-workflow-shell .switch-compare-dock-list {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
 
 /* Name search uses compact product records; criteria results keep their relation layout. */
 .research-shell[data-catalog-mode="lookup"] .research-results-heading > div {
@@ -2318,11 +2377,11 @@ textarea {
 .switch-workflow-shell .switch-results-stage .switch-results-workspace{width:100%;margin:0;min-width:0}
 .switch-results-stage .switch-session-bar > div > span::after{content:none}
 .switch-results-stage .switch-session-bar > div + div{border-left:0}
-.switch-results-stage .switch-candidate-pane{border:0}
-.switch-results-stage .switch-candidate-heading{padding:0 0 18px}
+.switch-results-stage .switch-candidate-pane{border:0;background:transparent}
+.switch-results-stage .switch-candidate-heading{padding:0 0 18px;background:transparent}
 .switch-results-stage .switch-candidate-item{grid-template-columns:minmax(0,1fr) 72px;gap:16px;align-items:center}
-.switch-results-stage .switch-candidate-row,.switch-results-stage .switch-results-workspace.is-inspecting .switch-candidate-row{grid-template-columns:64px minmax(0,1fr);gap:8px 16px;min-height:120px;padding:18px 0}
-.switch-results-stage .switch-candidate-row .switch-candidate-image{grid-column:1;grid-row:1/4;width:64px;height:84px}
+.switch-results-stage .switch-candidate-row,.switch-results-stage .switch-results-workspace.is-inspecting .switch-candidate-row{grid-template-columns:80px minmax(0,1fr);gap:8px 16px;min-height:120px;padding:18px 0}
+.switch-results-stage .switch-candidate-row .switch-candidate-image{grid-column:1;grid-row:1/4;width:80px;height:104px;align-self:start;justify-self:start}
 .switch-results-stage .switch-candidate-row .switch-candidate-identity,.switch-results-stage .switch-candidate-row .switch-candidate-relations,.switch-results-stage .switch-candidate-row .switch-candidate-open{grid-column:2;min-width:0}
 .switch-results-stage .switch-candidate-row .switch-candidate-identity{grid-row:1}
 .switch-results-stage .switch-candidate-row .switch-candidate-relations{grid-row:2}
@@ -2407,7 +2466,7 @@ textarea {
 @media(min-width:761px){.detail-tabs{top:72px}.detail-body{width:100%;margin:24px 0 80px}}
 .switch-workflow-shell .switch-results-stage .switch-session-bar > div > span::after{content:none}
 .switch-workflow-shell .switch-results-stage .switch-session-bar > div > span{font-size:11px}
-.switch-workflow-shell .switch-results-stage .switch-candidate-pane{border:0}
+.switch-workflow-shell .switch-results-stage .switch-candidate-pane{border:0;background:transparent}
 .switch-results-stage .switch-session-current-product .switch-image-placeholder{width:72px;height:82px}
 @media(max-width:760px){.switch-results-stage .switch-session-current-product .switch-image-placeholder{width:64px;height:72px}}
 @media(max-width:360px){
@@ -2627,6 +2686,16 @@ textarea {
   line-height: 1.55;
 }
 
+.switch-results-stage .switch-candidate-heading strong {
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.switch-workflow-shell .switch-candidate-identity > span {
+  color: var(--atlas-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
 /* SWITCH — preserve candidate-name/relation QA contract while softening headings. */
 .switch-results-title h1,
 .switch-find-hero h1,

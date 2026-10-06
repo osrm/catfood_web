@@ -572,6 +572,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
   const mobilePairSelectRefs = useRef<Array<HTMLSelectElement | null>>([])
+  const pendingRemovalFocusRef = useRef<{ slot: 0 | 1 | null; remainingCount: number } | null>(null)
   const mobileCandidateOptionsId = useId()
 
   useEffect(() => { setTab(initialTab) }, [initialTab])
@@ -670,6 +671,25 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       return next[0] === current[0] && next[1] === current[1] ? current : next
     })
   }, [productIds.join('|')])
+
+  useEffect(() => {
+    const pending = pendingRemovalFocusRef.current
+    if (!pending || currentProduct || productIds.length !== pending.remainingCount) return
+    if (document.activeElement && document.activeElement !== document.body) {
+      pendingRemovalFocusRef.current = null
+      return
+    }
+    const panel = document.querySelector<HTMLElement>('.compare-table-wrap')
+    const useMobilePairSelect = (window.matchMedia?.('(max-width: 760px)').matches ?? true)
+      && pending.slot != null
+      && pending.remainingCount > 2
+      && (tab === 'overview' || tab === 'nutrition')
+    const target = useMobilePairSelect && pending.slot != null
+      ? mobilePairSelectRefs.current[pending.slot] ?? panel
+      : panel
+    target?.focus({ preventScroll: true })
+    pendingRemovalFocusRef.current = null
+  }, [currentProduct, productIds.join('|'), mobilePairProductIds.join('|'), tab])
 
   useEffect(() => {
     const controller = new AbortController(); let active = true
@@ -810,8 +830,14 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       setMobileCandidatePickerOpen(false)
     }
     const mobilePairSlot = mobilePairItems.findIndex((item) => item.product.product_id === productId)
+    if (!currentProduct && items.length > 1) {
+      pendingRemovalFocusRef.current = {
+        slot: mobilePairSlot === 0 || mobilePairSlot === 1 ? mobilePairSlot : null,
+        remainingCount: items.length - 1,
+      }
+    }
     onRemove(productId)
-    if (mobilePairSlot >= 0) {
+    if (currentProduct && mobilePairSlot >= 0) {
       window.setTimeout(() => {
         if (items.length - 1 > 2) mobilePairSelectRefs.current[mobilePairSlot]?.focus({ preventScroll: true })
         else document.querySelector<HTMLElement>('.compare-table-wrap')?.focus({ preventScroll: true })
@@ -962,8 +988,9 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
           {hasSwitchBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><SwitchOverviewRow label="별도 확인 자료" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutrition ? basisSpecificSummary(currentNutrition) : currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : '영양 자료 없음'} candidateValue={(item) => nutritionByProduct.get(item.product.product_id) ? basisSpecificSummary(nutritionByProduct.get(item.product.product_id)) : nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : '영양 자료 없음'} /></> : null}
         </div>
       </> : <>
-        {twoProductOverview ? <>{renderMobileGeneralPairPicker()}<MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /></> : null}
-        {twoProductNutrition ? <>{renderMobileGeneralPairPicker()}<MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /></> : null}
+        {items.length > 2 && (tab === 'overview' || tab === 'nutrition') ? renderMobileGeneralPairPicker() : null}
+        {twoProductOverview ? <MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
+        {twoProductNutrition ? <MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
         <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>

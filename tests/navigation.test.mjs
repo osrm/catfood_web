@@ -684,6 +684,72 @@ test('mobile general comparison selects either side from five products, preserve
   assert.ok(document.querySelector('.research-results'))
 })
 
+test('general comparison preserves repaired pair focus while nutrition refetch is pending without stealing later focus', async () => {
+  const compared = products.slice(0, 5)
+  const compareParam = compared.map((item) => item.product_id).join('%2C')
+  let nutritionRequests = 0
+  let releaseNutrition
+  const delayedNutrition = new Promise((resolvePromise) => { releaseNutrition = resolvePromise })
+
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json(products)
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      nutritionRequests += 1
+      if (nutritionRequests === 1) return Response.json([])
+      if (nutritionRequests === 2) return delayedNutrition
+      return Response.json([])
+    }
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
+    return Response.json([])
+  }
+
+  try {
+    dom.reconfigure({ url: `https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${compareParam}&compareOpen=1&compareTab=nutrition` })
+    document.body.innerHTML = '<div id="root"></div>'
+    root = createRoot(document.getElementById('root'))
+    await act(async () => root.render(createElement(app.App)))
+    await waitForUi(
+      () => document.querySelector('.compare-mobile-two-product-nutrition') !== null,
+      'initial five-product nutrition comparison rendered',
+    )
+
+    const initialMobile = document.querySelector('.compare-mobile-two-product-nutrition')
+    const removeFirst = initialMobile.querySelector(`button[aria-label="Test Brand Product 000 비교에서 제거"]`)
+    assert.ok(removeFirst)
+    removeFirst.focus()
+    await act(async () => removeFirst.click())
+
+    await waitForUi(() => {
+      const picker = document.querySelector('.compare-mobile-general-pair-picker')
+      const repairedSelect = picker?.querySelector('select') ?? null
+      return nutritionRequests >= 2
+        && document.body.textContent.includes('영양 정보를 불러오는 중입니다.')
+        && picker !== null
+        && document.querySelector('.compare-mobile-two-product-nutrition') === null
+        && document.activeElement === repairedSelect
+    }, 'pair picker stays mounted and repaired slot receives focus while nutrition refetch is pending')
+
+    const compareIds = new URL(window.location.href).searchParams.get('compare')?.split(',') ?? []
+    assert.equal(compareIds.length, 4)
+    assert.equal(document.querySelectorAll('.compare-mobile-general-pair-picker select').length, 2)
+
+    const nutritionTab = document.getElementById('compare-tab-nutrition')
+    assert.ok(nutritionTab)
+    nutritionTab.focus()
+    await act(async () => releaseNutrition(Response.json([])))
+    await waitForUi(
+      () => document.querySelector('.compare-mobile-two-product-nutrition') !== null,
+      'nutrition comparison remounts after delayed response',
+    )
+    assert.equal(document.activeElement, nutritionTab, 'late nutrition response does not steal focus after the user moves it')
+  } finally {
+    if (releaseNutrition) releaseNutrition(Response.json([]))
+    installFetch()
+  }
+})
+
 test('mobile nutrition derives rows and basis evidence only from the displayed pair', async () => {
   const first = products[0], second = products[1], third = products[2]
   const row = (productId, energy, additional = [], basis = []) => ({

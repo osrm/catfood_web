@@ -3064,3 +3064,25 @@ summary:focus-visible,
   .switch-results-stage .switch-results-workspace.is-inspecting .switch-candidate-row { grid-template-columns: 68px minmax(0,1fr); gap: 8px 14px; }
   .switch-results-stage .switch-candidate-row .switch-candidate-image { width: 68px; height: 88px; }
 }
+
+/* Mobile comparison: select and identify without delaying the values.
+   Full names, 68x88 photographs and 44px native controls remain. */
+@media (max-width: 760px) {
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-picker { margin-bottom: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-controls label { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-heads { gap: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity { grid-template-rows: min-content 1fr; row-gap: 4px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity img,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder { grid-row: 1 / 3; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-brand { grid-column: 2; grid-row: 2; align-self: start; font-size: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition):has(.compare-mobile-general-pair-picker) .compare-mobile-two-product-slot { display: none; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition):has(.compare-mobile-general-pair-picker) .compare-mobile-two-product-brand { grid-row: 1 / 3; }
+  .compare-stage.is-general-nutrition .compare-mobile-two-product-nutrition-table > .compare-mobile-two-product-section:first-of-type { display: none; }
+}
+@media (max-width: 360px) {
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-brand,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition):has(.compare-mobile-general-pair-picker) .compare-mobile-two-product-brand { grid-column: 1 / -1; grid-row: 2; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity img,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder { grid-row: 1; }
+}

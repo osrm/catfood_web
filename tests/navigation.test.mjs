@@ -283,7 +283,7 @@ test('general comparison carries applied EXPLORE criteria through LOOKUP, known 
     assert.equal(relationCells.length, 3)
     assert.match(relationCells[0].textContent, /확인됨/)
     assert.match(relationCells[2].textContent, /제품 표기 다름/)
-    assert.match(relationCells[2].textContent, /대상 연령 · 제품 표기 전연령 · 선택 성묘/)
+    assert.match(relationCells[2].textContent, /대상 연령 · 전연령 \(선택 성묘\)/)
     assert.doesNotMatch(relationCells[2].textContent, /비교할 검색 조건 없음|부적합|급여 불가|안전/)
 
     const thirdHead = [...document.querySelectorAll('.compare-product-head')].find((head) => head.textContent.includes(third.canonical_name))
@@ -389,7 +389,7 @@ test('unapplied condition edits keep the last applied comparison basis when movi
     await click('비교 보기')
     const compareText = document.querySelector('.compare-stage').textContent
     assert.match(compareText, /연령 · 성묘/)
-    assert.match(compareText, /제품 표기 전연령 · 선택 성묘/)
+    assert.match(compareText, /전연령 \(선택 성묘\)/)
     assert.doesNotMatch(compareText, /선택 키튼|연령 · 키튼/)
   } finally {
     product.life_stage = originalLifeStage
@@ -1194,14 +1194,18 @@ test('nutrition starts with exact values and preserves values, URL and control f
   const values = () => [...document.querySelectorAll('.compare-energy-number')].map(node => node.textContent)
   const before = values(), url = window.location.href
   assert.equal(toggle.getAttribute('aria-pressed'), 'false')
+  assert.equal(toggle.querySelector('.compare-graph-state').textContent, '끔')
+  assert.equal(toggle.querySelector('.compare-graph-state').getAttribute('aria-hidden'), 'true')
   assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
   toggle.focus()
   await act(async () => toggle.click())
   assert.equal(toggle.getAttribute('aria-pressed'), 'true')
+  assert.equal(toggle.querySelector('.compare-graph-state').textContent, '켬')
   assert.equal(document.activeElement, toggle)
   assert.deepEqual(values(), before)
   assert.equal(window.location.href, url)
   await act(async () => toggle.click())
+  assert.equal(toggle.querySelector('.compare-graph-state').textContent, '끔')
   assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
   assert.deepEqual(values(), before)
 })

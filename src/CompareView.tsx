@@ -146,7 +146,7 @@ function NutritionReadingTools({ showEnergyGraph, onToggleEnergyGraph, details }
 }) {
   const hasGraph = details.some((row) => { const amount = selectedEnergy(row)?.amount; return amount != null && Number.isFinite(amount) && amount >= 0 })
   return <div className="compare-nutrition-tools">
-    <button type="button" aria-pressed={showEnergyGraph && hasGraph} disabled={!hasGraph} onClick={onToggleEnergyGraph}>열량 그래프</button>
+    <button type="button" aria-pressed={showEnergyGraph && hasGraph} disabled={!hasGraph} onClick={onToggleEnergyGraph}>열량 그래프<span className="compare-graph-state" aria-hidden="true">{showEnergyGraph && hasGraph ? '켬' : '끔'}</span></button>
     {hasNutritionGuarantees(details) ? <details>
       <summary>이상·이하 읽는 법</summary>
       <p>‘이상’은 최소값, ‘이하’는 최대값입니다. 표기값만으로 실제 함량 차이를 알 수는 없습니다.</p>
@@ -270,7 +270,7 @@ function RelationSummary({ item }: { item: CompareItem }) {
     {confirmed.length ? <p className="is-confirmed"><span>확인됨</span><strong>{confirmed.join(' · ')}</strong></p> : null}
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
-    {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.join(' · ')}</strong></p> : null}
+    {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.map((difference) => <span className="compare-condition-difference" key={difference}>{difference}</span>)}</strong></p> : null}
     {reviewed.length ? <p className="is-reviewed"><span>원료 확인</span><strong>{reviewed.join(' · ')} · 검토한 자료에서 찾지 못함</strong></p> : null}
     {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 판단 근거 부족</strong></p> : null}
     {unknown.length ? <p className="is-unknown"><span>미확인</span><strong>{unknown.join(' · ')}</strong></p> : null}
@@ -966,15 +966,25 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
           {renderMobileCandidatePicker()}
           <div className="compare-mobile-two-product-heads">
             <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-current-name">
-              <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
-              <span className="compare-mobile-two-product-brand">{currentProduct.brand}</span>
+              <div className="compare-mobile-two-product-identity">
+                {currentProduct.display_image_url ? <img src={currentProduct.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+                <div className="compare-mobile-two-product-meta">
+                  <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
+                  <span className="compare-mobile-two-product-brand">{currentProduct.brand}</span>
+                </div>
+              </div>
               <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-current-name">{currentProduct.canonical_name}</strong>
               <small className="compare-mobile-switch-use-package">{currentUsePackageLabel(currentVariantId, currentVariantText)}</small>
               <small className="compare-current-nutrition-evidence">{currentRepresentativeNutritionEvidence(currentNutrition, currentVariants, currentVariantId, currentVariantLookupFailed, currentVariantsLoading, false)}</small>
             </article>
             <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-candidate-name">
-              <span className="compare-mobile-two-product-slot">표시 중인 후보</span>
-              <span className="compare-mobile-two-product-brand">{mobileCandidate.product.brand}</span>
+              <div className="compare-mobile-two-product-identity">
+                {mobileCandidate.product.display_image_url ? <img src={mobileCandidate.product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+                <div className="compare-mobile-two-product-meta">
+                  <span className="compare-mobile-two-product-slot">표시 중인 후보</span>
+                  <span className="compare-mobile-two-product-brand">{mobileCandidate.product.brand}</span>
+                </div>
+              </div>
               <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-candidate-name">{mobileCandidate.product.canonical_name}</strong>
               <div className="compare-mobile-two-product-actions">
                 <button type="button" onClick={() => openDetail(mobileCandidate.product.product_id)}>상세 보기</button>

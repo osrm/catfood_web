@@ -2890,6 +2890,13 @@ summary:focus-visible,
   margin: 0; padding: 0 4px; border: 0; border-radius: 0;
   background: transparent; color: var(--atlas-muted); font: inherit; font-weight: 600; cursor: pointer;
 }
+.compare-stage .compare-relations strong > .compare-condition-difference {
+  display: block; color: inherit; font: inherit;
+}
+.compare-stage .compare-graph-state {
+  margin-left: 8px; color: var(--atlas-muted); font-size: 12px; font-weight: 500;
+}
+.compare-stage .compare-nutrition-tools > button[aria-pressed="true"] .compare-graph-state { color: var(--atlas-ink); }
 .compare-stage .compare-nutrition-tools > button[aria-pressed="true"] {
   color: var(--atlas-ink); text-decoration: underline; text-underline-offset: 4px;
 }
@@ -2906,4 +2913,15 @@ summary:focus-visible,
   .compare-stage .compare-nutrition-tools-desktop { display: none; }
   .compare-stage .compare-nutrition-tools-mobile { display: block; }
   .compare-stage .compare-nutrition-tools { gap: 0 12px; }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-identity {
+    grid-template-columns: 44px minmax(0, 1fr); gap: 7px; align-items: start;
+  }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-identity img,
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-identity .compare-image-placeholder {
+    width: 44px; height: 56px; background: transparent;
+  }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-meta {
+    display: grid; grid-column: 2; gap: 2px; min-width: 0;
+  }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-brand { grid-column: auto; }
 }

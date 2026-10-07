@@ -133,15 +133,15 @@ function unknownLabel(value: string) {
 }
 function comparisonDifferenceLabel(difference: ComparisonCriteriaDifference) {
   if (difference.kind === 'feedType') {
-    return `사료 형태 · 제품 표기 ${difference.productValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')} · 선택 ${difference.selectedValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')}`
+    return `사료 형태 · ${difference.productValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')})`
   }
   if (difference.kind === 'lifeStage') {
-    return `대상 연령 · 제품 표기 ${difference.productValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')} · 선택 ${difference.selectedValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')}`
+    return `대상 연령 · ${difference.productValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')})`
   }
   const productValues = difference.productValues.slice(0, 3).map((value) => optionLabel(value, RECIPE_DETAIL_LABELS))
   const productLabel = difference.productValues.length > 3 ? `${productValues.join(' · ')} 외 ${difference.productValues.length - 3}개` : productValues.join(' · ')
   const selectedLabel = difference.selectedValues.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)).join(' 또는 ')
-  return `주요 레시피 · 제품 표기 ${productLabel} · 선택 ${selectedLabel}`
+  return `주요 레시피 · ${productLabel} (선택 ${selectedLabel})`
 }
 function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
   const values: string[] = []
@@ -721,7 +721,7 @@ export default function App() {
           disabled={compareDisabled}
           onClick={() => toggleCompare(product.product_id)}
         >
-          <span>비교</span><strong>{isCompared ? '빼기' : compareDisabled ? '5/5' : '담기'}</strong>
+          <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
         </button>
       </div>
     })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>

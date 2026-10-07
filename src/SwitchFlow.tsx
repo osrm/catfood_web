@@ -1628,7 +1628,7 @@ export default function SwitchFlow({
                       disabled={compareDisabled}
                       onClick={() => toggleCompare(product.product_id)}
                     >
-                      <span>비교</span><strong>{isCompared ? '빼기' : compareDisabled ? '5/5' : '담기'}</strong>
+                      <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
                     </button>
                   </div>
                 )

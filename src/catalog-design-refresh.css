@@ -3004,7 +3004,7 @@ summary:focus-visible,
   .home-example-products .home-example-product strong { font-size: 16px; line-height: 1.45; }
   .home-example-products .home-example-brand { font-weight: 500; }
   .home-example-products .home-example-action { min-height: 44px; display: flex; align-items: center; }
-  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-card { grid-template-columns: 88px minmax(0, 1fr); gap: 8px 16px; }
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .research-result-card { grid-template-columns: 88px minmax(0, 1fr); gap: 8px 16px; }
   .research-shell[data-catalog-mode="lookup"] .research-results .research-result-card .research-result-image { width: 88px; height: 112px; object-fit: contain; }
   .detail-identity { grid-template-columns: 120px minmax(0, 1fr); gap: 16px; }
   .detail-product-image,.detail-image-placeholder { width: 120px; height: 148px; object-fit: contain; }

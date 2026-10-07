@@ -303,6 +303,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const alternateNutritionValues = basisValues(nutrition).filter((value) => value.amount != null)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
+  const nutritionFormulaException = nutrition?.observation_scope === 'formula' && !nutrition.is_current_resolved_formula
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
   const primaryIngredientNames = ingredients?.ingredient_names ?? []
   const canShowIngredientReadingHelp = Boolean(ingredients?.raw_text?.trim() && primaryIngredientNames.length)
@@ -410,13 +411,20 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 <div className="detail-energy">
                   <span>열량</span>
                   <strong>{energyValue(nutrition)}</strong>
-                 </div>
-                <p className="detail-evidence-context">{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</p>
+                </div>
+                {nutritionFormulaException ? <p className="detail-evidence-context detail-nutrition-exception">현재 판매 제품과 같은 배합인지 미확인</p> : null}
                 <div className="detail-nutrition-list">
                   {standardRows.map(([label, key, value, qualifier]) => <div className="detail-nutrition-row" key={key}><span>{label}</span><strong>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}</strong></div>)}
                   {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong></div>)}
                 </div>
-                {nutritionSupplementContext ? <p className="detail-evidence-context">{nutritionSupplementContext}</p> : null}
+                <details className="detail-disclosure detail-nutrition-source-disclosure">
+                  <summary>원래 표기 보기</summary>
+                  <div className="detail-fact-lines detail-fact-lines-compact">
+                    <Fact label="자료 범위" value={evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)} />
+                    <Fact label="원래 열량 표기" value={energyValue(nutrition)} />
+                    {nutritionSupplementContext ? <Fact label="보완 자료" value={nutritionSupplementContext} /> : null}
+                  </div>
+                </details>
                 {alternateNutritionValues.length ? <div className="detail-basis-block">
                   <h3>{basisLabel(nutrition)} 자료</h3>
                   <p>{basisContext(nutrition)}</p>

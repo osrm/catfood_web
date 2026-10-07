@@ -3041,7 +3041,7 @@ summary:focus-visible,
   .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-name { font-size: 17px; font-weight: 600; }
   .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-slot,
   .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-slot { grid-column: 2; grid-row: 1; }
-  .compare-stage .compare-mobile-two-product-slot { font-size: 12px; font-weight: 400; color: var(--atlas-muted); }
+  .compare-stage .compare-mobile-two-product-slot { font-size: 12px; font-weight: 400; color: var(--atlas-muted); word-break: keep-all; overflow-wrap: normal; }
   .compare-stage .compare-mobile-two-product-section-label { background: transparent; }
   .compare-stage .compare-mobile-two-product-section-label strong { font-size: 15px; font-weight: 600; }
   .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding-block: 18px; }

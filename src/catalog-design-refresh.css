@@ -3090,10 +3090,10 @@ summary:focus-visible,
 /* Task controls share the existing navigation palette and touch target size. */
 .home-switch-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .home-switch-actions button, .switch-restart-actions button {
-  min-height: 44px; padding: 8px 10px; background: transparent;
+  min-height: 44px; padding: 8px 10px; border: 0; background: transparent;
   color: var(--atlas-primary); font: inherit; font-size: 14px; cursor: pointer;
 }
-.switch-restart-actions { display: flex; justify-content: flex-end; padding: 0 24px; }
+.switch-restart-actions { display: flex; justify-content: flex-end; padding: 8px 24px 0; }
 .home-switch-actions button:focus-visible, .switch-restart-actions button:focus-visible {
   outline: 2px solid currentColor; outline-offset: 2px;
 }

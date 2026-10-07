@@ -775,7 +775,11 @@ export default function App() {
   }
 
   if (detailProduct) return <ProductDetail product={detailProduct} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
-  if (screen === 'home') return <Home products={products} productCount={products.length} loading={loading} error={Boolean(error)} onRetryCatalog={loadCatalog} onStart={startFromHome} switchProgress={switchSession.currentProductId ? products.find((product) => product.product_id === switchSession.currentProductId)?.canonical_name ?? '이전 작업' : switchSession.query ? '현재 사료 검색 중' : null} onRestartSwitch={restartSwitch} />
+  const resumableCurrent = products.find((product) => product.product_id === switchSession.currentProductId)
+  const switchProgress = switchSession.currentProductId
+    ? resumableCurrent ? resumableCurrent.brand + ' · ' + resumableCurrent.canonical_name : '이전 작업'
+    : switchSession.query ? '현재 사료 검색 중' : null
+  if (screen === 'home') return <Home products={products} productCount={products.length} loading={loading} error={Boolean(error)} onRetryCatalog={loadCatalog} onStart={startFromHome} switchProgress={switchProgress} onRestartSwitch={restartSwitch} />
   if (mode === 'switch') return <SwitchFlow key={switchSession.restartId} products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} onRestart={restartSwitch} />
 
   const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'

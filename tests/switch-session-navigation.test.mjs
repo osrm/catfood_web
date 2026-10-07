@@ -921,6 +921,11 @@ test('explicit restart clears queries, choices, overlays and history restoration
   assert.equal(document.activeElement, document.querySelector('.switch-find-search input'))
   await remountApp()
   assert.deepEqual(session(), restarted)
+  // A stale entry at first mount is also ignored in favor of the restarted session.
+  window.history.replaceState(oldSnapshot, '', window.location.href)
+  await remountApp()
+  assert.deepEqual(session(), restarted)
+  assert.equal(window.history.state.catfoodSwitchEntry, undefined)
   // A stale browser entry must not resurrect the task after an explicit restart.
   await act(async () => {
     window.history.replaceState(oldSnapshot, '', window.location.href)
@@ -976,4 +981,27 @@ test('legacy stored results acquire an applied selection without changing produc
   assert.equal(app.switchSelectionKey(parsed), app.switchSelectionKey({
     ...parsed, change: { ...parsed.change, officialTargets: ['sterilized', 'indoor'] },
   }))
+})
+
+test('restart invalidates an in-flight SKU response and never auto-selects the old variant', async () => {
+  const mockFetch = globalThis.fetch
+  let releaseVariant
+  let pendingSignal
+  globalThis.fetch = window.fetch = async (input, init = {}) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/switch_current_variant_options') && url.searchParams.get('product_id')?.startsWith('eq.')) {
+      pendingSignal = init.signal
+      return new Promise((resolvePromise) => { releaseVariant = () => resolvePromise(Response.json([variant(current.product_id, 'late_variant')])) })
+    }
+    return mockFetch(input, init)
+  }
+  await renderApp()
+  await chooseCurrent()
+  await waitForUi(() => releaseVariant !== undefined, 'SKU request in flight')
+  await click('처음부터 시작')
+  assert.equal(pendingSignal.aborted, true)
+  await act(async () => { releaseVariant(); await Promise.resolve() })
+  assert.equal(session().currentProductId, null)
+  assert.equal(session().variantSelection.kind, 'unselected')
+  assert.equal(document.querySelectorAll('.switch-sku-option').length, 0)
 })

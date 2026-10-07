@@ -254,7 +254,6 @@ export default function App() {
     action: SwitchHistoryAction = 'replace',
     entry?: SwitchHistoryEntry | null,
   ) {
-    if (onSessionChange) { onSessionChange(update, action, entry); return }
     const current = switchSessionRef.current
     const next = typeof update === 'function' ? update(current) : update
     if (next === current && action === 'replace' && entry === undefined) return
@@ -641,9 +640,9 @@ export default function App() {
       </div>
       <div className={mobileAdditionalOpen ? 'additional-condition-sections is-open' : 'additional-condition-sections'} id="explore-additional-conditions">
         <FilterSection title="제품 표기 대상" hint="여러 개 선택 가능"><FilterButtons options={TARGETS} selected={draftSearch.officialTargets} onToggle={(value) => toggleDraftArray('officialTargets', value)} /></FilterSection>
-        <FilterSection title="제품 특징" hint="제조사 공식 표기 기준"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
-        <FilterSection title="레시피 종류" hint="확인된 정보 기준"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
-        <FilterSection title="레시피 특성" hint="제품의 공식 표기만 확인"><button className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'} type="button" aria-pressed={draftSearch.grainFree} onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기</button><p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p></FilterSection>
+        <FilterSection title="제품 특징"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
+        <FilterSection title="레시피 종류"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
+        <FilterSection title="레시피 특성"><button className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'} type="button" aria-pressed={draftSearch.grainFree} onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기</button><p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p></FilterSection>
       </div>
     </>
   }

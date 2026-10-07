@@ -213,13 +213,50 @@ function ProductImage({ product, className }: { product: CatalogProduct; classNa
   )
 }
 
-function ChoiceButtons({ options, selected, onToggle, emptyText }: { options: readonly Option[]; selected: string[]; onToggle: (value: string) => void; emptyText?: string }) {
-  if (options.length === 0) return emptyText ? <p className="switch-option-empty">{emptyText}</p> : null
-  return <div className="switch-choice-grid">{options.map(([value, label]) => <button className={selected.includes(value) ? 'switch-choice is-active' : 'switch-choice'} key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => onToggle(value)}>{label}</button>)}</div>
+function ChoiceButtons({
+  options,
+  selected,
+  onToggle,
+  emptyText,
+}: {
+  options: readonly Option[]
+  selected: string[]
+  onToggle: (value: string) => void
+  emptyText?: string
+}) {
+  if (options.length === 0) {
+    return emptyText ? <p className="switch-option-empty">{emptyText}</p> : null
+  }
+
+  return (
+    <div className="switch-choice-grid">
+      {options.map(([value, label]) => (
+        <button
+          className={selected.includes(value) ? 'switch-choice is-active' : 'switch-choice'}
+          key={value}
+          type="button"
+          aria-pressed={selected.includes(value)}
+          onClick={() => onToggle(value)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
 }
+
 function CriterionSection({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
-  return <section className="switch-criterion-section"><div className="switch-criterion-heading"><strong>{title}</strong>{hint ? <span>{hint}</span> : null}</div>{children}</section>
+  return (
+    <section className="switch-criterion-section">
+      <div className="switch-criterion-heading">
+        <strong>{title}</strong>
+        {hint ? <span>{hint}</span> : null}
+      </div>
+      {children}
+    </section>
+  )
 }
+
 function variantLabel(variant: ProductVariant | null): string {
   if (!variant) return '사용 규격 모름'
   const size = variant.package_size_text || '규격 표기 미확인'
@@ -229,85 +266,377 @@ function variantLabel(variant: ProductVariant | null): string {
   }
   return size
 }
-function currentStepIndex(step: SwitchStep): number { if (step === 'current') return 0; if (step === 'sku') return 1; if (step === 'change') return 2; if (step === 'keep') return 3; return 4 }
-function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string): string {
-  const direct = source.direct_evidence_ingredient_terms.includes(term), flavor = source.flavor_associated_ingredient_terms.includes(term)
-  if (direct && flavor) return '직접 · 향미 관련 근거'; if (direct) return '직접 근거'; if (flavor) return '향미 관련 근거'; return '확인 근거'
+
+function currentStepIndex(step: SwitchStep): number {
+  if (step === 'current') return 0
+  if (step === 'sku') return 1
+  if (step === 'change') return 2
+  if (step === 'keep') return 3
+  return 4
 }
+
+function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string): string {
+  const direct = source.direct_evidence_ingredient_terms.includes(term)
+  const flavor = source.flavor_associated_ingredient_terms.includes(term)
+  if (direct && flavor) return '직접 · 향미 관련 근거'
+  if (direct) return '직접 근거'
+  if (flavor) return '향미 관련 근거'
+  return '확인 근거'
+}
+
 function ingredientAvoidanceStatus(product: CatalogProduct, term: string): string {
   if (product.confirmed_present_ingredient_terms.includes(term)) return '확인됨 — 피하려는 원료와 일치'
   if (product.reviewed_not_found_ingredient_terms.includes(term)) return '검토한 자료에서 찾지 못함'
   return '판단 근거 부족'
 }
-function SwitchTopbar({ productCount, loading, error, onHome, onModeChange }: { productCount: number; loading: boolean; error: string | null; onHome: () => void; onModeChange: (mode: SecondaryMode) => void }) {
+
+function SwitchTopbar({
+  productCount,
+  loading,
+  error,
+  onHome,
+  onModeChange,
+}: {
+  productCount: number
+  loading: boolean
+  error: string | null
+  onHome: () => void
+  onModeChange: (mode: SecondaryMode) => void
+}) {
   return <SiteHeader className="research-topbar" onHome={onHome} active="switch" onModeChange={(mode) => { if (mode !== 'switch') onModeChange(mode) }} status={<><span>제품 {productCount || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />
 }
-function ReferenceRail({ product, variantText, step, onChangeProduct }: { product: CatalogProduct; variantText: string; step: SwitchStep; onChangeProduct: () => void }) {
-  const activeIndex = currentStepIndex(step), steps = ['현재 제품', '사용 규격', '바꿀 것', '유지할 것', '후보']
-  return <aside className="switch-reference-rail"><div className="switch-reference-label">CURRENT</div><div className="switch-reference-product"><ProductImage className="switch-reference-image" product={product} /><div><span>{product.brand}</span><strong>{product.canonical_name}</strong><small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</small></div></div><div className="switch-reference-sku"><span>현재 규격</span><strong>{variantText}</strong></div><button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 사료 다시 선택</button><ol className="switch-progress" aria-label="현재 사료 전환 단계">{steps.map((label, index) => <li aria-current={index === activeIndex ? 'step' : undefined} className={index === activeIndex ? 'is-current' : index < activeIndex ? 'is-done' : ''} key={label}><span>{index < activeIndex ? '✓' : index + 1}</span><strong>{label}</strong></li>)}</ol></aside>
-}
-function criteriaCount(criteria: SearchState): number { return Number(Boolean(criteria.feedType)) + Number(Boolean(criteria.lifeStage)) + criteria.officialTargets.length + criteria.features.length + criteria.recipeFamilies.length + Number(criteria.grainFree) }
-function criteriaLabels(criteria: SearchState): string[] { const values: string[] = []; if (criteria.feedType) values.push(optionLabel(criteria.feedType, FEED_TYPE_LABELS)); if (criteria.lifeStage) values.push(optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS)); values.push(...criteria.officialTargets.map((value) => optionLabel(value, TARGET_LABELS))); values.push(...criteria.features.map((value) => optionLabel(value, FEATURE_LABELS))); values.push(...criteria.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS))); if (criteria.grainFree) values.push('Grain-Free 표기'); return values }
-function additionalChangeLabels(criteria: SearchState, ingredientAvoidTerms: string[]): string[] { const values: string[] = []; if (criteria.lifeStage) values.push(optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS)); values.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`)); values.push(...criteria.officialTargets.map((value) => optionLabel(value, TARGET_LABELS))); values.push(...criteria.features.map((value) => optionLabel(value, FEATURE_LABELS))); values.push(...criteria.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS))); if (criteria.grainFree) values.push('Grain-Free 표기'); return values }
-function buildConditions({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }: { change: SearchState; keep: SearchState; changeBrand: boolean; keepBrand: boolean; ingredientAvoidTerms: string[]; currentProduct: CatalogProduct }): SwitchCondition[] {
-  const conditions: SwitchCondition[] = []
-  if (changeBrand) conditions.push({ source: 'change', kind: 'brand', value: currentProduct.brand, label: '다른 브랜드', hard: true })
-  if (keepBrand) conditions.push({ source: 'keep', kind: 'brand', value: currentProduct.brand, label: `브랜드 · ${currentProduct.brand}`, hard: true })
-  const pushSearch = (source: ConditionSource, criteria: SearchState) => {
-    if (criteria.feedType) conditions.push({ source, kind: 'feedType', value: criteria.feedType, label: `형태 · ${optionLabel(criteria.feedType, FEED_TYPE_LABELS)}`, hard: true })
-    if (criteria.lifeStage) conditions.push({ source, kind: 'lifeStage', value: criteria.lifeStage, label: `연령 · ${optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS)}`, hard: true })
-    for (const value of criteria.officialTargets) conditions.push({ source, kind: 'officialTarget', value, label: `공식 대상 · ${optionLabel(value, TARGET_LABELS)}`, hard: false })
-    for (const value of criteria.features) conditions.push({ source, kind: 'feature', value, label: `기능 · ${optionLabel(value, FEATURE_LABELS)}`, hard: false })
-    for (const value of criteria.recipeFamilies) conditions.push({ source, kind: 'recipeFamily', value, label: `레시피 · ${optionLabel(value, RECIPE_FAMILY_LABELS)}`, hard: false })
-    if (criteria.grainFree) conditions.push({ source, kind: 'grainFree', value: 'grain_free', label: 'Grain-Free 표기', hard: false })
-  }
-  pushSearch('change', change); pushSearch('keep', keep)
-  for (const term of ingredientAvoidTerms) conditions.push({ source: 'change', kind: 'ingredientAvoid', value: term, label: ingredientLabel(term), hard: true })
-  return conditions
-}
-function switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }: { change: SearchState; keep: SearchState; changeBrand: boolean; keepBrand: boolean; ingredientAvoidTerms: string[]; currentProduct: CatalogProduct }): DecisionCriterion[] {
-  const criteria: DecisionCriterion[] = []
-  const pushSearch = (values: SearchState, role: 'desired_change' | 'keep', source: 'user_selected' | 'current_baseline_derived') => {
-    if (values.feedType) criteria.push({ axis: 'feed_type', value: values.feedType, role, source })
-    if (values.lifeStage) criteria.push({ axis: 'life_stage', value: values.lifeStage, role, source })
-    values.officialTargets.forEach((value) => criteria.push({ axis: 'official_target', value, role, source })); values.features.forEach((value) => criteria.push({ axis: 'feature', value, role, source })); values.recipeFamilies.forEach((value) => criteria.push({ axis: 'recipe_family', value, role, source })); if (values.grainFree) criteria.push({ axis: 'official_recipe_trait', value: 'grain_free', role, source })
-  }
-  if (changeBrand) criteria.push({ axis: 'brand', value: currentProduct.brand, role: 'desired_change', source: 'current_baseline_derived' })
-  if (keepBrand) criteria.push({ axis: 'brand', value: currentProduct.brand, role: 'keep', source: 'current_baseline_derived' })
-  pushSearch(change, 'desired_change', 'user_selected'); pushSearch(keep, 'keep', 'current_baseline_derived')
-  ingredientAvoidTerms.forEach((value) => criteria.push({ axis: 'ingredient', value, role: 'ingredient_avoid', source: currentProduct.confirmed_present_ingredient_terms.includes(value) ? 'current_baseline_derived' : 'user_selected' }))
-  return criteria
-}
-function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCondition[]): SwitchEvaluation | null {
-  const keepMatches: string[] = [], changeMatches: string[] = [], unknowns: string[] = [], ingredientReviewedNotFound: string[] = [], ingredientInsufficient: string[] = []
-  for (const condition of conditions) {
-    if (condition.kind === 'ingredientAvoid') { if (product.confirmed_present_ingredient_terms.includes(condition.value)) return null; if (product.reviewed_not_found_ingredient_terms.includes(condition.value)) ingredientReviewedNotFound.push(condition.label); else ingredientInsufficient.push(condition.label); continue }
-    let status: 'match' | 'conflict' | 'unknown' = 'unknown'
-    if (condition.kind === 'brand') status = condition.source === 'change' ? product.brand !== condition.value ? 'match' : 'conflict' : product.brand === condition.value ? 'match' : 'conflict'
-    else if (condition.kind === 'feedType') status = !product.feed_type ? 'unknown' : product.feed_type === condition.value ? 'match' : 'conflict'
-    else if (condition.kind === 'lifeStage') status = !product.life_stage ? 'unknown' : product.life_stage === condition.value ? 'match' : 'conflict'
-    else if (condition.kind === 'officialTarget') status = product.official_targets.includes(condition.value) ? 'match' : 'unknown'
-    else if (condition.kind === 'feature') status = product.features.includes(condition.value) ? 'match' : 'unknown'
-    else if (condition.kind === 'recipeFamily') status = product.recipe_families.includes(condition.value) ? 'match' : 'unknown'
-    else if (condition.kind === 'grainFree') status = product.official_recipe_traits.includes('grain_free') ? 'match' : 'unknown'
-    if (status === 'conflict' && condition.hard) return null
-    if (status === 'match') { if (condition.source === 'keep') keepMatches.push(condition.label); else changeMatches.push(condition.label) } else if (status === 'unknown') unknowns.push(condition.label)
-  }
-  return { product, keepMatches, changeMatches, unknowns, ingredientReviewedNotFound, ingredientInsufficient }
-}
-function candidateRelationLabel(label: string) { return label.startsWith('형태 · ') ? label.slice('형태 · '.length) : label }
-function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
-  const hasAny = evaluation.keepMatches.length || evaluation.changeMatches.length || evaluation.unknowns.length || evaluation.ingredientReviewedNotFound.length || evaluation.ingredientInsufficient.length
-  if (!hasAny) return <p className="switch-relation-empty">추가 조건 없음</p>
-  return <div className="switch-candidate-relations">{evaluation.keepMatches.length ? <div className="switch-relation-line is-keep"><strong>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</strong><span>유지할 조건</span></div> : null}{evaluation.changeMatches.length ? <div className="switch-relation-line is-change"><strong>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</strong><span>바꿀 조건</span></div> : null}{evaluation.ingredientReviewedNotFound.length ? <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.join(' · ')} · 검토한 자료에서 찾지 못함</strong></div> : null}{evaluation.ingredientInsufficient.length ? <div className="switch-relation-line is-ingredient-unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.join(' · ')} · 판단 근거 부족</strong></div> : null}{evaluation.unknowns.length ? <div className="switch-relation-line is-unknown"><span>미확인</span><strong>{evaluation.unknowns.join(' · ')}</strong></div> : null}</div>
+
+function ReferenceRail({
+  product,
+  variantText,
+  step,
+  onChangeProduct,
+}: {
+  product: CatalogProduct
+  variantText: string
+  step: SwitchStep
+  onChangeProduct: () => void
+}) {
+  const activeIndex = currentStepIndex(step)
+  const steps = ['현재 제품', '사용 규격', '바꿀 것', '유지할 것', '후보']
+
+  return (
+    <aside className="switch-reference-rail">
+      <div className="switch-reference-label">CURRENT</div>
+      <div className="switch-reference-product">
+        <ProductImage className="switch-reference-image" product={product} />
+        <div>
+          <span>{product.brand}</span>
+          <strong>{product.canonical_name}</strong>
+          <small>
+            {product.feed_type ?? '형태 미확인'} ·{' '}
+            {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}
+          </small>
+        </div>
+      </div>
+      <div className="switch-reference-sku">
+        <span>현재 규격</span>
+        <strong>{variantText}</strong>
+      </div>
+      <button className="switch-change-current" type="button" onClick={onChangeProduct}>현재 사료 다시 선택</button>
+
+      <ol className="switch-progress" aria-label="현재 사료 전환 단계">
+        {steps.map((label, index) => (
+          <li aria-current={index === activeIndex ? 'step' : undefined} className={index === activeIndex ? 'is-current' : index < activeIndex ? 'is-done' : ''} key={label}>
+            <span>{index < activeIndex ? '✓' : index + 1}</span>
+            <strong>{label}</strong>
+          </li>
+        ))}
+      </ol>
+    </aside>
+  )
 }
 
-export default function SwitchFlow({ products, loading, error, initialQuery = '', session: controlledSession, onSessionChange, onHistoryBack, onHome, onModeChange, onRetryCatalog }: { products: CatalogProduct[]; loading: boolean; error: string | null; initialQuery?: string; session?: SwitchSessionState; onSessionChange?: SwitchSessionUpdate; onHistoryBack?: (fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) => void; onHome: () => void; onModeChange: (mode: SecondaryMode) => void; onRetryCatalog: () => void }) {
+function criteriaCount(criteria: SearchState): number {
+  return Number(Boolean(criteria.feedType))
+    + Number(Boolean(criteria.lifeStage))
+    + criteria.officialTargets.length
+    + criteria.features.length
+    + criteria.recipeFamilies.length
+    + Number(criteria.grainFree)
+}
+
+function criteriaLabels(criteria: SearchState): string[] {
+  const values: string[] = []
+  if (criteria.feedType) values.push(optionLabel(criteria.feedType, FEED_TYPE_LABELS))
+  if (criteria.lifeStage) values.push(optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS))
+  values.push(...criteria.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)))
+  values.push(...criteria.features.map((value) => optionLabel(value, FEATURE_LABELS)))
+  values.push(...criteria.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
+  if (criteria.grainFree) values.push('Grain-Free 표기')
+  return values
+}
+
+function additionalChangeLabels(criteria: SearchState, ingredientAvoidTerms: string[]): string[] {
+  const values: string[] = []
+  if (criteria.lifeStage) values.push(optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS))
+  values.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+  values.push(...criteria.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)))
+  values.push(...criteria.features.map((value) => optionLabel(value, FEATURE_LABELS)))
+  values.push(...criteria.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
+  if (criteria.grainFree) values.push('Grain-Free 표기')
+  return values
+}
+
+function buildConditions({
+  change,
+  keep,
+  changeBrand,
+  keepBrand,
+  ingredientAvoidTerms,
+  currentProduct,
+}: {
+  change: SearchState
+  keep: SearchState
+  changeBrand: boolean
+  keepBrand: boolean
+  ingredientAvoidTerms: string[]
+  currentProduct: CatalogProduct
+}): SwitchCondition[] {
+  const conditions: SwitchCondition[] = []
+
+  if (changeBrand) {
+    conditions.push({ source: 'change', kind: 'brand', value: currentProduct.brand, label: '다른 브랜드', hard: true })
+  }
+  if (keepBrand) {
+    conditions.push({ source: 'keep', kind: 'brand', value: currentProduct.brand, label: `브랜드 · ${currentProduct.brand}`, hard: true })
+  }
+
+  const pushSearch = (source: ConditionSource, criteria: SearchState) => {
+    if (criteria.feedType) {
+      conditions.push({ source, kind: 'feedType', value: criteria.feedType, label: `형태 · ${optionLabel(criteria.feedType, FEED_TYPE_LABELS)}`, hard: true })
+    }
+    if (criteria.lifeStage) {
+      conditions.push({ source, kind: 'lifeStage', value: criteria.lifeStage, label: `연령 · ${optionLabel(criteria.lifeStage, LIFE_STAGE_LABELS)}`, hard: true })
+    }
+    for (const value of criteria.officialTargets) {
+      conditions.push({ source, kind: 'officialTarget', value, label: `공식 대상 · ${optionLabel(value, TARGET_LABELS)}`, hard: false })
+    }
+    for (const value of criteria.features) {
+      conditions.push({ source, kind: 'feature', value, label: `기능 · ${optionLabel(value, FEATURE_LABELS)}`, hard: false })
+    }
+    for (const value of criteria.recipeFamilies) {
+      conditions.push({ source, kind: 'recipeFamily', value, label: `레시피 · ${optionLabel(value, RECIPE_FAMILY_LABELS)}`, hard: false })
+    }
+    if (criteria.grainFree) {
+      conditions.push({ source, kind: 'grainFree', value: 'grain_free', label: 'Grain-Free 표기', hard: false })
+    }
+  }
+
+  pushSearch('change', change)
+  pushSearch('keep', keep)
+
+  for (const term of ingredientAvoidTerms) {
+    conditions.push({
+      source: 'change',
+      kind: 'ingredientAvoid',
+      value: term,
+      label: ingredientLabel(term),
+      hard: true,
+    })
+  }
+
+  return conditions
+}
+
+function switchCriteriaSnapshot({
+  change,
+  keep,
+  changeBrand,
+  keepBrand,
+  ingredientAvoidTerms,
+  currentProduct,
+}: {
+  change: SearchState
+  keep: SearchState
+  changeBrand: boolean
+  keepBrand: boolean
+  ingredientAvoidTerms: string[]
+  currentProduct: CatalogProduct
+}): DecisionCriterion[] {
+  const criteria: DecisionCriterion[] = []
+  const pushSearch = (
+    values: SearchState,
+    role: 'desired_change' | 'keep',
+    source: 'user_selected' | 'current_baseline_derived',
+  ) => {
+    if (values.feedType) criteria.push({ axis: 'feed_type', value: values.feedType, role, source })
+    if (values.lifeStage) criteria.push({ axis: 'life_stage', value: values.lifeStage, role, source })
+    values.officialTargets.forEach((value) => criteria.push({ axis: 'official_target', value, role, source }))
+    values.features.forEach((value) => criteria.push({ axis: 'feature', value, role, source }))
+    values.recipeFamilies.forEach((value) => criteria.push({ axis: 'recipe_family', value, role, source }))
+    if (values.grainFree) criteria.push({
+      axis: 'official_recipe_trait', value: 'grain_free', role, source,
+    })
+  }
+
+  if (changeBrand) criteria.push({
+    axis: 'brand', value: currentProduct.brand,
+    role: 'desired_change', source: 'current_baseline_derived',
+  })
+  if (keepBrand) criteria.push({
+    axis: 'brand', value: currentProduct.brand,
+    role: 'keep', source: 'current_baseline_derived',
+  })
+  pushSearch(change, 'desired_change', 'user_selected')
+  pushSearch(keep, 'keep', 'current_baseline_derived')
+  ingredientAvoidTerms.forEach((value) => criteria.push({
+    axis: 'ingredient',
+    value,
+    role: 'ingredient_avoid',
+    source: currentProduct.confirmed_present_ingredient_terms.includes(value)
+      ? 'current_baseline_derived'
+      : 'user_selected',
+  }))
+  return criteria
+}
+
+function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCondition[]): SwitchEvaluation | null {
+  const keepMatches: string[] = []
+  const changeMatches: string[] = []
+  const unknowns: string[] = []
+  const ingredientReviewedNotFound: string[] = []
+  const ingredientInsufficient: string[] = []
+
+  for (const condition of conditions) {
+    if (condition.kind === 'ingredientAvoid') {
+      if (product.confirmed_present_ingredient_terms.includes(condition.value)) return null
+      if (product.reviewed_not_found_ingredient_terms.includes(condition.value)) {
+        ingredientReviewedNotFound.push(condition.label)
+      } else {
+        ingredientInsufficient.push(condition.label)
+      }
+      continue
+    }
+
+    let status: 'match' | 'conflict' | 'unknown' = 'unknown'
+
+    if (condition.kind === 'brand') {
+      status = condition.source === 'change'
+        ? product.brand !== condition.value ? 'match' : 'conflict'
+        : product.brand === condition.value ? 'match' : 'conflict'
+    } else if (condition.kind === 'feedType') {
+      status = !product.feed_type ? 'unknown' : product.feed_type === condition.value ? 'match' : 'conflict'
+    } else if (condition.kind === 'lifeStage') {
+      status = !product.life_stage ? 'unknown' : product.life_stage === condition.value ? 'match' : 'conflict'
+    } else if (condition.kind === 'officialTarget') {
+      status = product.official_targets.includes(condition.value) ? 'match' : 'unknown'
+    } else if (condition.kind === 'feature') {
+      status = product.features.includes(condition.value) ? 'match' : 'unknown'
+    } else if (condition.kind === 'recipeFamily') {
+      status = product.recipe_families.includes(condition.value) ? 'match' : 'unknown'
+    } else if (condition.kind === 'grainFree') {
+      status = product.official_recipe_traits.includes('grain_free') ? 'match' : 'unknown'
+    }
+
+    if (status === 'conflict' && condition.hard) return null
+    if (status === 'match') {
+      if (condition.source === 'keep') keepMatches.push(condition.label)
+      else changeMatches.push(condition.label)
+    } else if (status === 'unknown') {
+      unknowns.push(condition.label)
+    }
+  }
+
+  return {
+    product,
+    keepMatches,
+    changeMatches,
+    unknowns,
+    ingredientReviewedNotFound,
+    ingredientInsufficient,
+  }
+}
+
+function candidateRelationLabel(label: string) {
+  return label.startsWith('형태 · ') ? label.slice('형태 · '.length) : label
+}
+
+function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
+  const hasAny = evaluation.keepMatches.length > 0
+    || evaluation.changeMatches.length > 0
+    || evaluation.unknowns.length > 0
+    || evaluation.ingredientReviewedNotFound.length > 0
+    || evaluation.ingredientInsufficient.length > 0
+
+  if (!hasAny) return <p className="switch-relation-empty">추가 조건 없음</p>
+
+  return (
+    <div className="switch-candidate-relations">
+      {evaluation.keepMatches.length > 0 ? (
+        <div className="switch-relation-line is-keep"><strong>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</strong><span>유지할 조건</span></div>
+      ) : null}
+      {evaluation.changeMatches.length > 0 ? (
+        <div className="switch-relation-line is-change"><strong>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</strong><span>바꿀 조건</span></div>
+      ) : null}
+      {evaluation.ingredientReviewedNotFound.length > 0 ? (
+        <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.join(' · ')} · 검토한 자료에서 찾지 못함</strong></div>
+      ) : null}
+      {evaluation.ingredientInsufficient.length > 0 ? (
+        <div className="switch-relation-line is-ingredient-unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.join(' · ')} · 판단 근거 부족</strong></div>
+      ) : null}
+      {evaluation.unknowns.length > 0 ? (
+        <div className="switch-relation-line is-unknown"><span>미확인</span><strong>{evaluation.unknowns.join(' · ')}</strong></div>
+      ) : null}
+    </div>
+  )
+}
+
+export default function SwitchFlow({
+  products,
+  loading,
+  error,
+  initialQuery = '',
+  session: controlledSession,
+  onSessionChange,
+  onHistoryBack,
+  onHome,
+  onModeChange,
+  onRetryCatalog,
+}: {
+  products: CatalogProduct[]
+  loading: boolean
+  error: string | null
+  initialQuery?: string
+  session?: SwitchSessionState
+  onSessionChange?: SwitchSessionUpdate
+  onHistoryBack?: (fallback: SwitchSessionState, patch?: Partial<SwitchSessionState>) => void
+  onHome: () => void
+  onModeChange: (mode: SecondaryMode) => void
+  onRetryCatalog: () => void
+}) {
   const [localSession, setLocalSession] = useState<SwitchSessionState>(() => createInitialSwitchSession(initialQuery))
   const activeSession = controlledSession ?? localSession
-  function updateSession(update: SwitchSessionState | ((current: SwitchSessionState) => SwitchSessionState), action: SwitchHistoryAction = 'replace', entry?: SwitchHistoryEntry | null) { if (onSessionChange) { onSessionChange(update, action, entry); return } setLocalSession((current) => typeof update === 'function' ? update(current) : update) }
-  function setSessionField<K extends keyof SwitchSessionState>(field: K, next: SwitchSessionState[K] | ((value: SwitchSessionState[K]) => SwitchSessionState[K]), action: SwitchHistoryAction = 'replace', entry?: SwitchHistoryEntry | null) { updateSession((current) => ({ ...current, [field]: typeof next === 'function' ? (next as (value: SwitchSessionState[K]) => SwitchSessionState[K])(current[field]) : next }), action, entry) }
-  const { step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent, selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection } = activeSession
+  function updateSession(
+    update: SwitchSessionState | ((current: SwitchSessionState) => SwitchSessionState),
+    action: SwitchHistoryAction = 'replace',
+    entry?: SwitchHistoryEntry | null,
+  ) {
+    if (onSessionChange) { onSessionChange(update, action, entry); return }
+    setLocalSession((current) => typeof update === 'function' ? update(current) : update)
+  }
+  function setSessionField<K extends keyof SwitchSessionState>(
+    field: K,
+    next: SwitchSessionState[K] | ((value: SwitchSessionState[K]) => SwitchSessionState[K]),
+    action: SwitchHistoryAction = 'replace',
+    entry?: SwitchHistoryEntry | null,
+  ) {
+    updateSession((current) => ({
+      ...current,
+      [field]: typeof next === 'function'
+        ? (next as (value: SwitchSessionState[K]) => SwitchSessionState[K])(current[field])
+        : next,
+    }), action, entry)
+  }
+  const {
+    step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent,
+    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
+  } = activeSession
   const currentVariantId = variantSelection.kind === 'variant' ? variantSelection.variantId : null
   const setStep = (value: SwitchStep, action: SwitchHistoryAction = 'replace', entry?: SwitchHistoryEntry | null) => setSessionField('step', value, action, entry)
   const setQuery = (value: string) => setSessionField('query', value)
@@ -332,71 +661,1093 @@ export default function SwitchFlow({ products, loading, error, initialQuery = ''
   const [candidateSearch, setCandidateSearch] = useState('')
   const [changeAdditionalOpen, setChangeAdditionalOpen] = useState(() => step === 'change' && additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
   const previousChangeDisclosureStep = useRef(step)
-  const switchRunId = useRef<string | null>(null), switchRunGeneration = useRef(0), switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
-  const variantRequestId = useRef(0), variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
-  const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>()), candidateSearchInputRef = useRef<HTMLInputElement>(null), compareDockButtonRef = useRef<HTMLButtonElement>(null), pendingCandidateFocus = useRef<string | null>(null), pendingCompareReturnFocus = useRef(false)
-  const pendingExplicitScroll = useRef<{ source: SwitchExplicitScrollTarget; intent: SwitchExplicitScrollIntent; settle: SwitchExplicitScrollSettleHandle | null } | null>(null)
-  function releasePendingExplicitScroll() { const pending = pendingExplicitScroll.current; if (!pending) return; pendingExplicitScroll.current = null; if (pending.settle) cancelSwitchExplicitScrollSettle(pending.settle); releaseSwitchExplicitScrollIntent(pending.intent) }
-  function requestExplicitScroll(target: SwitchExplicitScrollTarget, historyTraversal = false) { releasePendingExplicitScroll(); pendingExplicitScroll.current = { source: step, intent: beginSwitchExplicitScrollIntent(target, historyTraversal), settle: null } }
-  function backToStep(nextStep: SwitchStep) { requestExplicitScroll(nextStep, Boolean(onHistoryBack)); const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }; if (onHistoryBack) onHistoryBack(fallback, fallback); else updateSession(fallback) }
-  function openSwitchDetail(productId: string) { updateSession((current) => ({ ...current, detailProductId: productId, detailTab: 'overview' }), 'push', 'detail') }
-  function closeSwitchDetail() { const fallback = { ...activeSession, detailProductId: null, detailTab: 'overview' as const }; if (onHistoryBack) onHistoryBack(fallback, { compareIds: activeSession.compareIds }); else updateSession(fallback) }
-  function openSwitchCompare() { if (!compareIds.length) return; pendingCompareReturnFocus.current = true; requestExplicitScroll('compare'); updateSession((current) => ({ ...current, compareOpen: true, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }), 'push', 'compare') }
-  function closeSwitchCompare() { const fallback = { ...activeSession, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }; const patch = { compareIds: activeSession.compareIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }; if (onHistoryBack) onHistoryBack(fallback, patch); else updateSession(fallback) }
-  function removeSwitchCompare(productId: string) { const nextIds = compareIds.filter((value) => value !== productId); if (compareOpen && nextIds.length === 0) { const fallback = { ...activeSession, compareIds: nextIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }; if (onHistoryBack) onHistoryBack(fallback, { compareIds: nextIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }); else updateSession(fallback); return } setCompareIds(nextIds) }
+  const switchRunId = useRef<string | null>(null)
+  const switchRunGeneration = useRef(0)
+  const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
+  const variantRequestId = useRef(0)
+  const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
+  const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const candidateSearchInputRef = useRef<HTMLInputElement>(null)
+  const compareDockButtonRef = useRef<HTMLButtonElement>(null)
+  const pendingCandidateFocus = useRef<string | null>(null)
+  const pendingCompareReturnFocus = useRef(false)
+  const pendingExplicitScroll = useRef<{
+    source: SwitchExplicitScrollTarget
+    intent: SwitchExplicitScrollIntent
+    settle: SwitchExplicitScrollSettleHandle | null
+  } | null>(null)
+
+  function releasePendingExplicitScroll() {
+    const pending = pendingExplicitScroll.current
+    if (!pending) return
+    pendingExplicitScroll.current = null
+    if (pending.settle) cancelSwitchExplicitScrollSettle(pending.settle)
+    releaseSwitchExplicitScrollIntent(pending.intent)
+  }
+  function requestExplicitScroll(target: SwitchExplicitScrollTarget, historyTraversal = false) {
+    releasePendingExplicitScroll()
+    pendingExplicitScroll.current = {
+      source: step,
+      intent: beginSwitchExplicitScrollIntent(target, historyTraversal),
+      settle: null,
+    }
+  }
+  function backToStep(nextStep: SwitchStep) {
+    requestExplicitScroll(nextStep, Boolean(onHistoryBack))
+    const fallback = { ...activeSession, step: nextStep, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
+    if (onHistoryBack) onHistoryBack(fallback, fallback)
+    else updateSession(fallback)
+  }
+  function openSwitchDetail(productId: string) {
+    updateSession((current) => ({ ...current, detailProductId: productId, detailTab: 'overview' }), 'push', 'detail')
+  }
+  function closeSwitchDetail() {
+    const fallback = { ...activeSession, detailProductId: null, detailTab: 'overview' as const }
+    if (onHistoryBack) onHistoryBack(fallback, { compareIds: activeSession.compareIds })
+    else updateSession(fallback)
+  }
+  function openSwitchCompare() {
+    if (!compareIds.length) return
+    pendingCompareReturnFocus.current = true
+    requestExplicitScroll('compare')
+    updateSession((current) => ({ ...current, compareOpen: true, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
+  }
+  function closeSwitchCompare() {
+    const fallback = { ...activeSession, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+    const patch = { compareIds: activeSession.compareIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+    if (onHistoryBack) onHistoryBack(fallback, patch)
+    else updateSession(fallback)
+  }
+  function removeSwitchCompare(productId: string) {
+    const nextIds = compareIds.filter((value) => value !== productId)
+    if (compareOpen && nextIds.length === 0) {
+      const fallback = { ...activeSession, compareIds: nextIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+      if (onHistoryBack) onHistoryBack(fallback, { compareIds: nextIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' })
+      else updateSession(fallback)
+      return
+    }
+    setCompareIds(nextIds)
+  }
   function changeSwitchCompareTab(nextTab: SwitchSessionState['compareTab']) { setSessionField('compareTab', nextTab) }
   function changeSwitchDetailTab(nextTab: SwitchSessionState['detailTab']) { setSessionField('detailTab', nextTab) }
+
   useEffect(() => () => releasePendingExplicitScroll(), [])
-  useEffect(() => { const previousStep = previousChangeDisclosureStep.current; if (step === 'change' && previousStep !== 'change') setChangeAdditionalOpen(additionalChangeLabels(change, ingredientAvoidTerms).length > 0); previousChangeDisclosureStep.current = step }, [step])
+  useEffect(() => {
+    const previousStep = previousChangeDisclosureStep.current
+    if (step === 'change' && previousStep !== 'change') {
+      setChangeAdditionalOpen(additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
+    }
+    previousChangeDisclosureStep.current = step
+  }, [step])
+
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
   const previewProduct = products.find((product) => product.product_id === previewProductId) ?? null
   const detailProduct = products.find((product) => product.product_id === detailProductId) ?? null
   const selectedVariant = variants.find((variant) => variant.variant_id === currentVariantId) ?? null
-  const currentVariantText = variantSelection.kind === 'unknown' ? '사용 규격 모름' : variantSelection.kind === 'variant' ? selectedVariant ? variantLabel(selectedVariant) : variantError ? '선택한 규격 확인 실패' : '선택한 규격 확인 중' : '사용 규격 미선택'
-  const currentRecipeFamilies = currentProduct?.recipe_families ?? [], currentRecipeTraits = currentProduct?.official_recipe_traits ?? [], currentIsGrainFree = currentRecipeTraits.includes('grain_free'), currentRecipeKnown = currentRecipeFamilies.length > 0 || currentRecipeTraits.length > 0
-  const searchResults = useMemo(() => lookupCatalog(products, query).slice(0, 80), [products, query])
-  const ingredientTerms = useMemo(() => { const values = new Set<string>(); for (const product of products) { product.confirmed_present_ingredient_terms.forEach((value) => values.add(value)); product.reviewed_not_found_ingredient_terms.forEach((value) => values.add(value)); product.insufficient_evidence_ingredient_terms.forEach((value) => values.add(value)) } return [...values].sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR')) }, [products])
-  const ingredientSearchResults = useMemo(() => { const normalized = ingredientSearch.trim().toLocaleLowerCase('ko-KR'); if (!normalized) return []; return ingredientTerms.filter((term) => !ingredientAvoidTerms.includes(term)).filter((term) => term.toLocaleLowerCase('en').includes(normalized) || ingredientLabel(term).toLocaleLowerCase('ko-KR').includes(normalized)).slice(0, 8) }, [ingredientTerms, ingredientSearch, ingredientAvoidTerms])
-  function loadVariants(productId: string) { const activeRequest = variantRequest.current; if (activeRequest?.productId === productId) return; activeRequest?.controller.abort(); const id = ++variantRequestId.current, controller = new AbortController(); variantRequest.current = { id, productId, controller }; setVariantLoading(true); setVariantError(null); setVariants([]); void fetchProductVariants(productId, controller.signal).then((data) => { const request = variantRequest.current; if (!request || request.id !== id || request.productId !== productId || controller.signal.aborted) return; setVariants(data); updateSession((current) => { if (current.currentProductId !== productId) return current; if (current.variantSelection.kind === 'variant') { if (data.some((variant) => variant.variant_id === current.variantSelection.variantId)) return current; return { ...current, variantSelection: { kind: 'unselected', variantId: null }, step: 'sku', compareOpen: false, detailProductId: null, detailTab: 'overview' } } if (current.variantSelection.kind === 'unknown') return current; if (data.length === 1) return { ...current, variantSelection: { kind: 'variant', variantId: data[0].variant_id } }; return current }) }).catch((reason: unknown) => { if (reason instanceof DOMException && reason.name === 'AbortError') return; const request = variantRequest.current; if (request?.id === id && request.productId === productId && !controller.signal.aborted) setVariantError('판매 규격을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.') }).finally(() => { if (variantRequest.current?.id !== id) return; variantRequest.current = null; if (!controller.signal.aborted) setVariantLoading(false) }) }
-  useEffect(() => { if (!currentProductId) return; loadVariants(currentProductId); return () => { const request = variantRequest.current; if (request?.productId !== currentProductId) return; variantRequest.current = null; variantRequestId.current += 1; request.controller.abort() } }, [currentProductId])
-  function renderVariantRestoreStatus() { if (!currentProduct || step === 'sku' || variantSelection.kind !== 'variant' || selectedVariant) return null; if (variantLoading) return <div className="switch-state-message switch-variant-status">선택한 판매 규격을 확인하는 중입니다.</div>; if (variantError) return <div className="switch-state-message switch-variant-status is-error" role="alert"><span>{variantError}</span><button className="state-retry" type="button" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div>; return null }
-  const conditions = useMemo(() => currentProduct ? buildConditions({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }) : [], [change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct])
-  const candidates = useMemo(() => { if (!currentProduct) return []; const values: SwitchEvaluation[] = []; for (const product of products) { if (product.product_id === currentProduct.product_id) continue; const evaluation = evaluateSwitchCandidate(product, conditions); if (evaluation) values.push(evaluation) } return values.sort((a, b) => { const overlapA = a.keepMatches.length + a.changeMatches.length, overlapB = b.keepMatches.length + b.changeMatches.length; if (overlapB !== overlapA) return overlapB - overlapA; const brandOrder = a.product.brand.localeCompare(b.product.brand, 'ko-KR'); return brandOrder || a.product.canonical_name.localeCompare(b.product.canonical_name, 'ko-KR') }) }, [products, currentProduct, conditions])
-  const trackedCandidates = candidates.slice(0, 40), candidateSearchActive = candidateSearch.trim().length > 0
-  const searchedCandidates = useMemo(() => { if (!candidateSearchActive) return candidates; const matchedIds = new Set(lookupCatalog(candidates.map((item) => item.product), candidateSearch).map((product) => product.product_id)); return candidates.filter((item) => matchedIds.has(item.product.product_id)) }, [candidates, candidateSearch, candidateSearchActive])
-  const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount), selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null, hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0, changeAdditionalLabels = additionalChangeLabels(change, ingredientAvoidTerms)
-  const compareItems = useMemo<CompareItem[]>(() => compareIds.map((productId) => candidates.find((item) => item.product.product_id === productId)).filter((item): item is SwitchEvaluation => Boolean(item)).map((item) => ({ product: item.product, keepMatches: item.keepMatches, changeMatches: item.changeMatches, unknowns: item.unknowns, ingredientReviewedNotFound: item.ingredientReviewedNotFound, ingredientInsufficient: item.ingredientInsufficient })), [compareIds, candidates])
-  useLayoutEffect(() => { if (selectedCandidateId || !pendingCandidateFocus.current) return; const productId = pendingCandidateFocus.current; pendingCandidateFocus.current = null; const candidateButton = candidateButtonRefs.current.get(productId); if (candidateButton) candidateButton.focus({ preventScroll: true }); else candidateSearchInputRef.current?.focus({ preventScroll: true }) }, [selectedCandidateId])
-  useLayoutEffect(() => { if (compareOpen || step !== 'results' || !pendingCompareReturnFocus.current) return; pendingCompareReturnFocus.current = false; compareDockButtonRef.current?.focus({ preventScroll: true }) }, [compareOpen, step])
-  useLayoutEffect(() => { const pending = pendingExplicitScroll.current; if (!pending) return; const renderedTarget: SwitchExplicitScrollTarget | null = detailProduct && !compareOpen ? null : step === 'results' && compareOpen && compareItems.length > 0 ? 'compare' : step; if (pending.settle) { if (renderedTarget !== pending.intent.target) releasePendingExplicitScroll(); return } if (renderedTarget === pending.intent.target) { let settle: SwitchExplicitScrollSettleHandle | null = null; settle = resetSwitchExplicitNavigationScroll(pending.intent, () => { const current = pendingExplicitScroll.current; if (current?.intent === pending.intent && current.settle === settle) pendingExplicitScroll.current = null }); if (settle) pending.settle = settle; else if (pendingExplicitScroll.current?.intent === pending.intent) { pendingExplicitScroll.current = null; releaseSwitchExplicitScrollIntent(pending.intent) } return } if (renderedTarget !== pending.source) releasePendingExplicitScroll() }, [step, compareOpen, detailProductId, compareItems.length])
-  function selectCurrentVariant(variantId: string | null) { setCurrentVariantId(variantId) }
-  function addIngredientAvoid(term: string) { setNoChangeIntent(false); setIngredientAvoidTerms((current) => current.includes(term) ? current : [...current, term]); setIngredientSearch('') }
-  function removeIngredientAvoid(term: string) { setIngredientAvoidTerms((current) => current.filter((value) => value !== term)) }
-  function clearCandidateSearch() { setCandidateSearch(''); setVisibleCandidateCount(40); candidateSearchInputRef.current?.focus({ preventScroll: true }) }
-  function beginSwitchRun() { if (!currentProduct) return; const generation = switchRunGeneration.current, previous = switchRunTail.current; const next = previous.then((previousRunId) => { if (switchRunGeneration.current !== generation) return null; return createDecisionSearchRun({ parentSearchRunId: previousRunId ?? switchRunId.current, mode: 'switch', currentProductId: currentProduct.product_id, currentVariantId, criteriaSnapshot: switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }), candidateCount: candidates.length, initialPresentedProductIds: trackedCandidates.map((item) => item.product.product_id) }) }); switchRunTail.current = next; void next.then((searchRunId) => { if (searchRunId && switchRunGeneration.current === generation) switchRunId.current = searchRunId }) }
-  function openCandidate(productId: string) { setSelectedCandidateId(productId); recordSwitchConsideration(productId, 'detail_open') }
-  function closeCandidate(productId: string) { pendingCandidateFocus.current = productId; setSelectedCandidateId(null) }
-  function recordSwitchConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (!trackedCandidates.some((item) => item.product.product_id === productId)) return; void switchRunTail.current.then((searchRunId) => recordProductConsideration(searchRunId, productId, signal)) }
-  function toggleCompare(productId: string) { const adding = !compareIds.includes(productId) && compareIds.length < 5; if (adding) recordSwitchConsideration(productId, 'compare_add'); setCompareIds((current) => current.includes(productId) ? current.filter((value) => value !== productId) : current.length >= 5 ? current : [...current, productId]) }
-  function confirmCurrentProduct(product: CatalogProduct) { requestExplicitScroll('sku'); switchRunGeneration.current += 1; switchRunTail.current = Promise.resolve(null); switchRunId.current = null; const next = createInitialSwitchSession(query); next.currentProductId = product.product_id; next.step = 'sku'; updateSession(next, 'push', 'step'); setPreviewProductId(null); setVariants([]); setVariantError(null); setKeepConflictNotice(null); setIngredientSearch(''); setCandidateSearch('') }
-  function resetCurrentProduct() { requestExplicitScroll('current'); switchRunGeneration.current += 1; switchRunTail.current = Promise.resolve(null); switchRunId.current = null; const request = variantRequest.current; variantRequest.current = null; variantRequestId.current += 1; request?.controller.abort(); setVariantLoading(false); setVariants([]); setVariantError(null); setPreviewProductId(null); setKeepConflictNotice(null); setIngredientSearch(''); setCandidateSearch(''); updateSession(createInitialSwitchSession(query), 'replace', null) }
-  function toggleChangeBrandSelection() { setNoChangeIntent(false); const nextValue = !changeBrand; if (nextValue && keepBrand) { setKeepBrand(false); setKeepConflictNotice('브랜드 유지 조건을 해제했습니다.') } setChangeBrand(nextValue) }
-  function toggleChangeArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) { setNoChangeIntent(false); const nextValues = toggleValue(change[field], value); if (field === 'recipeFamilies' && nextValues.length > 0 && keep.recipeFamilies.length > 0) { setKeep((current) => ({ ...current, recipeFamilies: [] })); setKeepConflictNotice('레시피 계열 유지 조건을 해제했습니다.') } setChange((current) => ({ ...current, [field]: nextValues })) }
-  function setChangeSingle(field: 'feedType' | 'lifeStage', value: string) { setNoChangeIntent(false); const nextValue = change[field] === value ? '' : value; if (nextValue && keep[field]) { setKeep((current) => ({ ...current, [field]: '' })); setKeepConflictNotice(field === 'feedType' ? '사료 형태 유지 조건을 해제했습니다.' : '연령 유지 조건을 해제했습니다.') } setChange((current) => ({ ...current, [field]: nextValue })) }
-  function toggleKeepArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) { setKeep((current) => ({ ...current, [field]: toggleValue(current[field], value) })) }
-  function setKeepSingle(field: 'feedType' | 'lifeStage', value: string) { setKeep((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
+  const currentVariantText = variantSelection.kind === 'unknown'
+    ? '사용 규격 모름'
+    : variantSelection.kind === 'variant'
+      ? selectedVariant
+        ? variantLabel(selectedVariant)
+        : variantError
+          ? '선택한 규격 확인 실패'
+          : '선택한 규격 확인 중'
+      : '사용 규격 미선택'
+  const currentRecipeFamilies = currentProduct?.recipe_families ?? []
+  const currentRecipeTraits = currentProduct?.official_recipe_traits ?? []
+  const currentIsGrainFree = currentRecipeTraits.includes('grain_free')
+  const currentRecipeKnown = currentRecipeFamilies.length > 0 || currentRecipeTraits.length > 0
 
-  function renderCurrentStage() {
-    return <main className="switch-find-stage"><section className="switch-find-hero"><h1>현재 먹이는 사료를 찾으세요.</h1><p>지금 먹이는 제품과 규격을 선택하면, 다음 사료와 차이를 비교할 수 있습니다.</p><label className="switch-find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg><input autoFocus type="search" value={query} placeholder="브랜드 또는 제품명 검색" onChange={(event) => { setQuery(event.target.value); setPreviewProductId(null) }} /></label></section><section className={previewProduct ? 'switch-find-body is-inspecting' : 'switch-find-body'}><div className="switch-find-results"><div className="switch-find-results-heading"><strong>검색 결과</strong><span>{query.trim() ? `${searchResults.length}개 표시` : '브랜드 또는 제품명의 일부를 입력하세요.'}</span></div><div className="switch-find-results-list">{error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}{loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}{!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span></div> : null}{searchResults.map((product) => <button className={previewProductId === product.product_id ? 'switch-find-result is-selected' : 'switch-find-result'} key={product.product_id} type="button" onClick={() => setPreviewProductId(product.product_id)}><ProductImage className="switch-find-result-image" product={product} /><span className="switch-find-result-copy"><span>{product.brand}</span><strong>{product.canonical_name}</strong><small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small></span><span className="switch-find-result-open">확인 →</span></button>)}</div></div>{previewProduct ? <aside className="switch-current-preview"><div className="switch-preview-topline"><span>현재 사료 확인</span><button type="button" onClick={() => setPreviewProductId(null)}>닫기 ×</button></div><div className="switch-preview-scroll"><section className="switch-preview-identity"><ProductImage className="switch-preview-image" product={previewProduct} /><div><span>{previewProduct.brand}</span><h2>{previewProduct.canonical_name}</h2><p>{previewProduct.feed_type ?? '형태 미확인'} · {previewProduct.life_stage ? optionLabel(previewProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(previewProduct)}</p></div></section><button className="switch-primary-action switch-current-confirm" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>{previewProduct.official_targets.length || previewProduct.features.length ? <section className="switch-preview-facts"><dl>{previewProduct.official_targets.length ? <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div> : null}{previewProduct.features.length ? <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div> : null}</dl></section> : null}</div></aside> : null}</section></main>
+  const searchResults = useMemo(() => lookupCatalog(products, query).slice(0, 80), [products, query])
+
+  const ingredientTerms = useMemo(() => {
+    const values = new Set<string>()
+    for (const product of products) {
+      product.confirmed_present_ingredient_terms.forEach((value) => values.add(value))
+      product.reviewed_not_found_ingredient_terms.forEach((value) => values.add(value))
+      product.insufficient_evidence_ingredient_terms.forEach((value) => values.add(value))
+    }
+    return [...values].sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
+  }, [products])
+
+  const ingredientSearchResults = useMemo(() => {
+    const normalized = ingredientSearch.trim().toLocaleLowerCase('ko-KR')
+    if (!normalized) return []
+    return ingredientTerms
+      .filter((term) => !ingredientAvoidTerms.includes(term))
+      .filter((term) => {
+        const raw = term.toLocaleLowerCase('en')
+        const label = ingredientLabel(term).toLocaleLowerCase('ko-KR')
+        return raw.includes(normalized) || label.includes(normalized)
+      })
+      .slice(0, 8)
+  }, [ingredientTerms, ingredientSearch, ingredientAvoidTerms])
+
+  function loadVariants(productId: string) {
+    const activeRequest = variantRequest.current
+    if (activeRequest?.productId === productId) return
+    activeRequest?.controller.abort()
+    const id = ++variantRequestId.current
+    const controller = new AbortController()
+    variantRequest.current = { id, productId, controller }
+    setVariantLoading(true)
+    setVariantError(null)
+    setVariants([])
+
+    void fetchProductVariants(productId, controller.signal)
+      .then((data) => {
+        const request = variantRequest.current
+        if (!request || request.id !== id || request.productId !== productId || controller.signal.aborted) return
+        setVariants(data)
+        updateSession((current) => {
+          if (current.currentProductId !== productId) return current
+          if (current.variantSelection.kind === 'variant') {
+            if (data.some((variant) => variant.variant_id === current.variantSelection.variantId)) return current
+            return { ...current, variantSelection: { kind: 'unselected', variantId: null }, step: 'sku', compareOpen: false, detailProductId: null, detailTab: 'overview' }
+          }
+          if (current.variantSelection.kind === 'unknown') return current
+          if (data.length === 1) return { ...current, variantSelection: { kind: 'variant', variantId: data[0].variant_id } }
+          return current
+        })
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        const request = variantRequest.current
+        if (request?.id === id && request.productId === productId && !controller.signal.aborted) {
+          setVariantError('판매 규격을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        }
+      })
+      .finally(() => {
+        if (variantRequest.current?.id !== id) return
+        variantRequest.current = null
+        if (!controller.signal.aborted) setVariantLoading(false)
+      })
   }
 
-  function renderSkuStep() { if (!currentProduct) return null; return <div className="switch-step-layout"><ReferenceRail product={currentProduct} variantText={currentVariantText} step="sku" onChangeProduct={resetCurrentProduct} /><main className="switch-step-main"><div className="switch-step-header"><span>사용 규격</span><h1>현재 먹이는 규격을 골라주세요.</h1><p>지금 먹이는 용량이나 포장 단위를 선택하세요. 용량이 다르다고 다른 레시피로 보지는 않습니다.</p></div><section className="switch-sku-list">{variantLoading ? <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div> : variantError ? <div className="switch-state-message is-error" role="alert"><span>{variantError}</span><button className="state-retry" type="button" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div> : variants.length === 0 ? <div className="switch-state-message">선택할 수 있는 판매 규격을 확인하지 못했습니다.</div> : variants.map((variant) => <button className={currentVariantId === variant.variant_id ? 'switch-sku-option is-selected' : 'switch-sku-option'} key={variant.variant_id} type="button" onClick={() => selectCurrentVariant(variant.variant_id)}><span><strong>{variantLabel(variant)}</strong><small>{variant.units_per_sale && variant.units_per_sale > 1 ? '묶음 판매' : '단일 판매'}</small></span><b>{currentVariantId === variant.variant_id ? '선택됨' : '선택'}</b></button>)}</section><div className="switch-step-actions"><button className="switch-secondary-action" type="button" onClick={() => { requestExplicitScroll('change'); setSessionField('variantSelection', { kind: 'unknown', variantId: null }); setStep('change', 'push', 'step') }}>사용 규격을 모르겠어요</button><button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => { requestExplicitScroll('change'); setStep('change', 'push', 'step') }}>다음 →</button></div></main></div> }
-  function renderIngredientAvoidance() { if (!currentProduct) return null; const currentConfirmed = currentProduct.confirmed_present_ingredient_terms.filter((term) => !ingredientAvoidTerms.includes(term)).sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR')); return <CriterionSection title="피하고 싶은 원료" hint="현재 확인된 원재료 기준">{ingredientAvoidTerms.length ? <div className="switch-ingredient-selected">{ingredientAvoidTerms.map((term) => <button key={term} type="button" onClick={() => removeIngredientAvoid(term)}>{ingredientLabel(term)} ×</button>)}</div> : null}{currentConfirmed.length ? <div className="switch-current-ingredients"><span>현재 제품에서 확인됨</span><div>{currentConfirmed.slice(0, 12).map((term) => <button key={term} type="button" onClick={() => addIngredientAvoid(term)}><strong>{ingredientLabel(term)}</strong><small>{ingredientEvidenceLabel(currentProduct, term)}</small></button>)}</div></div> : <p className="switch-option-empty">현재 제품에서 바로 제안할 원료가 없습니다. 아래에서 직접 검색할 수 있습니다.</p>}<input className="switch-ingredient-search" type="search" value={ingredientSearch} placeholder="원료 검색 · 예: 닭, 연어" onChange={(event) => setIngredientSearch(event.target.value)} />{ingredientSearch.trim() ? <div className="switch-ingredient-search-results">{ingredientSearchResults.length ? ingredientSearchResults.map((term) => <button key={term} type="button" onClick={() => addIngredientAvoid(term)}><strong>{ingredientLabel(term)}</strong><small>{term}</small></button>) : <span>확인 대상 원료에서 찾지 못했습니다.</span>}</div> : null}<p className="switch-ingredient-note">해당 원료가 <strong>확인된</strong> 제품은 후보에서 제외합니다. ‘찾지 못함’은 원료가 없다는 보장은 아닙니다.</p></CriterionSection> }
-  function renderChangeStep() { if (!currentProduct) return null; const feedOptions = FEED_TYPES.filter(([value]) => value !== currentProduct.feed_type), lifeOptions = LIFE_STAGES.filter(([value]) => value !== currentProduct.life_stage), targetOptions = TARGETS.filter(([value]) => !currentProduct.official_targets.includes(value)), featureOptions = FEATURES.filter(([value]) => !currentProduct.features.includes(value)), recipeOptions = currentRecipeFamilies.length ? RECIPE_FAMILIES.filter(([value]) => !currentRecipeFamilies.includes(value)) : RECIPE_FAMILIES, recipeHint = currentRecipeFamilies.length ? `현재 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}` : '현재 레시피 정보 없음 · 원하는 방향 선택', additionalControlsId = 'switch-change-additional-controls'; const renderLifeStage = () => <CriterionSection title="연령" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}><ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} /></CriterionSection>; const renderOfficialTargets = () => <CriterionSection title="공식 대상" hint="현재 제품에서 확인되지 않은 표기"><ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 고를 공식 대상이 없습니다." /></CriterionSection>; const renderFeatures = () => <CriterionSection title="기능" hint="제품의 공식 표기 기준"><ChoiceButtons options={featureOptions} selected={change.features} onToggle={(value) => toggleChangeArray('features', value)} /></CriterionSection>; const renderRecipeFamilies = () => <CriterionSection title="레시피 계열" hint={recipeHint}><ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} /></CriterionSection>; const renderRecipeTraits = () => !currentIsGrainFree ? <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length ? '현재 제품의 공식 표기 기준' : '현재 제품 표기 미확인'}><button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 표기</button></CriterionSection> : null; return <div className="switch-step-layout switch-decision-step-layout"><ReferenceRail product={currentProduct} variantText={currentVariantText} step="change" onChangeProduct={resetCurrentProduct} /><main className="switch-step-main"><div className="switch-step-header"><span>CHANGE</span><h1>무엇을 바꾸고 싶나요?</h1><p>지금 사료에서 바꾸고 싶은 점만 골라주세요.</p></div>{keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}<button className={noChangeIntent ? 'switch-no-change is-selected' : 'switch-no-change'} type="button" onClick={() => { setChange(EMPTY_CRITERIA); setChangeBrand(false); setIngredientAvoidTerms([]); setIngredientSearch(''); setKeepConflictNotice(null); setNoChangeIntent((value) => !value) }}><strong>특별히 바꾸고 싶은 점 없음</strong><span>바꿀 조건 없이 다음 단계로 갑니다. 유지 조건도 고르지 않으면 전체 후보에서 탐색합니다.</span></button><div className="switch-criteria-columns switch-change-desktop-criteria"><div><CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}><button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button></CriterionSection><CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}><ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} /></CriterionSection>{renderLifeStage()}{renderIngredientAvoidance()}</div><div>{renderOfficialTargets()}{renderFeatures()}{renderRecipeFamilies()}{renderRecipeTraits()}</div></div><div className="switch-change-mobile-criteria"><div className="switch-change-mobile-basic"><CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}><button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button></CriterionSection><CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}><ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} /></CriterionSection></div><section className="switch-change-additional-disclosure"><button className="switch-change-additional-toggle" type="button" aria-expanded={changeAdditionalOpen} aria-controls={additionalControlsId} onClick={() => setChangeAdditionalOpen((value) => !value)}><span className="switch-change-additional-toggle-copy"><strong>추가 변경 조건</strong><small>{changeAdditionalLabels.length ? `${changeAdditionalLabels.length}개 선택` : '필요할 때만 선택하세요.'}</small></span><span className="switch-change-additional-state" aria-hidden="true">{changeAdditionalOpen ? '접기 ↑' : '펼치기 ↓'}</span></button>{!changeAdditionalOpen && changeAdditionalLabels.length ? <p className="switch-change-additional-summary">{changeAdditionalLabels.join(' · ')}</p> : null}<div id={additionalControlsId} className="switch-change-additional-content" hidden={!changeAdditionalOpen}>{renderLifeStage()}{renderIngredientAvoidance()}{renderOfficialTargets()}{renderFeatures()}{renderRecipeFamilies()}{renderRecipeTraits()}</div></section></div><div className="switch-step-actions"><button className="switch-secondary-action" type="button" onClick={() => backToStep('sku')}>← 사용 규격</button><button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { requestExplicitScroll('keep'); setKeepConflictNotice(null); setStep('keep', 'push', 'step') }}>다음 →</button></div></main></div> }
-  function renderKeepStep() { if (!currentProduct) return null; const changeLabels = criteriaLabels(change); if (changeBrand) changeLabels.unshift('다른 브랜드'); changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`)); if (noChangeIntent && !changeLabels.length) changeLabels.push('특별히 바꿀 점 없음'); const currentFactLabels: string[] = []; if (currentProduct.feed_type) currentFactLabels.push(currentProduct.feed_type); if (currentProduct.life_stage) currentFactLabels.push(optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)); currentFactLabels.push(...currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS))); return <div className="switch-step-layout switch-decision-step-layout"><ReferenceRail product={currentProduct} variantText={currentVariantText} step="keep" onChangeProduct={resetCurrentProduct} /><main className="switch-step-main"><div className="switch-step-header"><span>KEEP</span><h1>무엇을 그대로 유지할까요?</h1><p>지금 사료에서 다음 사료에도 꼭 남기고 싶은 조건만 골라주세요.</p></div><div className="switch-keep-change-summary"><strong>바꾸기로 정함</strong><span>{changeLabels.join(' · ') || '없음'}</span></div><section className="switch-current-facts-summary" aria-label="현재 제품에서 확인된 정보"><div><span>현재 제품에서 확인됨</span><strong>{currentFactLabels.join(' · ') || '확인된 기본 정보 없음'}</strong></div><p><b>공식 대상</b> {compactList(currentProduct.official_targets, TARGET_LABELS)}<i>·</i><b>기능</b> {compactList(currentProduct.features, FEATURE_LABELS)}</p></section><div className="switch-criteria-columns"><div>{!changeBrand ? <CriterionSection title="브랜드" hint="현재 제품"><button className={keepBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keepBrand} onClick={() => setKeepBrand((value) => !value)}>{currentProduct.brand} 유지</button></CriterionSection> : null}{!change.feedType && currentProduct.feed_type ? <CriterionSection title="사료 형태" hint="현재 제품"><button className={keep.feedType ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.feedType)} onClick={() => setKeepSingle('feedType', currentProduct.feed_type!)}>{currentProduct.feed_type} 유지</button></CriterionSection> : null}{!change.lifeStage && currentProduct.life_stage ? <CriterionSection title="연령" hint="현재 제품"><button className={keep.lifeStage ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.lifeStage)} onClick={() => setKeepSingle('lifeStage', currentProduct.life_stage!)}>{optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)} 유지</button></CriterionSection> : null}{currentProduct.official_targets.length ? <CriterionSection title="공식 대상" hint="현재 제품에서 확인됨"><ChoiceButtons options={currentProduct.official_targets.map((value) => [value, optionLabel(value, TARGET_LABELS)] as const)} selected={keep.officialTargets} onToggle={(value) => toggleKeepArray('officialTargets', value)} /></CriterionSection> : null}</div><div>{currentProduct.features.length ? <CriterionSection title="기능" hint="현재 제품에서 확인됨"><ChoiceButtons options={currentProduct.features.map((value) => [value, optionLabel(value, FEATURE_LABELS)] as const)} selected={keep.features} onToggle={(value) => toggleKeepArray('features', value)} /></CriterionSection> : null}{!change.recipeFamilies.length && currentRecipeFamilies.length ? <CriterionSection title="레시피 계열" hint="현재 확인된 레시피 정보"><ChoiceButtons options={currentRecipeFamilies.map((value) => [value, optionLabel(value, RECIPE_FAMILY_LABELS)] as const)} selected={keep.recipeFamilies} onToggle={(value) => toggleKeepArray('recipeFamilies', value)} /></CriterionSection> : null}{!change.grainFree && currentIsGrainFree ? <CriterionSection title="레시피 특성" hint="현재 제품의 공식 표기"><button className={keep.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keep.grainFree} onClick={() => setKeep((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기 유지</button></CriterionSection> : null}{!currentRecipeKnown ? <p className="switch-option-empty">현재 제품에서 확인된 레시피 정보가 없어 유지 조건으로 제안하지 않습니다.</p> : null}</div></div><div className="switch-step-actions"><button className="switch-secondary-action" type="button" onClick={() => backToStep('change')}>← 바꿀 것 수정</button><button className="switch-primary-action" type="button" onClick={() => { requestExplicitScroll('results'); beginSwitchRun(); updateSession((current) => ({ ...current, selectedCandidateId: null, visibleCandidateCount: 40, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview', step: 'results' }), 'push', 'step') }}>후보 제품 보기 →</button></div></main></div> }
-  function renderResults() { if (!currentProduct) return null; if (compareOpen && compareItems.length) return <CompareView items={compareItems} currentProduct={currentProduct} currentVariantId={currentVariantId} currentVariantText={currentVariantText} initialTab={compareTab} onTabChange={changeSwitchCompareTab} detailProductId={detailProductId} detailTab={detailTab} onDetailOpen={openSwitchDetail} onDetailClose={closeSwitchDetail} onDetailTabChange={changeSwitchDetailTab} onClose={closeSwitchCompare} onRemove={removeSwitchCompare} />; const hasChosenCandidateCriteria = criteriaLabels(change).length || criteriaLabels(keep).length || changeBrand || keepBrand || ingredientAvoidTerms.length, changeLabels = criteriaLabels(change); if (changeBrand) changeLabels.unshift('다른 브랜드'); changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`)); if (noChangeIntent && !changeLabels.length) changeLabels.push('특별히 바꿀 점 없음'); const keepLabels = criteriaLabels(keep); if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`); const candidateCountText = candidateSearchActive ? visibleCandidates.length < searchedCandidates.length ? `${searchedCandidates.length}개 중 ${visibleCandidates.length}개 표시` : `검색 결과 ${searchedCandidates.length}개` : visibleCandidates.length < candidates.length ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시` : `${candidates.length}개의 제품`, candidateSummaryText = hasChosenCandidateCriteria ? candidateCountText : `${candidateCountText} · 추가 조건 없이 탐색 중`, comparedNames = compareItems.map((item) => item.product.canonical_name); return <main className="switch-results-stage"><div className="switch-session-bar"><div className="switch-results-title"><h1>다음 사료 살펴보기</h1></div><div className="switch-session-current"><span>지금 먹이는 사료</span><div className="switch-session-current-product"><ProductImage className="switch-session-current-image" product={currentProduct} /><div><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div></div></div><div><span>바꿀 조건</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div><div><span>유지할 조건</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div><button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div><section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}><div className="switch-candidate-pane"><div className="switch-candidate-heading"><div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div><div className="switch-candidate-search"><input ref={candidateSearchInputRef} type="search" aria-label="후보 제품 검색" placeholder="브랜드 또는 제품명" value={candidateSearch} onChange={(event) => { setCandidateSearch(event.target.value); setVisibleCandidateCount(40) }} />{candidateSearch ? <button type="button" onClick={clearCandidateSearch}>지우기</button> : null}</div></div><div className="switch-candidate-list">{candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}{candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 후보에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}{visibleCandidates.map((evaluation) => { const product = evaluation.product, isCompared = compareIds.includes(product.product_id), compareDisabled = compareIds.length >= 5 && !isCompared; return <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}><button className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'} ref={(node) => { if (node) candidateButtonRefs.current.set(product.product_id, node); else candidateButtonRefs.current.delete(product.product_id) }} type="button" aria-label={`${product.brand} ${product.canonical_name} 빠른 보기`} onClick={() => openCandidate(product.product_id)}><ProductImage className="switch-candidate-image" product={product} /><span className="switch-candidate-identity"><span>{product.brand}</span><strong>{product.canonical_name}</strong><small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small></span><RelationBlock evaluation={evaluation} /><span className="switch-candidate-open">보기 →</span></button><button className={isCompared ? 'switch-candidate-compare is-added' : 'switch-candidate-compare'} type="button" data-switch-compare-product-id={product.product_id} aria-pressed={isCompared} aria-label={`${product.canonical_name} ${isCompared ? '비교에서 제거' : '비교에 추가'}`} disabled={compareDisabled} onClick={() => toggleCompare(product.product_id)}><span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong></button></div>})}{visibleCandidateCount < searchedCandidates.length ? <button className="load-more" type="button" onClick={() => setVisibleCandidateCount((count) => count + 40)}>제품 더 보기 · {searchedCandidates.length - visibleCandidates.length}개 남음</button> : null}</div></div>{selectedCandidate ? <aside className="switch-candidate-inspector"><div className="switch-preview-topline"><span>후보 제품</span><button type="button" onClick={() => closeCandidate(selectedCandidate.product.product_id)}>닫기 ×</button></div><div className="switch-inspector-scroll"><section className="switch-inspector-identity"><ProductImage className="switch-inspector-image" product={selectedCandidate.product} /><div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div></section><div className="quick-view-actions switch-inspector-actions"><button className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => toggleCompare(selectedCandidate.product.product_id)}>{compareIds.includes(selectedCandidate.product.product_id) ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { recordSwitchConsideration(selectedCandidate.product.product_id, 'detail_open'); openSwitchDetail(selectedCandidate.product.product_id) }}>상세 보기 →</button></div><section className="switch-inspector-section switch-inspector-decision"><h2>선택한 조건과 비교</h2><div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div><dl><div><dt>유지 조건</dt><dd>{selectedCandidate.keepMatches.join(' · ') || '확인된 항목 없음'}</dd></div><div><dt>변경 조건</dt><dd>{selectedCandidate.changeMatches.join(' · ') || '확인된 항목 없음'}</dd></div><div><dt>미확인</dt><dd>{selectedCandidate.unknowns.join(' · ') || '—'}</dd></div></dl></section>{ingredientAvoidTerms.length ? <section className="switch-inspector-section switch-ingredient-inspector"><h2>피하고 싶은 원료</h2><dl>{ingredientAvoidTerms.map((term) => <div key={term}><dt>{ingredientLabel(term)}</dt><dd>{ingredientAvoidanceStatus(selectedCandidate.product, term)}</dd></div>)}</dl><p>‘검토한 자료에서 찾지 못함’은 해당 원료가 없다는 보장이 아닙니다.</p></section> : null}<section className="switch-inspector-section"><h2>제품 정보 요약</h2><dl><div><dt>판매 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div><div><dt>규격 수</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div><div><dt>공식 대상</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div><div><dt>기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div><div><dt>레시피 계열</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div><div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div><div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div><div><dt>확인된 유통 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div><div><dt>동일 배합 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.formula_match_market_country_codes)}</dd></div></dl></section></div></aside> : null}</section>{compareIds.length ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button ref={compareDockButtonRef} type="button" onClick={openSwitchCompare}>비교 보기 →</button></div> : null}</main> }
+  useEffect(() => {
+    if (!currentProductId) return
+    loadVariants(currentProductId)
+    return () => {
+      const request = variantRequest.current
+      if (request?.productId !== currentProductId) return
+      variantRequest.current = null
+      variantRequestId.current += 1
+      request.controller.abort()
+    }
+  }, [currentProductId])
 
-  if (detailProduct && !compareOpen) return <ProductDetail product={detailProduct} onHome={onHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
-  if (currentProductId && !currentProduct) return <div className="research-shell switch-workflow-shell"><SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} /><main className="switch-find-stage">{error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : <div className="switch-state-message">{loading ? '저장된 SWITCH 작업을 불러오는 중입니다.' : '저장된 현재 사료를 확인할 수 없어 다시 선택해야 합니다.'}</div>}</main></div>
-  return <div className="research-shell switch-workflow-shell"><SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />{renderVariantRestoreStatus()}{step === 'current' ? renderCurrentStage() : null}{step === 'sku' ? renderSkuStep() : null}{step === 'change' ? renderChangeStep() : null}{step === 'keep' ? renderKeepStep() : null}{step === 'results' ? renderResults() : null}</div>
+  function renderVariantRestoreStatus() {
+    if (!currentProduct || step === 'sku' || variantSelection.kind !== 'variant' || selectedVariant) return null
+    if (variantLoading) {
+      return <div className="switch-state-message switch-variant-status">선택한 판매 규격을 확인하는 중입니다.</div>
+    }
+    if (variantError) {
+      return <div className="switch-state-message switch-variant-status is-error" role="alert"><span>{variantError}</span><button className="state-retry" type="button" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div>
+    }
+    return null
+  }
+
+  const conditions = useMemo(() => currentProduct ? buildConditions({
+    change,
+    keep,
+    changeBrand,
+    keepBrand,
+    ingredientAvoidTerms,
+    currentProduct,
+  }) : [], [change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct])
+
+  const candidates = useMemo(() => {
+    if (!currentProduct) return []
+    const values: SwitchEvaluation[] = []
+    for (const product of products) {
+      if (product.product_id === currentProduct.product_id) continue
+      const evaluation = evaluateSwitchCandidate(product, conditions)
+      if (evaluation) values.push(evaluation)
+    }
+    return values.sort((a, b) => {
+      const overlapA = a.keepMatches.length + a.changeMatches.length
+      const overlapB = b.keepMatches.length + b.changeMatches.length
+      if (overlapB !== overlapA) return overlapB - overlapA
+      const brandOrder = a.product.brand.localeCompare(b.product.brand, 'ko-KR')
+      if (brandOrder !== 0) return brandOrder
+      return a.product.canonical_name.localeCompare(b.product.canonical_name, 'ko-KR')
+    })
+  }, [products, currentProduct, conditions])
+
+  const trackedCandidates = candidates.slice(0, 40)
+  const candidateSearchActive = candidateSearch.trim().length > 0
+  const searchedCandidates = useMemo(() => {
+    if (!candidateSearchActive) return candidates
+    const matchedIds = new Set(
+      lookupCatalog(candidates.map((item) => item.product), candidateSearch)
+        .map((product) => product.product_id),
+    )
+    return candidates.filter((item) => matchedIds.has(item.product.product_id))
+  }, [candidates, candidateSearch, candidateSearchActive])
+  const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
+  const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
+  const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
+  const changeAdditionalLabels = additionalChangeLabels(change, ingredientAvoidTerms)
+  const compareItems = useMemo<CompareItem[]>(() => compareIds
+    .map((productId) => candidates.find((item) => item.product.product_id === productId))
+    .filter((item): item is SwitchEvaluation => Boolean(item))
+    .map((item) => ({
+      product: item.product,
+      keepMatches: item.keepMatches,
+      changeMatches: item.changeMatches,
+      unknowns: item.unknowns,
+      ingredientReviewedNotFound: item.ingredientReviewedNotFound,
+      ingredientInsufficient: item.ingredientInsufficient,
+    })), [compareIds, candidates])
+
+  useLayoutEffect(() => {
+    if (selectedCandidateId || !pendingCandidateFocus.current) return
+    const productId = pendingCandidateFocus.current
+    pendingCandidateFocus.current = null
+    const candidateButton = candidateButtonRefs.current.get(productId)
+    if (candidateButton) candidateButton.focus({ preventScroll: true })
+    else candidateSearchInputRef.current?.focus({ preventScroll: true })
+  }, [selectedCandidateId])
+
+  useLayoutEffect(() => {
+    if (compareOpen || step !== 'results' || !pendingCompareReturnFocus.current) return
+    pendingCompareReturnFocus.current = false
+    compareDockButtonRef.current?.focus({ preventScroll: true })
+  }, [compareOpen, step])
+
+  useLayoutEffect(() => {
+    const pending = pendingExplicitScroll.current
+    if (!pending) return
+    const renderedTarget: SwitchExplicitScrollTarget | null = detailProduct && !compareOpen
+      ? null
+      : step === 'results' && compareOpen && compareItems.length > 0
+        ? 'compare'
+        : step
+    if (pending.settle) {
+      if (renderedTarget !== pending.intent.target) releasePendingExplicitScroll()
+      return
+    }
+    if (renderedTarget === pending.intent.target) {
+      let settle: SwitchExplicitScrollSettleHandle | null = null
+      settle = resetSwitchExplicitNavigationScroll(pending.intent, () => {
+        const current = pendingExplicitScroll.current
+        if (current?.intent === pending.intent && current.settle === settle) {
+          pendingExplicitScroll.current = null
+        }
+      })
+      if (settle) {
+        pending.settle = settle
+      } else if (pendingExplicitScroll.current?.intent === pending.intent) {
+        pendingExplicitScroll.current = null
+        releaseSwitchExplicitScrollIntent(pending.intent)
+      }
+      return
+    }
+    if (renderedTarget !== pending.source) releasePendingExplicitScroll()
+  }, [step, compareOpen, detailProductId, compareItems.length])
+
+  function selectCurrentVariant(variantId: string | null) {
+    setCurrentVariantId(variantId)
+  }
+
+  function addIngredientAvoid(term: string) {
+    setNoChangeIntent(false)
+    setIngredientAvoidTerms((current) => current.includes(term) ? current : [...current, term])
+    setIngredientSearch('')
+  }
+
+  function removeIngredientAvoid(term: string) {
+    setIngredientAvoidTerms((current) => current.filter((value) => value !== term))
+  }
+
+  function clearCandidateSearch() {
+    setCandidateSearch('')
+    setVisibleCandidateCount(40)
+    candidateSearchInputRef.current?.focus({ preventScroll: true })
+  }
+
+  function beginSwitchRun() {
+    if (!currentProduct) return
+    const generation = switchRunGeneration.current
+    const previous = switchRunTail.current
+    const next = previous.then((previousRunId) => {
+      if (switchRunGeneration.current !== generation) return null
+      return createDecisionSearchRun({
+        parentSearchRunId: previousRunId ?? switchRunId.current,
+        mode: 'switch',
+        currentProductId: currentProduct.product_id,
+        currentVariantId: currentVariantId,
+        criteriaSnapshot: switchCriteriaSnapshot({
+          change,
+          keep,
+          changeBrand,
+          keepBrand,
+          ingredientAvoidTerms,
+          currentProduct,
+        }),
+        candidateCount: candidates.length,
+        initialPresentedProductIds: trackedCandidates.map((item) => item.product.product_id),
+      })
+    })
+    switchRunTail.current = next
+    void next.then((searchRunId) => {
+      if (searchRunId && switchRunGeneration.current === generation) {
+        switchRunId.current = searchRunId
+      }
+    })
+  }
+
+  function openCandidate(productId: string) {
+    setSelectedCandidateId(productId)
+    recordSwitchConsideration(productId, 'detail_open')
+  }
+
+  function closeCandidate(productId: string) {
+    pendingCandidateFocus.current = productId
+    setSelectedCandidateId(null)
+  }
+
+  function recordSwitchConsideration(
+    productId: string,
+    signal: 'detail_open' | 'compare_add',
+  ) {
+    if (!trackedCandidates.some((item) => item.product.product_id === productId)) return
+    void switchRunTail.current.then((searchRunId) =>
+      recordProductConsideration(searchRunId, productId, signal))
+  }
+
+  function toggleCompare(productId: string) {
+    const adding = !compareIds.includes(productId) && compareIds.length < 5
+    if (adding) {
+      recordSwitchConsideration(productId, 'compare_add')
+    }
+    setCompareIds((current) => {
+      if (current.includes(productId)) return current.filter((value) => value !== productId)
+      if (current.length >= 5) return current
+      return [...current, productId]
+    })
+  }
+
+  function confirmCurrentProduct(product: CatalogProduct) {
+    requestExplicitScroll('sku')
+    switchRunGeneration.current += 1
+    switchRunTail.current = Promise.resolve(null)
+    switchRunId.current = null
+    const next = createInitialSwitchSession(query)
+    next.currentProductId = product.product_id
+    next.step = 'sku'
+    updateSession(next, 'push', 'step')
+    setPreviewProductId(null)
+    setVariants([])
+    setVariantError(null)
+    setKeepConflictNotice(null)
+    setIngredientSearch('')
+    setCandidateSearch('')
+  }
+
+  function resetCurrentProduct() {
+    requestExplicitScroll('current')
+    switchRunGeneration.current += 1
+    switchRunTail.current = Promise.resolve(null)
+    switchRunId.current = null
+    const request = variantRequest.current
+    variantRequest.current = null
+    variantRequestId.current += 1
+    request?.controller.abort()
+    setVariantLoading(false)
+    setVariants([])
+    setVariantError(null)
+    setPreviewProductId(null)
+    setKeepConflictNotice(null)
+    setIngredientSearch('')
+    setCandidateSearch('')
+    updateSession(createInitialSwitchSession(query), 'replace', null)
+  }
+
+  function toggleChangeBrandSelection() {
+    setNoChangeIntent(false)
+    const nextValue = !changeBrand
+    if (nextValue && keepBrand) {
+      setKeepBrand(false)
+      setKeepConflictNotice('브랜드 유지 조건을 해제했습니다.')
+    }
+    setChangeBrand(nextValue)
+  }
+
+  function toggleChangeArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) {
+    setNoChangeIntent(false)
+    const nextValues = toggleValue(change[field], value)
+    if (field === 'recipeFamilies' && nextValues.length > 0 && keep.recipeFamilies.length > 0) {
+      setKeep((current) => ({ ...current, recipeFamilies: [] }))
+      setKeepConflictNotice('레시피 계열 유지 조건을 해제했습니다.')
+    }
+    setChange((current) => ({ ...current, [field]: nextValues }))
+  }
+
+  function setChangeSingle(field: 'feedType' | 'lifeStage', value: string) {
+    setNoChangeIntent(false)
+    const nextValue = change[field] === value ? '' : value
+    if (nextValue && keep[field]) {
+      setKeep((current) => ({ ...current, [field]: '' }))
+      setKeepConflictNotice(field === 'feedType'
+        ? '사료 형태 유지 조건을 해제했습니다.'
+        : '연령 유지 조건을 해제했습니다.')
+    }
+    setChange((current) => ({ ...current, [field]: nextValue }))
+  }
+
+  function toggleKeepArray(field: 'officialTargets' | 'features' | 'recipeFamilies', value: string) {
+    setKeep((current) => ({ ...current, [field]: toggleValue(current[field], value) }))
+  }
+
+  function setKeepSingle(field: 'feedType' | 'lifeStage', value: string) {
+    setKeep((current) => ({ ...current, [field]: current[field] === value ? '' : value }))
+  }
+
+  function renderCurrentStage() {
+    return (
+      <main className="switch-find-stage">
+        <section className="switch-find-hero">
+
+          <h1>현재 먹이는 사료를 찾으세요.</h1>
+          <p>지금 먹이는 제품과 규격을 선택하면, 다음 사료와 차이를 비교할 수 있습니다.</p>
+          <label className="switch-find-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+            <input
+              autoFocus
+              type="search"
+              value={query}
+              placeholder="브랜드 또는 제품명 검색"
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPreviewProductId(null)
+              }}
+            />
+          </label>
+        </section>
+
+        <section className={previewProduct ? 'switch-find-body is-inspecting' : 'switch-find-body'}>
+          <div className="switch-find-results">
+            <div className="switch-find-results-heading">
+              <strong>검색 결과</strong>
+              <span>{query.trim() ? `${searchResults.length}개 표시` : '브랜드 또는 제품명의 일부를 입력하세요.'}</span>
+            </div>
+            <div className="switch-find-results-list">
+              {error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
+              {loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}
+              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span></div> : null}
+              {searchResults.map((product) => (
+                <button
+                  className={previewProductId === product.product_id ? 'switch-find-result is-selected' : 'switch-find-result'}
+                  key={product.product_id}
+                  type="button"
+                  onClick={() => setPreviewProductId(product.product_id)}
+                >
+                  <ProductImage className="switch-find-result-image" product={product} />
+                  <span className="switch-find-result-copy">
+                    <span>{product.brand}</span>
+                    <strong>{product.canonical_name}</strong>
+                    <small>
+                      {product.feed_type ?? '형태 미확인'} ·{' '}
+                      {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} ·{' '}
+                      {representativePackageLabel(product)}
+                    </small>
+                  </span>
+                  <span className="switch-find-result-open">확인 →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {previewProduct ? (
+            <aside className="switch-current-preview">
+              <div className="switch-preview-topline"><span>현재 사료 확인</span><button type="button" onClick={() => setPreviewProductId(null)}>닫기 ×</button></div>
+              <div className="switch-preview-scroll">
+                <section className="switch-preview-identity">
+                  <ProductImage className="switch-preview-image" product={previewProduct} />
+                  <div>
+                    <span>{previewProduct.brand}</span>
+                    <h2>{previewProduct.canonical_name}</h2>
+                    <p>
+                      {previewProduct.feed_type ?? '형태 미확인'} ·{' '}
+                      {previewProduct.life_stage ? optionLabel(previewProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} ·{' '}
+                      {representativePackageLabel(previewProduct)}
+                    </p>
+                  </div>
+                </section>
+
+                <button className="switch-primary-action switch-current-confirm" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
+                <section className="switch-preview-facts">
+                  {previewProduct.official_targets.length || previewProduct.features.length ? <dl>
+                    {previewProduct.official_targets.length ? <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div> : null}
+                    {previewProduct.features.length ? <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div> : null}
+                  </dl> : null}
+                  <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다.</p>
+                </section>
+              </div>
+            </aside>
+          ) : null}
+        </section>
+      </main>
+    )
+  }
+
+  function renderSkuStep() {
+    if (!currentProduct) return null
+
+    return (
+      <div className="switch-step-layout">
+        <ReferenceRail product={currentProduct} variantText={currentVariantText} step="sku" onChangeProduct={resetCurrentProduct} />
+        <main className="switch-step-main">
+          <div className="switch-step-header">
+            <span>사용 규격</span>
+            <h1>현재 먹이는 규격을 골라주세요.</h1>
+            <p>지금 먹이는 용량이나 포장 단위를 선택하세요. 용량이 다르다고 다른 레시피로 보지는 않습니다.</p>
+          </div>
+          <section className="switch-sku-list">
+            {variantLoading ? (
+              <div className="switch-state-message">판매 규격을 불러오는 중입니다.</div>
+            ) : variantError ? (
+              <div className="switch-state-message is-error" role="alert"><span>{variantError}</span><button className="state-retry" type="button" onClick={() => loadVariants(currentProduct.product_id)}>다시 시도</button></div>
+            ) : variants.length === 0 ? (
+              <div className="switch-state-message">선택할 수 있는 판매 규격을 확인하지 못했습니다.</div>
+            ) : variants.map((variant) => (
+              <button
+                className={currentVariantId === variant.variant_id ? 'switch-sku-option is-selected' : 'switch-sku-option'}
+                key={variant.variant_id}
+                type="button"
+                onClick={() => selectCurrentVariant(variant.variant_id)}
+              >
+                <span>
+                  <strong>{variantLabel(variant)}</strong>
+                  <small>{variant.units_per_sale && variant.units_per_sale > 1 ? '묶음 판매' : '단일 판매'}</small>
+                </span>
+                <b>{currentVariantId === variant.variant_id ? '선택됨' : '선택'}</b>
+              </button>
+            ))}
+          </section>
+          <div className="switch-step-actions">
+            <button className="switch-secondary-action" type="button" onClick={() => { requestExplicitScroll('change'); setSessionField('variantSelection', { kind: 'unknown', variantId: null }); setStep('change', 'push', 'step') }}>사용 규격을 모르겠어요</button>
+            <button className="switch-primary-action" type="button" disabled={!currentVariantId} onClick={() => { requestExplicitScroll('change'); setStep('change', 'push', 'step') }}>다음 →</button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  function renderIngredientAvoidance() {
+    if (!currentProduct) return null
+    const currentConfirmed = currentProduct.confirmed_present_ingredient_terms
+      .filter((term) => !ingredientAvoidTerms.includes(term))
+      .sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
+
+    return (
+      <CriterionSection title="피하고 싶은 원료" hint="현재 확인된 원재료 기준">
+        {ingredientAvoidTerms.length > 0 ? (
+          <div className="switch-ingredient-selected">
+            {ingredientAvoidTerms.map((term) => <button key={term} type="button" onClick={() => removeIngredientAvoid(term)}>{ingredientLabel(term)} ×</button>)}
+          </div>
+        ) : null}
+
+        {currentConfirmed.length > 0 ? (
+          <div className="switch-current-ingredients">
+            <span>현재 제품에서 확인됨</span>
+            <div>
+              {currentConfirmed.slice(0, 12).map((term) => (
+                <button key={term} type="button" onClick={() => addIngredientAvoid(term)}>
+                  <strong>{ingredientLabel(term)}</strong>
+                  <small>{ingredientEvidenceLabel(currentProduct, term)}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="switch-option-empty">현재 제품에서 바로 제안할 원료가 없습니다. 아래에서 직접 검색할 수 있습니다.</p>
+        )}
+
+        <input className="switch-ingredient-search" type="search" value={ingredientSearch} placeholder="원료 검색 · 예: 닭, 연어" onChange={(event) => setIngredientSearch(event.target.value)} />
+        {ingredientSearch.trim() ? (
+          <div className="switch-ingredient-search-results">
+            {ingredientSearchResults.length > 0 ? ingredientSearchResults.map((term) => (
+              <button key={term} type="button" onClick={() => addIngredientAvoid(term)}><strong>{ingredientLabel(term)}</strong><small>{term}</small></button>
+            )) : <span>확인 대상 원료에서 찾지 못했습니다.</span>}
+          </div>
+        ) : null}
+        <p className="switch-ingredient-note">해당 원료가 <strong>확인된</strong> 제품은 후보에서 제외합니다. ‘찾지 못함’은 원료가 없다는 보장은 아닙니다.</p>
+      </CriterionSection>
+    )
+  }
+
+  function renderChangeStep() {
+    if (!currentProduct) return null
+    const feedOptions = FEED_TYPES.filter(([value]) => value !== currentProduct.feed_type)
+    const lifeOptions = LIFE_STAGES.filter(([value]) => value !== currentProduct.life_stage)
+    const targetOptions = TARGETS.filter(([value]) => !currentProduct.official_targets.includes(value))
+    const featureOptions = FEATURES.filter(([value]) => !currentProduct.features.includes(value))
+    const recipeOptions = currentRecipeFamilies.length > 0
+      ? RECIPE_FAMILIES.filter(([value]) => !currentRecipeFamilies.includes(value))
+      : RECIPE_FAMILIES
+    const recipeHint = currentRecipeFamilies.length > 0
+      ? `현재 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
+      : '현재 레시피 정보 없음 · 원하는 방향 선택'
+    const additionalControlsId = 'switch-change-additional-controls'
+
+    const renderLifeStage = () => (
+      <CriterionSection title="연령" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '현재 값 미확인'}>
+        <ChoiceButtons options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
+      </CriterionSection>
+    )
+    const renderOfficialTargets = () => (
+      <CriterionSection title="공식 대상" hint="현재 제품에서 확인되지 않은 표기">
+        <ChoiceButtons options={targetOptions} selected={change.officialTargets} onToggle={(value) => toggleChangeArray('officialTargets', value)} emptyText="추가로 고를 공식 대상이 없습니다." />
+      </CriterionSection>
+    )
+    const renderFeatures = () => (
+      <CriterionSection title="기능" hint="제품의 공식 표기 기준">
+        <ChoiceButtons options={featureOptions} selected={change.features} onToggle={(value) => toggleChangeArray('features', value)} />
+      </CriterionSection>
+    )
+    const renderRecipeFamilies = () => (
+      <CriterionSection title="레시피 계열" hint={recipeHint}>
+        <ChoiceButtons options={recipeOptions} selected={change.recipeFamilies} onToggle={(value) => toggleChangeArray('recipeFamilies', value)} />
+      </CriterionSection>
+    )
+    const renderRecipeTraits = () => !currentIsGrainFree ? (
+      <CriterionSection title="레시피 특성" hint={currentRecipeTraits.length > 0 ? '현재 제품의 공식 표기 기준' : '현재 제품 표기 미확인'}>
+        <button className={change.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={change.grainFree} onClick={() => { setNoChangeIntent(false); setChange((current) => ({ ...current, grainFree: !current.grainFree })) }}>Grain-Free 표기</button>
+      </CriterionSection>
+    ) : null
+
+    return (
+      <div className="switch-step-layout switch-decision-step-layout">
+        <ReferenceRail product={currentProduct} variantText={currentVariantText} step="change" onChangeProduct={resetCurrentProduct} />
+        <main className="switch-step-main">
+          <div className="switch-step-header">
+            <span>CHANGE</span>
+            <h1>무엇을 바꾸고 싶나요?</h1>
+            <p>지금 사료에서 바꾸고 싶은 점만 골라주세요.</p>
+          </div>
+
+          {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
+
+          <button
+            className={noChangeIntent ? 'switch-no-change is-selected' : 'switch-no-change'}
+            type="button"
+            onClick={() => {
+              setChange(EMPTY_CRITERIA)
+              setChangeBrand(false)
+              setIngredientAvoidTerms([])
+              setIngredientSearch('')
+              setKeepConflictNotice(null)
+              setNoChangeIntent((value) => !value)
+            }}
+          >
+            <strong>특별히 바꾸고 싶은 점 없음</strong>
+            <span>바꿀 조건 없이 다음 단계로 갑니다. 유지 조건도 고르지 않으면 전체 후보에서 탐색합니다.</span>
+          </button>
+
+          <div className="switch-criteria-columns switch-change-desktop-criteria">
+            <div>
+              <CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}>
+                <button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button>
+              </CriterionSection>
+              <CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}>
+                <ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} />
+              </CriterionSection>
+              {renderLifeStage()}
+              {renderIngredientAvoidance()}
+            </div>
+            <div>
+              {renderOfficialTargets()}
+              {renderFeatures()}
+              {renderRecipeFamilies()}
+              {renderRecipeTraits()}
+            </div>
+          </div>
+
+          <div className="switch-change-mobile-criteria">
+            <div className="switch-change-mobile-basic">
+              <CriterionSection title="브랜드" hint={`현재 · ${currentProduct.brand}`}>
+                <button className={changeBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={changeBrand} onClick={toggleChangeBrandSelection}>다른 브랜드로 보기</button>
+              </CriterionSection>
+              <CriterionSection title="사료 형태" hint={currentProduct.feed_type ? `현재 · ${currentProduct.feed_type}` : '현재 값 미확인'}>
+                <ChoiceButtons options={feedOptions} selected={change.feedType ? [change.feedType] : []} onToggle={(value) => setChangeSingle('feedType', value)} />
+              </CriterionSection>
+            </div>
+
+            <section className="switch-change-additional-disclosure">
+              <button
+                className="switch-change-additional-toggle"
+                type="button"
+                aria-expanded={changeAdditionalOpen}
+                aria-controls={additionalControlsId}
+                onClick={() => setChangeAdditionalOpen((value) => !value)}
+              >
+                <span className="switch-change-additional-toggle-copy">
+                  <strong>추가 변경 조건</strong>
+                  <small>{changeAdditionalLabels.length > 0 ? `${changeAdditionalLabels.length}개 선택` : '필요할 때만 선택하세요.'}</small>
+                </span>
+                <span className="switch-change-additional-state" aria-hidden="true">{changeAdditionalOpen ? '접기 ↑' : '펼치기 ↓'}</span>
+              </button>
+              {!changeAdditionalOpen && changeAdditionalLabels.length > 0 ? <p className="switch-change-additional-summary">{changeAdditionalLabels.join(' · ')}</p> : null}
+              <div id={additionalControlsId} className="switch-change-additional-content" hidden={!changeAdditionalOpen}>
+                {renderLifeStage()}
+                {renderIngredientAvoidance()}
+                {renderOfficialTargets()}
+                {renderFeatures()}
+                {renderRecipeFamilies()}
+                {renderRecipeTraits()}
+              </div>
+            </section>
+          </div>
+
+          <div className="switch-step-actions">
+            <button className="switch-secondary-action" type="button" onClick={() => backToStep('sku')}>← 사용 규격</button>
+            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={() => { requestExplicitScroll('keep'); setKeepConflictNotice(null); setStep('keep', 'push', 'step') }}>다음 →</button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  function renderKeepStep() {
+    if (!currentProduct) return null
+
+    const changeLabels = criteriaLabels(change)
+    if (changeBrand) changeLabels.unshift('다른 브랜드')
+    changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+    if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
+
+    const currentFactLabels: string[] = []
+    if (currentProduct.feed_type) currentFactLabels.push(currentProduct.feed_type)
+    if (currentProduct.life_stage) currentFactLabels.push(optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS))
+    currentFactLabels.push(...currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
+
+    return (
+      <div className="switch-step-layout switch-decision-step-layout">
+        <ReferenceRail product={currentProduct} variantText={currentVariantText} step="keep" onChangeProduct={resetCurrentProduct} />
+        <main className="switch-step-main">
+          <div className="switch-step-header">
+            <span>KEEP</span>
+            <h1>무엇을 그대로 유지할까요?</h1>
+            <p>지금 사료에서 다음 사료에도 꼭 남기고 싶은 조건만 골라주세요.</p>
+          </div>
+
+          <div className="switch-keep-change-summary">
+            <strong>바꾸기로 정함</strong>
+            <span>{changeLabels.join(' · ') || '없음'}</span>
+          </div>
+
+          <section className="switch-current-facts-summary" aria-label="현재 제품에서 확인된 정보">
+            <div>
+              <span>현재 제품에서 확인됨</span>
+              <strong>{currentFactLabels.join(' · ') || '확인된 기본 정보 없음'}</strong>
+            </div>
+            <p>
+              <b>공식 대상</b> {compactList(currentProduct.official_targets, TARGET_LABELS)}
+              <i>·</i>
+              <b>기능</b> {compactList(currentProduct.features, FEATURE_LABELS)}
+            </p>
+          </section>
+
+          <div className="switch-criteria-columns">
+            <div>
+              {!changeBrand ? (
+                <CriterionSection title="브랜드" hint="현재 제품"><button className={keepBrand ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keepBrand} onClick={() => setKeepBrand((value) => !value)}>{currentProduct.brand} 유지</button></CriterionSection>
+              ) : null}
+              {!change.feedType && currentProduct.feed_type ? (
+                <CriterionSection title="사료 형태" hint="현재 제품"><button className={keep.feedType ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.feedType)} onClick={() => setKeepSingle('feedType', currentProduct.feed_type!)}>{currentProduct.feed_type} 유지</button></CriterionSection>
+              ) : null}
+              {!change.lifeStage && currentProduct.life_stage ? (
+                <CriterionSection title="연령" hint="현재 제품"><button className={keep.lifeStage ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={Boolean(keep.lifeStage)} onClick={() => setKeepSingle('lifeStage', currentProduct.life_stage!)}>{optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)} 유지</button></CriterionSection>
+              ) : null}
+              {currentProduct.official_targets.length > 0 ? (
+                <CriterionSection title="공식 대상" hint="현재 제품에서 확인됨">
+                  <ChoiceButtons options={currentProduct.official_targets.map((value) => [value, optionLabel(value, TARGET_LABELS)] as const)} selected={keep.officialTargets} onToggle={(value) => toggleKeepArray('officialTargets', value)} />
+                </CriterionSection>
+              ) : null}
+            </div>
+            <div>
+              {currentProduct.features.length > 0 ? (
+                <CriterionSection title="기능" hint="현재 제품에서 확인됨">
+                  <ChoiceButtons options={currentProduct.features.map((value) => [value, optionLabel(value, FEATURE_LABELS)] as const)} selected={keep.features} onToggle={(value) => toggleKeepArray('features', value)} />
+                </CriterionSection>
+              ) : null}
+              {!change.recipeFamilies.length && currentRecipeFamilies.length > 0 ? (
+                <CriterionSection title="레시피 계열" hint="현재 확인된 레시피 정보">
+                  <ChoiceButtons options={currentRecipeFamilies.map((value) => [value, optionLabel(value, RECIPE_FAMILY_LABELS)] as const)} selected={keep.recipeFamilies} onToggle={(value) => toggleKeepArray('recipeFamilies', value)} />
+                </CriterionSection>
+              ) : null}
+              {!change.grainFree && currentIsGrainFree ? (
+                <CriterionSection title="레시피 특성" hint="현재 제품의 공식 표기">
+                  <button className={keep.grainFree ? 'switch-choice wide is-active' : 'switch-choice wide'} type="button" aria-pressed={keep.grainFree} onClick={() => setKeep((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기 유지</button>
+                </CriterionSection>
+              ) : null}
+              {!currentRecipeKnown ? <p className="switch-option-empty">현재 제품에서 확인된 레시피 정보가 없어 유지 조건으로 제안하지 않습니다.</p> : null}
+            </div>
+          </div>
+
+          <div className="switch-step-actions">
+            <button className="switch-secondary-action" type="button" onClick={() => backToStep('change')}>← 바꿀 것 수정</button>
+            <button
+              className="switch-primary-action"
+              type="button"
+              onClick={() => {
+                requestExplicitScroll('results')
+                beginSwitchRun()
+                updateSession((current) => ({
+                  ...current,
+                  selectedCandidateId: null,
+                  visibleCandidateCount: 40,
+                  compareIds: [],
+                  compareOpen: false,
+                  compareTab: 'overview',
+                  detailProductId: null,
+                  detailTab: 'overview',
+                  step: 'results',
+                }), 'push', 'step')
+              }}
+            >후보 제품 보기 →</button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  function renderResults() {
+    if (!currentProduct) return null
+
+    if (compareOpen && compareItems.length > 0) {
+      return (
+        <CompareView
+          items={compareItems}
+          currentProduct={currentProduct}
+          currentVariantId={currentVariantId}
+          currentVariantText={currentVariantText}
+          initialTab={compareTab}
+          onTabChange={changeSwitchCompareTab}
+          detailProductId={detailProductId}
+          detailTab={detailTab}
+          onDetailOpen={openSwitchDetail}
+          onDetailClose={closeSwitchDetail}
+          onDetailTabChange={changeSwitchDetailTab}
+          onClose={closeSwitchCompare}
+          onRemove={removeSwitchCompare}
+        />
+      )
+    }
+
+    const hasChosenCandidateCriteria = criteriaLabels(change).length > 0 || criteriaLabels(keep).length > 0 || changeBrand || keepBrand || ingredientAvoidTerms.length > 0
+    const changeLabels = criteriaLabels(change)
+    if (changeBrand) changeLabels.unshift('다른 브랜드')
+    changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+    if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
+    const keepLabels = criteriaLabels(keep)
+    if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`)
+    const candidateCountText = candidateSearchActive
+      ? visibleCandidates.length < searchedCandidates.length
+        ? `${searchedCandidates.length}개 중 ${visibleCandidates.length}개 표시`
+        : `검색 결과 ${searchedCandidates.length}개`
+      : visibleCandidates.length < candidates.length
+        ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시`
+        : `${candidates.length}개의 제품`
+    const candidateSummaryText = hasChosenCandidateCriteria
+      ? candidateCountText
+      : `${candidateCountText} · 추가 조건 없이 탐색 중`
+    const comparedNames = compareItems.map((item) => item.product.canonical_name)
+
+    return (
+      <main className="switch-results-stage">
+        <div className="switch-session-bar">
+          <div className="switch-results-title"><h1>다음 사료 살펴보기</h1></div>
+          <div className="switch-session-current">
+            <span>지금 먹이는 사료</span>
+            <div className="switch-session-current-product">
+              <ProductImage className="switch-session-current-image" product={currentProduct} />
+              <div><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
+            </div>
+          </div>
+          <div><span>바꿀 조건</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
+          <div><span>유지할 조건</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
+          <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
+        </div>
+
+        <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
+          <div className="switch-candidate-pane">
+            <div className="switch-candidate-heading">
+              <div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div>
+              <div className="switch-candidate-search">
+                <input
+                  ref={candidateSearchInputRef}
+                  type="search"
+                  aria-label="후보 제품 검색"
+                  placeholder="브랜드 또는 제품명"
+                  value={candidateSearch}
+                  onChange={(event) => {
+                    setCandidateSearch(event.target.value)
+                    setVisibleCandidateCount(40)
+                  }}
+                />
+                {candidateSearch ? <button type="button" onClick={clearCandidateSearch}>지우기</button> : null}
+              </div>
+            </div>
+            <div className="switch-candidate-list">
+              {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
+              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 후보에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}
+              {visibleCandidates.map((evaluation) => {
+                const product = evaluation.product
+                const isCompared = compareIds.includes(product.product_id)
+                const compareDisabled = compareIds.length >= 5 && !isCompared
+                return (
+                  <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}>
+                    <button
+                      className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'}
+                      ref={(node) => {
+                        if (node) candidateButtonRefs.current.set(product.product_id, node)
+                        else candidateButtonRefs.current.delete(product.product_id)
+                      }}
+                      type="button"
+                      aria-label={`${product.brand} ${product.canonical_name} 빠른 보기`}
+                      onClick={() => openCandidate(product.product_id)}
+                    >
+                      <ProductImage className="switch-candidate-image" product={product} />
+                      <span className="switch-candidate-identity">
+                        <span>{product.brand}</span><strong>{product.canonical_name}</strong>
+                        <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
+                      </span>
+                      <RelationBlock evaluation={evaluation} />
+                      <span className="switch-candidate-open">보기 →</span>
+                    </button>
+                    <button
+                      className={isCompared ? 'switch-candidate-compare is-added' : 'switch-candidate-compare'}
+                      type="button"
+                      data-switch-compare-product-id={product.product_id}
+                      aria-pressed={isCompared}
+                      aria-label={`${product.canonical_name} ${isCompared ? '비교에서 제거' : '비교에 추가'}`}
+                      disabled={compareDisabled}
+                      onClick={() => toggleCompare(product.product_id)}
+                    >
+                      <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
+                    </button>
+                  </div>
+                )
+              })}
+              {visibleCandidateCount < searchedCandidates.length ? (
+                <button className="load-more" type="button" onClick={() => setVisibleCandidateCount((count) => count + 40)}>
+                  제품 더 보기 · {searchedCandidates.length - visibleCandidates.length}개 남음
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {selectedCandidate ? (
+            <aside className="switch-candidate-inspector">
+              <div className="switch-preview-topline"><span>후보 제품</span><button type="button" onClick={() => closeCandidate(selectedCandidate.product.product_id)}>닫기 ×</button></div>
+              <div className="switch-inspector-scroll">
+                <section className="switch-inspector-identity">
+                  <ProductImage className="switch-inspector-image" product={selectedCandidate.product} />
+                  <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div>
+                </section>
+
+                <div className="quick-view-actions switch-inspector-actions">
+                  <button
+                    className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'}
+                    type="button"
+                    disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)}
+                    onClick={() => toggleCompare(selectedCandidate.product.product_id)}
+                  >
+                    {compareIds.includes(selectedCandidate.product.product_id)
+                      ? '비교에서 제거'
+                      : compareIds.length >= 5
+                        ? '비교는 최대 5개까지 가능합니다'
+                        : `비교에 추가 · ${compareIds.length}/5`}
+                  </button>
+                  <button
+                    className="switch-compare-action"
+                    type="button"
+                    onClick={() => {
+                      recordSwitchConsideration(selectedCandidate.product.product_id, 'detail_open')
+                      openSwitchDetail(selectedCandidate.product.product_id)
+                    }}
+                  >
+                    상세 보기 →
+                  </button>
+                </div>
+
+                <section className="switch-inspector-section switch-inspector-decision">
+                  <h2>선택한 조건과 비교</h2>
+                  <div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
+                  <dl>
+                    <div><dt>유지 조건</dt><dd>{selectedCandidate.keepMatches.join(' · ') || '확인된 항목 없음'}</dd></div>
+                    <div><dt>변경 조건</dt><dd>{selectedCandidate.changeMatches.join(' · ') || '확인된 항목 없음'}</dd></div>
+                    <div><dt>미확인</dt><dd>{selectedCandidate.unknowns.join(' · ') || '—'}</dd></div>
+                  </dl>
+                </section>
+
+                {ingredientAvoidTerms.length > 0 ? (
+                  <section className="switch-inspector-section switch-ingredient-inspector">
+                    <h2>피하고 싶은 원료</h2>
+                    <dl>{ingredientAvoidTerms.map((term) => <div key={term}><dt>{ingredientLabel(term)}</dt><dd>{ingredientAvoidanceStatus(selectedCandidate.product, term)}</dd></div>)}</dl>
+                    <p>‘검토한 자료에서 찾지 못함’은 해당 원료가 없다는 보장이 아닙니다.</p>
+                  </section>
+                ) : null}
+
+                <section className="switch-inspector-section">
+                  <h2>제품 정보 요약</h2>
+                  <dl>
+                    <div><dt>판매 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div>
+                    <div><dt>규격 수</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div>
+                    <div><dt>공식 대상</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div>
+                    <div><dt>기능</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
+                    <div><dt>레시피 계열</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div>
+                    <div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div>
+                    <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div>
+                    <div><dt>확인된 유통 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div>
+                    <div><dt>동일 배합 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.formula_match_market_country_codes)}</dd></div>
+                  </dl>
+                </section>
+              </div>
+            </aside>
+          ) : null}
+        </section>
+
+        {compareIds.length > 0 ? (
+          <div className="switch-compare-dock" role="status">
+            <strong>비교 {compareIds.length}/5</strong>
+            <div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div>
+            <button ref={compareDockButtonRef} type="button" onClick={openSwitchCompare}>비교 보기 →</button>
+          </div>
+        ) : null}
+      </main>
+    )
+  }
+
+  if (detailProduct && !compareOpen) {
+    return <ProductDetail product={detailProduct} onHome={onHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+  }
+
+  if (currentProductId && !currentProduct) {
+    return (
+      <div className="research-shell switch-workflow-shell">
+        <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+        <main className="switch-find-stage">
+          {error ? (
+            <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div>
+          ) : <div className="switch-state-message">{loading ? '저장된 SWITCH 작업을 불러오는 중입니다.' : '저장된 현재 사료를 확인할 수 없어 다시 선택해야 합니다.'}</div>}
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="research-shell switch-workflow-shell">
+      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+      {renderVariantRestoreStatus()}
+      {step === 'current' ? renderCurrentStage() : null}
+      {step === 'sku' ? renderSkuStep() : null}
+      {step === 'change' ? renderChangeStep() : null}
+      {step === 'keep' ? renderKeepStep() : null}
+      {step === 'results' ? renderResults() : null}
+    </div>
+  )
 }

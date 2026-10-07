@@ -237,7 +237,7 @@ beforeEach(() => {
         return Response.json([row])
       }
       if (filter === `in.(${candidates.map((value) => value.product_id).join(',')})`) return Response.json(candidateRows)
-      if (filter.includes('product_general_')) return Response.json(candidateRows.slice(0, 2))
+      if (filter === `in.(${candidates.slice(0, 2).map((value) => value.product_id).join(',')})`) return Response.json(candidateRows.slice(0, 2))
       return Response.json([])
     }
     if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
@@ -457,4 +457,41 @@ test('general two-product nutrition comparison keeps non-SWITCH values and full 
   assert.equal(document.querySelector('.compare-current-product-head'), null)
   const currentRead = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition') && url.searchParams.get('product_id') === `in.(${current.product_id})`)
   assert.equal(currentRead, undefined)
+})
+
+
+test('unresolved supplemental formula keeps its warning on supplemental values only', async () => {
+  const previous = currentNutrition.supplemental_observation_scope
+  currentNutrition.supplemental_observation_scope = 'formula'
+  try {
+    await renderSwitch()
+    assert.match(mobileCurrentMetric('열량').textContent, /이 값은 3 kg 포장에서 확인/)
+    assert.doesNotMatch(mobileCurrentMetric('열량').textContent, /같은 배합인지/)
+    for (const label of ['조단백질', '칼슘']) {
+      assert.match(mobileCurrentMetric(label).textContent, /현재 판매 제품과 같은 배합인지 미확인/)
+      assert.doesNotMatch(mobileCurrentMetric(label).textContent, /3 kg/)
+    }
+    currentNutrition.supplemental_is_current_resolved_formula = true
+    await act(async () => root.unmount())
+    root = null
+    await renderSwitch()
+    assert.equal(mobileCurrentMetric('조단백질').querySelector('small'), null)
+  } finally {
+    currentNutrition.supplemental_observation_scope = previous
+    currentNutrition.supplemental_is_current_resolved_formula = false
+  }
+})
+
+test('candidate formula uncertainty is visible beside applicable numeric fields', async () => {
+  const previous = { ...candidateRows[0] }
+  Object.assign(candidateRows[0], { observation_scope: 'formula', variant_id: null,
+    is_current_resolved_formula: false, supplemental_nutrition_fields: ['protein'],
+    supplemental_observation_scope: 'product' })
+  try {
+    await renderSwitch()
+    assert.match(mobileCandidateMetric('열량').textContent, /422 kcal\/100g.*현재 판매 제품과 같은 배합인지 미확인/)
+    assert.match(mobileCandidateMetric('조단백질').textContent, /31% 이상/)
+    assert.doesNotMatch(mobileCandidateMetric('조단백질').textContent, /같은 배합인지/)
+    assert.match(mobileCandidateMetric('칼슘').textContent, /미확인/)
+  } finally { Object.assign(candidateRows[0], previous) }
 })

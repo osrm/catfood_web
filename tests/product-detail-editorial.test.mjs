@@ -527,7 +527,11 @@ test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async
   assert.equal((text.match(/한국 확인 · 85 g × 6 제품에서 확인/g) ?? []).length, 1)
   assert.equal((text.match(/조회분 · 현재 확인 배합 기준으로 보완/g) ?? []).length, 1)
   assert.doesNotMatch(text, /자료 기준과 보완 범위|최소·최대·평균 등 출처의 한정자/)
-  assert.equal(document.querySelector('#detail-panel-nutrition details'), null)
+  const record = document.querySelector('#detail-panel-nutrition .detail-nutrition-source-disclosure')
+  assert.ok(record)
+  assert.equal(record.open, false)
+  assert.equal(document.querySelector('#detail-panel-nutrition > .detail-section > .detail-evidence-context'), null)
+  assert.equal(record.querySelectorAll('.detail-nutrition-row').length, 0)
 })
 
 test('nutrition describes dry matter only for the dry-matter basis', async () => {
@@ -636,12 +640,12 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
   assert.match(document.body.textContent, /1% 이하/)
   assert.match(document.body.textContent, /800 mg\/kg 평균값/)
   assert.match(document.body.textContent, /보완 자료 포함/)
-  const nutritionDisclosure = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '자료 기준 보기')
+  const nutritionDisclosure = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '원래 표기 보기')
   assert.ok(nutritionDisclosure)
   assert.equal(nutritionDisclosure.open, false)
   nutritionDisclosure.open = true
   assert.match(nutritionDisclosure.textContent, /보완 항목조회분/)
-  assert.match(nutritionDisclosure.textContent, /보완 근거현재 확인 배합 자료로 보완/)
+  assert.match(nutritionDisclosure.textContent, /보완 자료 범위/)
   assert.match(document.body.textContent, /건물 기준\(Dry Matter\) · 단백질 42% 이상/)
 
   const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
@@ -719,11 +723,11 @@ test('comparison renders provided-energy evidence without inventing an empty ing
     }))
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 20))
   })
-  const nutritionEvidence = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '자료 기준 보기')
+  const nutritionEvidence = [...document.querySelectorAll('.compare-evidence-disclosure')].find((node) => node.querySelector('summary')?.textContent.trim() === '원래 표기 보기')
   assert.ok(nutritionEvidence)
-  assert.match(nutritionEvidence.textContent, /제공된 열량/)
+  assert.match(nutritionEvidence.textContent, /원래 열량 표기/)
   assert.match(nutritionEvidence.textContent, /97 kcal\/100g/)
-  assert.doesNotMatch(nutritionEvidence.textContent, /보완 항목|보완 근거/)
+  assert.doesNotMatch(nutritionEvidence.textContent, /보완 항목|보완 자료 범위/)
 
   const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
   await act(async () => {

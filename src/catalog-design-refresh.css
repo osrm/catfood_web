@@ -3029,10 +3029,10 @@ summary:focus-visible,
   .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-value + .compare-mobile-two-product-value { border-left: 0; }
   .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity,
   .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; }
-  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity img,
   .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity img,
-  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity,
-  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity .compare-image-placeholder { width: 68px; height: 88px; object-fit: contain; background: var(--atlas-surface); }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity .compare-image-placeholder { grid-column: 1; grid-row: 1; width: 68px; height: 88px; object-fit: contain; background: var(--atlas-surface); }
   .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-meta,
   .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-meta { display: contents; }
   .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-brand,

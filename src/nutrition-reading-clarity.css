@@ -1,4 +1,8 @@
 /* Nutrition only: ordinary source context stays in native disclosures. */
+.research-shell > .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
 .compare-stage .compare-nutrition-exception,
 .detail-stage .detail-nutrition-exception {
   display: block;

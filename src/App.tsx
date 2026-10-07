@@ -84,6 +84,7 @@ type HistoryPayload = {
   catfoodDetailEntry?: boolean
   catfoodCompareEntry?: boolean
   catfoodList?: ListRestore
+  catfoodGeneral?: string
   catfoodSwitch?: SwitchSessionSnapshot
   catfoodSwitchEntry?: SwitchHistoryEntry
   catfoodSwitchParentStep?: SwitchStep
@@ -198,7 +199,10 @@ export default function App() {
   const [initialSwitchSession] = useState(() => {
     if (typeof window === 'undefined') return createInitialSwitchSession()
     const fromHistory = parseSwitchSessionSnapshot((window.history.state as HistoryPayload | null)?.catfoodSwitch)
-    return fromHistory ?? readSwitchSession() ?? createInitialSwitchSession()
+    const saved = readSwitchSession()
+    return fromHistory && (!saved || fromHistory.restartId === saved.restartId)
+      ? fromHistory
+      : saved ?? createInitialSwitchSession()
   })
   const [screen, setScreen] = useState<Screen>(initialNavigation.screen)
   const [products, setProducts] = useState<CatalogProduct[]>([])
@@ -225,6 +229,10 @@ export default function App() {
   const pendingRestore = useRef<ListRestore | null>(null)
   const pendingCompareReturnIds = useRef<string[] | null>(null)
   const switchSessionRef = useRef<SwitchSessionState>(initialSwitchSession)
+  const generalNavigationRef = useRef<NavigationState>(
+    initialNavigation.mode !== 'switch' ? initialNavigation
+      : parseNavigationState(((typeof window !== 'undefined' ? window.history.state : null) as HistoryPayload | null)?.catfoodGeneral ?? ''),
+  )
   const pendingSwitchPopPatch = useRef<Partial<SwitchSessionState> | null>(null)
   const switchHistoryEntryRef = useRef<SwitchHistoryEntry | null>(
     ((typeof window !== 'undefined' ? window.history.state : null) as HistoryPayload | null)?.catfoodSwitchEntry ?? null,
@@ -262,7 +270,7 @@ export default function App() {
     writeSwitchSession(next)
     const url = `${window.location.pathname}${window.location.search}${window.location.hash}`
     if (action === 'push') {
-      const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next) }
+      const payload: HistoryPayload = { catfoodSwitch: createSwitchSessionSnapshot(next), catfoodGeneral: navigationSearch({ ...generalNavigationRef.current, screen: 'workspace' }) }
       if (entry) payload.catfoodSwitchEntry = entry
       if (entry === 'step') payload.catfoodSwitchParentStep = current.step
       switchHistoryEntryRef.current = entry ?? null
@@ -302,11 +310,19 @@ export default function App() {
     return { mode, screen, lookupQuery, search, refine, comparisonCriteriaApplied, editingConditions, selectedId, visibleCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, ...overrides }
   }
   function urlFor(next: NavigationState) { return `${window.location.pathname}${navigationSearch(next)}${window.location.hash}` }
+  function navigationPayload(next: NavigationState, payload: HistoryPayload): HistoryPayload {
+    if (next.mode !== 'switch') generalNavigationRef.current = next
+    return {
+      ...payload,
+      catfoodGeneral: navigationSearch({ ...generalNavigationRef.current, screen: 'workspace' }),
+      catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current),
+    }
+  }
   function replaceHistory(next: NavigationState, payload: HistoryPayload = (window.history.state ?? {}) as HistoryPayload) {
-    window.history.replaceState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }, '', urlFor(next))
+    window.history.replaceState(navigationPayload(next, payload), '', urlFor(next))
   }
   function pushHistory(next: NavigationState, payload: HistoryPayload = {}) {
-    window.history.pushState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }, '', urlFor(next))
+    window.history.pushState(navigationPayload(next, payload), '', urlFor(next))
   }
   function applyNavigation(next: NavigationState, restore?: ListRestore | null) {
     setMode(next.mode); setScreen(next.screen); setLookupQuery(next.lookupQuery); setSearch(next.search); setDraftSearch(next.search); setRefine(next.refine)
@@ -340,20 +356,29 @@ export default function App() {
 
   useEffect(() => {
     writeSwitchSession(switchSessionRef.current)
-    const payload = { ...((window.history.state ?? {}) as HistoryPayload), catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }
-    window.history.replaceState(payload, '', window.location.href)
+    const previous = (window.history.state ?? {}) as HistoryPayload
+    const payload = { ...previous, catfoodSwitch: createSwitchSessionSnapshot(switchSessionRef.current) }
+    if (previous.catfoodSwitch && previous.catfoodSwitch.state.restartId !== switchSessionRef.current.restartId) {
+      delete payload.catfoodSwitchEntry
+      delete payload.catfoodSwitchParentStep
+      switchHistoryEntryRef.current = null
+    }
+    window.history.replaceState(navigationPayload(initialNavigation, payload), '', window.location.href)
   }, [])
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       const payload = (event.state ?? {}) as HistoryPayload
-      const restored = parseSwitchSessionSnapshot(payload.catfoodSwitch)
+      const incoming = parseSwitchSessionSnapshot(payload.catfoodSwitch)
+      const sameWork = !incoming || incoming.restartId === switchSessionRef.current.restartId
+      const restored = sameWork ? incoming : switchSessionRef.current
+      if (typeof payload.catfoodGeneral === 'string') generalNavigationRef.current = parseNavigationState(payload.catfoodGeneral)
       const previousSwitchEntry = switchHistoryEntryRef.current
-      const incomingSwitchEntry = payload.catfoodSwitchEntry ?? null
-      let patch = pendingSwitchPopPatch.current
+      const incomingSwitchEntry = sameWork ? payload.catfoodSwitchEntry ?? null : null
+      let patch = sameWork ? pendingSwitchPopPatch.current : null
       pendingSwitchPopPatch.current = null
       if (
-        !patch
+        sameWork && !patch
         && (previousSwitchEntry === 'compare' || previousSwitchEntry === 'detail')
         && incomingSwitchEntry !== 'detail'
         && restored
@@ -363,7 +388,8 @@ export default function App() {
       }
       if (restored || patch) {
         const next = restoreSwitchSession(patch ? { ...(restored ?? switchSessionRef.current), ...patch } : restored ?? switchSessionRef.current)
-        if (patch) {
+        if (patch || !sameWork) {
+          if (!sameWork) { delete payload.catfoodSwitchEntry; delete payload.catfoodSwitchParentStep }
           window.history.replaceState({ ...payload, catfoodSwitch: createSwitchSessionSnapshot(next) }, '', window.location.href)
         }
       }
@@ -587,7 +613,23 @@ export default function App() {
     replaceHistory(snapshot({ selectedId: null, editingConditions: true }))
   }
   function resetDraft() { setDraftSearch(INITIAL_SEARCH) }
+  function restartSwitch() {
+    pendingSwitchPopPatch.current = null
+    switchHistoryEntryRef.current = null
+    commitSwitchSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null)
+    if (screen === 'home' || mode !== 'switch') changeMode('switch')
+  }
   function changeMode(nextMode: Mode) {
+    if (mode === 'switch' && nextMode !== 'switch') {
+      resetExploreRun(nextMode)
+      const restored = !loading && !error
+        ? sanitizeProductNavigation(generalNavigationRef.current, new Set(products.map((product) => product.product_id)))
+        : generalNavigationRef.current
+      const next = { ...restored, mode: nextMode, screen: 'workspace' as const, selectedId: null, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const, editingConditions: nextMode === 'explore', visibleCount: nextMode === 'lookup' ? 120 : 40 }
+      applyNavigation(next)
+      pushHistory(next)
+      return
+    }
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
     const preserveGeneralCompare = mode !== 'switch' && nextMode !== 'switch'
     const nextCompareIds = preserveGeneralCompare ? compareIds : []
@@ -600,9 +642,9 @@ export default function App() {
     pushHistory(snapshot({ mode: nextMode, screen: 'workspace', comparisonCriteriaApplied: nextComparisonCriteriaApplied, visibleCount: count, selectedId: null, compareIds: nextCompareIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview', editingConditions: nextMode === 'explore' ? true : editingConditions, lookupQuery: nextMode === 'lookup' ? lookupQuery : '' }))
   }
   function startFromHome(nextMode: Mode, query = '') {
+    if (nextMode === 'switch') { changeMode('switch'); return }
     const nextEditingConditions = nextMode === 'explore'
     if (nextMode === 'lookup') setLookupQuery(query)
-    if (nextMode === 'switch' && query.trim()) commitSwitchSession((current) => ({ ...current, query }))
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
     setSearch(INITIAL_SEARCH); setDraftSearch(INITIAL_SEARCH); setRefine(INITIAL_REFINE); setComparisonCriteriaApplied(false); setRecipeSearch('')
     setEditingConditions(nextEditingConditions); setMobileAdditionalOpen(false)
@@ -733,8 +775,8 @@ export default function App() {
   }
 
   if (detailProduct) return <ProductDetail product={detailProduct} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
-  if (screen === 'home') return <Home products={products} productCount={products.length} loading={loading} error={Boolean(error)} onRetryCatalog={loadCatalog} onStart={startFromHome} />
-  if (mode === 'switch') return <SwitchFlow products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} />
+  if (screen === 'home') return <Home products={products} productCount={products.length} loading={loading} error={Boolean(error)} onRetryCatalog={loadCatalog} onStart={startFromHome} switchProgress={switchSession.currentProductId ? products.find((product) => product.product_id === switchSession.currentProductId)?.canonical_name ?? '이전 작업' : switchSession.query ? '현재 사료 검색 중' : null} onRestartSwitch={restartSwitch} />
+  if (mode === 'switch') return <SwitchFlow key={switchSession.restartId} products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} onRestart={restartSwitch} />
 
   const paneTitle = mode === 'explore' ? '조건 설정' : '제품 찾기'
   const paneDescription = mode === 'explore' ? '사료 형태와 연령, 원하는 조건을 골라주세요.' : null

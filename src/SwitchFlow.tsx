@@ -15,6 +15,7 @@ import {
 import { lookupCatalog, toggleValue, type SearchState } from './search'
 import {
   createInitialSwitchSession,
+  switchSelectionKey,
   type SwitchHistoryAction,
   type SwitchHistoryEntry,
   type SwitchSessionState,
@@ -598,6 +599,7 @@ export default function SwitchFlow({
   onHome,
   onModeChange,
   onRetryCatalog,
+  onRestart,
 }: {
   products: CatalogProduct[]
   loading: boolean
@@ -609,6 +611,7 @@ export default function SwitchFlow({
   onHome: () => void
   onModeChange: (mode: SecondaryMode) => void
   onRetryCatalog: () => void
+  onRestart?: () => void
 }) {
   const [localSession, setLocalSession] = useState<SwitchSessionState>(() => createInitialSwitchSession(initialQuery))
   const activeSession = controlledSession ?? localSession
@@ -658,7 +661,8 @@ export default function SwitchFlow({
   const [variantError, setVariantError] = useState<string | null>(null)
   const [keepConflictNotice, setKeepConflictNotice] = useState<string | null>(null)
   const [ingredientSearch, setIngredientSearch] = useState('')
-  const [candidateSearch, setCandidateSearch] = useState('')
+  const candidateSearch = activeSession.candidateQuery
+  const setCandidateSearch = (value: string) => setSessionField('candidateQuery', value)
   const [changeAdditionalOpen, setChangeAdditionalOpen] = useState(() => step === 'change' && additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
   const previousChangeDisclosureStep = useRef(step)
   const switchRunId = useRef<string | null>(null)
@@ -1033,7 +1037,7 @@ export default function SwitchFlow({
     switchRunGeneration.current += 1
     switchRunTail.current = Promise.resolve(null)
     switchRunId.current = null
-    const next = createInitialSwitchSession(query)
+    const next = createInitialSwitchSession(query, activeSession.restartId)
     next.currentProductId = product.product_id
     next.step = 'sku'
     updateSession(next, 'push', 'step')
@@ -1061,7 +1065,7 @@ export default function SwitchFlow({
     setKeepConflictNotice(null)
     setIngredientSearch('')
     setCandidateSearch('')
-    updateSession(createInitialSwitchSession(query), 'replace', null)
+    updateSession(createInitialSwitchSession(query, activeSession.restartId), 'replace', null)
   }
 
   function toggleChangeBrandSelection() {
@@ -1102,6 +1106,13 @@ export default function SwitchFlow({
 
   function setKeepSingle(field: 'feedType' | 'lifeStage', value: string) {
     setKeep((current) => ({ ...current, [field]: current[field] === value ? '' : value }))
+  }
+
+  function renderRestartAction() {
+    return <div className="switch-restart-actions"><button type="button" onClick={() => {
+        if (onRestart) onRestart()
+        else updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null)
+      }}>처음부터 시작</button></div>
   }
 
   function renderCurrentStage() {
@@ -1500,7 +1511,9 @@ export default function SwitchFlow({
                   ...current,
                   selectedCandidateId: null,
                   visibleCandidateCount: 40,
-                  compareIds: [],
+                  compareIds: current.appliedCriteriaKey === switchSelectionKey(current) ? current.compareIds : [],
+                  candidateQuery: current.appliedCriteriaKey === switchSelectionKey(current) ? current.candidateQuery : '',
+                  appliedCriteriaKey: switchSelectionKey(current),
                   compareOpen: false,
                   compareTab: 'overview',
                   detailProductId: null,
@@ -1731,6 +1744,7 @@ export default function SwitchFlow({
     return (
       <div className="research-shell switch-workflow-shell">
         <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+        {renderRestartAction()}
         <main className="switch-find-stage">
           {error ? (
             <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div>
@@ -1743,6 +1757,7 @@ export default function SwitchFlow({
   return (
     <div className="research-shell switch-workflow-shell">
       <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+      {renderRestartAction()}
       {renderVariantRestoreStatus()}
       {step === 'current' ? renderCurrentStage() : null}
       {step === 'sku' ? renderSkuStep() : null}

@@ -263,7 +263,7 @@ async function switchResults() {
 }
 
 for (const mode of ['explore', 'switch']) {
-  test(`${mode}: reach every candidate, compare later products, preserve only general unchanged reapply, and keep V1 tracking at 40`, async () => {
+  test(`${mode}: reach every candidate, compare later products, preserve unchanged reapply, and keep V1 tracking at 40`, async () => {
     if (mode === 'switch') products = catalog(86) // one current product + 85 candidates
     await (mode === 'explore' ? explore() : switchResults())
     const selector = mode === 'explore' ? '.research-result-card' : '.switch-candidate-row'
@@ -327,7 +327,7 @@ for (const mode of ['explore', 'switch']) {
     if (mode === 'explore') {
       assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /비교 2\/5/, 'unchanged EXPLORE reapply preserves the queued general comparison')
     } else {
-      assert.equal(document.querySelector('.switch-compare-dock'), null, 'SWITCH keeps its existing independent comparison reset')
+      assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /비교 2\/5/, 'unchanged SWITCH reapply also preserves its independent comparison')
     }
     assert.equal(searchRuns().length, 2)
     assert.deepEqual(searchRuns()[1].body.initial_presented_product_ids, initialIds)

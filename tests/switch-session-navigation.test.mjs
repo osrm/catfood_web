@@ -307,16 +307,22 @@ async function selectCandidate(name = candidateA.canonical_name) {
 
 async function browserBack(predicate, message) {
   await act(async () => {
-    window.history.back()
-    await waitForUi(predicate, message)
+    await new Promise((resolvePromise) => {
+      window.addEventListener('popstate', resolvePromise, { once: true })
+      window.history.back()
+    })
   })
+  await waitForUi(predicate, message)
 }
 
 async function browserForward(predicate, message) {
   await act(async () => {
-    window.history.forward()
-    await waitForUi(predicate, message)
+    await new Promise((resolvePromise) => {
+      window.addEventListener('popstate', resolvePromise, { once: true })
+      window.history.forward()
+    })
   })
+  await waitForUi(predicate, message)
 }
 
 function session() {
@@ -858,4 +864,116 @@ test('SWITCH candidate detail comparison changes survive browser and explicit re
   assert.deepEqual(session().compareIds, [])
   assert.equal(session().currentProductId, before.currentProductId)
   assert.deepEqual(session().variantSelection, before.variantSelection)
+})
+
+test('candidate name search survives Home resume and refresh with the same SWITCH basket', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await click(all('.switch-candidate-compare')[0])
+  const before = session()
+  await inputValue(document.querySelector('.switch-candidate-search input'), '전환 습식 A')
+  await click(exactButton('CATFOOD'))
+  await waitForUi(() => document.querySelector('.home-shell'), 'Home with resumable task')
+  assert.match(document.querySelector('.home-switch-actions').textContent, /이어서 찾기.*새로 찾기/s)
+  assert.match(document.querySelector('.home-entry-route:last-child').textContent, /현재 건식 사료/)
+  await click('이어서 찾기')
+  await waitForUi(() => document.querySelector('.switch-results-stage'), 'resume candidates')
+  assert.equal(document.querySelector('.switch-candidate-search input').value, '전환 습식 A')
+  assert.deepEqual(session().compareIds, before.compareIds)
+  await remountApp()
+  await waitForUi(() => document.querySelector('.switch-results-stage'), 'refresh candidates')
+  assert.equal(document.querySelector('.switch-candidate-search input').value, '전환 습식 A')
+  assert.deepEqual(session().compareIds, before.compareIds)
+})
+
+test('unchanged SWITCH reapply keeps candidates and query; changed criteria clear them at application', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await click(all('.switch-candidate-compare')[0])
+  await inputValue(document.querySelector('.switch-candidate-search input'), '전환')
+  const before = session()
+  await click('조건 수정')
+  await click(exactButton('다음 →'))
+  await click('후보 제품 보기')
+  assert.deepEqual(session().compareIds, before.compareIds)
+  assert.equal(session().candidateQuery, '전환')
+  await click('조건 수정')
+  await click(exactButton('습식'))
+  await click('특별히 바꾸고 싶은 점 없음')
+  await click(exactButton('다음 →'))
+  await click('후보 제품 보기')
+  assert.deepEqual(session().compareIds, [])
+  assert.equal(session().candidateQuery, '')
+})
+
+test('explicit restart clears queries, choices, overlays and history restoration while ordinary reload still resumes', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await click(all('.switch-candidate-compare')[0])
+  await inputValue(document.querySelector('.switch-candidate-search input'), '전환')
+  const oldSnapshot = window.history.state
+  await remountApp()
+  assert.equal(session().currentProductId, current.product_id)
+  await click('처음부터 시작')
+  const restarted = session()
+  assert.ok(restarted.restartId)
+  assert.deepEqual(restarted, app.createInitialSwitchSession('', restarted.restartId))
+  assert.equal(document.activeElement, document.querySelector('.switch-find-search input'))
+  await remountApp()
+  assert.deepEqual(session(), restarted)
+  // A stale browser entry must not resurrect the task after an explicit restart.
+  await act(async () => {
+    window.history.replaceState(oldSnapshot, '', window.location.href)
+    window.dispatchEvent(new window.PopStateEvent('popstate', { state: oldSnapshot }))
+  })
+  assert.deepEqual(session(), restarted)
+  await remountApp()
+  assert.deepEqual(session(), restarted)
+  await browserBack(() => document.querySelector('.switch-find-search input'), 'back after restart')
+  assert.deepEqual(session(), restarted)
+})
+
+test('Home new SWITCH task preserves the separate general comparison across mode changes and refresh', async () => {
+  const generalUrl = BASE + '?view=workspace&mode=lookup&q=전환&criteria=1&feed=습식&age=adult&compare=product_candidate_a,product_candidate_b'
+  window.history.replaceState(null, '', generalUrl)
+  await renderApp({ preserveHistory: true })
+  await waitForUi(() => document.querySelector('.switch-compare-dock'), 'initial general comparison')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+  await click(exactButton('현재 사료'))
+  assert.equal(new URL(window.location.href).searchParams.has('compare'), false)
+  await reachResultsWithConditions()
+  await click(all('.switch-candidate-compare')[0])
+  await remountApp()
+  await click(exactButton('CATFOOD'))
+  await click('새로 찾기')
+  assert.equal(session().currentProductId, null)
+  assert.equal(session().query, '')
+  await remountApp()
+  await click(exactButton('제품 찾기'))
+  const restoredUrl = new URL(window.location.href).searchParams
+  assert.equal(restoredUrl.get('q'), '전환')
+  assert.equal(restoredUrl.get('feed'), '습식')
+  assert.equal(restoredUrl.get('age'), 'adult')
+  assert.equal(restoredUrl.get('criteria'), '1')
+  assert.equal(restoredUrl.get('compare'), 'product_candidate_a,product_candidate_b')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+})
+
+test('legacy stored results acquire an applied selection without changing product or variant; key is order independent', () => {
+  const legacy = app.createInitialSwitchSession('현재')
+  legacy.currentProductId = current.product_id
+  legacy.variantSelection = { kind: 'variant', variantId: 'variant_current_1' }
+  legacy.step = 'results'
+  legacy.change.officialTargets = ['indoor', 'sterilized']
+  delete legacy.restartId
+  delete legacy.candidateQuery
+  delete legacy.appliedCriteriaKey
+  const parsed = app.parseSwitchSessionSnapshot({ version: 1, state: legacy })
+  assert.equal(parsed.restartId, '')
+  assert.equal(parsed.candidateQuery, '')
+  assert.equal(parsed.appliedCriteriaKey, app.switchSelectionKey(parsed))
+  assert.equal(parsed.variantSelection.variantId, 'variant_current_1')
+  assert.equal(app.switchSelectionKey(parsed), app.switchSelectionKey({
+    ...parsed, change: { ...parsed.change, officialTargets: ['sterilized', 'indoor'] },
+  }))
 })

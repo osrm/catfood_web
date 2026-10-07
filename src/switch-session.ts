@@ -10,7 +10,10 @@ export type SwitchVariantSelection =
   | { kind: 'variant'; variantId: string }
 
 export type SwitchSessionState = {
+  restartId: string
   query: string
+  candidateQuery: string
+  appliedCriteriaKey: string | null
   currentProductId: string | null
   variantSelection: SwitchVariantSelection
   change: SearchState
@@ -94,9 +97,12 @@ export function emptySwitchCriteria(): SearchState {
   return { feedType: '', lifeStage: '', officialTargets: [], features: [], recipeFamilies: [], grainFree: false }
 }
 
-export function createInitialSwitchSession(query = ''): SwitchSessionState {
+export function createInitialSwitchSession(query = '', restartId = ''): SwitchSessionState {
   return {
+    restartId,
     query,
+    candidateQuery: '',
+    appliedCriteriaKey: null,
     currentProductId: null,
     variantSelection: { kind: 'unselected', variantId: null },
     change: emptySwitchCriteria(),
@@ -116,6 +122,25 @@ export function createInitialSwitchSession(query = ''): SwitchSessionState {
   }
 }
 
+export function switchSelectionKey(state: SwitchSessionState): string {
+  const criteria = (value: SearchState) => ({
+    ...value,
+    officialTargets: [...value.officialTargets].sort(),
+    features: [...value.features].sort(),
+    recipeFamilies: [...value.recipeFamilies].sort(),
+  })
+  return JSON.stringify({
+    product: state.currentProductId,
+    variant: state.variantSelection,
+    change: criteria(state.change),
+    keep: criteria(state.keep),
+    changeBrand: state.changeBrand,
+    keepBrand: state.keepBrand,
+    ingredientAvoidTerms: [...state.ingredientAvoidTerms].sort(),
+    noChangeIntent: state.noChangeIntent,
+  })
+}
+
 export function parseSwitchSessionState(value: unknown): SwitchSessionState | null {
   const source = record(value)
   if (!source) return null
@@ -127,8 +152,11 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
   const step = currentProductId && rawStep && STEPS.has(rawStep) ? rawStep : 'current'
   const rawCompareTab = source.compareTab as CompareTab | undefined
   const rawDetailTab = source.detailTab as DetailTab | undefined
-  return {
+  const state: SwitchSessionState = {
+    restartId: typeof source.restartId === 'string' ? source.restartId : '',
     query: typeof source.query === 'string' ? source.query : '',
+    candidateQuery: currentProductId && typeof source.candidateQuery === 'string' ? source.candidateQuery : '',
+    appliedCriteriaKey: currentProductId && typeof source.appliedCriteriaKey === 'string' ? source.appliedCriteriaKey : null,
     currentProductId,
     variantSelection: currentProductId ? parseVariantSelection(source.variantSelection) : { kind: 'unselected', variantId: null },
     change: currentProductId ? parseCriteria(source.change) : emptySwitchCriteria(),
@@ -146,6 +174,9 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     detailProductId: currentProductId ? nullableString(source.detailProductId) : null,
     detailTab: rawDetailTab && DETAIL_TABS.has(rawDetailTab) ? rawDetailTab : 'overview',
   }
+  // Legacy results snapshots already represent an applied selection.
+  if (!('appliedCriteriaKey' in source) && step === 'results') state.appliedCriteriaKey = switchSelectionKey(state)
+  return state
 }
 
 export function createSwitchSessionSnapshot(state: SwitchSessionState): SwitchSessionSnapshot {
@@ -188,7 +219,7 @@ export function writeSwitchSession(state: SwitchSessionState, storage: StorageLi
 
 export function sanitizeSwitchSessionForCatalog(state: SwitchSessionState, validIds: Set<string>): SwitchSessionState {
   if (state.currentProductId && !validIds.has(state.currentProductId)) {
-    return createInitialSwitchSession(state.query)
+    return createInitialSwitchSession(state.query, state.restartId)
   }
   if (!state.currentProductId) return state
   const selectedCandidateId = state.selectedCandidateId && validIds.has(state.selectedCandidateId) ? state.selectedCandidateId : null

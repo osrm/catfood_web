@@ -1115,6 +1115,14 @@ export default function SwitchFlow({
       }}>처음부터 시작</button></div>
   }
 
+  function renderNavigation() {
+    return <div className="switch-task-navigation">
+      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
+      {renderRestartAction()}
+      {renderVariantRestoreStatus()}
+    </div>
+  }
+
   function renderCurrentStage() {
     return (
       <main className="switch-find-stage">
@@ -1743,8 +1751,7 @@ export default function SwitchFlow({
   if (currentProductId && !currentProduct) {
     return (
       <div className="research-shell switch-workflow-shell">
-        <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
-        {renderRestartAction()}
+        {renderNavigation()}
         <main className="switch-find-stage">
           {error ? (
             <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div>
@@ -1756,9 +1763,7 @@ export default function SwitchFlow({
 
   return (
     <div className="research-shell switch-workflow-shell">
-      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
-      {renderRestartAction()}
-      {renderVariantRestoreStatus()}
+      {renderNavigation()}
       {step === 'current' ? renderCurrentStage() : null}
       {step === 'sku' ? renderSkuStep() : null}
       {step === 'change' ? renderChangeStep() : null}

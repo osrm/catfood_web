@@ -254,6 +254,7 @@ export default function App() {
     action: SwitchHistoryAction = 'replace',
     entry?: SwitchHistoryEntry | null,
   ) {
+    if (onSessionChange) { onSessionChange(update, action, entry); return }
     const current = switchSessionRef.current
     const next = typeof update === 'function' ? update(current) : update
     if (next === current && action === 'replace' && entry === undefined) return
@@ -629,9 +630,9 @@ export default function App() {
     const additionalLabels = additionalConditionLabels(draftSearch)
     return <>
       <div className="condition-group-title"><span>기본 조건</span></div>
-      <p className="field-note condition-policy-note">선택한 조건 정보가 없는 제품도 결과에 남습니다.</p>
-      <FilterSection title="사료 형태" hint="선택 시 필수 조건"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
-      <FilterSection title="연령" hint="제품 표기 기준"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /><p className="field-note">제품에 표기된 연령 구분을 기준으로 합니다.</p></FilterSection>
+      <p className="field-note condition-policy-note">선택한 형태·연령과 표기가 다른 제품은 제외하고, 표기가 없는 제품은 함께 보여줍니다.</p>
+      <FilterSection title="사료 형태"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
+      <FilterSection title="연령"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /></FilterSection>
       <div className="mobile-additional-disclosure condition-additional-disclosure">
         <button className="mobile-additional-toggle" type="button" aria-expanded={mobileAdditionalOpen} aria-controls="explore-additional-conditions" onClick={() => setMobileAdditionalOpen((current) => !current)}>
           <span>추가 조건</span><small>{additionalCount ? `${additionalCount}개 선택` : '선택 없음'}</small><span className="mobile-additional-chevron" aria-hidden="true">{mobileAdditionalOpen ? '▴' : '▾'}</span>

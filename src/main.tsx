@@ -7,6 +7,7 @@ import './research-ui.css'
 import './product-detail.css'
 import './compare.css'
 import './switch-workflow.css'
+import './catalog-design-refresh.css'
 import { isDemoPreview, isRealVisualPreview, isStressPreview } from './preview-mode'
 
 const ingredientScrollSettleTimers = new WeakMap<HTMLElement, number>()

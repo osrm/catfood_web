@@ -225,12 +225,12 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'switch results')
   const session = document.querySelector('.switch-session-bar').textContent
-  assert.match(session, /CHANGE.*다른 브랜드.*습식.*시니어.*생선.*피함 · 닭/s)
-  assert.match(session, /KEEP.*실내묘/s)
-  assert.doesNotMatch(session, /KEEP.*현재브랜드/s)
-  assert.doesNotMatch(session, /KEEP.*건식/s)
-  assert.doesNotMatch(session, /KEEP.*성묘/s)
-  assert.doesNotMatch(session, /KEEP.*가금류/s)
+  assert.match(session, /바꿀 조건.*다른 브랜드.*습식.*시니어.*생선.*피함 · 닭/s)
+  assert.match(session, /유지할 조건.*실내묘/s)
+  assert.doesNotMatch(session, /유지할 조건.*현재브랜드/s)
+  assert.doesNotMatch(session, /유지할 조건.*건식/s)
+  assert.doesNotMatch(session, /유지할 조건.*성묘/s)
+  assert.doesNotMatch(session, /유지할 조건.*가금류/s)
 
   const candidates = document.querySelector('.switch-candidate-list').textContent
   assert.match(candidates, /전환 습식 생선/)

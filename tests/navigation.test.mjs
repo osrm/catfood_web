@@ -283,7 +283,7 @@ test('general comparison carries applied EXPLORE criteria through LOOKUP, known 
     assert.equal(relationCells.length, 3)
     assert.match(relationCells[0].textContent, /확인됨/)
     assert.match(relationCells[2].textContent, /제품 표기 다름/)
-    assert.match(relationCells[2].textContent, /대상 연령 · 제품 표기 전연령 · 선택 성묘/)
+    assert.match(relationCells[2].textContent, /대상 연령 · 전연령 \(선택 성묘\)/)
     assert.doesNotMatch(relationCells[2].textContent, /비교할 검색 조건 없음|부적합|급여 불가|안전/)
 
     const thirdHead = [...document.querySelectorAll('.compare-product-head')].find((head) => head.textContent.includes(third.canonical_name))
@@ -389,7 +389,7 @@ test('unapplied condition edits keep the last applied comparison basis when movi
     await click('비교 보기')
     const compareText = document.querySelector('.compare-stage').textContent
     assert.match(compareText, /연령 · 성묘/)
-    assert.match(compareText, /제품 표기 전연령 · 선택 성묘/)
+    assert.match(compareText, /전연령 \(선택 성묘\)/)
     assert.doesNotMatch(compareText, /선택 키튼|연령 · 키튼/)
   } finally {
     product.life_stage = originalLifeStage
@@ -684,6 +684,72 @@ test('mobile general comparison selects either side from five products, preserve
   assert.ok(document.querySelector('.research-results'))
 })
 
+test('general comparison preserves repaired pair focus while nutrition refetch is pending without stealing later focus', async () => {
+  const compared = products.slice(0, 5)
+  const compareParam = compared.map((item) => item.product_id).join('%2C')
+  let nutritionRequests = 0
+  let releaseNutrition
+  const delayedNutrition = new Promise((resolvePromise) => { releaseNutrition = resolvePromise })
+
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json(products)
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      nutritionRequests += 1
+      if (nutritionRequests === 1) return Response.json([])
+      if (nutritionRequests === 2) return delayedNutrition
+      return Response.json([])
+    }
+    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
+    return Response.json([])
+  }
+
+  try {
+    dom.reconfigure({ url: `https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${compareParam}&compareOpen=1&compareTab=nutrition` })
+    document.body.innerHTML = '<div id="root"></div>'
+    root = createRoot(document.getElementById('root'))
+    await act(async () => root.render(createElement(app.App)))
+    await waitForUi(
+      () => document.querySelector('.compare-mobile-two-product-nutrition') !== null,
+      'initial five-product nutrition comparison rendered',
+    )
+
+    const initialMobile = document.querySelector('.compare-mobile-two-product-nutrition')
+    const removeFirst = initialMobile.querySelector(`button[aria-label="Test Brand Product 000 비교에서 제거"]`)
+    assert.ok(removeFirst)
+    removeFirst.focus()
+    await act(async () => removeFirst.click())
+
+    await waitForUi(() => {
+      const picker = document.querySelector('.compare-mobile-general-pair-picker')
+      const repairedSelect = picker?.querySelector('select') ?? null
+      return nutritionRequests >= 2
+        && document.body.textContent.includes('영양 정보를 불러오는 중입니다.')
+        && picker !== null
+        && document.querySelector('.compare-mobile-two-product-nutrition') === null
+        && document.activeElement === repairedSelect
+    }, 'pair picker stays mounted and repaired slot receives focus while nutrition refetch is pending')
+
+    const compareIds = new URL(window.location.href).searchParams.get('compare')?.split(',') ?? []
+    assert.equal(compareIds.length, 4)
+    assert.equal(document.querySelectorAll('.compare-mobile-general-pair-picker select').length, 2)
+
+    const nutritionTab = document.getElementById('compare-tab-nutrition')
+    assert.ok(nutritionTab)
+    nutritionTab.focus()
+    await act(async () => releaseNutrition(Response.json([])))
+    await waitForUi(
+      () => document.querySelector('.compare-mobile-two-product-nutrition') !== null,
+      'nutrition comparison remounts after delayed response',
+    )
+    assert.equal(document.activeElement, nutritionTab, 'late nutrition response does not steal focus after the user moves it')
+  } finally {
+    if (releaseNutrition) releaseNutrition(Response.json([]))
+    installFetch()
+  }
+})
+
 test('mobile nutrition derives rows and basis evidence only from the displayed pair', async () => {
   const first = products[0], second = products[1], third = products[2]
   const row = (productId, energy, additional = [], basis = []) => ({
@@ -744,7 +810,7 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
   assert.match(mobile.textContent, /Product 002/)
   assert.doesNotMatch(mobile.textContent, /Product 001/)
   assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'))
-  const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => cell.textContent.trim())
+  const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
   assert.deepEqual(taurineValues, ['미확인', '0.12% 이상'])
   assert.match(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-specific').closest('tbody').textContent, /건물 기준\(Dry Matter\).*단백질 34%/)
 
@@ -813,7 +879,7 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
   assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
 
-  const valuesFor = (id) => [...mobile.querySelector(id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => cell.textContent.trim())
+  const valuesFor = (id) => [...mobile.querySelector(id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-energy'), ['410 kcal/100g', '380 kcal/100g'])
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-protein'), ['32% 이상', '30% 이하'])
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-fat'), ['15% 이상', '미확인'])
@@ -897,7 +963,7 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
 
   const energyRow = [...document.querySelectorAll('.compare-table > .compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '열량')
   assert.ok(energyRow)
-  assert.deepEqual([...energyRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.trim()), [
+  assert.deepEqual([...energyRow.querySelectorAll('.compare-cell')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim()), [
     '348.5 kcal/100g',
     '370 kcal/100g',
     '410 kcal/100g',
@@ -942,7 +1008,7 @@ test('non-SWITCH overview keeps a partly populated row visible and collapses onl
   const visibleRows = [...document.querySelectorAll('.compare-table > .compare-row')]
   const targetRow = visibleRows.find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '제품 표기 대상')
   assert.ok(targetRow)
-  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.trim()), ['실내묘', '확인된 값 없음'])
+  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim()), ['실내묘', '확인된 값 없음'])
 
   const disclosure = document.querySelector('.compare-table > .compare-overview-extra')
   assert.ok(disclosure)
@@ -1075,4 +1141,116 @@ test('detail comparison cap allows removal but prevents a sixth product', async 
   await click('돌아가기')
   await waitForUi(() => !document.querySelector('.detail-stage'), 'cap removal return')
   assert.equal(new URL(window.location.href).searchParams.get('compare').split(',').length, 4)
+})
+
+async function renderEnergyFixture(rows) {
+  document.body.innerHTML = '<div id="root"></div>'
+  globalThis.fetch = window.fetch = async input => {
+    const url = new URL(String(input))
+    return Response.json(url.pathname.endsWith('/compare_product_nutrition') ? rows : [])
+  }
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, {items: rows.map(row => ({product: products.find(p => p.product_id === row.product_id)})), initialTab: 'nutrition', onClose() {}, onRemove() {}})))
+  await waitForUi(() => document.querySelectorAll('.compare-state').length === 0 && document.querySelector('.compare-mobile-two-product-nutrition-table'), 'energy comparison loaded')
+}
+function energyFixture(index, kg, per100g) {
+  return {product_id: products[index].product_id, observation_scope: 'product', market_code: null, variant_id: null, kcal_per_kg: kg, kcal_per_100g: per100g, protein_pct: 33, protein_qualifier: 'min', fat_pct: 15, fat_qualifier: 'min', fiber_pct: 2, fiber_qualifier: 'max', moisture_pct: 10, moisture_qualifier: 'max', ash_pct: null, ash_qualifier: null, additional_nutrients: [], supplemental_nutrition_fields: []}
+}
+
+test('energy bars compare actual normalized values on a common zero-based axis and keep guarantees as text', async () => {
+  await renderEnergyFixture([energyFixture(0, 3485, 999), energyFixture(1, null, 422), energyFixture(2, null, null)])
+  await act(async () => document.querySelector('.compare-nutrition-tools > button').click())
+  const bars = [...document.querySelectorAll('.compare-energy-bar')]
+  assert.equal(bars.length, 4, 'two known energy values in mobile pair and desktop; unknown has no bar')
+  assert.ok(bars.every(bar => bar.getAttribute('aria-label').includes('0부터 500 kcal/100g')))
+  assert.ok(bars.some(bar => bar.textContent === '' && bar.getAttribute('aria-label').includes('348.5 kcal/100g')))
+  assert.ok(bars.some(bar => Math.abs(parseFloat(bar.firstElementChild.style.width) - 69.7) < 1e-9))
+  assert.ok(bars.some(bar => Math.abs(parseFloat(bar.firstElementChild.style.width) - 84.4) < 1e-9))
+  assert.match(document.body.textContent, /미확인/)
+  assert.ok([...document.querySelectorAll('.compare-mobile-two-product-field')].filter(row => row.textContent.includes('조단백질') || row.textContent.includes('조지방')).every(row => !row.querySelector('.compare-energy-bar') && row.textContent.includes('이상')))
+})
+
+test('zero energy remains known and values above 500 expand the energy axis without clipping', async () => {
+  await renderEnergyFixture([energyFixture(0, null, 0), energyFixture(1, null, 1200)])
+  await act(async () => document.querySelector('.compare-nutrition-tools > button').click())
+  const bars = [...document.querySelectorAll('.compare-energy-bar')]
+  assert.equal(bars.length, 4)
+  assert.ok(bars.every(bar => bar.getAttribute('aria-label').includes('0부터 1200 kcal/100g')))
+  assert.ok(bars.some(bar => bar.firstElementChild.style.width === '0%' && bar.getAttribute('aria-label').endsWith('0 kcal/100g')))
+  assert.ok(bars.some(bar => bar.firstElementChild.style.width === '100%'))
+})
+
+test('invalid kg energy cannot silently fall back to a different 100g value or create a zero bar', async () => {
+  await renderEnergyFixture([energyFixture(0, -10, 422), energyFixture(1, null, null)])
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  assert.match(document.body.textContent, /-1 kcal\/100g/)
+  assert.match(document.body.textContent, /미확인/)
+  assert.doesNotMatch(document.body.textContent, /422 kcal\/100g/)
+})
+
+test('nutrition starts with exact values and preserves values, URL and control focus when graph format changes', async () => {
+  await renderEnergyFixture([energyFixture(0, 3485, null), energyFixture(1, null, 422)])
+  const toggle = document.querySelector('.compare-nutrition-tools > button')
+  const values = () => [...document.querySelectorAll('.compare-energy-number')].map(node => node.textContent)
+  const before = values(), url = window.location.href
+  assert.equal(toggle.getAttribute('aria-pressed'), 'false')
+  assert.equal(toggle.querySelector('.compare-graph-state').textContent, '끔')
+  assert.equal(toggle.querySelector('.compare-graph-state').getAttribute('aria-hidden'), 'true')
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  toggle.focus()
+  await act(async () => toggle.click())
+  assert.equal(toggle.getAttribute('aria-pressed'), 'true')
+  assert.equal(toggle.querySelector('.compare-graph-state').textContent, '켬')
+  assert.equal(document.activeElement, toggle)
+  assert.deepEqual(values(), before)
+  assert.equal(window.location.href, url)
+  await act(async () => toggle.click())
+  assert.equal(toggle.querySelector('.compare-graph-state').textContent, '끔')
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  assert.deepEqual(values(), before)
+})
+
+test('reading explanation follows known min/max amounts rather than absent values or reported qualifiers', async () => {
+  const row = energyFixture(0, null, 370)
+  row.protein_pct = null; row.fat_pct = null; row.fiber_pct = null; row.moisture_pct = null
+  row.ash_pct = 8; row.ash_qualifier = 'reported'
+  await renderEnergyFixture([row, { ...row, product_id: products[1].product_id }])
+  assert.equal(document.querySelectorAll('.compare-nutrition-tools details').length, 0)
+  await act(async () => root.unmount()); root = null
+  row.additional_nutrients = [{ nutrient_key: 'calcium', amount: 0, unit: '%', qualifier: 'min' }]
+  await renderEnergyFixture([row, { ...row, product_id: products[1].product_id }])
+  assert.equal(document.querySelectorAll('.compare-nutrition-tools details').length, 2)
+  assert.match(document.querySelector('.compare-nutrition-tools details').textContent, /최소값.*최대값.*실제 함량 차이/)
+})
+
+test('a graph is unavailable when only missing or invalid energy is provided', async () => {
+  await renderEnergyFixture([energyFixture(0, -10, 422), energyFixture(1, null, null)])
+  assert.ok([...document.querySelectorAll('.compare-nutrition-tools > button')].every(button => button.disabled && button.getAttribute('aria-pressed') === 'false'))
+  assert.equal(document.querySelectorAll('.compare-energy-bar').length, 0)
+  assert.match(document.body.textContent, /-1 kcal\/100g/)
+})
+
+test('a pure comparison starts with overview and exposes no nutrition tools before nutrition is requested', async () => {
+  document.body.innerHTML = '<div id="root"></div>'
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.CompareView, { items: products.slice(0, 2).map(product => ({ product })), onClose() {}, onRemove() {} })))
+  assert.equal(document.querySelector('.compare-tabs [aria-selected="true"]').textContent, '개요')
+  assert.equal(document.querySelectorAll('.compare-nutrition-tools').length, 0)
+})
+
+test('mobile guarantee help follows the displayed pair rather than a hidden third product', async () => {
+  const first = energyFixture(0, null, 370), second = energyFixture(1, null, 348), third = energyFixture(2, null, 422)
+  for (const row of [first, second]) {
+    row.protein_qualifier = 'reported'; row.fat_qualifier = 'reported'
+    row.fiber_qualifier = 'reported'; row.moisture_qualifier = 'reported'
+  }
+  await renderEnergyFixture([first, second, third])
+  assert.ok(document.querySelector('.compare-nutrition-tools-desktop details'))
+  assert.equal(document.querySelector('.compare-nutrition-tools-mobile details'), null)
+  const select = document.querySelector('.compare-mobile-general-pair-picker select')
+  await act(async () => {
+    select.value = third.product_id
+    select.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+  assert.ok(document.querySelector('.compare-nutrition-tools-mobile details'))
 })

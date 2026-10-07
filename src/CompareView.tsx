@@ -102,20 +102,58 @@ function formatAdditionalNutrient(value: AdditionalNutrient | undefined) {
 function selectedEnergy(detail: CompareNutrition | undefined | null) {
   if (!detail) return null
   if (detail.kcal_per_kg != null) {
-    return {
-      comparable: formatNumber(detail.kcal_per_kg / 10, ' kcal/100g'),
-      provided: formatNumber(detail.kcal_per_kg, ' kcal/kg'),
-    }
+    const amount = detail.kcal_per_kg / 10
+    return {amount, comparable: formatNumber(amount, ' kcal/100g'), provided: formatNumber(detail.kcal_per_kg, ' kcal/kg')}
   }
   if (detail.kcal_per_100g != null) {
-    const provided = formatNumber(detail.kcal_per_100g, ' kcal/100g')
-    return { comparable: provided, provided }
+    const amount = detail.kcal_per_100g
+    const provided = formatNumber(amount, ' kcal/100g')
+    return {amount, comparable: provided, provided}
   }
   return null
 }
 function comparableEnergy(detail: CompareNutrition | undefined | null) {
   return selectedEnergy(detail)?.comparable ?? '미확인'
 }
+function sharedEnergyScale(details: Array<CompareNutrition | undefined | null>) {
+  const amounts = details.map((detail) => selectedEnergy(detail)?.amount).filter((amount): amount is number => amount != null && Number.isFinite(amount) && amount >= 0)
+  if (!amounts.length) return null
+  return Math.max(100, Math.ceil(Math.max(...amounts) / 100) * 100)
+}
+function EnergyComparisonValue({ detail, scale, text, showGraph }: { detail: CompareNutrition | undefined | null; scale: number | null; text: string; showGraph: boolean }) {
+  const selected = selectedEnergy(detail)
+  if (!showGraph || !selected || !Number.isFinite(selected.amount) || selected.amount < 0 || scale == null) return <span className="compare-energy-number">{text}</span>
+  const width = Math.max(0, Math.min(100, (selected.amount / scale) * 100))
+  return <span className="compare-energy-value">
+    <span className="compare-energy-bar" role="img" aria-label={`0부터 ${scale} kcal/100g 축에서 ${selected.comparable}`}>
+      <span style={{ width: `${width}%` }} />
+    </span>
+    <span className="compare-energy-axis" aria-hidden="true"><span>0</span><span>{scale}</span></span>
+    <span className="compare-energy-number">{text}</span>
+  </span>
+}
+function hasNutritionGuarantees(details: Array<CompareNutrition | undefined | null>) {
+  return details.some((row) => row && (
+    ['protein', 'fat', 'fiber', 'moisture', 'ash'].some((key) => {
+      const amount = row[(key + '_pct') as keyof CompareNutrition]
+      const qualifier = row[(key + '_qualifier') as keyof CompareNutrition]
+      return amount != null && (qualifier === 'min' || qualifier === 'max')
+    }) || (row.additional_nutrients ?? []).some((item) => item.amount != null && (item.qualifier === 'min' || item.qualifier === 'max'))
+  ))
+}
+function NutritionReadingTools({ showEnergyGraph, onToggleEnergyGraph, details }: {
+  showEnergyGraph: boolean; onToggleEnergyGraph: () => void; details: Array<CompareNutrition | undefined | null>
+}) {
+  const hasGraph = details.some((row) => { const amount = selectedEnergy(row)?.amount; return amount != null && Number.isFinite(amount) && amount >= 0 })
+  return <div className="compare-nutrition-tools">
+    <button type="button" aria-pressed={showEnergyGraph && hasGraph} disabled={!hasGraph} onClick={onToggleEnergyGraph}>열량 그래프<span className="compare-graph-state" aria-hidden="true">{showEnergyGraph && hasGraph ? '켬' : '끔'}</span></button>
+    {hasNutritionGuarantees(details) ? <details>
+      <summary>이상·이하 읽는 법</summary>
+      <p>‘이상’은 최소값, ‘이하’는 최대값입니다. 표기값만으로 실제 함량 차이를 알 수는 없습니다.</p>
+    </details> : null}
+  </div>
+}
+
 function basisSpecificNutrient(row: CompareNutrition | undefined, key: string) {
   return (row?.basis_specific_nutrition_values ?? []).find((item) => item.nutrient_key === key && item.amount != null)
 }
@@ -232,7 +270,7 @@ function RelationSummary({ item }: { item: CompareItem }) {
     {confirmed.length ? <p className="is-confirmed"><span>확인됨</span><strong>{confirmed.join(' · ')}</strong></p> : null}
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
-    {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.join(' · ')}</strong></p> : null}
+    {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.map((difference) => <span className="compare-condition-difference" key={difference}>{difference}</span>)}</strong></p> : null}
     {reviewed.length ? <p className="is-reviewed"><span>원료 확인</span><strong>{reviewed.join(' · ')} · 검토한 자료에서 찾지 못함</strong></p> : null}
     {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 판단 근거 부족</strong></p> : null}
     {unknown.length ? <p className="is-unknown"><span>미확인</span><strong>{unknown.join(' · ')}</strong></p> : null}
@@ -337,8 +375,7 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
       </thead>
 
       {items.some(hasRelationData) ? <>
-        <MobileTwoProductSection title="선택한 조건과 비교" />
-        <MobileTwoProductOverviewField fieldKey="relation" label="조건 확인" items={items} render={(item) => <RelationSummary item={item} />} />
+        <MobileTwoProductOverviewField fieldKey="relation" label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
       </> : null}
 
       <MobileTwoProductSection title="제품 기본 정보" />
@@ -366,6 +403,7 @@ function MobileTwoProductNutrition({
   variantLookupFailures,
   variantsLoading,
   hasBasisSpecificNutrition,
+  showEnergyGraph,
   onDetail,
   onRemove,
 }: {
@@ -377,9 +415,11 @@ function MobileTwoProductNutrition({
   variantLookupFailures: string[]
   variantsLoading: boolean
   hasBasisSpecificNutrition: boolean
+  showEnergyGraph: boolean
   onDetail: (productId: string) => void
   onRemove: (productId: string) => void
 }) {
+  const energyScale = sharedEnergyScale(items.map((item) => nutritionByProduct.get(item.product.product_id)))
   return <div className="compare-mobile-two-product-nutrition">
     <MobileTwoProductHeads items={items} onDetail={onDetail} onRemove={onRemove} />
     <table className="compare-mobile-two-product-table compare-mobile-two-product-nutrition-table">
@@ -401,7 +441,7 @@ function MobileTwoProductNutrition({
       <MobileTwoProductOverviewField fieldKey="nutrition-energy" label="열량" items={items} tone="metric" render={(item) => {
         const row = nutritionByProduct.get(item.product.product_id)
         if (!row) return '미확인'
-        return comparableEnergy(row)
+        return <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={energyScale} text={comparableEnergy(row)} />
       }} />
       <MobileTwoProductOverviewField fieldKey="nutrition-protein" label="조단백질" items={items} tone="metric" render={(item) => {
         const row = nutritionByProduct.get(item.product.product_id)
@@ -527,6 +567,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   onDetailTabChange?: (tab: import('./navigation-state').DetailTab) => void
 }) {
   const [tab, setTab] = useState<CompareTab>(initialTab)
+  const [showEnergyGraph, setShowEnergyGraph] = useState(false)
   const [reload, setReload] = useState(0)
   const [nutrition, setNutrition] = useState<CompareNutrition[]>([])
   const [currentNutrition, setCurrentNutrition] = useState<CompareNutrition | null>(null)
@@ -555,6 +596,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
   const mobilePairSelectRefs = useRef<Array<HTMLSelectElement | null>>([])
+  const pendingRemovalFocusRef = useRef<{ slot: 0 | 1 | null; remainingCount: number } | null>(null)
   const mobileCandidateOptionsId = useId()
 
   useEffect(() => { setTab(initialTab) }, [initialTab])
@@ -653,6 +695,25 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       return next[0] === current[0] && next[1] === current[1] ? current : next
     })
   }, [productIds.join('|')])
+
+  useEffect(() => {
+    const pending = pendingRemovalFocusRef.current
+    if (!pending || currentProduct || productIds.length !== pending.remainingCount) return
+    if (document.activeElement && document.activeElement !== document.body) {
+      pendingRemovalFocusRef.current = null
+      return
+    }
+    const panel = document.querySelector<HTMLElement>('.compare-table-wrap')
+    const useMobilePairSelect = (window.matchMedia?.('(max-width: 760px)').matches ?? true)
+      && pending.slot != null
+      && pending.remainingCount > 2
+      && (tab === 'overview' || tab === 'nutrition')
+    const target = useMobilePairSelect && pending.slot != null
+      ? mobilePairSelectRefs.current[pending.slot] ?? panel
+      : panel
+    target?.focus({ preventScroll: true })
+    pendingRemovalFocusRef.current = null
+  }, [currentProduct, productIds.join('|'), mobilePairProductIds.join('|'), tab])
 
   useEffect(() => {
     const controller = new AbortController(); let active = true
@@ -793,8 +854,14 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       setMobileCandidatePickerOpen(false)
     }
     const mobilePairSlot = mobilePairItems.findIndex((item) => item.product.product_id === productId)
+    if (!currentProduct && items.length > 1) {
+      pendingRemovalFocusRef.current = {
+        slot: mobilePairSlot === 0 || mobilePairSlot === 1 ? mobilePairSlot : null,
+        remainingCount: items.length - 1,
+      }
+    }
     onRemove(productId)
-    if (mobilePairSlot >= 0) {
+    if (currentProduct && mobilePairSlot >= 0) {
       window.setTimeout(() => {
         if (items.length - 1 > 2) mobilePairSelectRefs.current[mobilePairSlot]?.focus({ preventScroll: true })
         else document.querySelector<HTMLElement>('.compare-table-wrap')?.focus({ preventScroll: true })
@@ -815,6 +882,8 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
   const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
   const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ' is-general-compare'}${switchOverview ? ' is-switch-overview' : ''}${switchNutrition ? ' is-switch-nutrition' : ''}${!switchCompare && tab === 'overview' ? ' is-general-overview' : ''}${!switchCompare && tab === 'nutrition' ? ' is-general-nutrition' : ''}`
+  const generalEnergyScale = sharedEnergyScale(items.map((item) => nutritionByProduct.get(item.product.product_id)))
+  const switchEnergyScale = sharedEnergyScale([currentNutrition, ...items.map((item) => nutritionByProduct.get(item.product.product_id))])
   const headerCopy = currentProduct
     ? tab === 'overview'
       ? `현재 사료와 ${items.length}개 후보의 제품 정보를 같은 항목으로 비교합니다.`
@@ -836,6 +905,10 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
     <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition || switchNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
+      {tab === 'nutrition' ? <>
+        <div className="compare-nutrition-tools-desktop"><NutritionReadingTools showEnergyGraph={showEnergyGraph} onToggleEnergyGraph={() => setShowEnergyGraph((value) => !value)} details={currentProduct ? [currentNutrition, ...nutrition] : nutrition} /></div>
+        <div className="compare-nutrition-tools-mobile"><NutritionReadingTools showEnergyGraph={showEnergyGraph} onToggleEnergyGraph={() => setShowEnergyGraph((value) => !value)} details={currentProduct ? [currentNutrition, nutritionByProduct.get(mobileCandidate?.product.product_id ?? '')] : mobilePairNutrition} /></div>
+      </> : null}
       {!switchCompare && tab === 'overview' && criteriaLabels.length ? <AppliedCriteriaSummary labels={criteriaLabels} /> : null}
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
@@ -892,15 +965,25 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
           {renderMobileCandidatePicker()}
           <div className="compare-mobile-two-product-heads">
             <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-current-name">
-              <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
-              <span className="compare-mobile-two-product-brand">{currentProduct.brand}</span>
+              <div className="compare-mobile-two-product-identity">
+                {currentProduct.display_image_url ? <img src={currentProduct.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+                <div className="compare-mobile-two-product-meta">
+                  <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
+                  <span className="compare-mobile-two-product-brand">{currentProduct.brand}</span>
+                </div>
+              </div>
               <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-current-name">{currentProduct.canonical_name}</strong>
               <small className="compare-mobile-switch-use-package">{currentUsePackageLabel(currentVariantId, currentVariantText)}</small>
               <small className="compare-current-nutrition-evidence">{currentRepresentativeNutritionEvidence(currentNutrition, currentVariants, currentVariantId, currentVariantLookupFailed, currentVariantsLoading, false)}</small>
             </article>
             <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-candidate-name">
-              <span className="compare-mobile-two-product-slot">표시 중인 후보</span>
-              <span className="compare-mobile-two-product-brand">{mobileCandidate.product.brand}</span>
+              <div className="compare-mobile-two-product-identity">
+                {mobileCandidate.product.display_image_url ? <img src={mobileCandidate.product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+                <div className="compare-mobile-two-product-meta">
+                  <span className="compare-mobile-two-product-slot">표시 중인 후보</span>
+                  <span className="compare-mobile-two-product-brand">{mobileCandidate.product.brand}</span>
+                </div>
+              </div>
               <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-candidate-name">{mobileCandidate.product.canonical_name}</strong>
               <div className="compare-mobile-two-product-actions">
                 <button type="button" onClick={() => openDetail(mobileCandidate.product.product_id)}>상세 보기</button>
@@ -915,7 +998,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
               <th id="compare-mobile-switch-candidate" scope="col"><span>후보</span><strong>{mobileCandidate.product.canonical_name}</strong></th>
             </tr></thead>
             <MobileTwoProductSection title="영양 성분" />
-            <MobileSwitchNutritionField fieldKey="energy" label="열량" tone="metric" current={<CurrentNutritionMetric evidenceField="energy" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => comparableEnergy(row), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => comparableEnergy(row), '영양 자료 없음')} />
+            <MobileSwitchNutritionField fieldKey="energy" label="열량" tone="metric" current={<CurrentNutritionMetric evidenceField="energy" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={switchEnergyScale} text={comparableEnergy(row)} />, '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={switchEnergyScale} text={comparableEnergy(row)} />, '영양 자료 없음')} />
             <MobileSwitchNutritionField fieldKey="protein" label="조단백질" tone="metric" current={<CurrentNutritionMetric evidenceField="protein" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} />
             <MobileSwitchNutritionField fieldKey="fat" label="조지방" tone="metric" current={<CurrentNutritionMetric evidenceField="fat" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} />
             <MobileSwitchNutritionField fieldKey="fiber" label="조섬유" tone="metric" current={<CurrentNutritionMetric evidenceField="fiber" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} />
@@ -931,7 +1014,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
         <div className="compare-table compare-switch-nutrition-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row" style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} evidenceNote={currentRepresentativeNutritionEvidence(currentNutrition, currentVariants, currentVariantId, currentVariantLookupFailed, currentVariantsLoading, false)} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
           <CompareSection title="영양 성분" note="열량은 kcal/100g으로 맞춰 표시합니다. 제공된 값·단위는 자료 기준에서 확인할 수 있습니다. 다른 기준의 영양자료는 합치거나 환산하지 않습니다." />
-          <SwitchOverviewRow label="열량" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric evidenceField="energy" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => comparableEnergy(row), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => comparableEnergy(row), '영양 자료 없음')} />
+          <SwitchOverviewRow label="열량" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric evidenceField="energy" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={switchEnergyScale} text={comparableEnergy(row)} />, '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={switchEnergyScale} text={comparableEnergy(row)} />, '영양 자료 없음')} />
           <SwitchOverviewRow label="조단백질" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric evidenceField="protein" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} />
           <SwitchOverviewRow label="조지방" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric evidenceField="fat" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} />
           <SwitchOverviewRow label="조섬유" currentProduct={currentProduct} items={items} tone="metric" currentValue={() => <CurrentNutritionMetric evidenceField="fiber" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, currentNutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidateValue={(item) => nutritionLoadValue(nutritionByProduct.get(item.product.product_id), nutritionLoading, nutritionError, (row) => formatStandardNutrient(row, 'fiber', row.fiber_pct, row.fiber_qualifier), '영양 자료 없음')} />
@@ -943,13 +1026,13 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
           {hasSwitchBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><SwitchOverviewRow label="별도 확인 자료" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutrition ? basisSpecificSummary(currentNutrition) : currentNutritionLoading ? '조회 중' : currentNutritionError ? '조회 실패' : '영양 자료 없음'} candidateValue={(item) => nutritionByProduct.get(item.product.product_id) ? basisSpecificSummary(nutritionByProduct.get(item.product.product_id)) : nutritionLoading ? '조회 중' : nutritionError ? '조회 실패' : '영양 자료 없음'} /></> : null}
         </div>
       </> : <>
-        {twoProductOverview ? <>{renderMobileGeneralPairPicker()}<MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /></> : null}
-        {twoProductNutrition ? <>{renderMobileGeneralPairPicker()}<MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} onDetail={openDetail} onRemove={removeComparedProduct} /></> : null}
+        {items.length > 2 && (tab === 'overview' || tab === 'nutrition') ? renderMobileGeneralPairPicker() : null}
+        {twoProductOverview ? <MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
+        {twoProductNutrition ? <MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} showEnergyGraph={showEnergyGraph} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
         <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           {items.some(hasRelationData) ? <>
-            <CompareSection title="선택한 조건과 비교" />
             <CompareRow label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
           </> : null}
           <CompareSection title="제품 기본 정보" />
@@ -971,7 +1054,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
 
         {tab === 'nutrition' && !nutritionLoading && !nutritionError ? <>
           <CompareSection title="영양 성분" note="열량은 kcal/100g으로 맞춰 표시합니다. 제공된 값·단위는 자료 기준에서 확인할 수 있습니다. 다른 기준의 영양자료는 합치거나 환산하지 않습니다." />
-          <CompareRow label="열량" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); if (!row) return '미확인'; return comparableEnergy(row) }} />
+          <CompareRow label="열량" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); if (!row) return '미확인'; return <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={generalEnergyScale} text={comparableEnergy(row)} /> }} />
           <CompareRow label="조단백질" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'protein', row?.protein_pct, row?.protein_qualifier) }} />
           <CompareRow label="조지방" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'fat', row?.fat_pct, row?.fat_qualifier) }} />
           <CompareRow label="조섬유" items={items} tone="metric" render={(item) => { const row = nutritionByProduct.get(item.product.product_id); return formatStandardNutrient(row, 'fiber', row?.fiber_pct, row?.fiber_qualifier) }} />

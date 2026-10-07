@@ -1,0 +1,3088 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500&display=swap');
+
+/* Shared consumer visual direction — "정돈된 제품 도감".
+   This file changes presentation only. Product facts, search/evaluator rules,
+   comparison state, ingredient scroll behavior, and public API contracts stay unchanged. */
+
+:root {
+  --atlas-bg: #faf9f6;
+  --atlas-surface: #fff;
+  --atlas-soft: #f1f0eb;
+  --atlas-soft-2: #f6f5f1;
+  --atlas-ink: #252b2c;
+  --atlas-muted: #626b6d;
+  --atlas-line: #deded7;
+  --atlas-accent: #bc3d2c;
+}
+
+.home-shell,
+.research-shell,
+.detail-stage,
+.compare-stage {
+  background: var(--atlas-bg);
+  color: var(--atlas-ink);
+  font-family: var(--cf-font);
+}
+
+.site-header {
+  border-bottom: 1px solid var(--atlas-line);
+  background: rgba(250, 249, 246, .97);
+  box-shadow: none;
+  backdrop-filter: blur(10px);
+}
+
+.site-wordmark,
+.research-brand {
+  color: var(--atlas-ink);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -.04em;
+}
+
+.site-header .mode-button {
+  color: var(--atlas-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.site-header .mode-button.is-active {
+  color: var(--atlas-ink);
+}
+
+.site-header .mode-button.is-active::after {
+  background: var(--atlas-accent);
+}
+
+.site-status,
+.research-status {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* HOME — search first, product examples stay subordinate to the task. */
+.home-main {
+  width: min(1100px, calc(100% - 80px));
+  padding-top: 64px;
+}
+
+.home-start {
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, .85fr);
+  grid-template-areas: "search examples" "routes examples" "reading examples";
+  gap: 26px 72px;
+  align-items: start;
+}
+
+.home-start-copy {
+  grid-area: search;
+  padding-top: 4px;
+}
+
+.home-start-copy h1 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--atlas-ink);
+  font-size: clamp(32px, 3vw, 40px);
+  font-weight: 850;
+  line-height: 1.28;
+  letter-spacing: -.055em;
+  word-break: keep-all;
+}
+
+.home-start-copy > p {
+  max-width: 680px;
+  margin-top: 18px;
+  color: var(--atlas-muted);
+  font-size: 16px;
+  line-height: 1.75;
+  word-break: keep-all;
+}
+
+.home-entry-lookup {
+  margin-top: 28px;
+}
+
+.home-entry-search {
+  grid-template-columns: minmax(0, 1fr) 84px;
+  gap: 0;
+  border: 1px solid var(--atlas-ink);
+  border-radius: 3px;
+  padding: 3px;
+  background: var(--atlas-surface);
+  box-shadow: none;
+}
+
+.home-entry-search input {
+  height: 50px;
+  font-size: 15px;
+}
+
+.home-entry-search-submit {
+  min-height: 50px;
+  border-radius: 2px;
+  background: var(--atlas-accent);
+  font-size: 14px;
+}
+
+.home-brand-shortcuts {
+  gap: 14px;
+  margin-top: 9px;
+  font-size: 12px;
+}
+
+.home-brand-shortcut {
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.home-product-example {
+  grid-area: examples;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.home-product-example > span {
+  display: block;
+  margin: 4px 0 16px;
+  color: var(--atlas-muted);
+  font-size: 12px;
+}
+
+.home-example-products {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.home-example-products button {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.home-example-products img {
+  flex: none;
+  width: 100%;
+  height: 174px;
+  padding: 20px 12px;
+  margin: 0 0 8px;
+  background: var(--atlas-soft);
+  object-fit: contain;
+}
+
+.home-example-products span {
+  align-self: stretch;
+  margin: 0;
+  color: var(--atlas-muted);
+  font-size: 12px;
+}
+
+.home-example-products strong {
+  align-self: stretch;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.home-entry-board {
+  grid-area: routes;
+  margin-top: 0;
+  border-top: 1px solid var(--atlas-line);
+}
+
+.home-entry-routes {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  padding: 24px 0 0;
+}
+
+.home-entry-route {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.home-entry-route > button {
+  grid-column: 2;
+  align-self: center;
+}
+
+.home-entry-route h2 {
+  margin-bottom: 5px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.home-entry-route p {
+  color: var(--atlas-muted);
+  font-size: 13px;
+}
+
+.home-entry-route > button,
+.home-reading-note button,
+.home-info-close {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.home-reading-note {
+  grid-area: reading;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+}
+
+.home-section-heading span,
+.home-guide-top,
+.home-section-heading p,
+.home-guide p,
+.home-glossary-item p,
+.home-home-principles p {
+  font-size: 13px;
+}
+
+.home-glossary-item summary,
+.home-home-principles strong {
+  font-size: 14px;
+}
+
+/* RESULTS / LOOKUP / EXPLORE — vertical records, not shopping cards. */
+.research-workspace {
+  width: min(1240px, calc(100% - 64px));
+  gap: 22px;
+}
+
+.research-filters,
+.research-results,
+.research-quick-view {
+  border-color: var(--atlas-line);
+  border-radius: 3px;
+  background: var(--atlas-surface);
+  box-shadow: none;
+}
+
+.research-pane-heading,
+.research-results-heading,
+.quick-view-topline {
+  min-height: 64px;
+  border-bottom-color: var(--atlas-line);
+  background: var(--atlas-surface);
+}
+
+.research-pane-heading strong,
+.research-results-heading strong {
+  color: var(--atlas-ink);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.research-pane-heading span,
+.research-results-heading span,
+.quick-view-topline,
+.quick-view-topline > button {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.research-shell .condition-group-title {
+  min-height: 44px;
+  padding: 12px 16px 9px;
+  background: var(--atlas-soft-2);
+  color: var(--atlas-ink);
+  font-size: 12px;
+}
+
+.research-shell .condition-group-title small,
+.research-shell .filter-hint,
+.research-shell .field-note,
+.research-shell .mode-intro span,
+.research-shell .summary-empty,
+.research-shell .refine-title {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.research-shell .filter-heading,
+.research-shell .mode-intro strong {
+  font-size: 13px;
+}
+
+.research-shell .choice,
+.research-shell .lookup-input,
+.research-shell .recipe-search {
+  min-height: 44px;
+  font-size: 12px;
+}
+
+.research-shell .primary-action,
+.research-shell .secondary-action {
+  min-height: 44px;
+  font-size: 12px;
+}
+
+.research-shell .research-result-row {
+  grid-template-columns: minmax(0, 480px) 100px;
+  justify-content: start;
+  gap: 16px;
+  align-items: center;
+  margin-top: 0;
+  border-bottom: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: var(--atlas-surface);
+  box-shadow: none;
+}
+
+.research-result-row.is-compared {
+  background: var(--atlas-soft-2);
+  box-shadow: inset 3px 0 0 var(--atlas-accent);
+}
+
+.research-result-row .research-result-card {
+  border-radius: 0;
+  background: transparent;
+}
+
+.research-shell .research-result-card,
+.research-shell.is-inspecting .research-result-card {
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 6px 20px;
+  min-height: 112px;
+  padding: 16px 0;
+}
+
+.research-result-image {
+  grid-row: 1 / 4;
+}
+
+.research-result-identity,
+.research-shell .research-result-facts,
+.research-result-link,
+.research-shell .result-relations {
+  grid-column: 2;
+}
+
+.research-shell .research-result-facts,
+.research-shell .result-relations {
+  grid-row: auto;
+}
+
+.research-result-image,
+.research-result-card .image-placeholder {
+  width: 64px;
+  height: 80px;
+  background: transparent;
+  object-fit: contain;
+}
+
+.research-result-brand {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.research-result-identity strong {
+  overflow: visible;
+  color: var(--atlas-ink);
+  font-size: 15px;
+  font-weight: 720;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.research-shell .research-results .research-result-card .research-result-meta,
+.research-shell .research-results .research-result-card .research-result-packages {
+  overflow: visible;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.result-relations,
+.relation-line,
+.result-relation-empty,
+.research-result-facts {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.research-result-facts {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.research-result-facts strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.research-shell .research-result-card .research-result-link {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  grid-column: 2;
+  grid-row: auto;
+  margin: 0;
+  padding: 6px 0;
+  color: var(--atlas-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.research-shell .research-result-compare {
+  min-width: 84px;
+  min-height: 44px;
+  align-self: center;
+  margin-right: 8px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 3px;
+  background: var(--atlas-surface);
+  color: var(--atlas-ink);
+}
+
+.research-result-compare > span,
+.research-result-compare > strong {
+  font-size: 12px;
+}
+
+.research-result-compare.is-added {
+  border-color: var(--atlas-line);
+  background: var(--atlas-soft-2);
+  color: var(--atlas-accent);
+}
+
+.quick-view-identity {
+  gap: 18px;
+}
+
+.quick-view-identity h1 {
+  color: var(--atlas-ink);
+  font-size: 23px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+.quick-view-identity p,
+.quick-view-section,
+.quick-view-section dt,
+.quick-view-section dd,
+.definition {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.switch-compare-dock {
+  border-top: 1px solid var(--atlas-line);
+  background: rgba(250, 249, 246, .98);
+  box-shadow: none;
+}
+
+.switch-compare-dock > button {
+  min-height: 44px;
+}
+/* SWITCH basket is secondary to product reading; preserve its fixed position and clearance. */
+.switch-workflow-shell .switch-results-stage > .switch-compare-dock {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 2px;
+  background: var(--atlas-surface);
+  color: var(--atlas-ink);
+  box-shadow: none;
+}
+.switch-workflow-shell .switch-compare-dock > strong {
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.switch-workflow-shell .switch-compare-dock-list {
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--atlas-muted);
+  opacity: 1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.switch-workflow-shell .switch-compare-dock > button {
+  grid-column: 3;
+  grid-row: 1;
+  min-height: 44px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--atlas-primary);
+  border-radius: 2px;
+  background: var(--atlas-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.switch-workflow-shell .switch-compare-dock > button:hover {
+  background: var(--atlas-primary-hover);
+  border-color: var(--atlas-primary-hover);
+}
+@media (max-width: 760px) {
+  .switch-workflow-shell .switch-results-stage:has(> .switch-compare-dock) {
+    --switch-compare-dock-height: 94px;
+  }
+  .switch-workflow-shell .switch-results-stage > .switch-compare-dock {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 8px 12px;
+  }
+  .switch-workflow-shell .switch-compare-dock > button { grid-column: 2; }
+  .switch-workflow-shell .switch-compare-dock-list {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* Name search uses compact product records; criteria results keep their relation layout. */
+.research-shell[data-catalog-mode="lookup"] .research-results-heading > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-direction: row;
+  gap: 20px;
+  width: 100%;
+}
+.research-shell[data-catalog-mode="lookup"] .research-results-heading span { margin: 0; }
+.research-shell[data-catalog-mode="lookup"] .research-result-row {
+  grid-template-columns: minmax(0, 1fr) 76px;
+  gap: 18px;
+  background: transparent;
+}
+.research-shell[data-catalog-mode="lookup"] .research-result-card {
+  grid-template-columns: 58px minmax(0, 1fr) 70px;
+  grid-template-rows: auto;
+  gap: 6px 18px;
+  min-height: 124px;
+  padding: 14px 0;
+}
+.research-shell[data-catalog-mode="lookup"] .research-result-image {
+  grid-row: 1 / 3;
+  width: 58px;
+  height: 78px;
+}
+.research-shell[data-catalog-mode="lookup"] .research-result-identity { grid-row: 1; gap: 3px; }
+.research-shell[data-catalog-mode="lookup"] .research-result-identity strong { font-size: 17px; }
+.research-shell[data-catalog-mode="lookup"] .research-result-facts { grid-column: 2; grid-row: 2; }
+.research-shell[data-catalog-mode="lookup"] .research-result-link {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  align-self: center;
+  min-height: 44px;
+  padding: 0;
+}
+.research-shell[data-catalog-mode="lookup"] .research-result-compare {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 0;
+  background: transparent;
+}
+.research-shell[data-catalog-mode="lookup"] .research-result-row.is-compared {
+  background: var(--atlas-soft-2);
+  box-shadow: inset 2px 0 0 var(--atlas-accent);
+}
+@media (min-width: 761px) {
+  .research-shell[data-catalog-mode="lookup"] .research-results-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 28px; }
+  .research-shell[data-catalog-mode="lookup"] .load-more { grid-column: 1 / -1; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-row { grid-template-columns: minmax(0, 1fr) 64px; gap: 12px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-card { grid-template-columns: 54px minmax(0, 1fr); gap: 4px 14px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-link { grid-column: 2; grid-row: auto; min-height: 24px; line-height: 24px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-compare { flex-direction: column; min-width: 64px; gap: 0; }
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-results-list { grid-template-columns: minmax(0, 1fr); }
+  .research-shell[data-catalog-mode="lookup"] .research-workspace {
+    width: min(1100px, calc(100% - 64px));
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 36px;
+  }
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+    gap: 24px;
+  }
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 4px 14px;
+  }
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-link {
+    grid-column: 2;
+    grid-row: auto;
+    min-height: 24px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .research-shell[data-catalog-mode="lookup"].is-browsing .research-results-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* DETAIL — identity first, readable facts, evidence on demand. */
+.detail-layout {
+  grid-template-columns: minmax(270px, 340px) minmax(0, 760px);
+  gap: clamp(46px, 6vw, 82px);
+}
+
+.detail-identity {
+  padding-top: 24px;
+}
+
+.detail-identity-copy > span {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.detail-identity-copy h1 {
+  margin-top: 5px;
+  color: var(--atlas-ink);
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.detail-identity-copy p {
+  margin-top: 9px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detail-product-image,
+.detail-image-placeholder {
+  width: 100%;
+  height: 168px;
+  margin-top: 0;
+  background: transparent;
+  object-fit: contain;
+}
+
+.detail-identity-actions button {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.detail-tabs {
+  border-top-color: var(--atlas-line);
+  border-bottom: 1px solid var(--atlas-line);
+  background: var(--atlas-bg);
+}
+
+.detail-tabs button {
+  min-width: 44px;
+  min-height: 52px;
+  padding: 12px 10px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+}
+
+.detail-tabs button.is-active {
+  color: var(--atlas-ink);
+}
+
+.detail-section {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-color: color-mix(in srgb, var(--atlas-line) 55%, transparent);
+}
+
+.detail-section-heading h2,
+.detail-basis-block h3 {
+  color: var(--atlas-ink);
+  font-size: 21px;
+  font-weight: 730;
+}
+
+.detail-fact-lines .detail-fact {
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 48px;
+  padding: 12px 0;
+}
+
+.detail-fact-lines .detail-fact > span,
+.detail-variant-row span,
+.detail-market-row span,
+.detail-summary-meta,
+.detail-evidence-context,
+.detail-note,
+.detail-disclosure > summary,
+.detail-basis-block > p {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.detail-fact-lines .detail-fact > strong,
+.detail-variant-row strong,
+.detail-market-row strong {
+  color: var(--atlas-ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.detail-size-list {
+  gap: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.detail-size-list span {
+  padding: 8px 0;
+}
+
+.detail-energy span,
+.detail-nutrition-row > span {
+  color: var(--atlas-muted);
+  font-size: 13px;
+}
+
+.detail-energy strong {
+  color: var(--atlas-ink);
+  font-size: 23px;
+  font-weight: 780;
+}
+
+.detail-nutrition-row > strong {
+  color: var(--atlas-ink);
+  font-size: 16px;
+  font-weight: 680;
+}
+
+.detail-ingredient-copy,
+.detail-ingredient-list,
+.detail-ingredient-list-compact,
+.detail-empty,
+.detail-state {
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.detail-inline-link {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+/* COMPARE — preserve #99 density while making small evidence text readable. */
+.compare-stage .compare-header h1 {
+  color: var(--atlas-ink);
+  font-size: 27px;
+  font-weight: 800;
+}
+
+.compare-stage .compare-header p {
+  color: var(--atlas-muted);
+  font-size: 13px;
+}
+
+.compare-stage .compare-product-copy > span,
+.compare-stage .compare-column-role,
+.compare-stage .compare-product-copy small,
+.compare-stage .compare-mobile-two-product-brand,
+.compare-stage .compare-mobile-general-pair-summary span,
+.compare-stage .compare-mobile-general-pair-controls label,
+.compare-stage .compare-current-nutrition-metric small,
+.compare-stage .compare-current-nutrition-evidence,
+.compare-stage .compare-evidence-details span,
+.compare-stage .compare-evidence-details strong {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.compare-stage .compare-row-label,
+.compare-stage .compare-mobile-two-product-row-label {
+  color: var(--atlas-ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.compare-stage .compare-cell,
+.compare-stage .compare-table .compare-row .compare-cell,
+.compare-stage .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value,
+.compare-stage .compare-current-nutrition-metric,
+.compare-stage .compare-ingredient-text {
+  font-size: 15.5px;
+  line-height: 1.62;
+}
+
+.compare-stage .compare-evidence-disclosure > summary,
+.compare-stage .compare-disclosure-content {
+  min-height: 44px;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.compare-stage .compare-row.is-different .compare-cell,
+.compare-stage .compare-row:nth-child(even) .compare-cell {
+  background: var(--atlas-soft-2);
+}
+
+/* SWITCH — same product-reading grammar as lookup/results/detail. */
+.switch-find-hero h1,
+.switch-step-header h1 {
+  color: var(--atlas-ink);
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+
+.switch-find-hero > p,
+.switch-step-header > p {
+  color: var(--atlas-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.switch-find-search {
+  min-height: 58px;
+  margin-top: 24px;
+  border: 1px solid var(--atlas-ink);
+  border-radius: 3px;
+  padding: 0 12px;
+  background: var(--atlas-surface);
+}
+
+.switch-find-search input {
+  height: 56px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.switch-find-body,
+.switch-candidate-pane,
+.switch-candidate-inspector,
+.switch-current-preview,
+.switch-find-results {
+  border-color: var(--atlas-line);
+  background: var(--atlas-surface);
+}
+
+.switch-find-results-heading,
+.switch-candidate-heading,
+.switch-preview-topline {
+  min-height: 62px;
+  border-bottom-color: var(--atlas-line);
+  background: var(--atlas-surface);
+}
+
+.switch-find-results-heading > strong,
+.switch-candidate-heading strong {
+  color: var(--atlas-ink);
+  font-size: 16px;
+}
+
+.switch-find-results-heading > span,
+.switch-candidate-heading span,
+.switch-preview-topline,
+.switch-preview-topline button {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.switch-find-result,
+.switch-candidate-item {
+  border-bottom: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: var(--atlas-surface);
+}
+
+.switch-find-result:hover,
+.switch-find-result.is-selected,
+.switch-candidate-item.is-compared {
+  background: var(--atlas-soft-2);
+}
+
+.switch-find-result-image,
+.switch-candidate-image,
+.switch-find-result .switch-image-placeholder {
+  width: 60px;
+  height: 76px;
+  background: transparent;
+  object-fit: contain;
+}
+
+.switch-workflow-shell .switch-find-result-copy > span,
+.switch-workflow-shell .switch-candidate-identity > span,
+.switch-preview-identity > div > span,
+.switch-inspector-identity > div > span {
+  color: var(--atlas-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.switch-find-result-copy > strong,
+.switch-candidate-identity > strong {
+  overflow: visible;
+  color: var(--atlas-ink);
+  font-size: 15px;
+  font-weight: 720;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.switch-workflow-shell .switch-find-result-copy > small,
+.switch-workflow-shell .switch-candidate-identity > small {
+  overflow: visible;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.switch-find-result-open,
+.switch-candidate-open {
+  color: var(--atlas-ink);
+  font-size: 12px;
+}
+
+.switch-primary-action,
+.switch-secondary-action,
+.switch-choice,
+.switch-sku-option,
+.switch-change-additional-toggle,
+.switch-no-change,
+.switch-candidate-search input,
+.switch-candidate-search button,
+.switch-candidate-compare,
+.switch-compare-action {
+  min-height: 44px;
+}
+
+.switch-preview-identity h2,
+.switch-inspector-identity h1 {
+  color: var(--atlas-ink);
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.switch-preview-identity p,
+.switch-inspector-identity p,
+.switch-preview-facts,
+.switch-preview-facts > p,
+.switch-inspector-section,
+.switch-inspector-section dt,
+.switch-inspector-section dd,
+.switch-ingredient-note,
+.switch-option-empty,
+.switch-session-bar small {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.switch-reference-rail {
+  background: var(--atlas-soft-2);
+}
+
+.switch-reference-label,
+.switch-step-header > span,
+.switch-session-bar > div > span,
+.switch-session-current > span {
+  color: var(--atlas-accent);
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+
+.switch-session-bar {
+  border-bottom: 1px solid var(--atlas-line);
+  background: var(--atlas-bg);
+  box-shadow: none;
+}
+
+.switch-session-bar strong {
+  color: var(--atlas-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.switch-workflow-shell .switch-candidate-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.switch-candidate-search input {
+  min-width: 0;
+  width: 100%;
+  font-size: 13px;
+}
+
+.switch-workflow-shell .switch-candidate-search button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.switch-workflow-shell .switch-relation-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.switch-workflow-shell .switch-relation-line > strong {
+  color: var(--atlas-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.switch-workflow-shell .switch-relation-line > span {
+  order: 1;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+@media (max-width: 760px) {
+  .site-status,
+  .research-status {
+    font-size: 11px;
+  }
+
+  .home-main {
+    width: calc(100% - 36px);
+    padding-top: 32px;
+  }
+
+  .home-start {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "search" "routes" "examples" "reading";
+    gap: 26px;
+    align-items: stretch;
+  }
+
+  .home-start-copy h1 {
+    max-width: 330px;
+    font-size: 28px;
+    line-height: 1.35;
+  }
+
+  .home-start-copy > p {
+    max-width: 340px;
+    margin-top: 14px;
+    font-size: 14px;
+    line-height: 1.72;
+  }
+
+  .home-entry-lookup {
+    margin-top: 20px;
+  }
+
+  .home-entry-search {
+    grid-template-columns: minmax(0, 1fr) 68px;
+  }
+
+  .home-entry-search input,
+  .home-entry-search-submit {
+    min-height: 48px;
+    height: 48px;
+    font-size: 14px;
+  }
+
+  .home-brand-shortcuts,
+  .home-brand-shortcut {
+    font-size: 12px;
+  }
+
+  .home-entry-routes {
+    gap: 18px;
+    padding: 22px 0 0;
+  }
+
+  .home-entry-route {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .home-entry-route h2 {
+    font-size: 17px;
+  }
+
+  .home-entry-route p,
+  .home-entry-route > button {
+    font-size: 12px;
+  }
+
+  .home-product-example {
+    padding-top: 4px;
+  }
+
+  .home-example-products button {
+    min-height: 44px;
+  }
+
+  .home-example-products img {
+    width: 100%;
+    height: 112px;
+    padding: 16px;
+  }
+
+  .research-workspace {
+    width: 100%;
+  }
+
+  .research-results,
+  .research-filters,
+  .research-quick-view {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .research-shell .research-result-row,
+  .research-shell.is-inspecting .research-result-row {
+    grid-template-columns: minmax(0, 1fr) 72px;
+    gap: 10px;
+  }
+
+  .research-shell .research-result-card,
+  .research-shell.is-inspecting .research-result-card {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 4px 14px;
+    min-height: 104px;
+    padding: 16px 0;
+  }
+
+  .research-result-image,
+  .research-result-card .image-placeholder {
+    width: 54px;
+    height: 68px;
+  }
+
+  .research-result-identity strong {
+    font-size: 14px;
+  }
+
+  .research-shell .research-results .research-result-card .research-result-meta,
+  .research-shell .research-results .research-result-card .research-result-packages,
+  .result-relations,
+  .relation-line,
+  .research-result-facts,
+  .research-result-link,
+  .research-result-compare > span,
+  .research-result-compare > strong {
+    font-size: 12px;
+  }
+
+  .research-shell .research-result-compare {
+    min-width: 64px;
+    margin-right: 0;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-workspace { gap: 24px; }
+  .research-shell[data-catalog-mode="lookup"] .research-pane-heading { display: none; }
+  .research-shell[data-catalog-mode="lookup"] .research-filter-scroll { padding: 0; }
+  .research-shell[data-catalog-mode="lookup"] .research-results-heading { padding-bottom: 12px; }
+  .research-shell[data-catalog-mode="lookup"] .research-results-heading strong { font-size: 22px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-row { gap: 12px; grid-template-columns: minmax(0, 1fr) 64px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    min-height: 120px;
+    gap: 4px 12px;
+    padding: 12px 0;
+  }
+  .research-shell[data-catalog-mode="lookup"] .research-result-image { width: 44px; height: 64px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-identity strong { font-size: 16px; }
+  .research-shell[data-catalog-mode="lookup"] .research-result-link {
+    grid-column: 2;
+    grid-row: auto;
+    min-height: 24px;
+    line-height: 24px;
+  }
+  .research-shell[data-catalog-mode="lookup"] .research-result-compare {
+    flex-direction: column;
+    min-width: 64px;
+    min-height: 48px;
+    gap: 0;
+    padding: 4px;
+  }
+
+  .detail-layout {
+    gap: 0;
+  }
+
+  .detail-identity {
+    padding: 20px 18px 18px;
+  }
+
+  .detail-identity-copy h1 {
+    font-size: 23px;
+  }
+
+  .detail-product-image,
+  .detail-image-placeholder {
+    height: 120px;
+    margin-top: 0;
+  }
+
+  .detail-tabs button {
+    min-height: 48px;
+    font-size: 13px;
+  }
+
+  .detail-section {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .detail-section-heading h2,
+  .detail-basis-block h3 {
+    font-size: 19px;
+  }
+
+  .detail-fact-lines .detail-fact {
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .detail-fact-lines .detail-fact > span,
+  .detail-summary-meta,
+  .detail-evidence-context,
+  .detail-note,
+  .detail-disclosure > summary,
+  .detail-basis-block > p {
+    font-size: 12px;
+  }
+
+  .detail-fact-lines .detail-fact > strong,
+  .detail-size-list {
+    font-size: 13px;
+  }
+
+  .detail-energy strong {
+    font-size: 21px;
+  }
+
+  .detail-nutrition-row > strong {
+    font-size: 16px;
+  }
+
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-brand,
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-summary span,
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls label {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .compare-stage .compare-current-nutrition-metric small,
+  .compare-stage .compare-current-nutrition-evidence,
+  .compare-stage .compare-evidence-details span,
+  .compare-stage .compare-evidence-details strong {
+    font-size: 12px;
+  }
+
+  .switch-find-hero,
+  .switch-step-main {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .switch-find-hero h1,
+  .switch-step-header h1 {
+    font-size: 26px;
+    line-height: 1.28;
+  }
+
+  .switch-find-hero > p,
+  .switch-step-header > p {
+    font-size: 13px;
+  }
+
+  .switch-find-result,
+  .switch-candidate-row {
+    min-height: 104px;
+  }
+
+  .switch-find-result-image,
+  .switch-candidate-image,
+  .switch-find-result .switch-image-placeholder {
+    width: 54px;
+    height: 68px;
+  }
+
+  .switch-find-result-copy > strong,
+  .switch-candidate-identity > strong {
+    font-size: 14px;
+  }
+
+  .switch-workflow-shell .switch-find-result-copy > small,
+  .switch-workflow-shell .switch-candidate-identity > small,
+  .switch-preview-facts,
+  .switch-inspector-section,
+  .switch-ingredient-note,
+  .switch-option-empty {
+    font-size: 12px;
+  }
+}
+
+/* Keep the thumbnail inside its existing 52px track when quick view narrows the list. */
+@media (min-width: 761px) {
+  .switch-workflow-shell .switch-results-workspace.is-inspecting .switch-candidate-image {
+    width: 52px;
+    height: 72px;
+  }
+}
+
+/* === Consumer foundation + HOME / LOOKUP presentation phase === */
+:root {
+  --cf-font: "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --atlas-bg: #fff;
+  --atlas-surface: #fff;
+  --atlas-soft: #f4f6f2;
+  --atlas-soft-2: #f4f6f2;
+  --atlas-ink: #17201d;
+  --atlas-muted: #5c6661;
+  --atlas-line: #d6ddd9;
+  --atlas-accent: #0f624d;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--cf-font);
+}
+
+.home-shell,
+.research-shell,
+.detail-stage,
+.compare-stage {
+  background: var(--atlas-bg);
+  color: var(--atlas-ink);
+}
+
+.site-header {
+  border-bottom-color: var(--atlas-line);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: none;
+}
+
+.site-wordmark,
+.research-brand {
+  color: var(--atlas-ink);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.04em;
+}
+
+.site-header .mode-button {
+  min-height: 44px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.site-header .mode-button.is-active { color: var(--atlas-ink); }
+.site-header .mode-button.is-active::after { background: var(--atlas-accent); }
+.site-status,
+.research-status { color: var(--atlas-muted); }
+
+/* HOME: search first, two alternate paths, two live catalog examples. */
+.home-main {
+  width: min(1120px, calc(100% - 64px));
+  padding-top: 48px;
+}
+
+.home-start {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "search" "routes" "examples" "reading";
+  gap: 26px;
+  align-items: start;
+}
+
+.home-start-copy {
+  grid-area: search;
+  max-width: none;
+  padding: 32px 36px 30px;
+  border: 0;
+  background: var(--atlas-surface);
+}
+
+.home-start-copy h1 {
+  max-width: 720px;
+  margin: 0;
+  color: var(--atlas-ink);
+  font-family: var(--cf-serif);
+  font-size: clamp(36px, 3vw, 44px);
+  font-weight: 500;
+  line-height: 1.28;
+  letter-spacing: -.035em;
+  word-break: keep-all;
+}
+
+.home-entry-lookup {
+  margin-top: 24px;
+  max-width: none;
+}
+
+.home-entry-search {
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 0;
+  padding: 4px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: var(--atlas-surface);
+  box-shadow: none;
+}
+
+.home-entry-search:focus-within { border-color: var(--atlas-primary); }
+.home-entry-search:has(input:focus-visible) { border-color: transparent; outline: 2px solid var(--atlas-focus); outline-offset: 2px; }
+.home-entry-search input:focus-visible { outline: none; }
+.home-entry-search-icon { display: none; }
+.home-entry-search-field { min-width: 0; }
+
+.home-entry-search input {
+  min-height: 58px;
+  height: 58px;
+  padding-right: 16px;
+  padding-left: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--atlas-ink);
+  font-size: 17px;
+}
+
+.home-entry-search input::placeholder { color: var(--atlas-muted); opacity: .9; }
+
+.home-entry-search-submit {
+  min-width: 104px;
+  min-height: 58px;
+  height: 58px;
+  border-radius: 0;
+  background: var(--atlas-accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.home-brand-shortcuts {
+  gap: 4px 16px;
+  margin-top: 10px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+}
+
+.home-brand-shortcut {
+  min-height: 44px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.home-entry-board {
+  grid-area: routes;
+  margin-top: 0;
+  border-top: 0;
+}
+
+.home-entry-routes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px;
+  padding: 0 4px;
+}
+
+.home-entry-route {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  min-height: 72px;
+  padding: 10px 4px;
+}
+
+.home-entry-route h2 {
+  margin-bottom: 3px;
+  color: var(--atlas-ink);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.home-entry-route p {
+  color: var(--atlas-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.home-entry-route > button {
+  grid-column: 2;
+  align-self: center;
+  min-height: 44px;
+  color: var(--atlas-primary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.home-product-example {
+  grid-area: examples;
+  min-width: 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.home-product-example > span {
+  display: block;
+  margin: 0 0 12px;
+  color: var(--atlas-ink);
+  font-family: var(--cf-serif);
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -.02em;
+}
+
+.home-example-products {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.home-example-products .home-example-product {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto;
+  align-items: center;
+  align-content: center;
+  gap: 3px 18px;
+  min-width: 0;
+  min-height: 184px;
+  padding: 18px 20px;
+  border: 1px solid var(--atlas-line);
+  background: var(--atlas-surface);
+  color: var(--atlas-ink);
+  text-align: left;
+}
+
+.home-example-products .home-example-product + .home-example-product {
+  padding-left: 20px;
+  border-left: 1px solid var(--atlas-line);
+}
+
+.home-example-products img {
+  grid-column: 1;
+  grid-row: 1 / 6;
+  width: 140px;
+  height: 152px;
+  margin: 0;
+  padding: 2px;
+  background: transparent;
+  object-fit: contain;
+}
+
+.home-example-brand {
+  grid-column: 2;
+  display: block;
+  margin: 0 0 2px;
+  color: var(--atlas-ink) !important;
+  font-size: 13px !important;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.home-example-products strong {
+  grid-column: 2;
+  display: block;
+  color: var(--atlas-ink);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.48;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.home-example-meta,
+.home-example-package {
+  grid-column: 2;
+  display: block;
+  margin-top: 3px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.home-example-package { margin-top: 1px; }
+
+.home-reading-note {
+  grid-area: reading;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+}
+
+.home-reading-note button,
+.home-info-close {
+  min-height: 44px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+}
+
+/* LOOKUP: one vertical product stream; quick view occupies space only while inspecting. */
+.research-shell[data-catalog-mode="lookup"] .research-workspace {
+  width: min(1180px, calc(100% - 32px));
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-filters {
+  min-width: 0;
+  position: static;
+  border: 0;
+  border-bottom: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-results {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+
+.research-shell[data-catalog-mode="lookup"] .research-results-list {
+  display: block !important;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-row,
+.research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-row {
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 18px;
+  align-items: center;
+  margin: 0;
+  border-bottom: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-row.is-compared {
+  background: var(--atlas-soft);
+  box-shadow: inset 2px 0 0 var(--atlas-accent);
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-card,
+.research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-card {
+  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  gap: 4px 18px;
+  min-width: 0;
+  min-height: 124px;
+  padding: 14px 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-image,
+.research-shell[data-catalog-mode="lookup"] .research-result-card .image-placeholder {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  width: 72px;
+  height: 88px;
+  background: transparent;
+  object-fit: contain;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-identity {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  gap: 3px;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-brand {
+  color: var(--atlas-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-identity strong {
+  overflow: visible;
+  color: var(--atlas-ink);
+  font-size: 16px;
+  font-weight: 720;
+  line-height: 1.48;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-facts {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-link,
+.research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-link {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: start;
+  justify-self: start;
+  min-height: 44px;
+  padding: 0;
+  color: var(--atlas-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 44px;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-compare {
+  min-width: 92px;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: var(--atlas-surface);
+  color: var(--atlas-ink);
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-compare.is-added {
+  border-color: var(--atlas-accent);
+  background: var(--atlas-soft);
+  color: var(--atlas-accent);
+}
+
+.research-shell[data-catalog-mode="lookup"]:not(.is-inspecting) .research-quick-view {
+  display: none;
+}
+
+@media (min-width: 761px) {
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-workspace {
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 24px;
+  }
+
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-filters {
+    grid-column: 1 / -1;
+  }
+
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-results {
+    grid-column: 1;
+  }
+
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-quick-view {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-main {
+    width: calc(100% - 32px);
+    padding-top: 18px;
+  }
+
+  .home-start {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "search" "routes" "examples" "reading";
+    gap: 20px;
+  }
+
+  .home-start-copy { padding-top: 0; }
+
+  .home-start-copy h1 {
+    max-width: 340px;
+    font-size: 32px;
+    line-height: 1.16;
+  }
+
+  .home-entry-lookup { margin-top: 18px; }
+
+  .home-entry-search {
+    grid-template-columns: minmax(0, 1fr) 76px;
+  }
+
+  .home-entry-search input,
+  .home-entry-search-submit {
+    min-height: 52px;
+    height: 52px;
+    font-size: 16px;
+  }
+
+  .home-entry-search-submit { min-width: 76px; }
+
+  .home-entry-routes {
+    padding-top: 6px;
+  }
+
+  .home-entry-route {
+    min-height: 50px;
+    padding: 3px 0;
+  }
+
+  .home-entry-route h2 { font-size: 14px; }
+  .home-entry-route p { font-size: 12px; }
+
+  .home-product-example {
+    margin: 0 -16px;
+    padding: 14px 16px 8px;
+  }
+
+  .home-product-example > span { margin-bottom: 4px; }
+  .home-example-products .home-example-product { padding: 10px 8px 6px; }
+  .home-example-products img { height: 124px; padding: 5px; }
+  .home-example-products strong { font-size: 15px; line-height: 1.46; }
+  .home-example-meta,
+  .home-example-package { font-size: 12px; }
+
+  .research-shell[data-catalog-mode="lookup"] .research-workspace {
+    width: 100%;
+    gap: 14px;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-filters,
+  .research-shell[data-catalog-mode="lookup"] .research-results,
+  .research-shell[data-catalog-mode="lookup"] .research-quick-view {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-row,
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-row {
+    grid-template-columns: minmax(0, 1fr) 72px;
+    gap: 8px;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-card,
+  .research-shell[data-catalog-mode="lookup"].is-inspecting .research-result-card {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 4px 10px;
+    min-height: 104px;
+    padding: 10px 0;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-image,
+  .research-shell[data-catalog-mode="lookup"] .research-result-card .image-placeholder {
+    width: 56px;
+    height: 68px;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-identity strong {
+    font-size: 15px;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-compare {
+    min-width: 72px;
+    min-height: 44px;
+    padding: 4px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .home-example-products .home-example-product { padding-right: 6px; padding-left: 6px; }
+  .home-example-products img { height: 124px; }
+  .home-example-products strong { font-size: 15px; }
+}
+/* === End consumer foundation + HOME / LOOKUP presentation phase === */
+
+/* Bind existing shared tokens and preserve original package pixels. */
+:root{--cf-bg:var(--atlas-bg);--cf-surface:var(--atlas-surface);--cf-soft:var(--atlas-soft);--cf-ink:var(--atlas-ink);--cf-muted:var(--atlas-muted);--cf-line:var(--atlas-line);--cf-accent:var(--atlas-accent);--cf-accent-soft:var(--atlas-soft);--research-danger:#b42318;--detail-danger:#b42318;--consumer-danger:#b42318}
+.site-header.site-header{height:72px;min-height:72px;background:var(--atlas-bg)}
+.site-header.site-header .site-wordmark{font-size:20px;font-weight:800;letter-spacing:-.04em}
+.home-entry-search-field{padding-left:0}
+.home-example-products img,.research-result-image,.detail-product-image,.compare-product-identity img,.switch-find-result-image,.switch-preview-image,.switch-candidate-image{mix-blend-mode:normal}
+@media(max-width:760px){.site-header.site-header{height:108px;min-height:108px;grid-template-rows:60px 48px}.site-header.site-header .site-wordmark{font-size:20px}.detail-stage .site-header.site-header{height:64px;min-height:64px;grid-template-rows:64px}}
+
+/* Keep the LOOKUP stream compact without changing its scroll or history surface. */
+.research-shell[data-catalog-mode="lookup"] .research-result-row{padding:0}
+.research-shell[data-catalog-mode="lookup"] .research-filter-scroll{padding:0 0 12px}
+.research-shell[data-catalog-mode="lookup"] .lookup-input{border:0;border-bottom:2px solid var(--atlas-ink);border-radius:0;background:transparent;font-size:16px;min-height:52px;padding:0 0 8px;box-shadow:none}
+.research-shell[data-catalog-mode="lookup"] .lookup-input:focus{border-bottom-color:var(--atlas-accent);box-shadow:none}
+
+/* === DETAIL / COMPARE ENERGY / SWITCH results presentation phase === */
+@media (min-width: 761px) {
+  .detail-layout {
+    width: min(1180px, calc(100% - 40px));
+    grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
+    gap: clamp(42px, 5vw, 72px);
+  }
+
+  .detail-identity {
+    padding-top: 18px;
+  }
+
+  .detail-product-image,
+  .detail-image-placeholder {
+    height: 240px;
+    margin-top: 14px;
+    background: transparent;
+    object-fit: contain;
+  }
+}
+
+.detail-identity-copy > span {
+  color: var(--atlas-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detail-identity-copy h1 {
+  overflow: visible;
+  margin-top: 4px;
+  color: var(--atlas-ink);
+  font-size: 28px;
+  line-height: 1.3;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.detail-identity-copy p {
+  margin-top: 7px;
+  color: var(--atlas-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.detail-identity-actions {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--atlas-line);
+}
+
+.detail-identity-actions button,
+.detail-inline-link,
+.detail-disclosure > summary {
+  min-height: 44px;
+}
+
+.detail-document,
+.detail-body,
+.detail-section {
+  min-width: 0;
+}
+
+.detail-tabs {
+  border-color: var(--atlas-line);
+  background: var(--atlas-bg);
+}
+
+.detail-tabs button {
+  min-height: 52px;
+  color: var(--atlas-muted);
+}
+
+.detail-tabs button.is-active {
+  color: var(--atlas-ink);
+  box-shadow: inset 0 -2px 0 var(--atlas-accent);
+}
+
+.detail-section {
+  border-bottom-color: color-mix(in srgb, var(--atlas-line) 55%, transparent);
+}
+
+.detail-section-heading h2 {
+  color: var(--atlas-ink);
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.detail-energy strong,
+.detail-nutrition-row > strong {
+  color: var(--atlas-ink);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.detail-energy strong {
+  font-size: 23px;
+}
+
+.detail-ingredient-copy,
+.detail-ingredient-list,
+.detail-ingredient-list-compact,
+.detail-ingredient-list li,
+.detail-ingredient-list-compact li {
+  font-size: 15.5px;
+  line-height: 1.68;
+}
+
+.detail-disclosure,
+.detail-variant-list,
+.detail-fact-lines {
+  border-color: var(--atlas-line);
+}
+
+@media (max-width: 760px) {
+  .detail-identity {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 10px 16px;
+    align-items: center;
+    padding: 18px 16px;
+  }
+
+  .detail-identity-copy {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .detail-product-image,
+  .detail-image-placeholder {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 112px;
+    height: 136px;
+    margin: 0;
+    background: transparent;
+    object-fit: contain;
+  }
+
+  .detail-identity-copy h1 {
+    font-size: 23px;
+    line-height: 1.36;
+  }
+
+  .detail-identity-actions {
+    grid-column: 2;
+    margin: 0;
+    padding-top: 8px;
+  }
+
+  .detail-identity-actions button {
+    min-height: 44px;
+  }
+}
+
+.compare-energy-value {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.compare-energy-bar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  background: var(--atlas-line);
+}
+
+.compare-energy-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--atlas-accent);
+}
+
+.compare-stage .compare-cell .compare-energy-value,
+.compare-stage .compare-mobile-two-product-value .compare-energy-value,
+.compare-stage .compare-current-nutrition-metric .compare-energy-value {
+  width: 100%;
+}
+
+@media (min-width: 761px) {
+  .switch-results-stage {
+    width: min(1180px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 28px 0 64px;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 36px;
+    align-items: start;
+  }
+
+  .switch-results-stage .switch-session-bar {
+    grid-column: 1;
+    position: sticky;
+    top: 20px;
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--atlas-line);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .switch-results-stage .switch-results-workspace {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .switch-results-stage .switch-results-workspace:not(.is-inspecting) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .switch-results-stage .switch-results-workspace.is-inspecting {
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 24px;
+  }
+}
+
+.switch-results-title {
+  padding: 14px 0 12px;
+  border-bottom: 1px solid var(--atlas-line);
+}
+
+.switch-results-title h1 {
+  margin: 0;
+  color: var(--atlas-ink);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -.04em;
+  word-break: keep-all;
+}
+
+.switch-results-stage .switch-session-bar > div:not(.switch-results-title) {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--atlas-line);
+}
+
+.switch-results-stage .switch-session-bar > div > span,
+.switch-results-stage .switch-session-current > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--atlas-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.switch-session-current-product {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.switch-session-current-image {
+  width: 72px;
+  height: 82px;
+  object-fit: contain;
+}
+
+.switch-session-current-product strong,
+.switch-results-stage .switch-session-bar > div > strong {
+  display: block;
+  overflow: visible;
+  color: var(--atlas-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.switch-session-current-product small {
+  display: block;
+  margin-top: 4px;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.switch-results-stage .switch-session-bar > button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--atlas-line);
+  background: var(--atlas-surface);
+  color: var(--atlas-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.switch-results-stage .switch-candidate-pane,
+.switch-results-stage .switch-candidate-inspector {
+  min-width: 0;
+  border-color: var(--atlas-line);
+  border-radius: 0;
+  background: var(--atlas-surface);
+  box-shadow: none;
+}
+
+.switch-results-stage .switch-candidate-item {
+  border-bottom: 1px solid var(--atlas-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.switch-results-stage .switch-candidate-item.is-compared {
+  background: var(--atlas-soft);
+  box-shadow: inset 2px 0 0 var(--atlas-accent);
+}
+
+.switch-results-stage .switch-candidate-identity > strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+@media (max-width: 760px) {
+  .switch-results-stage {
+    width: calc(100% - 32px);
+    margin: 0 auto;
+    padding: 18px 0 48px;
+  }
+
+  .switch-results-stage .switch-session-bar {
+    position: static;
+    padding: 0;
+    border: 0;
+    border-top: 1px solid var(--atlas-line);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .switch-results-title {
+    padding: 10px 0 8px;
+  }
+
+  .switch-results-title h1 {
+    font-size: 26px;
+  }
+
+  .switch-results-stage .switch-session-bar > div:not(.switch-results-title) {
+    padding: 8px 0;
+  }
+
+  .switch-session-current-product {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .switch-session-current-image {
+    width: 64px;
+    height: 72px;
+  }
+
+  .switch-results-stage .switch-results-workspace,
+  .switch-results-stage .switch-results-workspace.is-inspecting {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 12px;
+  }
+
+  .switch-results-stage .switch-candidate-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .switch-results-stage .switch-candidate-row {
+    grid-column: 1;
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 4px 10px;
+    min-width: 0;
+    min-height: 76px;
+    padding: 8px 0;
+  }
+
+  .switch-results-stage .switch-candidate-image {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 56px;
+    height: 68px;
+    object-fit: contain;
+  }
+
+  .switch-results-stage .switch-candidate-identity,
+  .switch-results-stage .switch-candidate-row .switch-relation-line,
+  .switch-results-stage .switch-candidate-open {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .switch-results-stage .switch-candidate-identity > strong {
+    font-size: 17px;
+    line-height: 1.45;
+  }
+
+  .switch-results-stage .switch-candidate-compare {
+    grid-column: 2;
+    min-width: 72px;
+    width: 72px;
+    min-height: 44px;
+    margin: 0;
+    padding: 4px;
+  }
+}
+/* === End DETAIL / COMPARE ENERGY / SWITCH results presentation phase === */
+
+/* Keep the compact current-food context coherent at narrow widths. */
+.switch-session-current-image{mix-blend-mode:normal;background:transparent}
+@media(max-width:760px){.switch-results-stage .switch-session-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}.switch-results-stage .switch-results-title,.switch-results-stage .switch-session-current{grid-column:1/-1}.switch-results-stage .switch-session-bar > button{grid-column:1/-1;justify-self:start;margin-bottom:10px}}
+@media(min-width:761px) and (max-width:1179px){.switch-results-stage .switch-results-workspace.is-inspecting{grid-template-columns:minmax(0,1fr)}}
+
+/* Resolve inherited wide-table rules within the current-food workspace. */
+.switch-workflow-shell .switch-results-stage{padding:24px 0 64px;background:var(--atlas-bg)}
+.switch-workflow-shell .switch-results-stage .switch-results-workspace{width:100%;margin:0;min-width:0}
+.switch-results-stage .switch-session-bar > div > span::after{content:none}
+.switch-results-stage .switch-session-bar > div + div{border-left:0}
+.switch-results-stage .switch-candidate-pane{border:0;background:transparent}
+.switch-results-stage .switch-candidate-heading{padding:0 0 18px;background:transparent}
+.switch-results-stage .switch-candidate-item{grid-template-columns:minmax(0,1fr) 72px;gap:16px;align-items:center}
+.switch-results-stage .switch-candidate-row,.switch-results-stage .switch-results-workspace.is-inspecting .switch-candidate-row{grid-template-columns:80px minmax(0,1fr);gap:8px 16px;min-height:120px;padding:18px 0}
+.switch-results-stage .switch-candidate-row .switch-candidate-image{grid-column:1;grid-row:1/4;width:80px;height:104px;align-self:start;justify-self:start}
+.switch-results-stage .switch-candidate-row .switch-candidate-identity,.switch-results-stage .switch-candidate-row .switch-candidate-relations,.switch-results-stage .switch-candidate-row .switch-candidate-open{grid-column:2;min-width:0}
+.switch-results-stage .switch-candidate-row .switch-candidate-identity{grid-row:1}
+.switch-results-stage .switch-candidate-row .switch-candidate-relations{grid-row:2}
+.switch-results-stage .switch-candidate-row .switch-candidate-open{grid-row:3}
+.switch-results-stage .switch-candidate-compare{width:72px;min-height:44px;padding:6px}
+@media(min-width:761px){.switch-results-stage .switch-session-bar{top:88px}.switch-workflow-shell .switch-results-stage .switch-results-workspace.is-inspecting{grid-template-columns:minmax(0,1fr) 330px;gap:24px}}
+@media(min-width:761px) and (max-width:1179px){.switch-workflow-shell .switch-results-stage{grid-template-columns:220px minmax(0,1fr);gap:24px}.switch-workflow-shell .switch-results-stage .switch-results-workspace.is-inspecting{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.switch-workflow-shell .switch-results-stage{padding:18px 0 48px}.switch-results-stage .switch-candidate-item{gap:10px}.switch-results-stage .switch-candidate-row,.switch-results-stage .switch-results-workspace.is-inspecting .switch-candidate-row{grid-template-columns:56px minmax(0,1fr);gap:6px 12px}.switch-results-stage .switch-candidate-row .switch-candidate-image{width:56px;height:72px}}
+
+.compare-energy-axis{display:flex;justify-content:space-between;color:var(--atlas-muted);font-size:10px;font-weight:400;line-height:1;letter-spacing:0}
+
+/* === Detail desktop rail correction + compact energy-axis cue === */
+@media (min-width: 761px) {
+  .detail-layout {
+    display: grid;
+    width: min(1180px, calc(100% - 40px));
+    grid-template-columns: minmax(200px, 220px) minmax(0, 1fr);
+    gap: clamp(32px, 4.5vw, 58px);
+    align-items: start;
+    margin: 0 auto;
+  }
+
+  .detail-identity {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    padding: 18px 0 24px;
+    gap: 14px;
+  }
+
+  .detail-identity-copy,
+  .detail-product-image,
+  .detail-image-placeholder,
+  .detail-identity-actions {
+    grid-column: auto;
+    grid-row: auto;
+    min-width: 0;
+  }
+
+  .detail-identity-copy {
+    order: 1;
+  }
+
+  .detail-product-image,
+  .detail-image-placeholder {
+    order: 2;
+    width: 100%;
+    height: 220px;
+    margin: 12px 0 0;
+    object-fit: contain;
+  }
+
+  .detail-identity-actions {
+    order: 3;
+    width: 100%;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+
+  .detail-identity-actions button {
+    min-height: 44px;
+  }
+
+  .detail-document {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1180px) {
+  .detail-layout {
+    grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
+    gap: clamp(46px, 5vw, 72px);
+  }
+
+  .detail-product-image,
+  .detail-image-placeholder {
+    height: 250px;
+  }
+}
+
+@media(min-width:761px){.detail-tabs{top:72px}.detail-body{width:100%;margin:24px 0 80px}}
+.switch-workflow-shell .switch-results-stage .switch-session-bar > div > span::after{content:none}
+.switch-workflow-shell .switch-results-stage .switch-session-bar > div > span{font-size:11px}
+.switch-workflow-shell .switch-results-stage .switch-candidate-pane{border:0;background:transparent}
+.switch-results-stage .switch-session-current-product .switch-image-placeholder{width:72px;height:82px}
+@media(max-width:760px){.switch-results-stage .switch-session-current-product .switch-image-placeholder{width:64px;height:72px}}
+@media(max-width:360px){
+ .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-actions{grid-template-columns:minmax(0,1fr)}
+ .detail-identity{grid-template-columns:84px minmax(0,1fr);padding:18px 0}
+ .detail-product-image,.detail-image-placeholder{width:84px;height:116px}
+ .detail-identity-copy h1{font-size:21px}
+}
+
+
+/* === 2026-10-06 hierarchy refinement: typography only outside HOME composition === */
+@media (max-width: 760px) {
+  .home-main {width:calc(100% - 24px);padding-top:24px;}
+  .home-start-copy {padding:24px 18px 22px;}
+  .home-start-copy h1 {max-width:340px;font-size:31px;font-weight:500;line-height:1.28;}
+  .home-start {grid-template-areas:"search" "routes" "examples" "reading";gap:20px;}
+  .home-entry-lookup {margin-top:20px;}
+  .home-entry-search {grid-template-columns:minmax(0,1fr) 78px;padding:3px;}
+  .home-entry-search input,.home-entry-search-submit {min-height:52px;height:52px;font-size:15px;}
+  .home-entry-search input {padding-right:10px;padding-left:12px;}
+  .home-entry-search-submit {min-width:78px;}
+  .home-brand-shortcuts,.home-brand-shortcut {font-size:13px;}
+  .home-entry-routes {grid-template-columns:minmax(0,1fr);gap:6px;padding:0 2px;}
+  .home-entry-route {min-height:64px;padding:8px 2px;}
+  .home-entry-route h2 {font-size:15px;}
+  .home-entry-route p {font-size:13px;}
+  .home-product-example {margin:0;padding:4px 0 0;}
+  .home-product-example > span {margin-bottom:10px;font-size:21px;}
+  .home-example-products {grid-template-columns:minmax(0,1fr);gap:12px;border-top:0;}
+  .home-example-products .home-example-product {grid-template-columns:104px minmax(0,1fr);gap:2px 12px;min-height:140px;padding:14px;}
+  .home-example-products .home-example-product + .home-example-product {padding-left:14px;border-left:1px solid var(--atlas-line);border-top:1px solid var(--atlas-line);}
+  .home-example-products img {width:104px;height:120px;padding:2px;}
+  .home-example-products strong {font-size:16.5px;line-height:1.48;}
+  .home-example-meta,.home-example-package {font-size:13px;line-height:1.55;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-picker {padding:0 0 12px;border:0;border-bottom:1px solid var(--atlas-line);background:transparent;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-summary strong,
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-summary span,
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls label,
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls label > span {font-size:13px;line-height:1.4;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-general-pair-controls select {min-height:44px;background:var(--atlas-surface);border-color:var(--atlas-line);font-size:13px;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) :is(.compare-mobile-two-product-overview,.compare-mobile-two-product-nutrition) {border:0;background:transparent;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-heads {gap:12px;border-bottom:1px solid var(--atlas-line);padding-bottom:8px;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-head {padding:0;gap:6px;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-head + .compare-mobile-two-product-head {border-left:0;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-name {font-size:15.5px;font-weight:650;line-height:1.45;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions {gap:6px;margin-top:auto;font-size:13px;font-weight:550;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions button {min-height:44px;padding:0;border:0;border-radius:0;background:transparent;color:var(--atlas-primary);}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-actions button:last-child {color:var(--atlas-muted);}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-table {background:transparent;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-row-label {padding:10px 8px 2px;border:0;background:transparent;color:var(--atlas-muted);font-size:13px;font-weight:550;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-value {padding:6px 8px 12px;border-left:0;border-right:0;border-bottom:1px solid var(--atlas-line);background:transparent;}
+  .compare-stage.is-general-compare:is(.is-general-overview, .is-general-nutrition) .compare-mobile-two-product-value + .compare-mobile-two-product-value {border-left:0;}
+}
+
+/* LOOKUP — product name first, supporting facts remain readable. */
+.research-shell[data-catalog-mode="lookup"] .research-results-heading strong {
+  color: var(--atlas-ink);
+  font-size: 19px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-brand {
+  font-size: 12.5px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-identity strong {
+  font-size: 16.5px;
+  font-weight: 680;
+  line-height: 1.48;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-results .research-result-card .research-result-meta,
+.research-shell[data-catalog-mode="lookup"] .research-results .research-result-card .research-result-packages,
+.research-shell[data-catalog-mode="lookup"] .research-result-facts {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.research-shell[data-catalog-mode="lookup"] .research-result-link,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare > span,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare > strong {
+  font-size: 13px;
+}
+
+/* DETAIL — reduce headline contrast without reducing factual text. */
+.detail-identity-copy h1 {
+  font-size: 26px;
+  font-weight: 740;
+  line-height: 1.34;
+  letter-spacing: -.025em;
+}
+
+.detail-identity-copy p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.detail-section-heading h2,
+.detail-basis-block h3 {
+  font-size: 18px;
+  font-weight: 680;
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+
+.detail-fact-lines .detail-fact > span,
+.detail-variant-row span,
+.detail-market-row span,
+.detail-summary-meta,
+.detail-evidence-context,
+.detail-note,
+.detail-disclosure > summary,
+.detail-basis-block > p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.detail-fact-lines .detail-fact > strong,
+.detail-variant-row strong,
+.detail-market-row strong {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.detail-nutrition-row > strong,
+.detail-ingredient-copy,
+.detail-ingredient-list,
+.detail-ingredient-list-compact,
+.detail-ingredient-list li,
+.detail-ingredient-list-compact li {
+  font-size: 15.5px;
+}
+
+/* COMPARE — restrained editorial title; factual text remains sans. */
+.compare-stage .compare-header h1 {
+  font-family: var(--cf-serif);
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.compare-stage .compare-header p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.compare-stage .compare-table .compare-row .compare-row-label,
+.compare-stage .compare-row-label,
+.compare-stage .compare-mobile-two-product-row-label {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.compare-stage .compare-section-row strong,
+.compare-stage .compare-section-row span,
+.compare-stage .compare-detail-link {
+  font-size: 13px;
+}
+
+.compare-stage .compare-remove {
+  font-size: 13px;
+}
+
+.compare-stage .compare-section-row span {
+  line-height: 1.5;
+}
+
+@media (min-width: 761px) {
+  .compare-stage .compare-product-copy > span {
+    padding-inline-end: 0;
+  }
+
+  .compare-stage .compare-remove {
+    top: auto;
+    bottom: 18px;
+    min-width: 44px;
+    width: 44px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0;
+    border-color: transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--atlas-muted);
+  }
+
+  .compare-stage .compare-remove:hover,
+  .compare-stage .compare-remove:focus-visible {
+    background: var(--atlas-row-tint);
+    color: var(--atlas-ink);
+  }
+}
+
+.compare-stage .compare-cell,
+.compare-stage .compare-table .compare-row .compare-cell,
+.compare-stage .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value,
+.compare-stage .compare-current-nutrition-metric,
+.compare-stage .compare-ingredient-text {
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+
+.compare-stage .compare-product-copy > span,
+.compare-stage .compare-column-role,
+.compare-stage .compare-product-copy small,
+.compare-stage .compare-mobile-two-product-brand,
+.compare-stage .compare-current-nutrition-evidence,
+.compare-stage .compare-evidence-details span,
+.compare-stage .compare-evidence-details strong,
+.compare-stage .compare-evidence-disclosure > summary,
+.compare-stage .compare-disclosure-content {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.switch-results-stage .switch-candidate-heading strong {
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.switch-workflow-shell .switch-candidate-identity > span {
+  color: var(--atlas-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+/* SWITCH — preserve candidate-name/relation QA contract while softening headings. */
+.switch-results-title h1,
+.switch-find-hero h1,
+.switch-step-header h1 {
+  font-size: 25px;
+  font-weight: 740;
+  line-height: 1.28;
+  letter-spacing: -.03em;
+}
+
+.switch-results-stage .switch-candidate-identity > strong {
+  font-size: 17px;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.switch-workflow-shell .switch-relation-line > strong,
+.switch-workflow-shell .switch-relation-line > span {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.switch-session-current-product strong,
+.switch-results-stage .switch-session-bar > div > strong {
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.5;
+}
+
+.switch-session-current-product small,
+.switch-workflow-shell .switch-candidate-identity > small,
+.switch-preview-facts,
+.switch-inspector-section {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .detail-identity-copy h1 { font-size: 22px; }
+  .compare-stage .compare-header h1 { font-size: 23px; }
+  .switch-results-title h1,
+  .switch-find-hero h1,
+  .switch-step-header h1 { font-size: 24px; }
+}
+/* === End 2026-10-06 hierarchy refinement === */
+
+.home-example-products .home-example-action{grid-column:2;justify-self:start;margin-top:4px;color:var(--atlas-accent);font-size:13px;line-height:1.5;font-weight:550}
+.home-example-products .home-example-product img{grid-row:1/6}
+.home-example-products .home-example-product:hover .home-example-action{text-decoration:underline;text-underline-offset:3px}
+
+/* === Color role refinement: consumer primary / selection / data === */
+:root {
+  --cf-serif: "Noto Serif KR", serif;
+  --atlas-bg: #fbf9f5;
+  --atlas-surface: #fff;
+  --atlas-ink: #171c22;
+  --atlas-muted: #5e645f;
+  --atlas-line: #e6e2da;
+  --atlas-primary: #23463c;
+  --atlas-primary-hover: #17362d;
+  --atlas-selection: #536b73;
+  --atlas-selection-bg: #eef2f2;
+  --atlas-data: #39413e;
+  --atlas-data-track: #d9dfdc;
+  --atlas-row-tint: #f7f7f7;
+  --atlas-soft: var(--atlas-row-tint);
+  --atlas-soft-2: var(--atlas-row-tint);
+  --atlas-focus: #16372c;
+  --atlas-accent: var(--atlas-primary);
+  --cf-accent: var(--atlas-primary);
+}
+
+/* Brand expression: primary is visible in the service mark and real primary actions. */
+.site-wordmark::before {
+  background: var(--atlas-primary);
+}
+
+.home-entry-search-submit:not(:disabled),
+:is(.research-shell, .switch-workflow-shell, .detail-stage) :is(.primary-action, .switch-primary-action):not(:disabled) {
+  border-color: var(--atlas-primary);
+  background: var(--atlas-primary);
+  color: #fff;
+}
+
+.home-entry-search-submit:not(:disabled):hover,
+:is(.research-shell, .switch-workflow-shell, .detail-stage) :is(.primary-action, .switch-primary-action):not(:disabled):hover {
+  border-color: var(--atlas-primary-hover);
+  background: var(--atlas-primary-hover);
+}
+
+.home-example-products .home-example-action,
+.research-shell[data-catalog-mode="lookup"] .research-result-link,
+.detail-inline-link {
+  color: var(--atlas-primary);
+}
+
+/* Product-brand facts are facts, not action or quality signals. */
+.home-example-brand,
+.research-shell[data-catalog-mode="lookup"] .research-result-brand,
+.detail-identity-copy > span {
+  color: var(--atlas-ink) !important;
+}
+
+.switch-reference-label,
+.switch-step-header > span,
+.switch-session-bar > div > span,
+.switch-session-current > span {
+  color: var(--atlas-muted);
+}
+
+/* Navigation and selected-for-comparison state use a separate non-ranking cue. */
+.site-header.site-header .mode-button.is-active::after {
+  background: var(--atlas-selection);
+}
+
+.detail-tabs button.is-active,
+.compare-stage .compare-tabs button.is-active {
+  color: var(--atlas-ink);
+  border-bottom-color: var(--atlas-selection);
+  box-shadow: inset 0 -2px 0 var(--atlas-selection);
+}
+
+.research-shell .research-result-row.is-compared,
+.research-shell[data-catalog-mode="lookup"] .research-result-row.is-compared,
+.switch-results-stage .switch-candidate-item.is-compared,
+.switch-find-result.is-selected {
+  background: var(--atlas-selection-bg);
+  box-shadow: inset 2px 0 0 var(--atlas-selection);
+}
+
+.research-shell .research-result-compare.is-added,
+.research-shell[data-catalog-mode="lookup"] .research-result-compare.is-added,
+.research-shell .switch-compare-action.is-added,
+.switch-workflow-shell .switch-compare-action.is-added,
+.switch-results-stage .switch-candidate-compare.is-added {
+  border-color: var(--atlas-selection);
+  background: var(--atlas-selection-bg);
+  color: var(--atlas-selection);
+}
+
+/* Comparison-table rhythm remains neutral rather than sharing selection color. */
+.compare-stage .compare-row.is-different .compare-cell,
+.compare-stage .compare-row:nth-child(even) .compare-cell {
+  background: var(--atlas-row-tint);
+}
+
+/* Energy is a shared-axis data graphic, not a primary action or recommendation signal. */
+.compare-energy-bar {
+  background: var(--atlas-data-track);
+}
+
+.compare-energy-bar > span {
+  background: var(--atlas-data);
+}
+
+/* Preserve the existing focus geometry while separating focus from selection state. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.detail-disclosure > summary:focus-visible {
+  outline-color: var(--atlas-focus);
+}
+/* === End color role refinement === */
+
+/* Keep both words in the selected SWITCH control in the same state color. */
+.switch-results-stage .switch-candidate-compare.is-added > span {
+  color: inherit;
+}
+
+/* Restored keyboard focus must remain visible over the comparison surfaces. */
+.compare-stage .compare-mobile-general-pair-controls select:focus-visible {
+  outline: 2px solid var(--atlas-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.compare-stage .compare-table-wrap:focus-visible {
+  outline: 2px solid var(--atlas-focus);
+  outline-offset: -2px;
+}
+
+/* Optional visual reading; nutrition facts remain available in either format. */
+.compare-stage .compare-nutrition-tools {
+  display: flex; flex-wrap: wrap; align-items: start; gap: 0 18px;
+  width: 100%; padding: 0; border-bottom: 1px solid var(--atlas-line);
+  color: var(--atlas-ink); font-size: 13px; line-height: 1.55;
+}
+.compare-stage .compare-nutrition-tools > button,
+.compare-stage .compare-nutrition-tools > details > summary {
+  display: inline-flex; align-items: center; min-width: 44px; min-height: 44px;
+  margin: 0; padding: 0 4px; border: 0; border-radius: 0;
+  background: transparent; color: var(--atlas-muted); font: inherit; font-weight: 600; cursor: pointer;
+}
+.compare-stage .compare-relations strong > .compare-condition-difference {
+  display: block; color: inherit; font: inherit;
+}
+.compare-stage .compare-graph-state {
+  margin-left: 8px; color: var(--atlas-muted); font-size: 12px; font-weight: 500;
+}
+.compare-stage .compare-nutrition-tools > button[aria-pressed="true"] .compare-graph-state { color: var(--atlas-ink); }
+.compare-stage .compare-nutrition-tools > button[aria-pressed="true"] {
+  color: var(--atlas-ink); text-decoration: underline; text-underline-offset: 4px;
+}
+.compare-stage .compare-nutrition-tools > button:disabled { opacity: .55; cursor: default; }
+.compare-stage .compare-nutrition-tools > details { margin: 0; min-width: 0; flex: 1; }
+.compare-stage .compare-nutrition-tools > details > summary::after { content: '＋'; margin-left: 7px; }
+.compare-stage .compare-nutrition-tools > details[open] > summary::after { content: '−'; }
+.compare-stage .compare-nutrition-tools > details > summary::-webkit-details-marker { display: none; }
+.compare-stage .compare-nutrition-tools p { margin: 0 4px 12px; color: var(--atlas-muted); font-size: 13px; line-height: 1.6; }
+.compare-stage .compare-nutrition-tools > button:focus-visible,
+.compare-stage .compare-nutrition-tools > details > summary:focus-visible { outline: 2px solid var(--atlas-focus); outline-offset: -2px; }
+.compare-stage .compare-nutrition-tools-mobile { display: none; }
+@media (max-width: 760px) {
+  .compare-stage .compare-nutrition-tools-desktop { display: none; }
+  .compare-stage .compare-nutrition-tools-mobile { display: block; }
+  .compare-stage .compare-nutrition-tools { gap: 0 12px; }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-identity {
+    grid-template-columns: 44px minmax(0, 1fr); gap: 7px; align-items: start;
+  }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-identity img,
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-identity .compare-image-placeholder {
+    width: 44px; height: 56px; background: transparent;
+  }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-meta {
+    display: grid; grid-column: 2; gap: 2px; min-width: 0;
+  }
+  .compare-stage .compare-switch-mobile-nutrition .compare-mobile-two-product-brand { grid-column: auto; }
+}
+
+/* Product-led hierarchy: readable facts, quieter labels and deliberate image space.
+   Applies the existing reference direction without changing data or navigation. */
+.home-start-copy { padding: 20px 0 12px; background: transparent; }
+.home-start { gap: 28px; }
+.home-entry-route { padding: 12px 0; border-top: 1px solid var(--atlas-line); }
+.home-entry-route h2 { font-weight: 600; }
+.home-entry-route p { font-size: 14px; }
+.home-product-example > span { margin-bottom: 20px; font-size: 26px; }
+.home-example-products { gap: 28px; }
+.home-example-products .home-example-product,
+.home-example-products .home-example-product + .home-example-product {
+  padding: 0; border: 0; background: transparent; gap: 5px 24px;
+}
+.home-example-products .home-example-product img { height: 180px; background: var(--atlas-surface); }
+.home-example-products .home-example-product strong { font-weight: 600; }
+
+.research-shell[data-catalog-mode="lookup"] .research-result-card .research-result-brand,
+.switch-results-stage .switch-candidate-identity > span { font-weight: 500; }
+.research-shell[data-catalog-mode="lookup"] .research-result-card .research-result-name,
+.switch-results-stage .switch-candidate-identity > strong { font-weight: 600; }
+.research-shell[data-catalog-mode="lookup"] .research-result-card .research-result-facts { color: var(--atlas-muted); }
+
+.detail-identity-copy h1 { font-size: 28px; font-weight: 600; line-height: 1.4; }
+.detail-identity-copy > span { font-weight: 500; }
+.detail-section-heading h2 { font-weight: 600; }
+.detail-section-heading { border-bottom: 0; }
+.detail-fact-lines .detail-fact > span { font-weight: 400; }
+
+.compare-stage .compare-applied-criteria {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px;
+  padding: 0; margin: 0 0 20px; border: 0; background: transparent;
+}
+.compare-stage .compare-applied-criteria > strong { font-size: 13px; font-weight: 500; color: var(--atlas-muted); }
+.compare-stage .compare-applied-criteria > div { gap: 6px 18px; }
+.compare-stage .compare-applied-criteria span { min-height: 0; padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 500; }
+.compare-stage .compare-relations { gap: 10px; }
+.compare-stage .compare-relations p { grid-template-columns: 1fr; gap: 3px; }
+.compare-stage .compare-relations p > span { font-size: 13px; font-weight: 400; color: var(--atlas-muted); line-height: 1.5; }
+.compare-stage .compare-relations p > strong { font-size: 15.5px; font-weight: 500; line-height: 1.6; color: var(--atlas-ink); }
+.compare-stage .compare-relations strong > .compare-condition-difference { font: inherit; color: inherit; }
+.compare-stage .compare-product-copy > strong { font-size: 18px; font-weight: 600; line-height: 1.45; }
+.compare-stage .compare-product-copy > span { font-weight: 500; }
+.compare-stage .compare-section-row { background: transparent; }
+.compare-stage .compare-section-row strong { font-size: 15px; font-weight: 600; }
+.compare-stage .compare-row .compare-row-label { background: transparent; font-weight: 500; }
+
+.switch-workflow-shell .switch-results-stage .switch-session-bar > div > span { font-size: 13px; font-weight: 400; }
+.switch-results-stage .switch-session-bar > div > strong { font-weight: 500; }
+.switch-results-stage .switch-results-title h1 { font-size: 27px; font-weight: 600; }
+.switch-results-stage .switch-candidate-heading strong { font-weight: 600; }
+
+@media (min-width: 761px) {
+  .compare-stage .compare-product-identity { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 24px; align-items: start; }
+  .compare-stage .compare-product-identity img,
+  .compare-stage .compare-product-identity .compare-image-placeholder { width: 96px; height: 124px; object-fit: contain; }
+  .compare-stage .compare-head-row:has(> :nth-child(5)) .compare-product-identity { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .compare-stage .compare-head-row:has(> :nth-child(5)) .compare-product-copy > strong { font-size: 16.5px; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .compare-stage .compare-product-identity { grid-template-columns: minmax(0,1fr); gap: 12px; }
+}
+@media (max-width: 760px) {
+  .home-start-copy { padding: 8px 0 0; }
+  .home-start-copy h1 { font-size: 32px; line-height: 1.4; }
+  .home-start { gap: 24px; }
+  .home-entry-route h2 { font-size: 15px; }
+  .home-entry-route p { font-size: 13px; }
+  .home-product-example { margin: 0; padding: 8px 0 0; }
+  .home-product-example > span { font-size: 23px; margin-bottom: 16px; }
+  .home-example-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+  .home-example-products .home-example-product,
+  .home-example-products .home-example-product + .home-example-product {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 0; padding: 0; border: 0;
+  }
+  .home-example-products .home-example-product img { width: 100%; height: 150px; padding: 12px; margin-bottom: 8px; }
+  .home-example-products .home-example-product strong { font-size: 16px; line-height: 1.45; }
+  .home-example-products .home-example-brand { font-weight: 500; }
+  .home-example-products .home-example-action { min-height: 44px; display: flex; align-items: center; }
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .research-result-card { grid-template-columns: 88px minmax(0, 1fr); gap: 8px 16px; }
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-card .research-result-image { width: 88px; height: 112px; object-fit: contain; }
+  .detail-identity { grid-template-columns: 120px minmax(0, 1fr); gap: 16px; }
+  .detail-product-image,.detail-image-placeholder { width: 120px; height: 148px; object-fit: contain; }
+  .detail-identity-copy h1 { font-size: 24px; font-weight: 600; }
+  .detail-identity-copy p { font-size: 13px; }
+  .detail-identity-actions { grid-column: 2; }
+  .compare-stage .compare-applied-criteria { gap: 6px 14px; margin-bottom: 16px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-picker { border: 0; margin-bottom: 20px; padding: 0; gap: 8px; }
+  .compare-stage .compare-mobile-general-pair-controls { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .compare-stage .compare-mobile-general-pair-controls label { grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 8px; }
+  .compare-stage .compare-mobile-general-pair-controls select { font-size: 14px; }
+  .compare-stage .compare-mobile-two-product-heads { gap: 20px; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition { border: 0; background: transparent; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-heads { padding-bottom: 12px; border-bottom: 1px solid var(--atlas-line); }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-head { padding: 0; border: 0; gap: 6px; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-actions { gap: 6px; margin-top: auto; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-actions button { min-height: 44px; padding: 0; border: 0; background: transparent; font-size: 13px; color: var(--atlas-primary); }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-actions button:last-child { color: var(--atlas-muted); }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-table { background: transparent; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-row-label { padding: 10px 8px 2px; border: 0; background: transparent; font-size: 13px; font-weight: 400; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-value { padding: 6px 8px 12px; border-left: 0; border-right: 0; border-bottom: 1px solid var(--atlas-line); background: transparent; }
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-value + .compare-mobile-two-product-value { border-left: 0; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity img,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity img,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-identity .compare-image-placeholder { grid-column: 1; grid-row: 1; width: 68px; height: 88px; object-fit: contain; background: var(--atlas-surface); }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-meta,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-meta { display: contents; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-brand,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-brand { grid-column: 1 / -1; font-size: 13px; font-weight: 500; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-name,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-name { font-size: 17px; font-weight: 600; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-slot,
+  .compare-stage.is-switch-nutrition .compare-switch-mobile-nutrition .compare-mobile-two-product-slot { grid-column: 2; grid-row: 1; }
+  .compare-stage .compare-mobile-two-product-slot { font-size: 12px; font-weight: 400; color: var(--atlas-muted); word-break: keep-all; overflow-wrap: normal; }
+  .compare-stage .compare-mobile-two-product-section-label { background: transparent; }
+  .compare-stage .compare-mobile-two-product-section-label strong { font-size: 15px; font-weight: 600; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding-block: 18px; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header p { display: none; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header h1 { font-size: 24px; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header > button { min-height: 44px; font-size: 12px; }
+  .switch-results-stage .switch-session-bar { background: transparent; border: 0; padding: 0 0 20px; gap: 10px 16px; }
+  .switch-results-stage .switch-session-bar > div { padding: 0; border: 0; }
+  .switch-results-stage .switch-results-title { padding-bottom: 8px; }
+  .switch-results-stage .switch-session-current { padding-bottom: 10px; }
+  .switch-results-stage .switch-session-bar > button { margin-bottom: 0; }
+  .switch-results-stage .switch-session-current { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 2px 14px; }
+  .switch-results-stage .switch-session-current > span { grid-column: 2; align-self: end; }
+  .switch-results-stage .switch-session-current-product { display: contents; }
+  .switch-results-stage .switch-session-current-product > img,
+  .switch-results-stage .switch-session-current-product > .switch-image-placeholder { grid-column: 1; grid-row: 1 / 3; width: 64px; height: 72px; }
+  .switch-results-stage .switch-session-current-product > div:not(.switch-image-placeholder) { grid-column: 2; grid-row: 2; }
+  .switch-results-stage .switch-candidate-heading { padding-top: 16px; border: 0; border-top: 1px solid var(--atlas-line); }
+  .switch-results-stage .switch-candidate-row,
+  .switch-results-stage .switch-results-workspace.is-inspecting .switch-candidate-row { grid-template-columns: 68px minmax(0,1fr); gap: 8px 14px; }
+  .switch-results-stage .switch-candidate-row .switch-candidate-image { width: 68px; height: 88px; }
+}
+
+/* Mobile comparison: select and identify without delaying the values.
+   Full names, 68x88 photographs and 44px native controls remain. */
+@media (max-width: 760px) {
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-picker { margin-bottom: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-general-pair-controls label { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-heads { gap: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity { grid-template-rows: min-content 1fr; row-gap: 4px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity img,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder { grid-row: 1 / 3; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-brand { grid-column: 2; grid-row: 2; align-self: start; font-size: 12px; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition):has(.compare-mobile-general-pair-picker) .compare-mobile-two-product-slot { display: none; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition):has(.compare-mobile-general-pair-picker) .compare-mobile-two-product-brand { grid-row: 1 / 3; }
+  .compare-stage.is-general-nutrition .compare-mobile-two-product-nutrition-table > .compare-mobile-two-product-section:first-of-type { display: none; }
+}
+@media (max-width: 360px) {
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-brand,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition):has(.compare-mobile-general-pair-picker) .compare-mobile-two-product-brand { grid-column: 1 / -1; grid-row: 2; }
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity img,
+  .compare-stage.is-general-compare:is(.is-general-overview,.is-general-nutrition) .compare-mobile-two-product-identity .compare-image-placeholder { grid-row: 1; }
+}

@@ -1,0 +1,101 @@
+/* Nutrition reading clarity: evidence access and sticky identity only. */
+.compare-stage .compare-nutrition-exception {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--atlas-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.compare-stage .compare-mobile-two-product-key-brand {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--atlas-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.compare-stage.is-general-nutrition .compare-scope-summary,
+.compare-stage.is-switch-nutrition .compare-scope-summary {
+  display: grid;
+  gap: 4px;
+}
+
+.compare-stage.is-general-nutrition .compare-evidence-disclosure > summary,
+.compare-stage.is-switch-nutrition .compare-evidence-disclosure > summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (min-width: 761px) {
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-table-wrap {
+    overflow: visible;
+  }
+
+  .compare-stage.is-general-nutrition .compare-two-product-nutrition-desktop .compare-head-row,
+  .compare-stage.is-switch-nutrition .compare-switch-nutrition-desktop .compare-head-row {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    background: var(--atlas-surface);
+    border-bottom: 1px solid var(--atlas-line);
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-head {
+    min-height: 0;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background: var(--atlas-surface);
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-identity {
+    display: block;
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-identity > img,
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-identity > .compare-image-placeholder,
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-copy > small,
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-detail-link,
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-remove,
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-column-role {
+    display: none;
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-copy > span {
+    color: var(--atlas-muted);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-head-row .compare-product-copy > strong {
+    font-size: 14px;
+    line-height: 1.4;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 760px) {
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-mobile-two-product-key th {
+    top: 0;
+    z-index: 14;
+    background: var(--atlas-surface);
+  }
+
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-mobile-two-product-key th > strong {
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+}

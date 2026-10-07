@@ -375,8 +375,7 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
       </thead>
 
       {items.some(hasRelationData) ? <>
-        <MobileTwoProductSection title="선택한 조건과 비교" />
-        <MobileTwoProductOverviewField fieldKey="relation" label="조건 확인" items={items} render={(item) => <RelationSummary item={item} />} />
+        <MobileTwoProductOverviewField fieldKey="relation" label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
       </> : null}
 
       <MobileTwoProductSection title="제품 기본 정보" />
@@ -1034,7 +1033,6 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           {items.some(hasRelationData) ? <>
-            <CompareSection title="선택한 조건과 비교" />
             <CompareRow label="선택한 조건과 비교" items={items} render={(item) => <RelationSummary item={item} />} />
           </> : null}
           <CompareSection title="제품 기본 정보" />

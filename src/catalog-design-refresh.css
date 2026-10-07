@@ -3093,7 +3093,13 @@ summary:focus-visible,
   min-height: 44px; padding: 8px 10px; border: 0; background: transparent;
   color: var(--atlas-primary); font: inherit; font-size: 14px; cursor: pointer;
 }
-.switch-restart-actions { display: flex; justify-content: flex-end; padding: 8px 24px 0; }
+.switch-restart-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.switch-task-status { font-size: 11px; color: var(--atlas-muted); }
+@media (max-width: 760px) {
+  .switch-restart-actions { gap: 2px; }
+  .switch-restart-actions button { font-size: 12px; padding: 8px 0 8px 8px; }
+  .switch-task-status { font-size: 10px; }
+}
 .home-switch-actions button:focus-visible, .switch-restart-actions button:focus-visible {
   outline: 2px solid currentColor; outline-offset: 2px;
 }

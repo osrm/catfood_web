@@ -297,14 +297,16 @@ function SwitchTopbar({
   error,
   onHome,
   onModeChange,
+  onRestart,
 }: {
   productCount: number
   loading: boolean
   error: string | null
   onHome: () => void
   onModeChange: (mode: SecondaryMode) => void
+  onRestart: () => void
 }) {
-  return <SiteHeader className="research-topbar" onHome={onHome} active="switch" onModeChange={(mode) => { if (mode !== 'switch') onModeChange(mode) }} status={<><span>제품 {productCount || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />
+  return <SiteHeader className="research-topbar" onHome={onHome} active="switch" onModeChange={(mode) => { if (mode !== 'switch') onModeChange(mode) }} ><div className="switch-restart-actions"><span className="switch-task-status">{error ? '연결 오류' : loading ? '불러오는 중' : <>제품 {productCount || '—'}개</>}</span><button type="button" onClick={onRestart}>처음부터 시작</button></div></SiteHeader>
 }
 
 function ReferenceRail({
@@ -1108,17 +1110,14 @@ export default function SwitchFlow({
     setKeep((current) => ({ ...current, [field]: current[field] === value ? '' : value }))
   }
 
-  function renderRestartAction() {
-    return <div className="switch-restart-actions"><button type="button" onClick={() => {
-        if (onRestart) onRestart()
-        else updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null)
-      }}>처음부터 시작</button></div>
+  function restartTask() {
+    if (onRestart) onRestart()
+    else updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null)
   }
 
   function renderNavigation() {
     return <div className="switch-task-navigation">
-      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} />
-      {renderRestartAction()}
+      <SwitchTopbar productCount={products.length} loading={loading} error={error} onHome={onHome} onModeChange={onModeChange} onRestart={restartTask} />
       {renderVariantRestoreStatus()}
     </div>
   }

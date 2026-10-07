@@ -2978,7 +2978,7 @@ summary:focus-visible,
 .switch-results-stage .switch-candidate-heading strong { font-weight: 600; }
 
 @media (min-width: 761px) {
-  .compare-stage .compare-product-identity { grid-template-columns: 96px minmax(0, 1fr); gap: 24px; align-items: start; }
+  .compare-stage .compare-product-identity { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 24px; align-items: start; }
   .compare-stage .compare-product-identity img,
   .compare-stage .compare-product-identity .compare-image-placeholder { width: 96px; height: 124px; object-fit: contain; }
   .compare-stage .compare-head-row:has(> :nth-child(5)) .compare-product-identity { grid-template-columns: minmax(0,1fr); gap: 12px; }

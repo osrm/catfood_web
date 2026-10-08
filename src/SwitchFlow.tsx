@@ -905,6 +905,7 @@ export default function SwitchFlow({
       ingredientReviewedNotFound: item.ingredientReviewedNotFound,
       ingredientInsufficient: item.ingredientInsufficient,
     })), [compareIds, candidates])
+  const compareDetailOpen = compareOpen && compareItems.some((item) => item.product.product_id === detailProductId)
 
   useLayoutEffect(() => {
     if (selectedCandidateId || !pendingCandidateFocus.current) return
@@ -1551,6 +1552,7 @@ export default function SwitchFlow({
           onDetailOpen={openSwitchDetail}
           onDetailClose={closeSwitchDetail}
           onDetailTabChange={changeSwitchDetailTab}
+          switchDetailNavigation={{ onHome, onModeChange, onRestart: restartTask }}
           onClose={closeSwitchCompare}
           onRemove={removeSwitchCompare}
         />
@@ -1743,7 +1745,7 @@ export default function SwitchFlow({
   }
 
   if (detailProduct && !compareOpen) {
-    return <ProductDetail product={detailProduct} onHome={onHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {
@@ -1760,8 +1762,8 @@ export default function SwitchFlow({
   }
 
   return (
-    <div className="research-shell switch-workflow-shell">
-      {renderNavigation()}
+    <div className={`research-shell switch-workflow-shell${compareDetailOpen ? ' is-detail-view' : ''}`}>
+      {compareDetailOpen ? null : renderNavigation()}
       {step === 'current' ? renderCurrentStage() : null}
       {step === 'sku' ? renderSkuStep() : null}
       {step === 'change' ? renderChangeStep() : null}

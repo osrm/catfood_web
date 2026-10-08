@@ -3103,3 +3103,23 @@ summary:focus-visible,
 .home-switch-actions button:focus-visible, .switch-restart-actions button:focus-visible {
   outline: 2px solid currentColor; outline-offset: 2px;
 }
+
+/* SWITCH details own one header; CompareView stays mounted to preserve its selected candidate. */
+.research-shell.switch-workflow-shell.is-detail-view > .detail-stage { grid-row: 1 / -1; }
+.switch-detail-header .site-header-actions { display: flex; align-items: center; gap: 20px; }
+@media (max-width: 1000px) {
+  .detail-stage.is-switch-detail .site-header.site-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 60px 48px 44px;
+    gap: 0;
+    height: 152px;
+    min-height: 152px;
+    padding: 0 20px;
+  }
+  .switch-detail-header .site-wordmark { grid-column: 1; grid-row: 1; }
+  .switch-detail-header .site-header-actions { display: contents; }
+  .switch-detail-header .detail-restart-action { grid-column: 2; grid-row: 1; }
+  .switch-detail-header .detail-return-action { grid-column: 1 / -1; grid-row: 3; justify-self: start; }
+  .detail-stage.is-switch-detail .site-header .mode-nav { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; gap: 18px; height: 48px; }
+  .detail-stage.is-switch-detail .detail-tabs { top: 152px; }
+}

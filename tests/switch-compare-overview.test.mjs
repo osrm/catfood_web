@@ -182,10 +182,7 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.match(document.querySelector('.compare-header p').textContent, /현재 사료와 2개 후보의 제품 정보를 같은 항목으로 비교합니다/)
 
-  const productFilters = requests.map((url) => url.searchParams.get('product_id')).filter(Boolean)
-  assert.ok(productFilters.length >= 4, `expected compare and variant requests, got ${requests.length}`)
-  assert.equal(productFilters.some((value) => value.includes(current.product_id)), false, `current product leaked into API filters: ${productFilters.join(' | ')}`)
-  assert.ok(productFilters.some((value) => value === 'in.(product_candidate_a,product_candidate_b)'))
+  assert.equal(requests.length, 0, 'overview must not start compare nutrition, ingredients, or variant reads')
 })
 
 test('mobile candidate disclosure opens, selects a candidate, closes, and restores toggle focus', async () => {
@@ -337,4 +334,158 @@ test('SWITCH overview keeps globally non-empty rows visible even when the select
   const targetMobileRow = [...document.querySelectorAll('.compare-switch-mobile-overview > .compare-mobile-overview-row')].find((row) => row.querySelector('.compare-mobile-row-label')?.textContent.trim() === '제품 표기 대상')
   assert.match(targetMobileRow.textContent, /실내묘/)
   assert.match(targetMobileRow.textContent, /확인된 값 없음/)
+})
+
+
+test('comparison tabs load only active data and reuse successful candidate variants within the mount', async () => {
+  await renderCompare()
+  assert.equal(requests.length, 0)
+
+  const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
+  const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
+  const overviewTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '개요')
+
+  await click(nutritionTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 2, 'SWITCH nutrition keeps candidate and current reads separate')
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 0)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 3, 'two candidates plus current variant lookup')
+
+  const afterNutrition = requests.length
+  await click(overviewTab)
+  assert.equal(requests.length, afterNutrition, 'overview must not start hidden reads after nutrition')
+
+  await click(ingredientsTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 3, 'candidate variants are reused from nutrition')
+  const afterIngredients = requests.length
+
+  await click(nutritionTab)
+  assert.equal(requests.length, afterIngredients, 'loaded nutrition/current/variant data are reused on tab round-trip')
+})
+
+test('general comparison overview is read-free and first active tab controls which comparison resource loads', async () => {
+  await renderCompare({ currentProduct: null })
+  assert.equal(requests.length, 0)
+  const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
+  const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
+  await click(ingredientsTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 0)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2)
+  const afterIngredients = requests.length
+  await click(nutritionTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2, 'variants stay reused across candidate tabs')
+  const afterNutrition = requests.length
+  await click(ingredientsTab)
+  assert.equal(requests.length, afterNutrition)
+  assert.ok(afterNutrition > afterIngredients)
+})
+
+test('deep-linked comparison tab starts only its required reads', async () => {
+  await renderCompare({ initialTab: 'ingredients' })
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 0)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2)
+})
+
+
+function nutritionFixture(productId, kcalPer100g = 422) {
+  return {
+    product_id: productId, variant_id: null, observation_scope: 'product', market_code: null, panel_type: null,
+    protein_pct: null, protein_qualifier: null, fat_pct: null, fat_qualifier: null, fiber_pct: null, fiber_qualifier: null,
+    moisture_pct: null, moisture_qualifier: null, ash_pct: null, ash_qualifier: null, kcal_per_kg: null,
+    kcal_per_100g: kcalPer100g, energy_basis: null, is_korea_market_observation: false, is_current_resolved_formula: true,
+    additional_nutrients: [], supplemental_nutrition_fields: [], basis_specific_nutrition_values: [],
+  }
+}
+
+function ingredientFixture(productId) {
+  return {
+    product_id: productId, variant_id: null, observation_scope: 'product', market_code: null, declaration_scope: 'full',
+    completeness_status: 'full', raw_text: '오리', ingredient_names: ['오리'], ingredient_count: 1,
+    is_korea_market_observation: false, is_current_resolved_formula: true,
+  }
+}
+
+test('SWITCH candidate nutrition manual retry clears the failed request key and reloads only candidate nutrition', async () => {
+  let candidateAttempts = 0
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input)); requests.push(url)
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      const filter = url.searchParams.get('product_id')
+      if (filter === 'in.(product_candidate_a,product_candidate_b)') {
+        candidateAttempts += 1
+        if (candidateAttempts === 1) return new Response('candidate failed', { status: 503 })
+        return Response.json([nutritionFixture(candidateA.product_id, 422), nutritionFixture(candidateB.product_id, 348)])
+      }
+      if (filter === 'in.(product_current)') return Response.json([nutritionFixture(current.product_id, 370)])
+    }
+    return Response.json([])
+  }
+  await renderCompare({ initialTab: 'nutrition' })
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 2)
+  const retry = [...document.querySelectorAll('button')].find((node) => node.textContent.trim() === '후보 다시 시도')
+  assert.ok(retry)
+  await click(retry)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 3)
+  assert.match(document.body.textContent, /422 kcal\/100g/)
+})
+
+test('candidate nutrition failure belongs to the old product key and does not block a replacement product set', async () => {
+  const replacement = product('product_replacement', '교체브랜드', '교체 후보')
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input)); requests.push(url)
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      const filter = url.searchParams.get('product_id')
+      if (filter === 'in.(product_candidate_a)') return new Response('old failed', { status: 503 })
+      if (filter === 'in.(product_replacement)') return Response.json([nutritionFixture(replacement.product_id, 522)])
+    }
+    return Response.json([])
+  }
+  const { baseProps } = await renderCompare({ currentProduct: null, items: [items[0]], initialTab: 'nutrition' })
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 1)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, currentProduct: null, items: [{ product: replacement }], initialTab: 'nutrition' })))
+  await settle()
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 2)
+  assert.match(document.body.textContent, /522 kcal\/100g/)
+})
+
+test('current nutrition failure belongs to the old current product and does not block a replacement current food', async () => {
+  const replacementCurrent = product('product_current_replacement', '새현재브랜드', '새 현재 사료')
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input)); requests.push(url)
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      const filter = url.searchParams.get('product_id')
+      if (filter === 'in.(product_current)') return new Response('current failed', { status: 503 })
+      if (filter === 'in.(product_current_replacement)') return Response.json([nutritionFixture(replacementCurrent.product_id, 401)])
+      return Response.json([])
+    }
+    return Response.json([])
+  }
+  const { baseProps } = await renderCompare({ initialTab: 'nutrition' })
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition') && url.searchParams.get('product_id') === 'in.(product_current)').length, 1)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, currentProduct: replacementCurrent, initialTab: 'nutrition' })))
+  await settle()
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition') && url.searchParams.get('product_id') === 'in.(product_current_replacement)').length, 1)
+  assert.match(document.body.textContent, /401 kcal\/100g/)
+})
+
+test('ingredients failure belongs to the old product key and does not block a replacement product set', async () => {
+  const replacement = product('product_ingredient_replacement', '교체브랜드', '새 원재료 후보')
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input)); requests.push(url)
+    if (url.pathname.endsWith('/compare_product_ingredients')) {
+      const filter = url.searchParams.get('product_id')
+      if (filter === 'in.(product_candidate_a)') return new Response('ingredient failed', { status: 503 })
+      if (filter === 'in.(product_ingredient_replacement)') return Response.json([ingredientFixture(replacement.product_id)])
+    }
+    return Response.json([])
+  }
+  const { baseProps } = await renderCompare({ currentProduct: null, items: [items[0]], initialTab: 'ingredients' })
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, currentProduct: null, items: [{ product: replacement }], initialTab: 'ingredients' })))
+  await settle()
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 2)
+  assert.match(document.body.textContent, /오리/)
 })

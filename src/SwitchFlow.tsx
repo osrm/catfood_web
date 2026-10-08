@@ -1196,12 +1196,11 @@ export default function SwitchFlow({
 
                 <button className="switch-primary-action switch-current-confirm" type="button" onClick={() => confirmCurrentProduct(previewProduct)}>이 제품을 현재 사료로 선택 →</button>
                 <section className="switch-preview-facts">
-                  <dl>
-                    <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div>
-                    <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div>
-                    <div><dt>판매 규격 수</dt><dd>{previewProduct.variant_count ? `${previewProduct.variant_count}개` : '미확인'}</dd></div>
-                  </dl>
-                  <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다. 레시피와 원재료는 확인된 정보만 사용합니다.</p>
+                  {previewProduct.official_targets.length || previewProduct.features.length ? <dl>
+                    {previewProduct.official_targets.length ? <div><dt>공식 대상</dt><dd>{compactList(previewProduct.official_targets, TARGET_LABELS)}</dd></div> : null}
+                    {previewProduct.features.length ? <div><dt>기능</dt><dd>{compactList(previewProduct.features, FEATURE_LABELS)}</dd></div> : null}
+                  </dl> : null}
+                  <p>제품을 고른 다음 실제로 먹이는 용량을 선택합니다.</p>
                 </section>
               </div>
             </aside>

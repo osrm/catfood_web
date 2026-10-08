@@ -1,3 +1,4 @@
+import { nutritionInterpretationNote } from './nutrition-reading'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   fetchCompareIngredients,
@@ -410,13 +411,20 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 <div className="detail-energy">
                   <span>열량</span>
                   <strong>{energyValue(nutrition)}</strong>
-                 </div>
-                <p className="detail-evidence-context">{evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)}</p>
-                <div className="detail-nutrition-list">
-                  {standardRows.map(([label, key, value, qualifier]) => <div className="detail-nutrition-row" key={key}><span>{label}</span><strong>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}</strong></div>)}
-                  {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong></div>)}
                 </div>
-                {nutritionSupplementContext ? <p className="detail-evidence-context">{nutritionSupplementContext}</p> : null}
+                {nutritionInterpretationNote(nutrition, 'energy') ? <p className="detail-evidence-context detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'energy')}</p> : null}
+                <div className="detail-nutrition-list">
+                  {standardRows.map(([label, key, value, qualifier]) => <div className="detail-nutrition-row" key={key}><span>{label}</span><strong>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}</strong>{nutritionInterpretationNote(nutrition, key) ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, key)}</small> : null}</div>)}
+                  {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong>{nutritionInterpretationNote(nutrition, 'additional_nutrients') ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'additional_nutrients')}</small> : null}</div>)}
+                </div>
+                <details className="detail-disclosure detail-nutrition-source-disclosure">
+                  <summary>원래 표기 보기</summary>
+                  <div className="detail-fact-lines detail-fact-lines-compact">
+                    <Fact label="자료 범위" value={evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)} />
+                    <Fact label="원래 열량 표기" value={energyValue(nutrition)} />
+                    {nutritionSupplementContext ? <><Fact label="보완 항목" value={nutritionSupplementContext} /><Fact label="보완 자료 범위" value={nutrition.supplemental_observation_scope === 'product' ? '제품' : nutrition.supplemental_observation_scope === 'formula' ? '배합' : nutrition.supplemental_observation_scope === 'variant' ? '포장' : '미확인'} /></> : null}
+                  </div>
+                </details>
                 {alternateNutritionValues.length ? <div className="detail-basis-block">
                   <h3>{basisLabel(nutrition)} 자료</h3>
                   <p>{basisContext(nutrition)}</p>

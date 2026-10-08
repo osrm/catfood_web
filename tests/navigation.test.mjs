@@ -890,11 +890,11 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
 
   const scopeValues = valuesFor('#compare-mobile-two-row-nutrition-scope')
   assert.match(scopeValues[0], /한국 판매 제품 자료.*3 kg 제품에서 확인.*보완 자료 포함/)
-  assert.match(scopeValues[0], /자료 기준 보기/)
-  assert.match(scopeValues[0], /제공된 열량.*4,100 kcal\/kg/)
+  assert.match(scopeValues[0], /원래 표기 보기/)
+  assert.match(scopeValues[0], /원래 열량 표기.*4,100 kcal\/kg/)
   assert.match(scopeValues[1], /한국 판매 제품 자료.*7\.26 kg 제품에서 확인/)
-  assert.match(scopeValues[1], /자료 기준 보기/)
-  assert.match(scopeValues[1], /제공된 열량.*380 kcal\/100g/)
+  assert.match(scopeValues[1], /원래 표기 보기/)
+  assert.match(scopeValues[1], /원래 열량 표기.*380 kcal\/100g/)
   assert.doesNotMatch(scopeValues[1], /보완 자료 포함/)
 
   const proteinHeader = mobile.querySelector('#compare-mobile-two-row-nutrition-protein')
@@ -970,14 +970,14 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
     '미확인',
   ])
 
-  const scopeRow = [...document.querySelectorAll('.compare-table > .compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '적용 범위')
+  const scopeRow = [...document.querySelectorAll('.compare-table > .compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '원래 표기·자료')
   assert.ok(scopeRow)
   const scopes = [...scopeRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.replace(/\s+/g, ' ').trim())
-  assert.match(scopes[0], /제공된 열량.*3,485 kcal\/kg/)
-  assert.match(scopes[1], /제공된 열량.*370 kcal\/100g/)
-  assert.match(scopes[2], /제공된 열량.*4,100 kcal\/kg/)
+  assert.match(scopes[0], /원래 열량 표기.*3,485 kcal\/kg/)
+  assert.match(scopes[1], /원래 열량 표기.*370 kcal\/100g/)
+  assert.match(scopes[2], /원래 열량 표기.*4,100 kcal\/kg/)
   assert.doesNotMatch(scopes[2], /999 kcal\/100g/, 'kg remains the selected provided value when both fields exist')
-  assert.doesNotMatch(scopes[3], /자료 기준 보기/, 'missing energy alone does not invent provided-value disclosure')
+  assert.doesNotMatch(scopes[3], /원래 열량 표기/, 'missing energy has no invented provided energy')
 
   installFetch()
 })

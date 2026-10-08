@@ -671,9 +671,9 @@ export default function App() {
     const additionalLabels = additionalConditionLabels(draftSearch)
     return <>
       <div className="condition-group-title"><span>기본 조건</span></div>
-      <p className="field-note condition-policy-note">선택한 조건 정보가 없는 제품도 결과에 남습니다.</p>
-      <FilterSection title="사료 형태" hint="선택 시 필수 조건"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
-      <FilterSection title="연령" hint="제품 표기 기준"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /><p className="field-note">제품에 표기된 연령 구분을 기준으로 합니다.</p></FilterSection>
+      <p className="field-note condition-policy-note">선택한 형태·연령과 표기가 다른 제품은 제외하고, 표기가 없는 제품은 함께 보여줍니다.</p>
+      <FilterSection title="사료 형태"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
+      <FilterSection title="연령"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /></FilterSection>
       <div className="mobile-additional-disclosure condition-additional-disclosure">
         <button className="mobile-additional-toggle" type="button" aria-expanded={mobileAdditionalOpen} aria-controls="explore-additional-conditions" onClick={() => setMobileAdditionalOpen((current) => !current)}>
           <span>추가 조건</span><small>{additionalCount ? `${additionalCount}개 선택` : '선택 없음'}</small><span className="mobile-additional-chevron" aria-hidden="true">{mobileAdditionalOpen ? '▴' : '▾'}</span>
@@ -682,9 +682,9 @@ export default function App() {
       </div>
       <div className={mobileAdditionalOpen ? 'additional-condition-sections is-open' : 'additional-condition-sections'} id="explore-additional-conditions">
         <FilterSection title="제품 표기 대상" hint="여러 개 선택 가능"><FilterButtons options={TARGETS} selected={draftSearch.officialTargets} onToggle={(value) => toggleDraftArray('officialTargets', value)} /></FilterSection>
-        <FilterSection title="제품 특징" hint="제조사 공식 표기 기준"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
-        <FilterSection title="레시피 종류" hint="확인된 정보 기준"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
-        <FilterSection title="레시피 특성" hint="제품의 공식 표기만 확인"><button className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'} type="button" aria-pressed={draftSearch.grainFree} onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기</button><p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p></FilterSection>
+        <FilterSection title="제품 특징"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
+        <FilterSection title="레시피 종류"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
+        <FilterSection title="레시피 특성"><button className={draftSearch.grainFree ? 'choice wide is-active' : 'choice wide'} type="button" aria-pressed={draftSearch.grainFree} onClick={() => setDraftSearch((current) => ({ ...current, grainFree: !current.grainFree }))}>Grain-Free 표기</button><p className="field-note">Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다.</p></FilterSection>
       </div>
     </>
   }

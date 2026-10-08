@@ -396,9 +396,9 @@ test('EXPLORE guidance keeps the unknown policy in one place and labels recipe r
   await click('조건 고르기')
   const editorText = document.body.textContent
   assert.match(editorText, /사료 형태와 연령, 원하는 조건을 골라주세요\./)
-  assert.equal((editorText.match(/선택한 조건 정보가 없는 제품도 결과에 남습니다\./g) ?? []).length, 1)
+  assert.equal((editorText.match(/선택한 형태·연령과 표기가 다른 제품은 제외하고, 표기가 없는 제품은 함께 보여줍니다\./g) ?? []).length, 1)
   assert.doesNotMatch(editorText, /명백히 충돌하는 제품만 제외|미확인은 남겨둡니다|조건 정보가 없는 제품도 결과에 포함됩니다/)
-  assert.match(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)
+  assert.doesNotMatch(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)
   assert.match(editorText, /Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다\./)
 
   await click('이 조건으로 찾기')
@@ -447,7 +447,7 @@ test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are re
   assert.doesNotMatch(empty.textContent, /임의로 완화/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
   await click(edit)
-  assert.match(document.body.textContent, /선택한 조건 정보가 없는 제품도 결과에 남습니다\./)
+  assert.match(document.body.textContent, /선택한 형태·연령과 표기가 다른 제품은 제외하고, 표기가 없는 제품은 함께 보여줍니다\./)
 })
 
 test('LOOKUP retains its 120-row batch and does not collect decisions', async () => {

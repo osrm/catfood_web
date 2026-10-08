@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
-import ProductDetail from './ProductDetail'
+import ProductDetail, { type SwitchDetailNavigation } from './ProductDetail'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import {
   fetchCompareIngredients,
@@ -535,7 +535,7 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange }: {
+export default function CompareView({ items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation }: {
   items: CompareItem[]
   criteriaLabels?: string[]
   currentProduct?: CatalogProduct | null
@@ -550,6 +550,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   onDetailOpen?: (productId: string) => void
   onDetailClose?: () => void
   onDetailTabChange?: (tab: import('./navigation-state').DetailTab) => void
+  switchDetailNavigation?: SwitchDetailNavigation
 }) {
   const [tab, setTab] = useState<CompareTab>(initialTab)
   const [showEnergyGraph, setShowEnergyGraph] = useState(false)
@@ -854,7 +855,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
     }
   }
 
-  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} />
+  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`

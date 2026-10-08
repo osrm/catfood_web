@@ -16,8 +16,14 @@ import {
   type ProductMarketDetail,
   type ProductVariant,
 } from './api'
-import SiteHeader from './SiteHeader'
+import SiteHeader, { type BrowseMode } from './SiteHeader'
 import type { DetailTab } from './navigation-state'
+
+export type SwitchDetailNavigation = {
+  onHome: () => void
+  onModeChange: (mode: Exclude<BrowseMode, 'switch'>) => void
+  onRestart: () => void
+}
 
 type DetailResource = 'variants' | 'nutrition' | 'ingredients' | 'manufacturing' | 'markets'
 
@@ -187,10 +193,11 @@ function ProductImage({ product }: { product: CatalogProduct }) {
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
-export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, onToggleCompare, compared = false, compareFull = false }: {
+export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false }: {
   product: CatalogProduct
   onClose: () => void
   onHome?: () => void
+  switchNavigation?: SwitchDetailNavigation
   onToggleCompare?: () => void
   compared?: boolean
   compareFull?: boolean
@@ -345,8 +352,11 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const panelId = `detail-panel-${tab}`
   const tabId = `detail-tab-${tab}`
 
-  return <main className="detail-stage" ref={stageRef}>
-    <SiteHeader className="detail-topbar" headerRef={topbarRef} onHome={onHome}><button type="button" onClick={onClose}>{backLabel}</button></SiteHeader>
+  return <main className={`detail-stage${switchNavigation ? ' is-switch-detail' : ''}`} ref={stageRef}>
+    <SiteHeader className={`detail-topbar${switchNavigation ? ' switch-detail-header' : ''}`} headerRef={topbarRef} onHome={switchNavigation?.onHome ?? onHome} active={switchNavigation ? 'switch' : undefined} onModeChange={switchNavigation ? (mode) => { if (mode !== 'switch') switchNavigation.onModeChange(mode) } : undefined}>
+      <button className="detail-return-action" type="button" onClick={onClose}>{backLabel}</button>
+      {switchNavigation ? <button className="detail-restart-action" type="button" onClick={switchNavigation.onRestart}>처음부터 시작</button> : null}
+    </SiteHeader>
     <div className="detail-layout">
       <aside className="detail-identity">
         <div className="detail-identity-copy">

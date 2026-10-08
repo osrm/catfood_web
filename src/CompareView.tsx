@@ -557,18 +557,18 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const [reload, setReload] = useState(0)
   const [nutrition, setNutrition] = useState<CompareNutrition[]>([])
   const [currentNutrition, setCurrentNutrition] = useState<CompareNutrition | null>(null)
-  const [currentNutritionLoading, setCurrentNutritionLoading] = useState(false)
+  const [currentNutritionLoading, setCurrentNutritionLoading] = useState(Boolean(currentProduct && initialTab === 'nutrition'))
   const [currentNutritionError, setCurrentNutritionError] = useState<string | null>(null)
   const [currentNutritionReload, setCurrentNutritionReload] = useState(0)
   const [currentVariants, setCurrentVariants] = useState<ProductVariant[]>([])
-  const [currentVariantsLoading, setCurrentVariantsLoading] = useState(false)
+  const [currentVariantsLoading, setCurrentVariantsLoading] = useState(Boolean(currentProduct && initialTab === 'nutrition'))
   const [currentVariantLookupFailed, setCurrentVariantLookupFailed] = useState(false)
   const [ingredients, setIngredients] = useState<CompareIngredients[]>([])
   const [variantsByProduct, setVariantsByProduct] = useState<Record<string, ProductVariant[]>>({})
   const [variantLookupFailures, setVariantLookupFailures] = useState<string[]>([])
-  const [variantsLoading, setVariantsLoading] = useState(false)
-  const [nutritionLoading, setNutritionLoading] = useState(false)
-  const [ingredientsLoading, setIngredientsLoading] = useState(false)
+  const [variantsLoading, setVariantsLoading] = useState(initialTab !== 'overview')
+  const [nutritionLoading, setNutritionLoading] = useState(initialTab === 'nutrition')
+  const [ingredientsLoading, setIngredientsLoading] = useState(initialTab === 'ingredients')
   const [nutritionError, setNutritionError] = useState<string | null>(null)
   const [ingredientsError, setIngredientsError] = useState<string | null>(null)
   const [localDetailProductId, setLocalDetailProductId] = useState<string | null>(null)
@@ -583,10 +583,41 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
   const mobilePairSelectRefs = useRef<Array<HTMLSelectElement | null>>([])
   const pendingRemovalFocusRef = useRef<{ slot: 0 | 1 | null; remainingCount: number } | null>(null)
+  const nutritionLoadedKeyRef = useRef<string | null>(null)
+  const ingredientsLoadedKeyRef = useRef<string | null>(null)
+  const variantsLoadedKeyRef = useRef<string | null>(null)
+  const currentNutritionLoadedProductRef = useRef<string | null>(null)
+  const currentVariantsLoadedProductRef = useRef<string | null>(null)
   const mobileCandidateOptionsId = useId()
 
-  useEffect(() => { setTab(initialTab) }, [initialTab])
+  useEffect(() => {
+    setTab(initialTab)
+    const key = items.map((item) => item.product.product_id).join('|')
+    if (initialTab === 'nutrition') {
+      if (nutritionLoadedKeyRef.current !== key && !nutritionError) setNutritionLoading(true)
+      if (variantsLoadedKeyRef.current !== key) setVariantsLoading(true)
+      if (currentProduct) {
+        if (currentNutritionLoadedProductRef.current !== currentProduct.product_id && !currentNutritionError) setCurrentNutritionLoading(true)
+        if (currentVariantsLoadedProductRef.current !== currentProduct.product_id) setCurrentVariantsLoading(true)
+      }
+    } else if (initialTab === 'ingredients') {
+      if (ingredientsLoadedKeyRef.current !== key && !ingredientsError) setIngredientsLoading(true)
+      if (variantsLoadedKeyRef.current !== key) setVariantsLoading(true)
+    }
+  }, [initialTab])
   function selectTab(next: CompareTab, focus = false) {
+    const key = items.map((item) => item.product.product_id).join('|')
+    if (next === 'nutrition') {
+      if (nutritionLoadedKeyRef.current !== key && !nutritionError) setNutritionLoading(true)
+      if (variantsLoadedKeyRef.current !== key) setVariantsLoading(true)
+      if (currentProduct) {
+        if (currentNutritionLoadedProductRef.current !== currentProduct.product_id && !currentNutritionError) setCurrentNutritionLoading(true)
+        if (currentVariantsLoadedProductRef.current !== currentProduct.product_id) setCurrentVariantsLoading(true)
+      }
+    } else if (next === 'ingredients') {
+      if (ingredientsLoadedKeyRef.current !== key && !ingredientsError) setIngredientsLoading(true)
+      if (variantsLoadedKeyRef.current !== key) setVariantsLoading(true)
+    }
     setTab(next); onTabChange?.(next)
     if (focus) requestAnimationFrame(() => tabRefs.current[TABS.findIndex(([key]) => key === next)]?.focus())
   }
@@ -601,6 +632,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   }
 
   const productIds = useMemo(() => items.map((item) => item.product.product_id), [items])
+  const productKey = productIds.join('|')
   const mobilePairItems = useMemo(() => {
     const selected: CompareItem[] = []
     for (const id of mobilePairIds) {
@@ -702,54 +734,147 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   }, [currentProduct, productIds.join('|'), mobilePairProductIds.join('|'), tab])
 
   useEffect(() => {
-    const controller = new AbortController(); let active = true
-    setNutrition([]); setIngredients([]); setVariantsByProduct({}); setVariantLookupFailures([]); setVariantsLoading(true); setNutritionLoading(true); setIngredientsLoading(true); setNutritionError(null); setIngredientsError(null)
-    fetchCompareNutrition(productIds, controller.signal).then((rows) => { if (active) setNutrition(rows) }).catch((reason: unknown) => {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      if (active) setNutritionError('영양 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    }).finally(() => { if (active) setNutritionLoading(false) })
-    fetchCompareIngredients(productIds, controller.signal).then((rows) => { if (active) setIngredients(rows) }).catch((reason: unknown) => {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      if (active) setIngredientsError('원재료 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    }).finally(() => { if (active) setIngredientsLoading(false) })
-    Promise.allSettled(productIds.map((id) => fetchProductVariants(id, controller.signal))).then((results) => {
-      if (!active) return
-      const next: Record<string, ProductVariant[]> = {}, failures: string[] = []
-      results.forEach((result, index) => { const id = productIds[index]; if (result.status === 'fulfilled') next[id] = result.value; else if (!(result.reason instanceof DOMException && result.reason.name === 'AbortError')) failures.push(id) })
-      setVariantsByProduct(next); setVariantLookupFailures(failures); setVariantsLoading(false)
-    })
-    return () => { active = false; controller.abort() }
-  }, [productIds.join('|'), reload])
+    nutritionLoadedKeyRef.current = null
+    ingredientsLoadedKeyRef.current = null
+    variantsLoadedKeyRef.current = null
+    setNutrition([])
+    setIngredients([])
+    setVariantsByProduct({})
+    setVariantLookupFailures([])
+    setNutritionError(null)
+    setIngredientsError(null)
+    setNutritionLoading(tab === 'nutrition')
+    setIngredientsLoading(tab === 'ingredients')
+    setVariantsLoading(tab !== 'overview')
+  }, [productKey])
 
   useEffect(() => {
-    if (!currentProduct || tab !== 'nutrition') {
-      setCurrentNutrition(null)
-      setCurrentNutritionLoading(false)
-      setCurrentNutritionError(null)
-      setCurrentVariants([])
-      setCurrentVariantsLoading(false)
-      setCurrentVariantLookupFailed(false)
+    if (tab !== 'nutrition' || !productIds.length) return
+    const needNutrition = nutritionLoadedKeyRef.current !== productKey && !nutritionError
+    const needVariants = variantsLoadedKeyRef.current !== productKey
+    if (!needNutrition && !needVariants) {
+      setNutritionLoading(false)
+      setVariantsLoading(false)
       return
     }
     const controller = new AbortController(); let active = true
+    if (needNutrition) {
+      setNutritionLoading(true)
+      fetchCompareNutrition(productIds, controller.signal).then((rows) => {
+        if (!active) return
+        setNutrition(rows)
+        nutritionLoadedKeyRef.current = productKey
+      }).catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (active) setNutritionError('영양 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      }).finally(() => { if (active) setNutritionLoading(false) })
+    } else setNutritionLoading(false)
+    if (needVariants) {
+      setVariantsLoading(true)
+      Promise.allSettled(productIds.map((id) => fetchProductVariants(id, controller.signal))).then((results) => {
+        if (!active) return
+        const next: Record<string, ProductVariant[]> = {}, failures: string[] = []
+        results.forEach((result, index) => {
+          const id = productIds[index]
+          if (result.status === 'fulfilled') next[id] = result.value
+          else if (!(result.reason instanceof DOMException && result.reason.name === 'AbortError')) failures.push(id)
+        })
+        setVariantsByProduct(next)
+        setVariantLookupFailures(failures)
+        variantsLoadedKeyRef.current = productKey
+        setVariantsLoading(false)
+      })
+    } else setVariantsLoading(false)
+    return () => { active = false; controller.abort() }
+  }, [tab, productKey, reload])
+
+  useEffect(() => {
+    if (tab !== 'ingredients' || !productIds.length) return
+    const needIngredients = ingredientsLoadedKeyRef.current !== productKey && !ingredientsError
+    const needVariants = variantsLoadedKeyRef.current !== productKey
+    if (!needIngredients && !needVariants) {
+      setIngredientsLoading(false)
+      setVariantsLoading(false)
+      return
+    }
+    const controller = new AbortController(); let active = true
+    if (needIngredients) {
+      setIngredientsLoading(true)
+      fetchCompareIngredients(productIds, controller.signal).then((rows) => {
+        if (!active) return
+        setIngredients(rows)
+        ingredientsLoadedKeyRef.current = productKey
+      }).catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (active) setIngredientsError('원재료 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      }).finally(() => { if (active) setIngredientsLoading(false) })
+    } else setIngredientsLoading(false)
+    if (needVariants) {
+      setVariantsLoading(true)
+      Promise.allSettled(productIds.map((id) => fetchProductVariants(id, controller.signal))).then((results) => {
+        if (!active) return
+        const next: Record<string, ProductVariant[]> = {}, failures: string[] = []
+        results.forEach((result, index) => {
+          const id = productIds[index]
+          if (result.status === 'fulfilled') next[id] = result.value
+          else if (!(result.reason instanceof DOMException && result.reason.name === 'AbortError')) failures.push(id)
+        })
+        setVariantsByProduct(next)
+        setVariantLookupFailures(failures)
+        variantsLoadedKeyRef.current = productKey
+        setVariantsLoading(false)
+      })
+    } else setVariantsLoading(false)
+    return () => { active = false; controller.abort() }
+  }, [tab, productKey, reload])
+
+  useEffect(() => {
+    currentNutritionLoadedProductRef.current = null
+    currentVariantsLoadedProductRef.current = null
     setCurrentNutrition(null)
-    setCurrentNutritionLoading(true)
     setCurrentNutritionError(null)
     setCurrentVariants([])
-    setCurrentVariantsLoading(true)
     setCurrentVariantLookupFailed(false)
-    fetchCompareNutrition([currentProduct.product_id], controller.signal).then((rows) => {
-      if (active) setCurrentNutrition(rows[0] ?? null)
-    }).catch((reason: unknown) => {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      if (active) setCurrentNutritionError('현재 사료 영양 정보를 불러오지 못했습니다.')
-    }).finally(() => { if (active) setCurrentNutritionLoading(false) })
-    fetchProductVariants(currentProduct.product_id, controller.signal).then((rows) => {
-      if (active) setCurrentVariants(rows)
-    }).catch((reason: unknown) => {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      if (active) setCurrentVariantLookupFailed(true)
-    }).finally(() => { if (active) setCurrentVariantsLoading(false) })
+    setCurrentNutritionLoading(Boolean(currentProduct && tab === 'nutrition'))
+    setCurrentVariantsLoading(Boolean(currentProduct && tab === 'nutrition'))
+  }, [currentProduct?.product_id])
+
+  useEffect(() => {
+    if (!currentProduct || tab !== 'nutrition') return
+    const productId = currentProduct.product_id
+    const needNutrition = currentNutritionLoadedProductRef.current !== productId && !currentNutritionError
+    const needVariants = currentVariantsLoadedProductRef.current !== productId
+    if (!needNutrition && !needVariants) {
+      setCurrentNutritionLoading(false)
+      setCurrentVariantsLoading(false)
+      return
+    }
+    const controller = new AbortController(); let active = true
+    if (needNutrition) {
+      setCurrentNutritionLoading(true)
+      fetchCompareNutrition([productId], controller.signal).then((rows) => {
+        if (!active) return
+        setCurrentNutrition(rows[0] ?? null)
+        currentNutritionLoadedProductRef.current = productId
+      }).catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (active) setCurrentNutritionError('현재 사료 영양 정보를 불러오지 못했습니다.')
+      }).finally(() => { if (active) setCurrentNutritionLoading(false) })
+    } else setCurrentNutritionLoading(false)
+    if (needVariants) {
+      setCurrentVariantsLoading(true)
+      setCurrentVariantLookupFailed(false)
+      fetchProductVariants(productId, controller.signal).then((rows) => {
+        if (active) setCurrentVariants(rows)
+      }).catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (active) setCurrentVariantLookupFailed(true)
+      }).finally(() => {
+        if (!active) return
+        currentVariantsLoadedProductRef.current = productId
+        setCurrentVariantsLoading(false)
+      })
+    } else setCurrentVariantsLoading(false)
     return () => { active = false; controller.abort() }
   }, [currentProduct?.product_id, tab, currentNutritionReload])
 
@@ -885,8 +1010,8 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}
     >{label}</button>)}</nav>
 
-    {tab === 'nutrition' && nutritionError && !switchNutrition ? <div className="compare-state is-error" role="alert"><p>{nutritionError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
-    {tab === 'ingredients' && ingredientsError ? <div className="compare-state is-error" role="alert"><p>{ingredientsError}</p><button type="button" onClick={() => setReload((value) => value + 1)}>다시 시도</button></div> : null}
+    {tab === 'nutrition' && nutritionError && !switchNutrition ? <div className="compare-state is-error" role="alert"><p>{nutritionError}</p><button type="button" onClick={() => { nutritionLoadedKeyRef.current = null; setNutritionError(null); setNutritionLoading(true); setReload((value) => value + 1) }}>다시 시도</button></div> : null}
+    {tab === 'ingredients' && ingredientsError ? <div className="compare-state is-error" role="alert"><p>{ingredientsError}</p><button type="button" onClick={() => { ingredientsLoadedKeyRef.current = null; setIngredientsError(null); setIngredientsLoading(true); setReload((value) => value + 1) }}>다시 시도</button></div> : null}
     {tab === 'nutrition' && nutritionLoading && !switchNutrition ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
@@ -944,7 +1069,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
         </div> : null}
       </> : switchNutrition && currentProduct && mobileCandidate ? <>
         <div className="compare-switch-nutrition-notices">
-          {currentNutritionError ? <div className="compare-state is-error" role="alert"><p>{currentNutritionError} 후보 영양값은 계속 표시합니다.</p><button type="button" onClick={() => setCurrentNutritionReload((value) => value + 1)}>현재 사료 다시 시도</button></div> : null}
+          {currentNutritionError ? <div className="compare-state is-error" role="alert"><p>{currentNutritionError} 후보 영양값은 계속 표시합니다.</p><button type="button" onClick={() => { currentNutritionLoadedProductRef.current = null; setCurrentNutritionError(null); setCurrentNutritionLoading(true); setCurrentNutritionReload((value) => value + 1) }}>현재 사료 다시 시도</button></div> : null}
           {nutritionError ? <div className="compare-state is-error" role="alert"><p>{nutritionError} 현재 사료 영양값은 계속 표시합니다.</p><button type="button" onClick={() => setReload((value) => value + 1)}>후보 다시 시도</button></div> : null}
         </div>
         <div className="compare-switch-mobile-nutrition compare-mobile-two-product-nutrition">

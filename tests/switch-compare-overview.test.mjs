@@ -182,10 +182,7 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.equal(document.querySelector('.compare-scope-note'), null)
   assert.match(document.querySelector('.compare-header p').textContent, /현재 사료와 2개 후보의 제품 정보를 같은 항목으로 비교합니다/)
 
-  const productFilters = requests.map((url) => url.searchParams.get('product_id')).filter(Boolean)
-  assert.ok(productFilters.length >= 4, `expected compare and variant requests, got ${requests.length}`)
-  assert.equal(productFilters.some((value) => value.includes(current.product_id)), false, `current product leaked into API filters: ${productFilters.join(' | ')}`)
-  assert.ok(productFilters.some((value) => value === 'in.(product_candidate_a,product_candidate_b)'))
+  assert.equal(requests.length, 0, 'overview must not start compare nutrition, ingredients, or variant reads')
 })
 
 test('mobile candidate disclosure opens, selects a candidate, closes, and restores toggle focus', async () => {
@@ -337,4 +334,57 @@ test('SWITCH overview keeps globally non-empty rows visible even when the select
   const targetMobileRow = [...document.querySelectorAll('.compare-switch-mobile-overview > .compare-mobile-overview-row')].find((row) => row.querySelector('.compare-mobile-row-label')?.textContent.trim() === '제품 표기 대상')
   assert.match(targetMobileRow.textContent, /실내묘/)
   assert.match(targetMobileRow.textContent, /확인된 값 없음/)
+})
+
+
+test('comparison tabs load only active data and reuse successful candidate variants within the mount', async () => {
+  await renderCompare()
+  assert.equal(requests.length, 0)
+
+  const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
+  const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
+  const overviewTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '개요')
+
+  await click(nutritionTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 2, 'SWITCH nutrition keeps candidate and current reads separate')
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 0)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 3, 'two candidates plus current variant lookup')
+
+  const afterNutrition = requests.length
+  await click(overviewTab)
+  assert.equal(requests.length, afterNutrition, 'overview must not start hidden reads after nutrition')
+
+  await click(ingredientsTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 3, 'candidate variants are reused from nutrition')
+  const afterIngredients = requests.length
+
+  await click(nutritionTab)
+  assert.equal(requests.length, afterIngredients, 'loaded nutrition/current/variant data are reused on tab round-trip')
+})
+
+test('general comparison overview is read-free and first active tab controls which comparison resource loads', async () => {
+  await renderCompare({ currentProduct: null })
+  assert.equal(requests.length, 0)
+  const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
+  const nutritionTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '영양')
+  await click(ingredientsTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 0)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2)
+  const afterIngredients = requests.length
+  await click(nutritionTab)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2, 'variants stay reused across candidate tabs')
+  const afterNutrition = requests.length
+  await click(ingredientsTab)
+  assert.equal(requests.length, afterNutrition)
+  assert.ok(afterNutrition > afterIngredients)
+})
+
+test('deep-linked comparison tab starts only its required reads', async () => {
+  await renderCompare({ initialTab: 'ingredients' })
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition')).length, 0)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2)
 })

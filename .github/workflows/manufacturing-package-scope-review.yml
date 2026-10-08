@@ -1,51 +1,38 @@
-name: Manufacturing package scope candidate QA
+name: Temporary keyed compare error validation
 on:
   pull_request:
     paths:
-      - 'src/api.ts'
-      - 'src/ProductDetail.tsx'
       - 'src/CompareView.tsx'
-      - 'src/SwitchFlow.tsx'
-      - 'qa/manufacturing-package-scope-review.mjs'
+      - 'tests/switch-compare-overview.test.mjs'
+      - '.github/compare-lazy-keyed-fix-temp.py'
       - '.github/workflows/manufacturing-package-scope-review.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
-  fixture-browser:
+  keyed-error-regression:
     runs-on: ubuntu-latest
-    env:
-      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
-      VITE_SUPABASE_URL: https://api.test
-      VITE_SUPABASE_PUBLISHABLE_KEY: test-key
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: python .github/compare-lazy-keyed-fix-temp.py
+      - run: npm test
       - run: npm run build
-      - name: Install browser driver
+      - name: Commit focused product fix if needed
+        shell: bash
         run: |
-          mkdir -p /tmp/manufacturing-scope-review
-          cp qa/manufacturing-package-scope-review.mjs /tmp/manufacturing-scope-review/
-          cd /tmp/manufacturing-scope-review
-          npm init -y >/dev/null
-          npm install --no-save --package-lock=false playwright-core@1.55.1
-          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
-      - name: Serve exact candidate
-        run: |
-          npm run preview -- --host 127.0.0.1 > /tmp/manufacturing-scope-preview.log 2>&1 &
-          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
-          cat /tmp/manufacturing-scope-preview.log
-          exit 1
-      - name: Fixture browser QA
-        run: OUT_DIR="$GITHUB_WORKSPACE/manufacturing-package-scope-output" node /tmp/manufacturing-scope-review/manufacturing-package-scope-review.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: manufacturing-package-scope-review
-          path: manufacturing-package-scope-output
-          retention-days: 7
+          if git diff --quiet -- src/CompareView.tsx tests/switch-compare-overview.test.mjs; then
+            echo 'No product diff to commit.'
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/CompareView.tsx tests/switch-compare-overview.test.mjs
+          git commit -m "fix: key compare read errors to their products"
+          git push origin HEAD:perf/compare-lazy-tab-reads-20261008

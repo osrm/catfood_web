@@ -625,3 +625,117 @@ for (const confirmedCount of [3, 4]) {
     })
   }
 }
+
+
+test('reviewed bilingual brand searches find every product even when product names contain no brand', () => {
+  const cases = [
+    ['내추럴발란스', 'natural balance'],
+    ['로얄캐닌', 'royal canin'],
+    ['몬지', 'monge'],
+    ['쉐지애', 'schesir'],
+    ['아카나', 'acana'],
+    ['오리젠', 'orijen'],
+    ['지위픽', 'ZIWI Peak'],
+    ['파미나', 'farmina'],
+    ['퓨리나', 'purina'],
+    ['힐스', "Hill's"],
+    ['AATU', '아투'],
+    ['Addiction', '어딕션'],
+    ['Advance', '어드밴스'],
+    ['AIXIA', '아이시아'],
+    ['Alleva', '알레바'],
+    ['Almo Nature', '알모네이쳐'],
+    ['AvoDerm', '아보덤'],
+    ['Best Breed', '베스트브리드'],
+    ['Blackwood', '블랙우드'],
+    ['Boreal', '보레알'],
+    ['Brit', '브릿'],
+    ['Canada Fresh', '캐나다프레쉬'],
+    ['Carna4', '카르나4'],
+    ['Carnilove', '카니러브'],
+    ['Caru', '카루'],
+    ["Cat's Taste", '캣츠테이스트'],
+    ['Catit', '캣잇'],
+    ['Earthborn Holistic', '어스본홀리스틱'],
+    ['Element Series', '엘레멘트'],
+    ['Feline Natural', '필라인 내추럴'],
+    ['Gather', '게더'],
+    ['GO! SOLUTIONS', '고 솔루션'],
+    ['Husse', '후새'],
+    ['INABA / CIAO', '이나바'],
+    ['Instinct', '인스팅트'],
+    ['iti', '이티'],
+    ['Josera', '요세라'],
+    ['KONGO', '콩고'],
+    ['LEONARDO', '레오나르도'],
+    ['Lotus', '로투스'],
+    ['Lucy Pet', '루시펫'],
+    ['Miamor', '미아모아'],
+    ['Natural Greatness', '내추럴그레이트니스'],
+    ['NOW FRESH', '나우프레쉬'],
+    ['Nulo', '뉴로'],
+    ['NurturePRO', '너처프로'],
+    ['Nutrience', '뉴트리언스'],
+    ['NutriSource', '뉴트리소스'],
+    ['Nutro', '뉴트로'],
+    ['Open Farm', '오픈팜'],
+    ['Pro-Nutrition', '프로뉴트리션'],
+    ['PureVita', '퓨어비타'],
+    ['Purina Cat Chow', '퓨리나 캣차우'],
+    ['Purina Pro Plan', '퓨리나 프로플랜'],
+    ['RANOVA', '라노바'],
+    ['RAWZ', '로우즈'],
+    ['SHEBA', '쉬바'],
+    ['Signature7', '시그니처7'],
+    ['Snappy Tom', '스내피톰'],
+    ["Stella & Chewy's", '스텔라앤츄이스'],
+    ['Taste of the Wild', '테이스트 오브 더 와일드'],
+    ['Terra Felis', '테라펠리스'],
+    ['The Honest Kitchen', '디어니스트키친'],
+    ['Thrive', '쓰라이브'],
+    ['Vital Essentials', '바이탈에센셜'],
+    ['Wellness', '웰니스'],
+    ['Weruva', '웨루바'],
+    ['WHISKAS', '위스카스'],
+    ['Wishbone', '위시본'],
+    ['Zealandia', '질란디아'],
+  ]
+  const fixture = catalog(cases.length * 2)
+  for (const [index, [brand]] of cases.entries()) {
+    Object.assign(fixture[index * 2], { brand, canonical_name: 'Recipe A' })
+    Object.assign(fixture[index * 2 + 1], { brand, canonical_name: 'Recipe B' })
+  }
+  const identitiesBefore = structuredClone(fixture)
+  for (const [brand, query] of cases) {
+    const expected = fixture.filter(product => product.brand === brand || (brand === '퓨리나' && product.brand.startsWith('Purina '))).map(product => product.product_id)
+    const found = app.lookupCatalog(fixture, query).map(product => product.product_id)
+    assert.deepEqual(found, expected, query)
+    assert.deepEqual(app.lookupCatalog(fixture, query + ' Recipe A').map(product => product.product_id), expected.filter((_, index) => index % 2 === 0), query + ' with product name')
+  }
+  assert.deepEqual(fixture, identitiesBefore, 'search aliases never rewrite catalog identity or facts')
+})
+
+test('Purina parent searches include its lines while line and sibling-brand searches remain separate', () => {
+  const fixture = catalog(8)
+  const brands = ['퓨리나', 'Purina Cat Chow', 'Purina Pro Plan', 'GO! SOLUTIONS', 'NOW FRESH', 'NutriSource', 'PureVita', 'Element Series']
+  fixture.forEach((product, index) => Object.assign(product, { brand: brands[index], canonical_name: 'Recipe' }))
+  const ids = query => app.lookupCatalog(fixture, query).map(product => product.product_id)
+  for (const query of ['퓨리나', 'Purina', 'PURINA']) assert.deepEqual(ids(query), fixture.slice(0, 3).map(product => product.product_id))
+  for (const query of ['퓨리나 캣차우', 'purina cat chow', '캣차우']) assert.deepEqual(ids(query), [fixture[1].product_id])
+  for (const query of ['퓨리나 프로플랜', 'Purina Pro Plan', '프로플랜']) assert.deepEqual(ids(query), [fixture[2].product_id])
+  for (const [query, index] of [['고솔루션', 3], ['Go Solutions', 3], ['나우프레쉬', 4], ['뉴트리소스', 5], ['퓨어비타', 6], ['엘레멘트', 7]]) assert.deepEqual(ids(query), [fixture[index].product_id], query)
+})
+
+test('brand punctuation variants are explicit and unconfirmed phonetic spellings stay unregistered', () => {
+  const fixture = catalog(4)
+  fixture.forEach(product => { product.canonical_name = 'Recipe' })
+  Object.assign(fixture[0], { brand: "Stella & Chewy's" })
+  Object.assign(fixture[1], { brand: "Cat's Taste" })
+  Object.assign(fixture[2], { brand: 'Pro-Nutrition' })
+  Object.assign(fixture[3], { brand: 'Naturo' })
+  for (const query of ['Stella and Chewys', 'Stella & Chewy’s', '스텔라 앤 츄이스']) assert.deepEqual(app.lookupCatalog(fixture, query).map(product => product.product_id), [fixture[0].product_id])
+  for (const query of ['Cats Taste', 'Cat’s Taste']) assert.deepEqual(app.lookupCatalog(fixture, query).map(product => product.product_id), [fixture[1].product_id])
+  assert.deepEqual(app.lookupCatalog(fixture, 'Pro Nutrition Recipe').map(product => product.product_id), [fixture[2].product_id])
+  assert.deepEqual(app.lookupCatalog(fixture, '나투로'), [], 'unverified Korean spelling is not guessed')
+  assert.deepEqual(app.lookupCatalog(fixture, 'Naturo').map(product => product.product_id), [fixture[3].product_id])
+})

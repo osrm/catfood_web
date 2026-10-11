@@ -770,11 +770,11 @@ test('EXPLORE recipe shortlist, full list and name search preserve the existing 
   await explore()
   await click(rows('.research-result-compare')[0])
   const beforeBrowse = window.location.href
-  assert.equal(rows('.recipe-detail-grid .choice').length, 8)
+  assert.equal(rows('.recipe-detail-grid:not(.brand-refine-grid) .choice').length, 8)
   await click('레시피 전체 보기')
-  assert.equal(rows('.recipe-detail-grid .choice').length, 12)
+  assert.equal(rows('.recipe-detail-grid:not(.brand-refine-grid) .choice').length, 12)
   assert.equal(window.location.href, beforeBrowse, 'opening the complete list changes no search or basket state')
-  const input = document.querySelector('.recipe-search')
+  const input = document.querySelector('.recipe-search:not(.brand-search)')
   async function type(value) {
     await act(async () => {
       Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value)
@@ -782,15 +782,15 @@ test('EXPLORE recipe shortlist, full list and name search preserve the existing 
     })
   }
   await type('존재하지않는레시피')
-  assert.equal(rows('.recipe-detail-grid .choice').length, 0)
+  assert.equal(rows('.recipe-detail-grid:not(.brand-refine-grid) .choice').length, 0)
   assert.match(document.querySelector('[role="status"]').textContent, /이 이름으로 확인된 레시피가 없습니다/)
   assert.equal(window.location.href, beforeBrowse)
   await type('연어')
-  assert.equal(rows('.recipe-detail-grid .choice').length, 1)
-  await click(document.querySelector('.recipe-detail-grid .choice'))
+  assert.equal(rows('.recipe-detail-grid:not(.brand-refine-grid) .choice').length, 1)
+  await click(document.querySelector('.recipe-detail-grid:not(.brand-refine-grid) .choice'))
   assert.deepEqual(rows('.research-result-card').map(node => node.dataset.productId), [products[1].product_id])
   await type('대구')
-  await click([...document.querySelectorAll('.recipe-detail-grid .choice')].find(node => node.textContent === '대구'))
+  await click([...document.querySelectorAll('.recipe-detail-grid:not(.brand-refine-grid) .choice')].find(node => node.textContent === '대구'))
   assert.equal(rows('.research-result-card').length, 2, 'either selected recipe satisfies the existing refine')
   assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
   assert.equal(new URL(window.location.href).searchParams.get('recipeDetails'), 'salmon,cod')
@@ -884,4 +884,66 @@ test('ingredient editor, applied summary, results, and analytics preserve the th
   await click('이 조건으로 찾기')
   assert.equal(rows('.research-result-card').length, 4)
   assert.equal(window.location.search.includes('avoidIngredients'), false)
+})
+
+test('brand refine uses exact OR identities, intersects other filters and does not change positive ordering', () => {
+  const [a,b,c] = catalog(3)
+  a.brand='Purina'; b.brand='Purina Pro Plan'; c.brand='로얄캐닌'
+  a.recipe_details=['salmon']; b.recipe_details=['duck']; c.recipe_details=['salmon']
+  b.features=['hairball']; c.confirmed_present_ingredient_terms=['chicken']
+  const search={...app.INITIAL_SEARCH, features:['hairball']}
+  const ids=(search,refine)=>app.evaluateCatalog([a,b,c],search,refine).map(x=>x.product.product_id)
+  assert.deepEqual(ids(search,{recipeDetails:[],brands:['Purina','Purina Pro Plan']}),[b.product_id,a.product_id])
+  assert.deepEqual(ids(search,{recipeDetails:[],brands:['Purina']}),[a.product_id], 'parent alias is not product identity')
+  assert.deepEqual(ids(search,{recipeDetails:['salmon'],brands:['Purina','Purina Pro Plan']}),[a.product_id])
+  assert.deepEqual(ids({...search,ingredientAvoidTerms:['chicken']},{recipeDetails:[],brands:['로얄캐닌']}),[])
+  assert.deepEqual(ids(search,{recipeDetails:[],brands:[]}),ids(search,{recipeDetails:[]}))
+  const relation=app.evaluateComparisonCriteria(c,search,{recipeDetails:[],brands:['Purina']})
+  assert.deepEqual(relation.differences,[{kind:'brand',selectedValues:['Purina'],productValues:['로얄캐닌']}])
+  assert.equal(app.matchesBrandQuery('로얄캐닌','Royal Canin'),true)
+  assert.equal(app.matchesBrandQuery('파미나','farmina'),true)
+  assert.equal(app.matchesBrandQuery('로얄캐닌','전혀다른브랜드'),false)
+})
+
+test('brand selector search, multiple selection, zero-result recovery and condition reapply preserve basket and avoid new reads', async () => {
+  products=catalog(3)
+  products[0].brand='로얄캐닌'; products[1].brand='파미나'; products[2].brand='AATU'
+  products[0].recipe_details=['salmon']; products[1].recipe_details=['duck']
+  await explore()
+  await click(rows('.research-result-compare')[0])
+  const basket=app.parseNavigationState(window.location.search).compareIds
+  const dataReads=()=>requests.filter(r=>r.path.startsWith('/rest/')).length
+  const initialReads=dataReads()
+  const input=document.querySelector('.brand-search')
+  async function type(value) {
+    await act(async()=>{
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,value)
+      input.dispatchEvent(new window.Event('input',{bubbles:true}))
+    })
+  }
+  await type('royal canin')
+  assert.equal(rows('.brand-refine-grid .choice').length,1)
+  await click(document.querySelector('.brand-refine-grid .choice'))
+  assert.deepEqual(rows('.research-result-card').map(n=>n.dataset.productId),[products[0].product_id])
+  await type('farmina'); await click(document.querySelector('.brand-refine-grid .choice'))
+  assert.equal(rows('.research-result-card').length,2)
+  assert.equal(document.querySelectorAll('.selected-refinements button[aria-label$="선택 해제"]').length,2)
+  await type('없는브랜드')
+  assert.equal(rows('.brand-refine-grid .choice').length,0)
+  assert.equal(rows('.research-result-card').length,2,'searching selector labels does not apply a filter')
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,basket)
+  await click('조건 수정'); await click('이 조건으로 찾기')
+  assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,['로얄캐닌','파미나'])
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,basket)
+  await click([...document.querySelectorAll('.selected-refinements button')].find(n=>n.getAttribute('aria-label')==='로얄캐닌 선택 해제'))
+  await click([...document.querySelectorAll('.recipe-detail-grid:not(.brand-refine-grid) .choice')].find(n=>n.textContent==='연어'))
+  assert.equal(rows('.research-result-card').length,0)
+  await click(document.querySelector('.state-message .state-retry'))
+  assert.equal(rows('.research-result-card').length,1,'clear brands preserves recipe refinement')
+  assert.deepEqual(app.parseNavigationState(window.location.search).refine.recipeDetails,['salmon'])
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,basket)
+  assert.equal(dataReads(),initialReads)
+  await click('조건 수정'); await click('습식'); await click('이 조건으로 찾기')
+  assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,[])
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[])
 })

@@ -26,6 +26,7 @@ async function setup(page){
  const row=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await row.waitFor({state:'visible'});await row.click()
  await page.getByRole('button',{name:'이 제품을 현재 사료로 선택 →'}).click()
  const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first();await sku.waitFor({state:'visible'});await sku.click();await page.locator('.switch-step-actions .switch-primary-action').click()
+ await page.getByRole('button',{name:'다른 브랜드로 보기',exact:true}).waitFor({state:'visible',timeout:30000})
  await (await visibleButton(page,'다른 브랜드로 보기')).click()
  const toggle=page.locator('.switch-change-additional-toggle');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click()
  await (await visibleButton(page,'시니어')).click();await page.locator('.switch-step-actions .switch-primary-action').click()

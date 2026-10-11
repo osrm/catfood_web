@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { before, after, beforeEach, afterEach, test } from 'node:test'
-import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'vite'
@@ -59,11 +59,12 @@ function product(id, name, overrides = {}) {
 
 function deferred(){let resolve;const promise=new Promise(r=>{resolve=r});return {promise,resolve}}
 before(async()=>{
+ await mkdir(resolve('node_modules/.cache'),{recursive:true})
  temp=await mkdtemp(resolve('node_modules/.cache/catalog-facts-'))
  const result=await build({configFile:false,logLevel:'silent',define:{'import.meta.env.DEV':'false','import.meta.env.VITE_DECISION_INTAKE_ENABLED':'"false"','import.meta.env.VITE_SUPABASE_URL':'"https://api.test"','import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY':'"test-key"'},build:{ssr:'tests/entry.ts',write:false,minify:false}})
  const file=resolve(temp,'entry.mjs');await writeFile(file,result.output.find(x=>x.type==='chunk'&&x.isEntry).code);app=await import(pathToFileURL(file).href)
 })
-after(async()=>{globalThis.fetch=nativeFetch;dom.window.close();await rm(temp,{recursive:true})})
+after(async()=>{globalThis.fetch=nativeFetch;dom.window.close();if(temp)await rm(temp,{recursive:true})})
 beforeEach(()=>{
  dom.reconfigure({url:'https://catfood.test/'});sessionStorage.clear();document.getElementById('root').replaceChildren()
  rows=[product('product_0000000000000001','Alpha',{confirmed_present_ingredient_terms:['chicken'],direct_evidence_ingredient_terms:['chicken'],ingredient_term_result_count:2}),product('product_0000000000000002','Beta',{reviewed_not_found_ingredient_terms:['chicken'],ingredient_term_result_count:2})]

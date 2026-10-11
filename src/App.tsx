@@ -9,7 +9,8 @@ import {
   recordProductConsideration,
   type DecisionCriterion,
 } from './analytics'
-import { fetchCatalog, type CatalogProduct } from './api'
+import { fetchCatalog, fetchExploreEnergy, type ExploreEnergy, type CatalogProduct } from './api'
+import { EnergyRefine, EnergyResult, canRefineEnergy, energyBound, energyText, usableEnergy } from './energy-refine'
 import {
   navigationSearch,
   parseNavigationState,
@@ -161,6 +162,7 @@ function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
   if (search.ingredientAvoidTerms?.length) values.push('피하고 싶은 원료 · ' + search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · '))
   if (search.grainFree) values.push('레시피 특성 · Grain-Free 표기')
   if (refine.brands?.length) values.push('브랜드 · ' + refine.brands.join(' 또는 '))
+  if (energyBound(search, refine) != null) values.push('열량 · ' + energyText(refine.energyMax!) + ' 이하 · 미확인 포함')
   if (refine.recipeDetails.length) values.push(`주요 레시피 · ${refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)).join(' 또는 ')}`)
   return values
 }
@@ -220,6 +222,11 @@ export default function App() {
   const [search, setSearch] = useState<SearchState>(initialNavigation.search)
   const [draftSearch, setDraftSearch] = useState<SearchState>(initialNavigation.search)
   const [refine, setRefine] = useState<RefineState>(initialNavigation.refine)
+  const [energyRows, setEnergyRows] = useState<ExploreEnergy[] | null>(null)
+  const [energyRequested, setEnergyRequested] = useState(false)
+  const [energyLoading, setEnergyLoading] = useState(false)
+  const [energyError, setEnergyError] = useState(false)
+  const [energyRetry, setEnergyRetry] = useState(0)
   const [comparisonCriteriaApplied, setComparisonCriteriaApplied] = useState(initialNavigation.comparisonCriteriaApplied)
   const [editingConditions, setEditingConditions] = useState(initialNavigation.editingConditions)
   const [lookupQuery, setLookupQuery] = useState(initialNavigation.lookupQuery)
@@ -354,6 +361,7 @@ export default function App() {
     setError(null)
     void fetchCatalog(controller.signal).then((data) => {
       if (catalogRequest.current?.id !== id || controller.signal.aborted) return
+      setEnergyRows(null)
       setProducts(data)
       setError(null)
     }).catch((reason: unknown) => {
@@ -479,7 +487,29 @@ export default function App() {
     beginExploreRun(search, refine)
   }, [products.length, mode, editingConditions, search, refine, detailProductId, compareOpen])
 
-  const evaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
+  const energyMax = energyBound(search, refine)
+  const energyEligible = screen === 'workspace' && mode !== 'switch' && comparisonCriteriaApplied && canRefineEnergy(search) && (mode === 'lookup' || !editingConditions || compareOpen || Boolean(detailProductId))
+  const needsEnergy = energyEligible && (energyRequested || energyMax != null)
+  useEffect(() => {
+    if (!energyEligible) setEnergyRequested(false)
+    if (!needsEnergy || loading || error || !products.length || energyRows != null) { setEnergyLoading(false); return }
+    const controller = new AbortController()
+    let active = true
+    setEnergyLoading(true); setEnergyError(false)
+    void fetchExploreEnergy(controller.signal).then(rows => { if (active) setEnergyRows(rows) })
+      .catch(() => { if (active && !controller.signal.aborted) setEnergyError(true) })
+      .finally(() => { if (active) setEnergyLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [needsEnergy, energyEligible, loading, error, products, energyRows, energyRetry])
+  const energyStatus = energyRows != null ? 'loaded' : energyLoading ? 'loading' : energyError ? 'error' : 'idle'
+  const energyByProduct = useMemo(() => new Map((energyRows ?? []).map(row => [row.product_id, row])), [energyRows])
+  const baseEvaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
+  const energyPending = energyMax != null && energyRows == null
+  const evaluated = useMemo(() => energyMax == null ? baseEvaluated : energyPending ? [] : baseEvaluated.filter(item => {
+    const amount = item.product.feed_type === search.feedType ? usableEnergy(energyByProduct.get(item.product.product_id)) : null
+    return amount == null || amount <= energyMax
+  }), [baseEvaluated, energyMax, energyPending, energyByProduct, search.feedType])
+  const energyKnown = baseEvaluated.filter(item => item.product.feed_type === search.feedType && usableEnergy(energyByProduct.get(item.product.product_id)) != null).length
   const lookupResults = useMemo(() => lookupCatalog(products, lookupQuery), [products, lookupQuery])
   const brandOptions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -516,16 +546,25 @@ export default function App() {
     .map((product) => {
       if (!activeComparisonCriteria) return { product }
       const evaluation = evaluateComparisonCriteria(product, search, refine)
+      const energyConfirmed: string[] = [], energyUnknown: string[] = [], energyDifferences: string[] = []
+      if (energyMax != null) {
+        const amount = product.feed_type === search.feedType ? usableEnergy(energyByProduct.get(product.product_id)) : null
+        if (product.feed_type !== search.feedType) energyUnknown.push('열량 · 사료 형태가 달라 비교하지 않음')
+        else if (energyPending) energyUnknown.push(energyError ? '열량 조회 실패' : '열량 확인 중')
+        else if (amount == null) energyUnknown.push('열량 미확인')
+        else if (amount <= energyMax) energyConfirmed.push('열량 · ' + energyText(amount) + ' (선택 ' + energyText(energyMax) + ' 이하)')
+        else energyDifferences.push('열량 · ' + energyText(amount) + ' (선택 ' + energyText(energyMax) + ' 이하)')
+      }
       return {
         product,
-        confirmedMatches: evaluation.confirmedMatches.map(relationLabel),
-        unknowns: evaluation.unknowns.map(unknownLabel),
-        conditionDifferences: evaluation.differences.map(comparisonDifferenceLabel),
+        confirmedMatches: [...evaluation.confirmedMatches.map(relationLabel), ...energyConfirmed],
+        unknowns: [...evaluation.unknowns.map(unknownLabel), ...energyUnknown],
+        conditionDifferences: [...evaluation.differences.map(comparisonDifferenceLabel), ...energyDifferences],
         ingredientConflicts: evaluation.ingredientConflicts.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
         ingredientReviewedNotFound: evaluation.ingredientReviewedNotFound.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
         ingredientInsufficient: evaluation.ingredientInsufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
       }
-    }), [compareIds, products, activeComparisonCriteria, search, refine])
+    }), [compareIds, products, activeComparisonCriteria, search, refine, energyMax, energyByProduct, energyPending, energyError])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
   const visibleProducts = resultProducts.slice(0, visibleCount)
 
@@ -561,13 +600,19 @@ export default function App() {
 
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
+    if (energyBound(nextSearch, nextRefine) != null) {
+      // The intake contract has no energy axis. Do not record an incomplete search or attach its actions to an older run.
+      resetExploreRun('lookup')
+      exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
+      return
+    }
     exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
     const candidates = evaluateCatalog(products, nextSearch, nextRefine), generation = exploreRunGeneration.current, previous = exploreRunTail.current
     const next = previous.then((previousRunId) => { if (exploreRunGeneration.current !== generation) return null; return createDecisionSearchRun({ parentSearchRunId: previousRunId ?? exploreRunId.current, mode: 'explore', currentProductId: null, currentVariantId: null, criteriaSnapshot: exploreCriteriaSnapshot(nextSearch, nextRefine), candidateCount: candidates.length, initialPresentedProductIds: candidates.slice(0, 40).map((item) => item.product.product_id) }) })
     exploreRunTail.current = next
     void next.then((id) => { if (id && exploreRunGeneration.current === generation) exploreRunId.current = id })
   }
-  function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return; void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal)) }
+  function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (energyMax != null) return; if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return; void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal)) }
   function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null; exploreRunStateKey.current = null } }
   function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
   function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field] ?? [], value) })) }
@@ -583,6 +628,18 @@ export default function App() {
       target?.focus({ preventScroll: true })
     }, 0)
   }
+  function changeEnergyMax(max?: number) {
+    const nextRefine = { ...refine, energyMax: max }
+    setEnergyRequested(true); setRefine(nextRefine); setSelectedId(null); setVisibleCount(40)
+    beginExploreRun(search, nextRefine)
+    replaceHistory(snapshot({ refine: nextRefine, visibleCount: 40, selectedId: null }))
+    if (max == null) window.setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('#energy-max')
+      const target = input && input.getClientRects().length ? input : mobileRefineToggleRef.current
+      target?.focus()
+    }, 0)
+  }
+  function retryEnergy() { setEnergyRequested(true); setEnergyRetry(value => value + 1) }
   function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setComparisonCriteriaApplied(true); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null })) }
   function openExploreProduct(productId: string) {
     quickViewReturnId.current = productId
@@ -710,6 +767,7 @@ export default function App() {
     values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)), ...search.features.map((value) => optionLabel(value, FEATURE_LABELS)), ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
     if (search.grainFree) values.push('Grain-Free 표기')
     values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
+    if (energyMax != null) values.push('열량' + ' · ' + energyText(energyMax) + ' 이하 · 미확인 포함')
     values.push(...(refine.brands ?? []).map((brand) => brand))
     values.push(...refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)))
     return values
@@ -760,6 +818,7 @@ export default function App() {
       {!hasPrimary ? <p className="summary-empty">기본 조건은 선택하지 않았습니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
       <div className="refine-title">더 좁혀보기</div>
+      {energyEligible ? <EnergyRefine max={energyMax} status={energyStatus} known={energyKnown} unknown={baseEvaluated.length - energyKnown} onOpen={() => setEnergyRequested(true)} onRetry={retryEnergy} onChange={changeEnergyMax} /> : null}
       <FilterSection title="브랜드" hint="여러 개 선택 가능">
         <p className="field-note">선택한 브랜드의 제품만 봅니다.</p>
         {refine.brands?.length ? <div className="selected-refinements brand-refine-selection">{refine.brands.map((brand) => <button className="selected-refinement" key={brand} type="button" aria-label={brand + ' 선택 해제'} onClick={() => changeBrandRefine(toggleValue(refine.brands ?? [], brand), true)}>{brand} ×</button>)}<button className="selected-refinement" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button></div> : null}
@@ -791,7 +850,7 @@ export default function App() {
       setMobileRefineOpen(true)
       window.setTimeout(() => document.querySelector<HTMLInputElement>('#mobile-recipe-refine-panel .recipe-search')?.focus(), 0)
     }
-    return <div className="mobile-refine-entry"><button ref={mobileRefineToggleRef} className="secondary-action" type="button" aria-expanded={mobileRefineOpen} aria-controls="mobile-recipe-refine-panel" onClick={togglePanel}>{mobileRefineOpen ? '목록으로 돌아가기' : '브랜드·레시피로 좁히기'}</button></div>
+    return <div className="mobile-refine-entry"><button ref={mobileRefineToggleRef} className="secondary-action" type="button" aria-expanded={mobileRefineOpen} aria-controls="mobile-recipe-refine-panel" onClick={togglePanel}>{mobileRefineOpen ? '목록으로 돌아가기' : energyEligible ? '브랜드·레시피·열량으로 좁히기' : '브랜드·레시피로 좁히기'}</button></div>
   }
   function renderCriteriaBar() {
     if (mode !== 'explore' || editingConditions) return null
@@ -802,10 +861,11 @@ export default function App() {
     if (error) return <div className="state-message error-message" role="alert"><strong>제품 데이터를 불러오지 못했습니다.</strong><span>{error}</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div>
     if (loading) return <div className="state-message"><strong>제품 데이터를 불러오는 중입니다.</strong></div>
     if (mode === 'explore' && editingConditions) return <div className="state-message"><strong>조건을 골라 주세요.</strong><span>조건을 선택한 뒤 ‘이 조건으로 찾기’를 눌러 주세요.</span></div>
+    if (mode === 'explore' && energyPending) return <div className="state-message" role={energyError ? 'alert' : 'status'}><strong>{energyError ? '열량을 불러오지 못했습니다.' : '열량을 확인하고 있습니다.'}</strong><span>선택한 조건과 비교 목록은 유지됩니다.</span>{energyError ? <button className="state-retry" type="button" onClick={retryEnergy}>열량 다시 불러오기</button> : null}<button className="state-retry" type="button" onClick={() => changeEnergyMax()}>열량 조건 지우기</button></div>
     if (mode === 'lookup' && !lookupQuery.trim()) return <div className="state-message"><strong>브랜드 또는 제품명을 입력해 주세요.</strong><span>일부만 입력해도 검색할 수 있습니다.</span></div>
     if (!resultProducts.length) return mode === 'lookup'
       ? <div className="state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><button className="state-retry" type="button" onClick={focusLookupInput}>검색어 수정</button></div>
-      : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span>{refine.brands?.length ? <button className="state-retry" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button> : null}<button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
+      : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span>{energyMax != null ? <button className="state-retry" type="button" onClick={() => changeEnergyMax()}>열량 조건 지우기</button> : null}{refine.brands?.length ? <button className="state-retry" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button> : null}<button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
     return <div className="research-results-list">{visibleProducts.map((product) => {
       const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
       const hasExploreCriteria = mode === 'explore' && activeEvidenceConditions > 0
@@ -836,6 +896,7 @@ export default function App() {
         >
           <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
         </button>
+        {mode === 'explore' && energyEligible && needsEnergy && energyRows != null ? <EnergyResult row={energyByProduct.get(product.product_id)} sameFeed={product.feed_type === search.feedType} /> : null}
       </div>
     })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
   }
@@ -859,7 +920,7 @@ export default function App() {
   const resultCountText = visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`
   const resultSummaryText = loading
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
-    : resultCountText
+    : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중' : resultCountText
   const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
   const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType || search.lifeStage)
     ? (priorityLabels.length === 1

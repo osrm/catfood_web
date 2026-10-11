@@ -11,6 +11,8 @@ import { act, createElement } from 'react'
 const dom = new JSDOM('<div id="root"></div>', { url: 'https://catfood.test/' })
 globalThis.window = dom.window
 globalThis.document = dom.window.document
+// jsdom has no layout scrolling; actual visibility and fixed-dock clearance are checked in Chrome.
+window.HTMLElement.prototype.scrollIntoView = () => {}
 globalThis.sessionStorage = dom.window.sessionStorage
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const { createRoot } = await import('react-dom/client')

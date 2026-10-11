@@ -648,7 +648,8 @@ export default function App() {
     if (restoreFocus) window.setTimeout(() => {
       const input = document.querySelector<HTMLInputElement>('.recipe-detail-search')
       const target = input && input.getClientRects().length ? input : mobileRefineToggleRef.current
-      target?.focus()
+      target?.focus({ preventScroll: true })
+      target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })
     }, 0)
   }
   function toggleRefineRecipe(value: string, restoreFocus = false) { changeRecipeRefine(toggleValue(refine.recipeDetails, value), restoreFocus) }

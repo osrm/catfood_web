@@ -465,11 +465,13 @@ test('list expansion, detail navigation, and browser back restore the expanded r
     await waitForUi(
       () => document.querySelector('.detail-stage') === null
         && document.querySelectorAll('.research-result-card').length === 130
-        && document.activeElement?.dataset.productId === products[125].product_id,
-      'expanded lookup list and focused product restored after browser back',
+        && document.activeElement === document.querySelector('.quick-view-topline button'),
+      'expanded lookup list and quick view close focus restored after browser back',
     )
   })
   assert.equal(document.querySelectorAll('.research-result-card').length, 130)
+  await click('닫기 ×')
+  await waitForUi(() => document.activeElement?.dataset.productId === products[125].product_id, 'closing quick view returns focus to expanded list product')
   assert.equal(document.activeElement?.dataset.productId, products[125].product_id)
   assert.equal(new URL(window.location.href).searchParams.get('visible'), '240')
 })
@@ -1355,4 +1357,64 @@ test('brand comparison context survives LOOKUP manual additions, reload and deta
     await click(document.querySelector('.site-wordmark').textContent);await click('조건 고르기')
     assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,[])
   } finally {a.brand=oldA;b.brand=oldB}
+})
+
+test('quick view and detail return restore the document and inner list position captured before inspection', async () => {
+  let y = 680
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'scrollY')
+  const nativeScrollTo = window.scrollTo
+  Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+  window.scrollTo = (options) => { y = options.top }
+  try {
+    await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=' + products[0].product_id)
+    const card = document.querySelectorAll('.research-result-card')[9]
+    const id = card.dataset.productId
+    document.querySelector('.research-results-scroll').scrollTop = 91
+    await act(async () => card.click())
+    assert.deepEqual(window.history.state.catfoodList, { scrollTop: 91, documentScrollTop: 680, visibleCount: 120, focusId: id })
+    y = 0 // A mobile quick view hides the list and clamps its document scroll.
+    await click('상세 보기 →')
+    assert.equal(window.history.state.catfoodDetailEntry, true)
+    await click('돌아가기 · 제품 목록')
+    await waitForUi(() => document.querySelector('.research-quick-view'), 'detail returned to quick view')
+    assert.equal(y, 0, 'do not restore an offscreen list behind quick view')
+    await click('닫기 ×')
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    assert.equal(y, 680)
+    assert.equal(document.querySelector('.research-results-scroll').scrollTop, 91)
+    assert.equal(document.activeElement?.dataset.productId, id)
+    assert.equal(new URL(window.location.href).searchParams.get('q'), 'Product')
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), products[0].product_id)
+  } finally {
+    Object.defineProperty(window, 'scrollY', descriptor)
+    window.scrollTo = nativeScrollTo
+  }
+})
+
+test('comparison return uses the current list position after an older quick view was closed', async () => {
+  let y = 500
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'scrollY')
+  const nativeScrollTo = window.scrollTo
+  Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y })
+  window.scrollTo = (options) => { y = options.top }
+  try {
+    await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=' + products[0].product_id)
+    await act(async () => document.querySelectorAll('.research-result-card')[5].click())
+    y = 0
+    await click('닫기 ×')
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    assert.equal(y, 500)
+    y = 900
+    await click('비교 보기 →')
+    y = 0
+    await click('제품 목록으로')
+    await waitForUi(() => document.querySelector('.research-results'), 'comparison returned to list')
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)) })
+    assert.equal(y, 900, 'comparison entry records the new list position, not the old quick view position')
+    assert.equal(document.querySelector('.research-quick-view'), null)
+    assert.equal(new URL(window.location.href).searchParams.get('compare'), products[0].product_id)
+  } finally {
+    Object.defineProperty(window, 'scrollY', descriptor)
+    window.scrollTo = nativeScrollTo
+  }
 })

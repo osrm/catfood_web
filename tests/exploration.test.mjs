@@ -297,11 +297,13 @@ for (const mode of ['explore', 'switch']) {
         await waitForUi(
           () => document.querySelector('.detail-stage') === null
             && rows(selector).length === 80
-            && document.activeElement?.dataset.productId === products[40].product_id,
-          'expanded explore list and focused product restored after detail history back',
+            && document.activeElement === document.querySelector('.quick-view-topline button'),
+          'expanded explore list and quick view focus restored after detail history back',
         )
       })
       assert.equal(rows(selector).length, 80, 'history restoration must finish before pagination becomes interactive')
+      await click('닫기 ×')
+      await waitForUi(() => document.activeElement?.dataset.productId === products[40].product_id, 'closing quick view returns focus to the product that opened detail')
       assert.equal(document.activeElement?.dataset.productId, products[40].product_id, 'focus returns to the product that opened detail')
     } else {
       await click('돌아가기')

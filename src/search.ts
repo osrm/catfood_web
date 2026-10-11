@@ -378,13 +378,11 @@ export function evaluateCatalog(
       confirmedMatches.push(...matches.map((value) => `세부:${value}`))
     }
 
-    if (refine.brands?.length) confirmedMatches.push('브랜드:' + product.brand)
-
     candidates.push({
       product,
       confirmedMatches,
       unknowns,
-      matchCount: confirmedMatches.filter((value) => !value.startsWith('브랜드:')).length,
+      matchCount: confirmedMatches.length,
       ingredientReviewedNotFound: ingredientEvidence.ingredientReviewedNotFound,
       ingredientInsufficient: ingredientEvidence.ingredientInsufficient,
     })

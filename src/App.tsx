@@ -603,10 +603,10 @@ export default function App() {
   }, [selectedProduct?.product_id, detailProductId, compareOpen, visibleProducts.length])
 
   useEffect(() => {
-    if (!selectedId || detailProductId || compareOpen || screen !== 'workspace') return
+    if (!selectedProduct || detailProductId || compareOpen || screen !== 'workspace') return
     const timer = window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
     return () => window.clearTimeout(timer)
-  }, [selectedId, detailProductId, compareOpen, screen])
+  }, [selectedProduct?.product_id, detailProductId, compareOpen, screen])
 
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return

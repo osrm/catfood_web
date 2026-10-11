@@ -757,7 +757,7 @@ export default function App() {
       {search.recipeFamilies.length ? <SummaryRow label="레시피" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS)} /> : null}
       {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 표기" /> : null}
       {search.ingredientAvoidTerms?.length ? <SummaryRow label="피하고 싶은 원료" value={search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')} /> : null}
-      {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 제품을 봅니다.</p> : null}
+      {!hasPrimary ? <p className="summary-empty">기본 조건은 선택하지 않았습니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
       <div className="refine-title">더 좁혀보기</div>
       <FilterSection title="브랜드" hint="여러 개 선택 가능">

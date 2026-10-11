@@ -4,6 +4,8 @@
 
 제품 의미와 검색 상태의 source of truth는 private core의 활성 UX/taxonomy 문서다. 이 문서는 그 의미를 시각 구조와 인터랙션으로 번역하며, 현재 backend/API가 제공하지 않는 기능을 완성된 것처럼 약속하지 않는다.
 
+구현 현황 확인: 2026-10-11. 이 문서의 레퍼런스 해석은 화면별 원칙이며, 현재 제공하는 기능과 상태 계약은 [문서 안내](README.md)의 기능별 문서 및 실제 source를 함께 확인한다. 이후 변경은 해당 기능 문서의 계약을 기준으로 대조한다.
+
 ## Product direction
 
 CATFOOD는 쇼핑몰, 랭킹, 귀여운 반려동물 앱, 전문가 전용 분석 도구가 아니다. 일반 소비자가 제품을 선택하기 전에 **정확한 제품 정체성, 확인된 사실, 자기 기준과의 관계, 후보 간 차이와 근거**를 이해할 수 있는 제품 의사결정 도구를 지향한다.
@@ -106,7 +108,7 @@ Home은 긴 마케팅 landing page나 데이터 dashboard가 아니다.
 - 결과는 card gallery보다 빠르게 스캔할 수 있는 dense vertical record list를 우선한다.
 - 사용자가 선택한 조건에 대한 제품의 `match / conflict / unknown` 관계를 가능한 범위에서 결과에 노출한다.
 
-현재 3-pane shell은 유용한 prototype이지만 장기 고정 규칙은 아니다. 제품 quick view가 필요할 때만 나타나는 구조도 검토할 수 있다.
+패널 수와 배치는 장기 고정 규칙이 아니다. 제품 quick view는 필요한 작업에서 열리며 결과 탐색과 비교 맥락을 유지한다.
 
 ### Product detail — structured consumer database
 
@@ -261,10 +263,10 @@ DATA / EVIDENCE
 
 ## Current implementation direction
 
-- 현재 `catfood_web`은 Supabase의 browser-facing catalog summary를 사용하는 Stage 6 prototype이다.
-- 지금 UI polish가 현재 3-pane shell이나 summary-only Inspector를 장기 구조로 굳히지 않게 한다.
-- direct lookup과 General Screener처럼 현재 API로 지원되는 흐름은 실제 데이터와 연결된 상태를 우선한다.
-- switching의 exact SKU 선택, CHANGE / KEEP 후속 단계, Formula/SKU 상세, ingredient evidence, nutrition detail은 해당 public contract가 연결될 때 실제 구현한다.
-- Product detail은 현재 summary 데이터만으로 시작하더라도 향후 `Product → Formula → SKU → Facts → Evidence`로 확장 가능한 정보 위계를 고려한다.
-- Compare는 부가 기능보다 핵심 의사결정 surface로 검토한다.
-- Home의 기능 위계는 시각적 균형보다 실제 사용 가능성과 제품 계약을 함께 반영한다.
+- 현재 Stage 6 frontend는 공개 catalog와 상세 read model을 사용하는 HOME / EXPLORE / LOOKUP / SWITCH, 최대 5제품 비교와 제품 상세를 제공한다. 화면을 summary-only Inspector나 고정 3-pane prototype으로 가정하지 않는다.
+- SWITCH의 현재 제품·사용 규격 선택, CHANGE / KEEP 흐름과 새 시작은 구현되어 있다. 일반 탐색 조건/비교와 SWITCH session을 섞지 않는다.
+- 상세에는 개요·영양·원재료·제조/유통 탭이 있다. 실제 API로 확인한 자료만 표시하고 Product / Formula / SKU 및 항목별 보완 근거의 범위를 보존한다. 모든 포장이나 배합의 사실을 확인했다는 뜻은 아니다.
+- 일반 탐색은 원료 제외, 복수 브랜드, 맥락에 따른 최대 열량 좁히기를 제공한다. 의미와 상태 보존은 [기능별 계약](README.md)을 따른다. 일반 영양 자유 range나 원료 부재·알레르기 안전 판정으로 확장하지 않는다.
+- 비교 개요는 불필요한 상세 선조회를 하지 않는다. 영양·원재료 탭에서 필요한 자료를 읽으며, 같은 항목의 숫자와 단위·이상/이하·미확인을 유지한다.
+- 현재 시각 구성은 [consumer design system](consumer-design-system.md)을 확인한다. 레퍼런스의 외형이나 옛 시안을 새로운 고정 테마로 취급하지 않는다.
+- 미지원 API 기능을 placeholder 사실로 채우지 않는다. 새 기능은 현재 작업에서 확인된 사용자 문제와 자료 범위에 맞춰 별도로 결정한다.

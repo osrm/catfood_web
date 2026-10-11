@@ -11,6 +11,10 @@ Catfood의 **public frontend repository**다. 사용자에게 배포되는 React
 
 이 repository는 private `catfood`를 build-time/runtime에 직접 읽지 않는다. 브라우저는 Supabase의 공개 `api` read model만 사용한다. `service_role`, secret key, private repository token, raw private data와 internal evidence는 넣지 않는다.
 
+## Frontend documentation
+
+현재 구현 계약과 읽는 순서는 [문서 안내](docs/README.md)에 정리한다. UI 참고 원칙, 현재 시각 체계, 기능별 동작 계약을 구분하며, 과거 시안이나 조사 기록을 새로운 구현 지시로 취급하지 않는다.
+
 ## Local development
 
 개발·CI 검증 기준은 `.nvmrc`의 Node.js 22.23.2다. 지원 하한은 22.12지만 다른 버전의 동작을 모두 검증한 것은 아니다.
@@ -31,18 +35,24 @@ npm run dev
 
 - read model: `api.effective_product_catalog_summary`
 - catalog database에는 read-only 요청만 수행하며 browser direct INSERT/RPC는 하지 않는다.
-- 최대 1000행을 읽고 브라우저에서 현재 검색 조건을 적용한다.
+- 카탈로그 summary는 최대 1000행을 읽고 브라우저에서 현재 검색 조건을 적용한다. 현재 snapshot의 제품 수를 영구적인 전체 크기로 가정하지 않는다.
 - 전체 판매 규격은 `api.switch_current_variant_options`를 1000행씩 나누어 조회한다. API의 응답 상한 때문에 더 큰 limit 한 번으로 전체를 읽었다고 간주하지 않는다. 중간 페이지 실패 시 부분 목록을 전체 규격처럼 표시하지 않고 대표 규격으로 fallback한다.
 - 빈 normalized array나 미확인 상태를 `없음`으로 추론하지 않는다.
 - 사료 형태와 생애주기는 확인된 값이 선택값과 명백히 충돌할 때만 후보에서 제외한다. 값이 미확인이면 후보에 남긴다.
 - `official_target`, `feature`, `recipe_family`, Grain-Free는 positive 탐색 조건이다. 선택값이 확인되면 confirmed match로 기록하고, 확인되지 않았으면 false로 만들지 않고 unknown으로 남긴다.
 - 위 positive 조건은 각 confirmed match를 독립적으로 세어 확인된 조건이 많은 후보를 먼저 보여준다. boolean OR/AND로 미확인 후보를 탈락시키지 않는다.
 - `recipe_detail`의 추가 좁히기는 선택한 세부 레시피 중 하나 이상이 확인된 제품만 남기는 OR refine이다.
+- [원료 제외](docs/explore-ingredient-exclusion.md)는 선택 원료가 확인된 제품을 제외하며, 검토 자료에서 미발견과 근거 부족을 구분해 유지한다. 레시피 이름과 실제 원료 확인은 별개다.
+- [복수 브랜드](docs/explore-brand-refinement.md)는 선택한 브랜드 중 하나에 해당하는 제품만 남기는 OR refine이다.
+- [열량](docs/explore-energy-refinement.md)은 사료 형태와 체중 관리 표기를 선택한 맥락에서 최대 kcal/100g를 직접 입력한다. 해당 기능을 열거나 유효한 URL을 복원할 때만 기존 공개 영양 view를 읽으며, 미확인 제품도 남긴다. 일반 자유 영양 범위나 건강 판단을 제공하지 않는다.
+- CompareView는 개요에서 영양·원재료·제품별 규격 추가 조회를 하지 않는다. 각 비교 탭에서 필요한 자료를 읽고, 로딩·오류·미확인을 구분한다.
 - 결과 0건이어도 조건을 자동 완화하지 않는다.
 
-선택적으로 활성화되는 decision intake는 범용 clickstream이 아니다. SWITCH/EXPLORE 결과 생성 시 최초 40개 presentation과 명시적인 상세 열기·비교 추가만 Edge Function으로 보고한다. LOOKUP은 수집하지 않으며 intake 실패가 제품 탐색 UI를 막지 않는다.
+선택적으로 활성화되는 decision intake는 범용 clickstream이 아니다. SWITCH/EXPLORE 결과 생성 시 최초 40개 presentation과 명시적인 상세 열기·비교 추가만 Edge Function으로 보고한다. LOOKUP은 수집하지 않으며 intake 실패가 제품 탐색 UI를 막지 않는다. intake 계약에 energy 축이 없어 열량 조건이 적용된 일반 탐색/고려 이벤트도 기록하지 않는다.
 
-SWITCH/EXPLORE는 최초 40개 이후에도 `제품 더 보기`로 40개씩 나머지 후보를 탐색·비교할 수 있다. 이후 후보는 V1 consideration 수집 대상에 포함하지 않는다. LOOKUP은 120개씩 표시한다. 조건을 다시 적용하면 표시 범위와 비교 선택을 초기화하고, 비교·상세에서 결과로 돌아올 때는 펼친 목록을 유지한다.
+SWITCH/EXPLORE는 최초 40개 이후에도 `제품 더 보기`로 40개씩 나머지 후보를 탐색·비교할 수 있다. 이후 후보는 V1 consideration 수집 대상에 포함하지 않는다. LOOKUP은 120개씩 표시한다. 같은 기본 조건을 재적용하면 브랜드·레시피·열량의 추가 좁히기와 비교 목록을 유지한다. 기본 조건을 실제로 바꾸어 적용하면 표시 범위·추가 좁히기·일반 비교를 초기화한다. 결과에서 브랜드·레시피·열량만 변경하면 비교 목록은 유지하며, 비교·상세에서 결과로 돌아올 때는 펼친 목록을 유지한다.
+
+EXPLORE↔LOOKUP 이동에서는 마지막 적용 조건과 비교 순서를 보존한다. Home에서 새 일반 탐색을 시작하면 이전 일반 조건과 비교를 지운다. SWITCH는 현재 사료·사용 규격·후보를 별도 session으로 관리하며, 화면의 처음부터 시작 동작으로 새 작업을 만든다.
 
 현재 UI는 제품에 저장된 canonical `life_stage`를 그대로 사용하며 사용자 나이에서 생애주기를 추론하지 않는다.
 

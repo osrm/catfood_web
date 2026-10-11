@@ -83,7 +83,7 @@ type Screen = 'home' | 'workspace'
 type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies' | 'ingredientAvoidTerms'
 type SingleSearchField = 'feedType' | 'lifeStage'
 type Option = readonly [string, string]
-type ListRestore = { scrollTop: number; visibleCount: number; focusId: string | null }
+type ListRestore = { scrollTop: number; documentScrollTop?: number; visibleCount: number; focusId: string | null }
 type HistoryPayload = {
   catfoodDetailEntry?: boolean
   catfoodCompareEntry?: boolean
@@ -248,6 +248,8 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const pendingRestore = useRef<ListRestore | null>(null)
+  const quickViewListRestore = useRef<ListRestore | null>(initialNavigation.selectedId
+    ? ((typeof window !== 'undefined' ? window.history.state : null) as HistoryPayload | null)?.catfoodList ?? null : null)
   const pendingCompareReturnIds = useRef<string[] | null>(null)
   const switchSessionRef = useRef<SwitchSessionState>(initialSwitchSession)
   const generalNavigationRef = useRef<NavigationState>(
@@ -350,7 +352,8 @@ export default function App() {
     setComparisonCriteriaApplied(next.comparisonCriteriaApplied); setEditingConditions(next.editingConditions); setSelectedId(next.selectedId); setVisibleCount(next.visibleCount); setCompareIds(next.compareIds)
     setCompareOpen(next.compareOpen); setCompareTab(next.compareTab); setDetailProductId(next.detailProductId); setDetailTab(next.detailTab)
     setMobileAdditionalOpen(next.editingConditions && countAdditionalConditions(next.search) > 0)
-    if (restore) pendingRestore.current = restore
+    quickViewListRestore.current = next.selectedId ? restore ?? null : null
+    pendingRestore.current = next.selectedId ? null : restore ?? null
   }
   function loadCatalog() {
     if (catalogRequest.current) return
@@ -569,7 +572,7 @@ export default function App() {
   const visibleProducts = resultProducts.slice(0, visibleCount)
 
   useEffect(() => {
-    if (!pendingRestore.current || detailProductId || compareOpen || loading) return
+    if (!pendingRestore.current || screen !== 'workspace' || selectedId || detailProductId || compareOpen || loading) return
     const restore = pendingRestore.current
     if (visibleProducts.length < Math.min(restore.visibleCount, resultProducts.length)) return
     pendingRestore.current = null
@@ -579,10 +582,11 @@ export default function App() {
       if (restore.focusId) {
         const focusTarget = Array.from(document.querySelectorAll<HTMLElement>('[data-product-id]'))
           .find((element) => element.dataset.productId === restore.focusId)
-        focusTarget?.focus()
+        focusTarget?.focus({ preventScroll: true })
       }
+      if (restore.documentScrollTop != null && restore.documentScrollTop !== window.scrollY) window.scrollTo({ top: restore.documentScrollTop, behavior: 'instant' })
     }, 0)
-  }, [visibleProducts.length, detailProductId, compareOpen, loading])
+  }, [visibleProducts.length, screen, selectedId, detailProductId, compareOpen, loading])
 
   useEffect(() => {
     if (selectedProduct || !quickViewFocusReturnPending.current || detailProductId || compareOpen) return
@@ -597,6 +601,12 @@ export default function App() {
     }, 0)
     return () => window.clearTimeout(timer)
   }, [selectedProduct?.product_id, detailProductId, compareOpen, visibleProducts.length])
+
+  useEffect(() => {
+    if (!selectedId || detailProductId || compareOpen || screen !== 'workspace') return
+    const timer = window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
+    return () => window.clearTimeout(timer)
+  }, [selectedId, detailProductId, compareOpen, screen])
 
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
     if (!products.length) return
@@ -654,13 +664,15 @@ export default function App() {
   }
   function toggleRefineRecipe(value: string, restoreFocus = false) { changeRecipeRefine(toggleValue(refine.recipeDetails, value), restoreFocus) }
   function openExploreProduct(productId: string) {
+    quickViewListRestore.current = captureListRestore(productId)
     quickViewReturnId.current = productId
     setSelectedId(productId)
     if (mode === 'explore') recordExploreConsideration(productId, 'detail_open')
-    replaceHistory(snapshot({ selectedId: productId }))
-    window.setTimeout(() => quickViewCloseRef.current?.focus({ preventScroll: true }), 0)
+    replaceHistory(snapshot({ selectedId: productId }), { ...(window.history.state ?? {}), catfoodList: quickViewListRestore.current })
   }
   function closeQuickView() {
+    pendingRestore.current = quickViewListRestore.current
+    quickViewListRestore.current = null
     quickViewReturnId.current = quickViewReturnId.current ?? selectedId
     quickViewFocusReturnPending.current = true
     setSelectedId(null)
@@ -686,6 +698,8 @@ export default function App() {
   function openCompare() {
     if (!compareIds.length) return
     pendingCompareReturnIds.current = null
+    const restore = selectedId && quickViewListRestore.current ? quickViewListRestore.current : captureListRestore(null)
+    replaceHistory(snapshot(), { ...(window.history.state ?? {}), catfoodList: restore })
     const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview'); pushHistory(next, { catfoodCompareEntry: true })
   }
   function closeCompare() {
@@ -694,9 +708,9 @@ export default function App() {
     setCompareOpen(false); setCompareTab('overview'); replaceHistory(snapshot({ compareOpen: false, compareTab: 'overview' }))
   }
   function changeCompareTab(nextTab: CompareTab) { setCompareTab(nextTab); replaceHistory(snapshot({ compareTab: nextTab })) }
-  function captureListRestore(focusId: string | null): ListRestore { return { scrollTop: document.querySelector<HTMLElement>('.research-results-scroll')?.scrollTop ?? 0, visibleCount, focusId } }
+  function captureListRestore(focusId: string | null): ListRestore { return { scrollTop: document.querySelector<HTMLElement>('.research-results-scroll')?.scrollTop ?? 0, documentScrollTop: window.scrollY, visibleCount, focusId } }
   function openDetail(productId: string) {
-    const restore = captureListRestore(productId)
+    const restore = quickViewListRestore.current ?? captureListRestore(productId)
     replaceHistory(snapshot(), { ...(window.history.state ?? {}), catfoodList: restore })
     const next = snapshot({ detailProductId: productId, detailTab: 'overview', selectedId: productId, screen: 'workspace' })
     setDetailProductId(productId); setDetailTab('overview'); setSelectedId(productId); pushHistory(next, { catfoodDetailEntry: true })

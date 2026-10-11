@@ -422,7 +422,7 @@ test('changing current product aborts stale SKU state and a 200 empty response s
   assert.deepEqual(calls, [alpha.product_id, beta.product_id, gamma.product_id])
 })
 
-test('recipe choices expose every catalog value, sort by display label, and keep raw-key search', async () => {
+test('complete recipe list exposes every catalog value, breaks frequency ties by label, and keeps raw-key search', async () => {
   const recipeKeys = ['anchovy', 'beef', 'chicken', ...Array.from({ length: 39 }, (_, index) => `recipe_${String(index).padStart(2, '0')}`)]
   const rows = recipeKeys.map((recipe, index) => product(`product_${String(index).padStart(12, '0')}`, `Recipe Product ${index}`, { recipe_details: [recipe] }))
   catalogRoute(rows)
@@ -431,6 +431,8 @@ test('recipe choices expose every catalog value, sort by display label, and keep
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 42개'), 'catalog loaded on home')
   await click('조건 고르기')
   await click('이 조건으로 찾기')
+  assert.equal(all('.recipe-detail-grid .choice').length, 8, 'initial choices remain short')
+  await click('레시피 전체 보기')
   await waitForUi(() => all('.recipe-detail-grid .choice').length === recipeKeys.length, 'all recipe choices')
 
   const labelFor = (key) => ({ anchovy: '멸치', beef: '소', chicken: '닭' }[key] ?? key.replaceAll('_', ' '))

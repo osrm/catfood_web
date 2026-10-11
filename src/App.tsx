@@ -855,7 +855,15 @@ export default function App() {
   function renderCriteriaBar() {
     if (mode !== 'explore' || editingConditions) return null
     const criteria = activeCriteria()
-    return <div className="criteria-bar"><span className="criteria-label">적용된 조건</span><div className="criteria-chips">{criteria.length ? criteria.map((value) => <span key={value}>{value}</span>) : <span>추가 조건 없음</span>}</div><button type="button" onClick={editConditions}>조건 수정</button></div>
+    return <div className="criteria-bar">
+      <span className="criteria-label">적용된 조건</span>
+      <div className="criteria-chips">{criteria.length ? criteria.map((value) => <span key={value}>{value}</span>) : <span>추가 조건 없음</span>}</div>
+      {criteria.length ? <details className="criteria-disclosure">
+        <summary>적용된 조건 {criteria.length}개</summary>
+        <ul className="criteria-expanded-values" aria-label="적용된 조건 전체">{criteria.map(value => <li key={value}>{value}</li>)}</ul>
+      </details> : <span className="criteria-empty">적용된 조건 없음</span>}
+      <button type="button" onClick={editConditions}>조건 수정</button>
+    </div>
   }
   function renderResultList() {
     if (error) return <div className="state-message error-message" role="alert"><strong>제품 데이터를 불러오지 못했습니다.</strong><span>{error}</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div>

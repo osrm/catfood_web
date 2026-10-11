@@ -1,3 +1,4 @@
+import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import SiteHeader from './SiteHeader'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
@@ -277,8 +278,8 @@ function currentStepIndex(step: SwitchStep): number {
 }
 
 function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string): string {
-  const direct = source.direct_evidence_ingredient_terms.includes(term)
-  const flavor = source.flavor_associated_ingredient_terms.includes(term)
+  const direct = source.direct_evidence_ingredient_terms?.includes(term)
+  const flavor = source.flavor_associated_ingredient_terms?.includes(term)
   if (direct && flavor) return '직접 · 향미 관련 근거'
   if (direct) return '직접 근거'
   if (flavor) return '향미 관련 근거'
@@ -286,8 +287,8 @@ function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string)
 }
 
 function ingredientAvoidanceStatus(product: CatalogProduct, term: string): string {
-  if (product.confirmed_present_ingredient_terms.includes(term)) return '확인됨 — 피하려는 원료와 일치'
-  if (product.reviewed_not_found_ingredient_terms.includes(term)) return '검토한 자료에서 찾지 못함'
+  if (product.confirmed_present_ingredient_terms?.includes(term)) return '확인됨 — 피하려는 원료와 일치'
+  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return '검토한 자료에서 찾지 못함'
   return '판단 근거 부족'
 }
 
@@ -492,7 +493,7 @@ function switchCriteriaSnapshot({
     axis: 'ingredient',
     value,
     role: 'ingredient_avoid',
-    source: currentProduct.confirmed_present_ingredient_terms.includes(value)
+    source: currentProduct.confirmed_present_ingredient_terms?.includes(value)
       ? 'current_baseline_derived'
       : 'user_selected',
   }))
@@ -508,8 +509,8 @@ function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCond
 
   for (const condition of conditions) {
     if (condition.kind === 'ingredientAvoid') {
-      if (product.confirmed_present_ingredient_terms.includes(condition.value)) return null
-      if (product.reviewed_not_found_ingredient_terms.includes(condition.value)) {
+      if (product.confirmed_present_ingredient_terms?.includes(condition.value)) return null
+      if (product.reviewed_not_found_ingredient_terms?.includes(condition.value)) {
         ingredientReviewedNotFound.push(condition.label)
       } else {
         ingredientInsufficient.push(condition.label)
@@ -591,6 +592,7 @@ function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
 }
 
 export default function SwitchFlow({
+  ingredientLoad,
   products,
   loading,
   error,
@@ -604,6 +606,7 @@ export default function SwitchFlow({
   onRestart,
 }: {
   products: CatalogProduct[]
+  ingredientLoad?: CatalogIngredientLoad
   loading: boolean
   error: string | null
   initialQuery?: string
@@ -642,6 +645,9 @@ export default function SwitchFlow({
     step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent,
     selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
   } = activeSession
+  const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
+  const needsIngredientFacts = step !== 'current' && step !== 'sku' || Boolean(detailProductId)
+  useCatalogIngredients(ingredientLoad, !loading && !error && needsIngredientFacts)
   const currentVariantId = variantSelection.kind === 'variant' ? variantSelection.variantId : null
   const setStep = (value: SwitchStep, action: SwitchHistoryAction = 'replace', entry?: SwitchHistoryEntry | null) => setSessionField('step', value, action, entry)
   const setQuery = (value: string) => setSessionField('query', value)
@@ -769,9 +775,9 @@ export default function SwitchFlow({
   const ingredientTerms = useMemo(() => {
     const values = new Set<string>()
     for (const product of products) {
-      product.confirmed_present_ingredient_terms.forEach((value) => values.add(value))
-      product.reviewed_not_found_ingredient_terms.forEach((value) => values.add(value))
-      product.insufficient_evidence_ingredient_terms.forEach((value) => values.add(value))
+      product.confirmed_present_ingredient_terms?.forEach((value) => values.add(value))
+      product.reviewed_not_found_ingredient_terms?.forEach((value) => values.add(value))
+      product.insufficient_evidence_ingredient_terms?.forEach((value) => values.add(value))
     }
     return [...values].sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
   }, [products])
@@ -853,17 +859,17 @@ export default function SwitchFlow({
     return null
   }
 
-  const conditions = useMemo(() => currentProduct ? buildConditions({
+  const conditions = useMemo(() => currentProduct && !ingredientFactsPending ? buildConditions({
     change,
     keep,
     changeBrand,
     keepBrand,
     ingredientAvoidTerms,
     currentProduct,
-  }) : [], [change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct])
+  }) : [], [change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct, ingredientFactsPending])
 
   const candidates = useMemo(() => {
-    if (!currentProduct) return []
+    if (!currentProduct || ingredientFactsPending) return []
     const values: SwitchEvaluation[] = []
     for (const product of products) {
       if (product.product_id === currentProduct.product_id) continue
@@ -878,7 +884,7 @@ export default function SwitchFlow({
       if (brandOrder !== 0) return brandOrder
       return a.product.canonical_name.localeCompare(b.product.canonical_name, 'ko-KR')
     })
-  }, [products, currentProduct, conditions])
+  }, [products, currentProduct, conditions, ingredientFactsPending])
 
   const trackedCandidates = candidates.slice(0, 40)
   const candidateSearchActive = candidateSearch.trim().length > 0
@@ -924,7 +930,7 @@ export default function SwitchFlow({
 
   useLayoutEffect(() => {
     const pending = pendingExplicitScroll.current
-    if (!pending) return
+    if (!pending || ingredientFactsPending) return
     const renderedTarget: SwitchExplicitScrollTarget | null = detailProduct && !compareOpen
       ? null
       : step === 'results' && compareOpen && compareItems.length > 0
@@ -951,7 +957,7 @@ export default function SwitchFlow({
       return
     }
     if (renderedTarget !== pending.source) releasePendingExplicitScroll()
-  }, [step, compareOpen, detailProductId, compareItems.length])
+  }, [step, compareOpen, detailProductId, compareItems.length, ingredientFactsPending])
 
   function selectCurrentVariant(variantId: string | null) {
     setCurrentVariantId(variantId)
@@ -1255,7 +1261,7 @@ export default function SwitchFlow({
   }
 
   function renderIngredientAvoidance() {
-    if (!currentProduct) return null
+    if (!currentProduct || currentProduct.confirmed_present_ingredient_terms == null) return null
     const currentConfirmed = currentProduct.confirmed_present_ingredient_terms
       .filter((term) => !ingredientAvoidTerms.includes(term))
       .sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
@@ -1744,8 +1750,12 @@ export default function SwitchFlow({
     )
   }
 
+  if (!loading && !error && currentProduct && needsIngredientFacts && ingredientFactsPending) {
+    return <div className="research-shell switch-workflow-shell">{renderNavigation()}<main className="switch-find-stage"><CatalogIngredientNotice load={ingredientLoad} /></main></div>
+  }
+
   if (detailProduct && !compareOpen) {
-    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail ingredientLoad={ingredientLoad} product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {

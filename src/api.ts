@@ -28,12 +28,12 @@ export interface CatalogProduct {
   assessed_market_country_codes: string[]
   current_market_country_codes: string[]
   formula_match_market_country_codes: string[]
-  ingredient_term_result_count: number
-  confirmed_present_ingredient_terms: string[]
-  direct_evidence_ingredient_terms: string[]
-  flavor_associated_ingredient_terms: string[]
-  reviewed_not_found_ingredient_terms: string[]
-  insufficient_evidence_ingredient_terms: string[]
+  ingredient_term_result_count: number | null
+  confirmed_present_ingredient_terms: string[] | null
+  direct_evidence_ingredient_terms: string[] | null
+  flavor_associated_ingredient_terms: string[] | null
+  reviewed_not_found_ingredient_terms: string[] | null
+  insufficient_evidence_ingredient_terms: string[] | null
   official_targets: string[]
   features: string[]
   recipe_families: string[]
@@ -173,6 +173,13 @@ export interface ProductMarketDetail {
   display_rank: number
   country_observation_count: number
 }
+
+const CATALOG_INGREDIENT_FIELDS = [
+  'ingredient_term_result_count', 'confirmed_present_ingredient_terms',
+  'direct_evidence_ingredient_terms', 'flavor_associated_ingredient_terms',
+  'reviewed_not_found_ingredient_terms', 'insufficient_evidence_ingredient_terms',
+] as const
+export type CatalogIngredientFacts = { product_id: string; ingredient_term_result_count: number } & Record<Exclude<typeof CATALOG_INGREDIENT_FIELDS[number], 'ingredient_term_result_count'>, string[]>
 
 const CATALOG_FIELDS = [
   'product_id',
@@ -351,11 +358,11 @@ function normalizeProduct(value: CatalogProduct): CatalogProduct {
     assessed_market_country_codes: asStringArray(value.assessed_market_country_codes),
     current_market_country_codes: asStringArray(value.current_market_country_codes),
     formula_match_market_country_codes: asStringArray(value.formula_match_market_country_codes),
-    confirmed_present_ingredient_terms: asStringArray(value.confirmed_present_ingredient_terms),
-    direct_evidence_ingredient_terms: asStringArray(value.direct_evidence_ingredient_terms),
-    flavor_associated_ingredient_terms: asStringArray(value.flavor_associated_ingredient_terms),
-    reviewed_not_found_ingredient_terms: asStringArray(value.reviewed_not_found_ingredient_terms),
-    insufficient_evidence_ingredient_terms: asStringArray(value.insufficient_evidence_ingredient_terms),
+    confirmed_present_ingredient_terms: value.confirmed_present_ingredient_terms == null ? null : asStringArray(value.confirmed_present_ingredient_terms),
+    direct_evidence_ingredient_terms: value.direct_evidence_ingredient_terms == null ? null : asStringArray(value.direct_evidence_ingredient_terms),
+    flavor_associated_ingredient_terms: value.flavor_associated_ingredient_terms == null ? null : asStringArray(value.flavor_associated_ingredient_terms),
+    reviewed_not_found_ingredient_terms: value.reviewed_not_found_ingredient_terms == null ? null : asStringArray(value.reviewed_not_found_ingredient_terms),
+    insufficient_evidence_ingredient_terms: value.insufficient_evidence_ingredient_terms == null ? null : asStringArray(value.insufficient_evidence_ingredient_terms),
     official_targets: asStringArray(value.official_targets),
     features: asStringArray(value.features),
     recipe_families: asStringArray(value.recipe_families),
@@ -514,7 +521,7 @@ async function fetchCatalogPackageOptions(signal?: AbortSignal): Promise<Catalog
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
   const { baseUrl, publishableKey } = apiConfig()
   const url = new URL(`${baseUrl}/rest/v1/effective_product_catalog_summary`)
-  url.searchParams.set('select', CATALOG_FIELDS)
+  url.searchParams.set('select', CATALOG_FIELDS.split(',').filter(field => !CATALOG_INGREDIENT_FIELDS.some(fact => fact === field)).join(','))
   url.searchParams.set('order', 'brand.asc,canonical_name.asc')
   url.searchParams.set('limit', '1000')
 
@@ -539,8 +546,39 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
 
   return rawProducts.map((value) => normalizeProduct({
     ...value,
+    ingredient_term_result_count: null,
+    confirmed_present_ingredient_terms: null,
+    direct_evidence_ingredient_terms: null,
+    flavor_associated_ingredient_terms: null,
+    reviewed_not_found_ingredient_terms: null,
+    insufficient_evidence_ingredient_terms: null,
     available_package_labels: packages.get(value.product_id) ?? [],
   }))
+}
+
+// One complete fact read per catalog generation; never replace missing rows/fields with empty facts.
+export async function fetchCatalogIngredientFacts(productIds: string[], signal?: AbortSignal): Promise<CatalogIngredientFacts[]> {
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/effective_product_catalog_summary`)
+  url.searchParams.set('select', ['product_id', ...CATALOG_INGREDIENT_FIELDS].join(','))
+  url.searchParams.set('order', 'product_id.asc')
+  url.searchParams.set('limit', '1000')
+  const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
+  if (!response.ok) throw new Error(`Ingredient facts API ${response.status}`)
+  const rows: unknown = await response.json()
+  const expected = new Set(productIds)
+  const seen = new Set<string>()
+  if (!Array.isArray(rows)) throw new Error('Invalid ingredient facts response')
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || !expected.has(row.product_id) || seen.has(row.product_id)
+      || !Number.isInteger(row.ingredient_term_result_count) || row.ingredient_term_result_count < 0
+      || CATALOG_INGREDIENT_FIELDS.slice(1).some(field => !Array.isArray(row[field]) || row[field].some((value: unknown) => typeof value !== 'string'))) {
+      throw new Error('Incomplete ingredient facts response')
+    }
+    seen.add(row.product_id)
+  }
+  if (seen.size !== expected.size) throw new Error('Catalog changed or ingredient facts are incomplete')
+  return rows.map(row => Object.fromEntries(['product_id', ...CATALOG_INGREDIENT_FIELDS].map(field => [field, row[field]])) as CatalogIngredientFacts)
 }
 
 export async function fetchProductVariants(

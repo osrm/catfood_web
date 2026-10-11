@@ -56,10 +56,13 @@ function ingredientAvoidanceEvidence(product: CatalogProduct, search: SearchStat
   const ingredientConflicts: string[] = []
   const ingredientReviewedNotFound: string[] = []
   const ingredientInsufficient: string[] = []
+  if (search.ingredientAvoidTerms?.some(term => INGREDIENT_AVOID_TERMS.has(term)) && (product.confirmed_present_ingredient_terms == null || product.reviewed_not_found_ingredient_terms == null)) {
+    throw new Error('Ingredient facts must load before evaluating ingredient conditions')
+  }
   for (const term of new Set(search.ingredientAvoidTerms ?? [])) {
     if (!INGREDIENT_AVOID_TERMS.has(term)) continue
-    if (product.confirmed_present_ingredient_terms.includes(term)) ingredientConflicts.push(term)
-    else if (product.reviewed_not_found_ingredient_terms.includes(term)) ingredientReviewedNotFound.push(term)
+    if (product.confirmed_present_ingredient_terms?.includes(term)) ingredientConflicts.push(term)
+    else if (product.reviewed_not_found_ingredient_terms?.includes(term)) ingredientReviewedNotFound.push(term)
     else ingredientInsufficient.push(term)
   }
   return { ingredientConflicts, ingredientReviewedNotFound, ingredientInsufficient }

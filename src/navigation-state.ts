@@ -62,7 +62,7 @@ export function parseNavigationState(searchString: string): NavigationState {
       grainFree: params.get('grainFree') === '1',
       ingredientAvoidTerms: mode === 'switch' ? [] : allowed(csv(params.get('avoidIngredients')), INGREDIENT_AVOID_TERMS),
     },
-    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36) },
+    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36), brands: mode === 'switch' ? [] : unique(params.getAll('brands').map((value) => value.trim()).filter((value) => value && value.length <= 120), 100) },
     comparisonCriteriaApplied: params.get('criteria') === '1' || params.get('applied') === '1',
     editingConditions: mode === 'explore' ? params.get('applied') !== '1' : false,
     selectedId: params.get('selected') || null,
@@ -101,6 +101,7 @@ export function navigationSearch(state: NavigationState): string {
     if (state.search.grainFree) params.set('grainFree', '1')
     setCsv(params, 'avoidIngredients', allowed(state.search.ingredientAvoidTerms ?? [], INGREDIENT_AVOID_TERMS))
     setCsv(params, 'recipeDetails', state.refine.recipeDetails)
+    for (const brand of unique((state.refine.brands ?? []).map((value) => value.trim()).filter((value) => value && value.length <= 120), 100)) params.append('brands', brand)
   }
   if (state.selectedId) params.set('selected', state.selectedId)
   const defaultVisible = state.mode === 'lookup' ? 120 : 40
@@ -115,10 +116,11 @@ export function navigationSearch(state: NavigationState): string {
   return encoded ? `?${encoded}` : ''
 }
 
-export function sanitizeProductNavigation(state: NavigationState, validIds: Set<string>): NavigationState {
+export function sanitizeProductNavigation(state: NavigationState, validIds: Set<string>, validBrands?: Set<string>): NavigationState {
   const compareIds = unique(state.compareIds.filter((id) => validIds.has(id)), 5)
   return {
     ...state,
+    refine: validBrands ? { ...state.refine, brands: (state.refine.brands ?? []).filter((brand) => validBrands.has(brand)) } : state.refine,
     selectedId: state.selectedId && validIds.has(state.selectedId) ? state.selectedId : null,
     detailProductId: state.detailProductId && validIds.has(state.detailProductId) ? state.detailProductId : null,
     compareIds,

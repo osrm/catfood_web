@@ -40,6 +40,7 @@ import {
   evaluateCatalog,
   evaluateComparisonCriteria,
   lookupCatalog,
+  matchesBrandQuery,
   toggleValue,
   type CandidateEvaluation,
   type ComparisonCriteriaDifference,
@@ -136,6 +137,7 @@ function unknownLabel(value: string) {
   return value.replace('공식 대상 ·', '제품 표기 대상 ·').replace('레시피 계열 ·', '레시피 종류 ·').replace('제품 표기 생애주기', '제품 표기 연령')
 }
 function comparisonDifferenceLabel(difference: ComparisonCriteriaDifference) {
+  if (difference.kind === 'brand') return `브랜드 · ${difference.productValues.join(' · ')} (선택 ${difference.selectedValues.join(' 또는 ')})`
   if (difference.kind === 'feedType') {
     return `사료 형태 · ${difference.productValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')})`
   }
@@ -158,6 +160,7 @@ function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
   )
   if (search.ingredientAvoidTerms?.length) values.push('피하고 싶은 원료 · ' + search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · '))
   if (search.grainFree) values.push('레시피 특성 · Grain-Free 표기')
+  if (refine.brands?.length) values.push('브랜드 · ' + refine.brands.join(' 또는 '))
   if (refine.recipeDetails.length) values.push(`주요 레시피 · ${refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)).join(' 또는 ')}`)
   return values
 }
@@ -170,11 +173,12 @@ function exploreCriteriaSnapshot(search: SearchState, refine: RefineState): Deci
   search.recipeFamilies.forEach((value) => criteria.push({ axis: 'recipe_family', value, role: 'desired', source: 'user_selected' }))
   if (search.grainFree) criteria.push({ axis: 'official_recipe_trait', value: 'grain_free', role: 'desired', source: 'user_selected' })
   search.ingredientAvoidTerms?.forEach((value) => criteria.push({ axis: 'ingredient', value, role: 'ingredient_avoid', source: 'user_selected' }))
+  refine.brands?.forEach((value) => criteria.push({ axis: 'brand', value, role: 'hard_constraint', source: 'user_selected' }))
   refine.recipeDetails.forEach((value) => criteria.push({ axis: 'recipe_detail', value, role: 'evidence_required', source: 'user_selected' }))
   return criteria
 }
 function exploreRunKey(search: SearchState, refine: RefineState): string {
-  return JSON.stringify([{ ...search, ingredientAvoidTerms: [...(search.ingredientAvoidTerms ?? [])].sort() }, refine])
+  return JSON.stringify([{ ...search, ingredientAvoidTerms: [...(search.ingredientAvoidTerms ?? [])].sort() }, { ...refine, brands: [...(refine.brands ?? [])].sort() }])
 }
 
 function FilterButtons({ options, selected, onToggle }: { options: readonly Option[]; selected: string[]; onToggle: (value: string) => void }) {
@@ -223,6 +227,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(initialNavigation.selectedId)
   const [visibleCount, setVisibleCount] = useState(initialNavigation.visibleCount)
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [brandSearch, setBrandSearch] = useState('')
+  const [showAllBrands, setShowAllBrands] = useState(false)
   const [showAllRecipes, setShowAllRecipes] = useState(false)
   const [showAllAvoidIngredients, setShowAllAvoidIngredients] = useState(false)
   const [mobileRefineOpen, setMobileRefineOpen] = useState(false)
@@ -460,7 +466,7 @@ export default function App() {
     if (loading || error) return
     const validIds = new Set(products.map((product) => product.product_id))
     if (products.length) {
-      const current = snapshot(), clean = sanitizeProductNavigation(current, validIds)
+      const current = snapshot(), clean = sanitizeProductNavigation(current, validIds, new Set(products.map((product) => product.brand)))
       if (navigationSearch(clean) !== navigationSearch(current)) { applyNavigation(clean); replaceHistory(clean, (window.history.state ?? {}) as HistoryPayload) }
     }
     const cleanSwitch = sanitizeSwitchSessionForCatalog(switchSessionRef.current, validIds)
@@ -475,6 +481,13 @@ export default function App() {
 
   const evaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
   const lookupResults = useMemo(() => lookupCatalog(products, lookupQuery), [products, lookupQuery])
+  const brandOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    products.forEach((product) => { if (product.brand) counts.set(product.brand, (counts.get(product.brand) ?? 0) + 1) })
+    return [...counts.keys()].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b, 'ko-KR'))
+  }, [products])
+  const visibleBrands = useMemo(() => brandOptions.filter((brand) => matchesBrandQuery(brand, brandSearch)), [brandOptions, brandSearch])
+  const displayedBrands = brandSearch.trim() || showAllBrands ? visibleBrands : visibleBrands.filter((brand, index) => index < 8 || refine.brands?.includes(brand))
   const recipeDetails = useMemo(() => {
     const counts = new Map<string, number>()
     products.forEach((product) => new Set(product.recipe_details).forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1)))
@@ -557,6 +570,17 @@ export default function App() {
   function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null; exploreRunStateKey.current = null } }
   function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
   function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field] ?? [], value) })) }
+  function changeBrandRefine(brands: string[], restoreFocus = false) {
+    const nextRefine = { ...refine, brands }
+    setVisibleCount(40); setRefine(nextRefine); setComparisonCriteriaApplied(true); setSelectedId(null)
+    beginExploreRun(search, nextRefine)
+    replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null }))
+    if (restoreFocus) window.setTimeout(() => {
+      const target = [...document.querySelectorAll<HTMLElement>('.brand-search, .mobile-refine-entry button')]
+        .find((element) => element.getBoundingClientRect().height > 0)
+      target?.focus({ preventScroll: true })
+    }, 0)
+  }
   function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setComparisonCriteriaApplied(true); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null })) }
   function openExploreProduct(productId: string) {
     quickViewReturnId.current = productId
@@ -615,17 +639,18 @@ export default function App() {
   function changeDetailTab(nextTab: DetailTab) { setDetailTab(nextTab); replaceHistory(snapshot({ detailTab: nextTab })) }
   function applyConditions() {
     const nextSearch = draftSearch
-    const sameAppliedConditions = exploreRunKey(nextSearch, INITIAL_REFINE) === exploreRunKey(search, refine)
+    const sameAppliedConditions = exploreRunKey(nextSearch, INITIAL_REFINE) === exploreRunKey(search, INITIAL_REFINE)
+    const nextRefine = sameAppliedConditions ? refine : INITIAL_REFINE
     const nextCompareIds = sameAppliedConditions ? compareIds : []
-    setVisibleCount(40); setSearch(nextSearch); setRefine(INITIAL_REFINE); setComparisonCriteriaApplied(true); setRecipeSearch(''); setShowAllRecipes(false); setEditingConditions(false); setSelectedId(null); setCompareIds(nextCompareIds); setCompareOpen(false); setDetailProductId(null)
-    beginExploreRun(nextSearch, INITIAL_REFINE)
+    setVisibleCount(40); setSearch(nextSearch); setRefine(nextRefine); setComparisonCriteriaApplied(true); setRecipeSearch(''); setShowAllRecipes(false); setEditingConditions(false); setSelectedId(null); setCompareIds(nextCompareIds); setCompareOpen(false); setDetailProductId(null)
+    beginExploreRun(nextSearch, nextRefine)
     window.setTimeout(() => {
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
       const shell = document.querySelector<HTMLElement>('.research-shell')
       if (shell) shell.scrollTop = 0
     }, 0)
-    pushHistory(snapshot({ screen: 'workspace', mode: 'explore', search: nextSearch, refine: INITIAL_REFINE, comparisonCriteriaApplied: true, editingConditions: false, selectedId: null, visibleCount: 40, compareIds: nextCompareIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
+    pushHistory(snapshot({ screen: 'workspace', mode: 'explore', search: nextSearch, refine: nextRefine, comparisonCriteriaApplied: true, editingConditions: false, selectedId: null, visibleCount: 40, compareIds: nextCompareIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
   }
   function editConditions() {
     setDraftSearch(search); setSelectedId(null); setEditingConditions(true)
@@ -643,7 +668,7 @@ export default function App() {
     if (mode === 'switch' && nextMode !== 'switch') {
       resetExploreRun(nextMode)
       const restored = !loading && !error
-        ? sanitizeProductNavigation(generalNavigationRef.current, new Set(products.map((product) => product.product_id)))
+        ? sanitizeProductNavigation(generalNavigationRef.current, new Set(products.map((product) => product.product_id)), new Set(products.map((product) => product.brand)))
         : generalNavigationRef.current
       const next = { ...restored, mode: nextMode, screen: 'workspace' as const, selectedId: null, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const, editingConditions: nextMode === 'explore', visibleCount: nextMode === 'lookup' ? 120 : 40 }
       applyNavigation(next)
@@ -666,7 +691,7 @@ export default function App() {
     const nextEditingConditions = nextMode === 'explore'
     if (nextMode === 'lookup') setLookupQuery(query)
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
-    setSearch(INITIAL_SEARCH); setDraftSearch(INITIAL_SEARCH); setRefine(INITIAL_REFINE); setComparisonCriteriaApplied(false); setRecipeSearch(''); setShowAllRecipes(false); setShowAllAvoidIngredients(false)
+    setSearch(INITIAL_SEARCH); setDraftSearch(INITIAL_SEARCH); setRefine(INITIAL_REFINE); setComparisonCriteriaApplied(false); setBrandSearch(''); setShowAllBrands(false); setRecipeSearch(''); setShowAllRecipes(false); setShowAllAvoidIngredients(false)
     setEditingConditions(nextEditingConditions); setMobileAdditionalOpen(false)
     setVisibleCount(count); setMode(nextMode); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setScreen('workspace')
     pushHistory(snapshot({ screen: 'workspace', mode: nextMode, lookupQuery: nextMode === 'lookup' ? query : '', search: INITIAL_SEARCH, refine: INITIAL_REFINE, comparisonCriteriaApplied: false, editingConditions: nextEditingConditions, selectedId: null, visibleCount: count, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
@@ -683,6 +708,7 @@ export default function App() {
     values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)), ...search.features.map((value) => optionLabel(value, FEATURE_LABELS)), ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
     if (search.grainFree) values.push('Grain-Free 표기')
     values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
+    values.push(...(refine.brands ?? []).map((brand) => brand))
     values.push(...refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)))
     return values
   }
@@ -731,7 +757,16 @@ export default function App() {
       {search.ingredientAvoidTerms?.length ? <SummaryRow label="피하고 싶은 원료" value={search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')} /> : null}
       {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 제품을 봅니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
-      <div className="refine-title">더 좁혀보기</div><FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
+      <div className="refine-title">더 좁혀보기</div>
+      <FilterSection title="브랜드" hint="여러 개 선택 가능">
+        <p className="field-note">선택한 브랜드의 제품만 봅니다.</p>
+        {refine.brands?.length ? <div className="selected-refinements">{refine.brands.map((brand) => <button className="selected-refinement" key={brand} type="button" aria-label={brand + ' 선택 해제'} onClick={() => changeBrandRefine(toggleValue(refine.brands ?? [], brand), true)}>{brand} ×</button>)}<button className="selected-refinement" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button></div> : null}
+        <input className="recipe-search brand-search" type="search" value={brandSearch} aria-label="브랜드 이름 검색" placeholder="예: 로얄캐닌, royal canin" onChange={(event) => setBrandSearch(event.target.value)} />
+        <div className="recipe-detail-grid brand-refine-grid">{displayedBrands.map((brand) => <button className={refine.brands?.includes(brand) ? 'choice is-active' : 'choice'} key={brand} type="button" aria-pressed={refine.brands?.includes(brand) ?? false} onClick={() => changeBrandRefine(toggleValue(refine.brands ?? [], brand))}>{brand}</button>)}</div>
+        {!brandSearch.trim() && brandOptions.length > 8 ? <button className="recipe-list-toggle" type="button" aria-expanded={showAllBrands} onClick={() => setShowAllBrands((current) => !current)}>{showAllBrands ? '브랜드 접어두기' : '브랜드 전체 보기 · ' + brandOptions.length + '개'}</button> : null}
+        {brandSearch.trim() && !visibleBrands.length ? <p className="field-note" role="status">이 이름의 브랜드가 없습니다. 다른 이름으로 찾아보세요.</p> : null}
+      </FilterSection>
+      <FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
         {refine.recipeDetails.length ? <div className="selected-refinements">{refine.recipeDetails.map((value) => <button className="selected-refinement" key={value} type="button" onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)} ×</button>)}</div> : null}
         <input className="recipe-search" type="search" value={recipeSearch} aria-label="레시피 이름 검색" placeholder="예: 닭, 연어, 오리" onChange={(event) => setRecipeSearch(event.target.value)} />
         <div className="recipe-detail-grid">{displayedRecipeDetails.map((value) => <button className={refine.recipeDetails.includes(value) ? 'choice is-active' : 'choice'} key={value} type="button" aria-pressed={refine.recipeDetails.includes(value)} onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)}</button>)}</div>
@@ -754,7 +789,7 @@ export default function App() {
       setMobileRefineOpen(true)
       window.setTimeout(() => document.querySelector<HTMLInputElement>('#mobile-recipe-refine-panel .recipe-search')?.focus(), 0)
     }
-    return <div className="mobile-refine-entry"><button ref={mobileRefineToggleRef} className="secondary-action" type="button" aria-expanded={mobileRefineOpen} aria-controls="mobile-recipe-refine-panel" onClick={togglePanel}>{mobileRefineOpen ? '목록으로 돌아가기' : '레시피로 더 좁히기'}</button></div>
+    return <div className="mobile-refine-entry"><button ref={mobileRefineToggleRef} className="secondary-action" type="button" aria-expanded={mobileRefineOpen} aria-controls="mobile-recipe-refine-panel" onClick={togglePanel}>{mobileRefineOpen ? '목록으로 돌아가기' : '브랜드·레시피로 좁히기'}</button></div>
   }
   function renderCriteriaBar() {
     if (mode !== 'explore' || editingConditions) return null
@@ -768,7 +803,7 @@ export default function App() {
     if (mode === 'lookup' && !lookupQuery.trim()) return <div className="state-message"><strong>브랜드 또는 제품명을 입력해 주세요.</strong><span>일부만 입력해도 검색할 수 있습니다.</span></div>
     if (!resultProducts.length) return mode === 'lookup'
       ? <div className="state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><button className="state-retry" type="button" onClick={focusLookupInput}>검색어 수정</button></div>
-      : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span><button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
+      : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span>{refine.brands?.length ? <button className="state-retry" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button> : null}<button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
     return <div className="research-results-list">{visibleProducts.map((product) => {
       const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
       const hasExploreCriteria = mode === 'explore' && activeConditions > 0

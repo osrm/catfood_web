@@ -1309,3 +1309,50 @@ test('ingredient criteria and manual comparison survive lookup and refresh, whil
     b.confirmed_present_ingredient_terms = prevB
   }
 })
+
+test('brand refine URLs preserve punctuation, general context and reject stale identities only after catalog load', () => {
+  const params=new URLSearchParams({view:'workspace',applied:'1'})
+  for(const brand of ['Royal Canin','Brand, & + Co.','Royal Canin','   ']) params.append('brands',brand)
+  const state=app.parseNavigationState('?'+params)
+  assert.deepEqual(state.refine.brands,['Royal Canin','Brand, & + Co.'])
+  const lookup=app.parseNavigationState(app.navigationSearch({...state,mode:'lookup',comparisonCriteriaApplied:true}))
+  assert.deepEqual(lookup.refine.brands,state.refine.brands)
+  assert.equal(app.navigationSearch({...state,mode:'switch'}).includes('brands'),false)
+  assert.deepEqual(app.parseNavigationState('?view=workspace&mode=switch&brands=Royal+Canin').refine.brands,[])
+  assert.equal(app.navigationSearch({...state,screen:'home'}),'')
+  assert.deepEqual(app.sanitizeProductNavigation(state,new Set()).refine.brands,state.refine.brands)
+  assert.deepEqual(app.sanitizeProductNavigation(state,new Set(),new Set(['Royal Canin'])).refine.brands,['Royal Canin'])
+})
+
+test('brand comparison context survives LOOKUP manual additions, reload and details while fresh Home removes it', async () => {
+  const a=products[0],b=products[1],oldA=a.brand,oldB=b.brand
+  a.brand='로얄캐닌'; b.brand='파미나'
+  try {
+    const start=new URL('https://catfood.test/catfood_web/?view=workspace&applied=1')
+    start.searchParams.append('brands','로얄캐닌')
+    await renderApp(start.href)
+    await act(async()=>document.querySelector('.research-result-compare').click())
+    await click('제품 찾기')
+    await inputValue(document.querySelector('.lookup-input'),b.canonical_name)
+    await act(async()=>document.querySelector('.research-result-compare').click())
+    await click('비교 보기')
+    assert.match(document.querySelector('.compare-stage').textContent,/브랜드 · 파미나 \(선택 로얄캐닌\)/)
+    const expected=app.parseNavigationState(window.location.search)
+    assert.deepEqual(expected.compareIds,[a.product_id,b.product_id])
+    const url=window.location.href
+    await act(async()=>root.unmount());root=null
+    await renderApp(url)
+    assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,['로얄캐닌'])
+    await act(async()=>[...document.querySelectorAll('.compare-stage button')].find(n=>n.textContent==='상세 보기 →').click())
+    await waitForUi(()=>document.querySelector('.detail-return-action'),'detail opened')
+    await act(async()=>document.querySelector('.detail-return-action').click())
+    await waitForUi(()=>document.querySelector('.compare-stage'),'comparison returned')
+    assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,expected.compareIds)
+    assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,['로얄캐닌'])
+    await click('목록으로');await click('조건으로 찾기');await click('이 조건으로 찾기')
+    assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,['로얄캐닌'])
+    assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,expected.compareIds)
+    await click(document.querySelector('.site-wordmark').textContent);await click('조건 고르기')
+    assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,[])
+  } finally {a.brand=oldA;b.brand=oldB}
+})

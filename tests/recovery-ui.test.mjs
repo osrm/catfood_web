@@ -431,20 +431,20 @@ test('complete recipe list exposes every catalog value, breaks frequency ties by
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 42개'), 'catalog loaded on home')
   await click('조건 고르기')
   await click('이 조건으로 찾기')
-  assert.equal(all('.recipe-detail-grid .choice').length, 8, 'initial choices remain short')
+  assert.equal(all('.recipe-detail-grid:not(.brand-refine-grid) .choice').length, 8, 'initial choices remain short')
   await click('레시피 전체 보기')
-  await waitForUi(() => all('.recipe-detail-grid .choice').length === recipeKeys.length, 'all recipe choices')
+  await waitForUi(() => all('.recipe-detail-grid:not(.brand-refine-grid) .choice').length === recipeKeys.length, 'all recipe choices')
 
   const labelFor = (key) => ({ anchovy: '멸치', beef: '소', chicken: '닭' }[key] ?? key.replaceAll('_', ' '))
   const expected = recipeKeys.map(labelFor).sort((a, b) => a.localeCompare(b, 'ko-KR'))
-  const rendered = all('.recipe-detail-grid .choice').map((node) => node.textContent.trim())
+  const rendered = all('.recipe-detail-grid:not(.brand-refine-grid) .choice').map((node) => node.textContent.trim())
   assert.equal(rendered.length, 42, 'recipe list must not stop at 36')
   assert.deepEqual(rendered, expected)
 
-  const search = document.querySelector('.recipe-search')
+  const search = document.querySelector('.recipe-search:not(.brand-search)')
   await setInput(search, 'anchovy')
-  assert.deepEqual(all('.recipe-detail-grid .choice').map((node) => node.textContent.trim()), ['멸치'])
-  const anchovy = all('.recipe-detail-grid .choice')[0]
+  assert.deepEqual(all('.recipe-detail-grid:not(.brand-refine-grid) .choice').map((node) => node.textContent.trim()), ['멸치'])
+  const anchovy = all('.recipe-detail-grid:not(.brand-refine-grid) .choice')[0]
   await click(anchovy)
   assert.equal(anchovy.getAttribute('aria-pressed'), 'true')
   await click(anchovy)

@@ -13,6 +13,7 @@ export interface SearchState {
 
 export interface RefineState {
   recipeDetails: string[]
+  brands?: string[]
 }
 
 export interface CandidateEvaluation {
@@ -36,6 +37,7 @@ export const INITIAL_SEARCH: SearchState = {
 
 export const INITIAL_REFINE: RefineState = {
   recipeDetails: [],
+  brands: [],
 }
 
 export const INGREDIENT_AVOID_OPTIONS = [
@@ -181,6 +183,12 @@ function confirmedBrandAliases(brand: string): readonly string[] {
   return BRAND_ALIASES_BY_LOOKUP.get(normalizedLookupText(brand)) ?? []
 }
 
+// Alias matching finds selector labels; selection uses exact catalog identity.
+export function matchesBrandQuery(brand: string, query: string): boolean {
+  const needle = normalizedLookupText(query)
+  return !needle || [brand, ...confirmedBrandAliases(brand)].some((label) => normalizedLookupText(label).includes(needle))
+}
+
 function conditionLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value.replaceAll('_', ' ')
 }
@@ -200,7 +208,7 @@ export function lookupCatalog(products: CatalogProduct[], query: string): Catalo
 }
 
 export type ComparisonCriteriaDifference = {
-  kind: 'feedType' | 'lifeStage' | 'recipeDetails'
+  kind: 'feedType' | 'lifeStage' | 'recipeDetails' | 'brand'
   selectedValues: string[]
   productValues: string[]
 }
@@ -286,6 +294,12 @@ export function evaluateComparisonCriteria(
     }
   }
 
+  if (refine.brands?.length) {
+    if (!product.brand) unknowns.push('브랜드')
+    else if (refine.brands.includes(product.brand)) confirmedMatches.push('브랜드:' + product.brand)
+    else differences.push({ kind: 'brand', selectedValues: refine.brands, productValues: [product.brand] })
+  }
+
   return { confirmedMatches, unknowns, differences, ...ingredientAvoidanceEvidence(product, search) }
 }
 
@@ -297,6 +311,7 @@ export function evaluateCatalog(
   const candidates: CandidateEvaluation[] = []
 
   for (const product of products) {
+    if (refine.brands?.length && !refine.brands.includes(product.brand)) continue
     const ingredientEvidence = ingredientAvoidanceEvidence(product, search)
     if (ingredientEvidence.ingredientConflicts.length) continue
     const confirmedMatches: string[] = []
@@ -363,11 +378,13 @@ export function evaluateCatalog(
       confirmedMatches.push(...matches.map((value) => `세부:${value}`))
     }
 
+    if (refine.brands?.length) confirmedMatches.push('브랜드:' + product.brand)
+
     candidates.push({
       product,
       confirmedMatches,
       unknowns,
-      matchCount: confirmedMatches.length,
+      matchCount: confirmedMatches.filter((value) => !value.startsWith('브랜드:')).length,
       ingredientReviewedNotFound: ingredientEvidence.ingredientReviewedNotFound,
       ingredientInsufficient: ingredientEvidence.ingredientInsufficient,
     })
@@ -395,6 +412,7 @@ export function countActiveConditions(search: SearchState, refine: RefineState =
     search.recipeFamilies.length +
     Number(search.grainFree) +
     (search.ingredientAvoidTerms?.length ?? 0) +
-    refine.recipeDetails.length
+    refine.recipeDetails.length +
+    Number(Boolean(refine.brands?.length))
   )
 }

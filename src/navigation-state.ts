@@ -1,4 +1,4 @@
-import type { RefineState, SearchState } from './search'
+import { INGREDIENT_AVOID_OPTIONS, type RefineState, type SearchState } from './search'
 
 export type AppMode = 'switch' | 'explore' | 'lookup'
 export type DetailTab = 'overview' | 'nutrition' | 'ingredients' | 'context'
@@ -12,6 +12,8 @@ const LIFE_STAGES = new Set(['kitten', 'adult', 'senior', 'all_life_stages', 'ge
 const TARGETS = new Set(['indoor', 'sterilized'])
 const FEATURES = new Set(['weight_management', 'stool', 'hairball', 'digestive', 'urinary', 'skin_coat', 'dental'])
 const RECIPE_FAMILIES = new Set(['poultry', 'meat', 'fish'])
+
+const INGREDIENT_AVOID_TERMS = new Set<string>(INGREDIENT_AVOID_OPTIONS.map(([term]) => term))
 
 const csv = (value: string | null): string[] => value
   ? value.split(',').map((item) => item.trim()).filter(Boolean)
@@ -58,6 +60,7 @@ export function parseNavigationState(searchString: string): NavigationState {
       features: allowed(csv(params.get('features')), FEATURES),
       recipeFamilies: allowed(csv(params.get('recipes')), RECIPE_FAMILIES),
       grainFree: params.get('grainFree') === '1',
+      ingredientAvoidTerms: mode === 'switch' ? [] : allowed(csv(params.get('avoidIngredients')), INGREDIENT_AVOID_TERMS),
     },
     refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36) },
     comparisonCriteriaApplied: params.get('criteria') === '1' || params.get('applied') === '1',
@@ -96,6 +99,7 @@ export function navigationSearch(state: NavigationState): string {
     setCsv(params, 'features', state.search.features)
     setCsv(params, 'recipes', state.search.recipeFamilies)
     if (state.search.grainFree) params.set('grainFree', '1')
+    setCsv(params, 'avoidIngredients', allowed(state.search.ingredientAvoidTerms ?? [], INGREDIENT_AVOID_TERMS))
     setCsv(params, 'recipeDetails', state.refine.recipeDetails)
   }
   if (state.selectedId) params.set('selected', state.selectedId)

@@ -33,6 +33,8 @@ import {
 } from './switch-session'
 import {
   INITIAL_REFINE,
+  INGREDIENT_AVOID_OPTIONS,
+  INGREDIENT_AVOID_LABELS,
   INITIAL_SEARCH,
   countActiveConditions,
   evaluateCatalog,
@@ -76,7 +78,7 @@ const RECIPE_TRAIT_LABELS: Record<string, string> = { grain_free: 'Grain-Free �
 
 type Mode = 'switch' | 'explore' | 'lookup'
 type Screen = 'home' | 'workspace'
-type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies'
+type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies' | 'ingredientAvoidTerms'
 type SingleSearchField = 'feedType' | 'lifeStage'
 type Option = readonly [string, string]
 type ListRestore = { scrollTop: number; visibleCount: number; focusId: string | null }
@@ -97,7 +99,7 @@ function compactList(values: string[], labels: Record<string, string>, max = 3) 
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
 }
 function countAdditionalConditions(search: SearchState) {
-  return search.officialTargets.length + search.features.length + search.recipeFamilies.length + Number(search.grainFree)
+  return search.officialTargets.length + search.features.length + search.recipeFamilies.length + Number(search.grainFree) + (search.ingredientAvoidTerms?.length ?? 0)
 }
 function additionalConditionLabels(search: SearchState) {
   const values = [
@@ -106,6 +108,7 @@ function additionalConditionLabels(search: SearchState) {
     ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)),
   ]
   if (search.grainFree) values.push('Grain-Free 표기')
+  values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
   return values
 }
 function packageOptionsLabel(product: CatalogProduct) {
@@ -153,6 +156,7 @@ function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
     ...search.features.map((value) => `제품 특징 · ${optionLabel(value, FEATURE_LABELS)}`),
     ...search.recipeFamilies.map((value) => `레시피 종류 · ${optionLabel(value, RECIPE_FAMILY_LABELS)}`),
   )
+  if (search.ingredientAvoidTerms?.length) values.push('피하고 싶은 원료 · ' + search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · '))
   if (search.grainFree) values.push('레시피 특성 · Grain-Free 표기')
   if (refine.recipeDetails.length) values.push(`주요 레시피 · ${refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)).join(' 또는 ')}`)
   return values
@@ -165,11 +169,12 @@ function exploreCriteriaSnapshot(search: SearchState, refine: RefineState): Deci
   search.features.forEach((value) => criteria.push({ axis: 'feature', value, role: 'desired', source: 'user_selected' }))
   search.recipeFamilies.forEach((value) => criteria.push({ axis: 'recipe_family', value, role: 'desired', source: 'user_selected' }))
   if (search.grainFree) criteria.push({ axis: 'official_recipe_trait', value: 'grain_free', role: 'desired', source: 'user_selected' })
+  search.ingredientAvoidTerms?.forEach((value) => criteria.push({ axis: 'ingredient', value, role: 'ingredient_avoid', source: 'user_selected' }))
   refine.recipeDetails.forEach((value) => criteria.push({ axis: 'recipe_detail', value, role: 'evidence_required', source: 'user_selected' }))
   return criteria
 }
 function exploreRunKey(search: SearchState, refine: RefineState): string {
-  return JSON.stringify([search, refine])
+  return JSON.stringify([{ ...search, ingredientAvoidTerms: [...(search.ingredientAvoidTerms ?? [])].sort() }, refine])
 }
 
 function FilterButtons({ options, selected, onToggle }: { options: readonly Option[]; selected: string[]; onToggle: (value: string) => void }) {
@@ -190,8 +195,9 @@ function ProductImage({ product, className }: { product: CatalogProduct; classNa
 }
 function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
   const confirmed = evaluation.confirmedMatches.map(relationLabel), unknown = evaluation.unknowns.map(unknownLabel)
-  if (!confirmed.length && !unknown.length) return <p className="result-relation-empty">추가 조건 없음</p>
-  return <div className="result-relations">{confirmed.length ? <div className="relation-line is-confirmed"><span>확인된 조건</span><strong>{confirmed.slice(0, 3).join(' · ')}{confirmed.length > 3 ? ` 외 ${confirmed.length - 3}개` : ''}</strong></div> : null}{unknown.length ? <div className="relation-line is-unknown"><span>미확인 조건</span><strong>{unknown.slice(0, 2).join(' · ')}{unknown.length > 2 ? ` 외 ${unknown.length - 2}개` : ''}</strong></div> : null}</div>
+  const reviewed = evaluation.ingredientReviewedNotFound ?? [], insufficient = evaluation.ingredientInsufficient ?? []
+  if (!confirmed.length && !unknown.length && !reviewed.length && !insufficient.length) return <p className="result-relation-empty">추가 조건 없음</p>
+  return <div className="result-relations">{confirmed.length ? <div className="relation-line is-confirmed"><span>확인된 조건</span><strong>{confirmed.slice(0, 3).join(' · ')}{confirmed.length > 3 ? ` 외 ${confirmed.length - 3}개` : ''}</strong></div> : null}{unknown.length ? <div className="relation-line is-unknown"><span>미확인 조건</span><strong>{unknown.slice(0, 2).join(' · ')}{unknown.length > 2 ? ` 외 ${unknown.length - 2}개` : ''}</strong></div> : null}{reviewed.length ? <div className="relation-line"><span>검토 자료에서 못 찾음</span><strong>{reviewed.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')}</strong></div> : null}{insufficient.length ? <div className="relation-line is-unknown"><span>원료 미확인</span><strong>{insufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')}</strong></div> : null}</div>
 }
 
 export default function App() {
@@ -218,6 +224,7 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(initialNavigation.visibleCount)
   const [recipeSearch, setRecipeSearch] = useState('')
   const [showAllRecipes, setShowAllRecipes] = useState(false)
+  const [showAllAvoidIngredients, setShowAllAvoidIngredients] = useState(false)
   const [mobileRefineOpen, setMobileRefineOpen] = useState(false)
   const [mobileAdditionalOpen, setMobileAdditionalOpen] = useState(() => countAdditionalConditions(initialNavigation.search) > 0)
   const [compareIds, setCompareIds] = useState<string[]>(initialNavigation.compareIds)
@@ -500,6 +507,9 @@ export default function App() {
         confirmedMatches: evaluation.confirmedMatches.map(relationLabel),
         unknowns: evaluation.unknowns.map(unknownLabel),
         conditionDifferences: evaluation.differences.map(comparisonDifferenceLabel),
+        ingredientConflicts: evaluation.ingredientConflicts.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
+        ingredientReviewedNotFound: evaluation.ingredientReviewedNotFound.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
+        ingredientInsufficient: evaluation.ingredientInsufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
       }
     }), [compareIds, products, activeComparisonCriteria, search, refine])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
@@ -546,7 +556,7 @@ export default function App() {
   function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return; void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal)) }
   function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null; exploreRunStateKey.current = null } }
   function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
-  function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field], value) })) }
+  function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field] ?? [], value) })) }
   function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setComparisonCriteriaApplied(true); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null })) }
   function openExploreProduct(productId: string) {
     quickViewReturnId.current = productId
@@ -656,7 +666,7 @@ export default function App() {
     const nextEditingConditions = nextMode === 'explore'
     if (nextMode === 'lookup') setLookupQuery(query)
     resetExploreRun(nextMode); const count = nextMode === 'lookup' ? 120 : 40
-    setSearch(INITIAL_SEARCH); setDraftSearch(INITIAL_SEARCH); setRefine(INITIAL_REFINE); setComparisonCriteriaApplied(false); setRecipeSearch(''); setShowAllRecipes(false)
+    setSearch(INITIAL_SEARCH); setDraftSearch(INITIAL_SEARCH); setRefine(INITIAL_REFINE); setComparisonCriteriaApplied(false); setRecipeSearch(''); setShowAllRecipes(false); setShowAllAvoidIngredients(false)
     setEditingConditions(nextEditingConditions); setMobileAdditionalOpen(false)
     setVisibleCount(count); setMode(nextMode); setSelectedId(null); setCompareIds([]); setCompareOpen(false); setDetailProductId(null); setScreen('workspace')
     pushHistory(snapshot({ screen: 'workspace', mode: nextMode, lookupQuery: nextMode === 'lookup' ? query : '', search: INITIAL_SEARCH, refine: INITIAL_REFINE, comparisonCriteriaApplied: false, editingConditions: nextEditingConditions, selectedId: null, visibleCount: count, compareIds: [], compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' }))
@@ -672,6 +682,7 @@ export default function App() {
     if (search.lifeStage) values.push(optionLabel(search.lifeStage, LIFE_STAGE_LABELS))
     values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)), ...search.features.map((value) => optionLabel(value, FEATURE_LABELS)), ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
     if (search.grainFree) values.push('Grain-Free 표기')
+    values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
     values.push(...refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)))
     return values
   }
@@ -679,6 +690,7 @@ export default function App() {
   function renderConditionEditor() {
     const additionalCount = countAdditionalConditions(draftSearch)
     const additionalLabels = additionalConditionLabels(draftSearch)
+    const avoidOptions = INGREDIENT_AVOID_OPTIONS.filter(([term], index) => showAllAvoidIngredients || index < 8 || draftSearch.ingredientAvoidTerms?.includes(term))
     return <>
       <div className="condition-group-title"><span>기본 조건</span></div>
       <div className="condition-basics">
@@ -688,12 +700,18 @@ export default function App() {
       <p className="field-note condition-policy-note">제품에 적힌 형태·연령으로 찾습니다. 표기가 없는 제품도 함께 봅니다.</p>
       <div className="mobile-additional-disclosure condition-additional-disclosure">
         <button className="mobile-additional-toggle" type="button" aria-expanded={mobileAdditionalOpen} aria-controls="explore-additional-conditions" onClick={() => setMobileAdditionalOpen((current) => !current)}>
-          <span className="condition-additional-label"><strong>추가 조건</strong><span className="condition-additional-preview">실내묘·중성화묘, 제품 특징, 레시피</span></span><small>{additionalCount ? `${additionalCount}개 선택` : '선택 없음'}</small><span className="mobile-additional-chevron" aria-hidden="true">{mobileAdditionalOpen ? '접기 ▴' : '펼치기 ▾'}</span>
+          <span className="condition-additional-label"><strong>추가 조건</strong><span className="condition-additional-preview">원료 제외, 제품 대상·특징, 레시피</span></span><small>{additionalCount ? `${additionalCount}개 선택` : '선택 없음'}</small><span className="mobile-additional-chevron" aria-hidden="true">{mobileAdditionalOpen ? '접기 ▴' : '펼치기 ▾'}</span>
         </button>
         {!mobileAdditionalOpen && additionalLabels.length ? <div className="mobile-additional-summary" aria-label="선택한 추가 조건">{additionalLabels.map((value) => <span key={value}>{value}</span>)}</div> : null}
       </div>
       <div className={mobileAdditionalOpen ? 'additional-condition-sections is-open' : 'additional-condition-sections'} id="explore-additional-conditions">
-        <p className="field-note condition-priority-note">고른 조건이 더 많이 확인된 제품을 먼저 보여줍니다.</p>
+        <FilterSection title="피하고 싶은 원료" hint="육류·생선·계란">
+          <p className="field-note">선택한 원료가 확인된 제품을 제외합니다. 레시피 이름이 아닌 원재료 자료로 확인합니다.</p>
+          <FilterButtons options={avoidOptions} selected={draftSearch.ingredientAvoidTerms ?? []} onToggle={(value) => toggleDraftArray('ingredientAvoidTerms', value)} />
+          <button className="recipe-list-toggle" type="button" aria-expanded={showAllAvoidIngredients} onClick={() => setShowAllAvoidIngredients((current) => !current)}>{showAllAvoidIngredients ? '원료 접어두기' : `원료 전체 보기 · ${INGREDIENT_AVOID_OPTIONS.length}개`}</button>
+          <p className="field-note">자료가 부족한 제품도 남습니다. 원료가 없다는 보장은 아닙니다.</p>
+        </FilterSection>
+        <p className="field-note condition-priority-note">아래 조건은 더 많이 확인된 제품을 먼저 보여줍니다.</p>
         <FilterSection title="제품 표기 대상" hint="여러 개 선택 가능"><FilterButtons options={TARGETS} selected={draftSearch.officialTargets} onToggle={(value) => toggleDraftArray('officialTargets', value)} /></FilterSection>
         <FilterSection title="제품 특징"><FilterButtons options={FEATURES} selected={draftSearch.features} onToggle={(value) => toggleDraftArray('features', value)} /></FilterSection>
         <FilterSection title="레시피 종류"><FilterButtons options={RECIPE_FAMILIES} selected={draftSearch.recipeFamilies} onToggle={(value) => toggleDraftArray('recipeFamilies', value)} /></FilterSection>
@@ -710,6 +728,7 @@ export default function App() {
       {search.features.length ? <SummaryRow label="제품 특징" value={compactList(search.features, FEATURE_LABELS)} /> : null}
       {search.recipeFamilies.length ? <SummaryRow label="레시피" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS)} /> : null}
       {search.grainFree ? <SummaryRow label="특성" value="Grain-Free 표기" /> : null}
+      {search.ingredientAvoidTerms?.length ? <SummaryRow label="피하고 싶은 원료" value={search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')} /> : null}
       {!hasPrimary ? <p className="summary-empty">추가 조건 없이 전체 제품을 봅니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
       <div className="refine-title">더 좁혀보기</div><FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
@@ -804,8 +823,8 @@ export default function App() {
   const resultSummaryText = loading
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
     : resultCountText
-  const priorityLabels = additionalConditionLabels(search)
-  const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0
+  const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
+  const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType || search.lifeStage)
     ? (priorityLabels.length === 1
       ? priorityLabels[0].replace(/ 표기$/, '') + (search.feedType || search.lifeStage ? ' 등 고른 조건이 더 많이 확인된 제품부터 보여줍니다.' : ' 표기가 있는 제품부터 보여줍니다.')
       : priorityLabels.length > 1
@@ -815,5 +834,5 @@ export default function App() {
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
   const showMobileRefine = mobileRefineOpen && mode === 'explore' && !editingConditions && !selectedProduct && !compareOpen && !detailProductId
   const shellClassName = ['research-shell', selectedProduct ? 'is-inspecting' : 'is-browsing', showMobileRefine ? 'is-mobile-refining' : ''].filter(Boolean).join(' ')
-  return <div className={shellClassName} data-catalog-mode={mode}><SiteHeader className="research-topbar" onHome={goHome} onModeChange={changeMode} active={mode} status={<><span>제품 {products.length || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />{compareOpen && compareItems.length ? <CompareView items={compareItems} criteriaLabels={compareCriteria} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong>{paneDescription ? <span>{paneDescription}</span> : null}{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{waitingForConditions && loading ? <div className="catalog-inline-state" role="status"><strong>제품 목록을 불러오는 중입니다.</strong><span>조건은 먼저 고를 수 있습니다.</span></div> : null}{waitingForConditions && error ? <div className="catalog-inline-state is-error" role="alert"><strong>제품 목록을 불러오지 못했습니다.</strong><span>선택한 조건은 그대로 유지됩니다.</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div> : null}{renderLeftPane()}</div>{waitingForConditions ? <div className="condition-actions"><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button></div> : null}</aside> : null}{!waitingForConditions ? <section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{resultSummaryText}</span>{!loading && !error && resultProducts.length > 0 && resultPriorityText ? <p className="result-priority-note">{resultPriorityText}</p> : null}</div></div><div className="research-results-scroll">{renderResultList()}</div></section> : null}{renderQuickView()}</main>{compareIds.length && !waitingForConditions ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
+  return <div className={shellClassName} data-catalog-mode={mode}><SiteHeader className="research-topbar" onHome={goHome} onModeChange={changeMode} active={mode} status={<><span>제품 {products.length || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />{compareOpen && compareItems.length ? <CompareView items={compareItems} criteriaLabels={compareCriteria} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong>{paneDescription ? <span>{paneDescription}</span> : null}{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{waitingForConditions && loading ? <div className="catalog-inline-state" role="status"><strong>제품 목록을 불러오는 중입니다.</strong><span>조건은 먼저 고를 수 있습니다.</span></div> : null}{waitingForConditions && error ? <div className="catalog-inline-state is-error" role="alert"><strong>제품 목록을 불러오지 못했습니다.</strong><span>선택한 조건은 그대로 유지됩니다.</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div> : null}{renderLeftPane()}</div>{waitingForConditions ? <div className="condition-actions"><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button></div> : null}</aside> : null}{!waitingForConditions ? <section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{resultSummaryText}</span>{!loading && !error && resultProducts.length > 0 && resultPriorityText ? <p className="result-priority-note">{resultPriorityText}</p> : null}</div></div><div className="research-results-scroll">{mode === 'explore' && !loading && !error && search.ingredientAvoidTerms?.length ? <p className="field-note" role="note">선택한 원료가 확인된 제품은 제외했습니다. 자료에서 찾지 못했거나 미확인인 제품도 남아 있습니다.</p> : null}{renderResultList()}</div></section> : null}{renderQuickView()}</main>{compareIds.length && !waitingForConditions ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
 }

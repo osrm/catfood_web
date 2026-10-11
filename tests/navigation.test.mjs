@@ -1254,3 +1254,58 @@ test('mobile guarantee help follows the displayed pair rather than a hidden thir
   })
   assert.ok(document.querySelector('.compare-nutrition-tools-mobile details'))
 })
+
+test('ingredient URL state validates vocabulary and preserves general context while excluding SWITCH', () => {
+  const state = app.parseNavigationState('?view=workspace&applied=1&avoidIngredients=chicken,poultry,duck,chicken,natural_flavour')
+  assert.deepEqual(state.search.ingredientAvoidTerms, ['chicken', 'duck'])
+  const lookup = { ...state, mode: 'lookup', lookupQuery: 'GO!', comparisonCriteriaApplied: true }
+  const restored = app.parseNavigationState(app.navigationSearch(lookup))
+  assert.deepEqual(restored.search.ingredientAvoidTerms, ['chicken', 'duck'])
+  assert.deepEqual(app.parseNavigationState('?view=workspace&mode=switch&avoidIngredients=chicken').search.ingredientAvoidTerms, [])
+  assert.equal(app.navigationSearch({ ...state, mode: 'switch' }).includes('avoidIngredients'), false)
+  assert.equal(app.navigationSearch({ ...state, screen: 'home' }), '')
+})
+
+test('ingredient criteria and manual comparison survive lookup and refresh, while changed criteria and fresh Home start reset', async () => {
+  const a = products[0], b = products[1]
+  const prevA = a.reviewed_not_found_ingredient_terms, prevB = b.confirmed_present_ingredient_terms
+  a.reviewed_not_found_ingredient_terms = ['chicken']
+  b.confirmed_present_ingredient_terms = ['chicken']
+  try {
+    const start = 'https://catfood.test/catfood_web/?view=workspace&applied=1&avoidIngredients=chicken'
+    await renderApp(start)
+    const add = document.querySelector('.research-result-compare')
+    assert.ok(add)
+    await act(async () => add.click())
+    await click('제품 찾기')
+    await inputValue(document.querySelector('.lookup-input'), b.canonical_name)
+    await act(async () => document.querySelector('.research-result-compare').click())
+    await click('비교 보기')
+    assert.match(document.querySelector('.compare-stage').textContent, /피하려는 원료 확인/)
+    assert.match(document.querySelector('.compare-stage').textContent, /닭/)
+    const compareIds = app.parseNavigationState(window.location.search).compareIds
+    assert.deepEqual(compareIds, [a.product_id, b.product_id], 'manual conflicting product stays in comparison')
+    const refreshed = app.parseNavigationState(window.location.search)
+    assert.deepEqual(refreshed.search.ingredientAvoidTerms, ['chicken'])
+    const url = window.location.href
+    await act(async () => root.unmount())
+    root = null
+    await renderApp(url)
+    assert.deepEqual(app.parseNavigationState(window.location.search).compareIds, compareIds)
+    await click('목록으로')
+    await click('조건으로 찾기')
+    await click('이 조건으로 찾기')
+    assert.deepEqual(app.parseNavigationState(window.location.search).compareIds, compareIds, 'same conditions preserve basket')
+    await click('조건 수정')
+    const section = [...document.querySelectorAll('.filter-section')].find(node => node.textContent.includes('피하고 싶은 원료'))
+    await act(async () => [...section.querySelectorAll('.choice')].find(node => node.textContent === '오리').click())
+    await click('이 조건으로 찾기')
+    assert.deepEqual(app.parseNavigationState(window.location.search).compareIds, [], 'changed conditions use existing reset policy')
+    await click(document.querySelector('.site-wordmark').textContent)
+    await click('조건 고르기')
+    assert.deepEqual(app.parseNavigationState(window.location.search).search.ingredientAvoidTerms, [])
+  } finally {
+    a.reviewed_not_found_ingredient_terms = prevA
+    b.confirmed_present_ingredient_terms = prevB
+  }
+})

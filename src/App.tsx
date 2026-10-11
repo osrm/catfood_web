@@ -1,3 +1,4 @@
+import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
@@ -9,7 +10,7 @@ import {
   recordProductConsideration,
   type DecisionCriterion,
 } from './analytics'
-import { fetchCatalog, fetchExploreEnergy, type ExploreEnergy, type CatalogProduct } from './api'
+import { fetchCatalog, fetchCatalogIngredientFacts, fetchExploreEnergy, type ExploreEnergy, type CatalogProduct } from './api'
 import { EnergyRefine, EnergyResult, canRefineEnergy, energyBound, energyText, usableEnergy } from './energy-refine'
 import {
   navigationSearch,
@@ -271,6 +272,31 @@ export default function App() {
   const catalogRequestId = useRef(0)
   const catalogRequest = useRef<{ id: number; controller: AbortController } | null>(null)
 
+  const [ingredientStatus, setIngredientStatus] = useState<CatalogIngredientLoad['status']>('idle')
+  const ingredientStatusRef = useRef<CatalogIngredientLoad['status']>('idle')
+  const ingredientRequest = useRef<AbortController | null>(null)
+  function loadIngredientFacts(retry = false) {
+    if (loading || error || !products.length || ingredientRequest.current || ingredientStatusRef.current === 'loaded'
+      || (ingredientStatusRef.current === 'error' && !retry)) return
+    const controller = new AbortController()
+    const generation = catalogRequestId.current
+    ingredientRequest.current = controller
+    ingredientStatusRef.current = 'loading'; setIngredientStatus('loading')
+    void fetchCatalogIngredientFacts(products.map(product => product.product_id), controller.signal).then(rows => {
+      if (controller.signal.aborted || generation !== catalogRequestId.current || ingredientRequest.current !== controller) return
+      const byId = new Map(rows.map(row => [row.product_id, row]))
+      setProducts(current => current.map(product => ({ ...product, ...byId.get(product.product_id)! })))
+      ingredientStatusRef.current = 'loaded'; setIngredientStatus('loaded')
+    }).catch(() => {
+      if (controller.signal.aborted || generation !== catalogRequestId.current || ingredientRequest.current !== controller) return
+      ingredientStatusRef.current = 'error'; setIngredientStatus('error')
+    }).finally(() => { if (ingredientRequest.current === controller) ingredientRequest.current = null })
+  }
+  const ingredientLoad: CatalogIngredientLoad = { status: ingredientStatus, onRequest: () => loadIngredientFacts(), onRetry: () => loadIngredientFacts(true) }
+  const ingredientConditionsPending = Boolean(search.ingredientAvoidTerms?.length) && ingredientStatus !== 'loaded'
+  useCatalogIngredients(ingredientLoad, !loading && !error && screen === 'workspace' && mode !== 'switch'
+    && Boolean(search.ingredientAvoidTerms?.length) && (mode === 'explore' && !editingConditions || compareOpen && comparisonCriteriaApplied))
+
   function restoreSwitchSession(next: SwitchSessionState) {
     const resolved = !loading && !error
       ? sanitizeSwitchSessionForCatalog(next, new Set(products.map((product) => product.product_id)))
@@ -357,6 +383,8 @@ export default function App() {
   }
   function loadCatalog() {
     if (catalogRequest.current) return
+    ingredientRequest.current?.abort(); ingredientRequest.current = null
+    ingredientStatusRef.current = 'idle'; setIngredientStatus('idle')
     const id = ++catalogRequestId.current
     const controller = new AbortController()
     catalogRequest.current = { id, controller }
@@ -471,6 +499,7 @@ export default function App() {
       catalogRequest.current = null
       catalogRequestId.current += 1
       request?.controller.abort()
+      ingredientRequest.current?.abort(); ingredientRequest.current = null
     }
   }, [])
   useEffect(() => {
@@ -484,11 +513,11 @@ export default function App() {
     if (cleanSwitch !== switchSessionRef.current) commitSwitchSession(cleanSwitch)
   }, [products, loading, error])
   useEffect(() => {
-    if (!products.length || mode !== 'explore' || editingConditions || detailProductId || compareOpen) return
+    if (ingredientConditionsPending || !products.length || mode !== 'explore' || editingConditions || detailProductId || compareOpen) return
     const key = exploreRunKey(search, refine)
     if (exploreRunStateKey.current === key) return
     beginExploreRun(search, refine)
-  }, [products.length, mode, editingConditions, search, refine, detailProductId, compareOpen])
+  }, [products.length, mode, editingConditions, search, refine, detailProductId, compareOpen, ingredientConditionsPending])
 
   const energyMax = energyBound(search, refine)
   const energyEligible = screen === 'workspace' && mode !== 'switch' && comparisonCriteriaApplied && canRefineEnergy(search) && (mode === 'lookup' || !editingConditions || compareOpen || Boolean(detailProductId))
@@ -506,7 +535,7 @@ export default function App() {
   }, [needsEnergy, energyEligible, loading, error, products, energyRows, energyRetry])
   const energyStatus = energyRows != null ? 'loaded' : energyLoading ? 'loading' : energyError ? 'error' : 'idle'
   const energyByProduct = useMemo(() => new Map((energyRows ?? []).map(row => [row.product_id, row])), [energyRows])
-  const baseEvaluated = useMemo(() => evaluateCatalog(products, search, refine), [products, search, refine])
+  const baseEvaluated = useMemo(() => ingredientConditionsPending ? [] : evaluateCatalog(products, search, refine), [products, search, refine, ingredientConditionsPending])
   const energyPending = energyMax != null && energyRows == null
   const evaluated = useMemo(() => energyMax == null ? baseEvaluated : energyPending ? [] : baseEvaluated.filter(item => {
     const amount = item.product.feed_type === search.feedType ? usableEnergy(energyByProduct.get(item.product.product_id)) : null
@@ -548,6 +577,7 @@ export default function App() {
     .filter((product): product is CatalogProduct => Boolean(product))
     .map((product) => {
       if (!activeComparisonCriteria) return { product }
+      if (ingredientConditionsPending) return { product }
       const evaluation = evaluateComparisonCriteria(product, search, refine)
       const energyConfirmed: string[] = [], energyUnknown: string[] = [], energyDifferences: string[] = []
       if (energyMax != null) {
@@ -567,7 +597,7 @@ export default function App() {
         ingredientReviewedNotFound: evaluation.ingredientReviewedNotFound.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
         ingredientInsufficient: evaluation.ingredientInsufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
       }
-    }), [compareIds, products, activeComparisonCriteria, search, refine, energyMax, energyByProduct, energyPending, energyError])
+    }), [compareIds, products, activeComparisonCriteria, ingredientConditionsPending, search, refine, energyMax, energyByProduct, energyPending, energyError])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
   const visibleProducts = resultProducts.slice(0, visibleCount)
 
@@ -609,7 +639,7 @@ export default function App() {
   }, [selectedProduct?.product_id, detailProductId, compareOpen, screen])
 
   function beginExploreRun(nextSearch: SearchState, nextRefine: RefineState) {
-    if (!products.length) return
+    if (!products.length || (nextSearch.ingredientAvoidTerms?.length && ingredientStatus !== 'loaded')) return
     if (energyBound(nextSearch, nextRefine) != null) {
       // The intake contract has no energy axis. Do not record an incomplete search or attach its actions to an older run.
       resetExploreRun('lookup')
@@ -844,7 +874,7 @@ export default function App() {
       {!hasPrimary ? <p className="summary-empty">기본 조건은 선택하지 않았습니다.</p> : null}
     </div><div className="summary-actions"><button className="primary-action compact-action" type="button" onClick={editConditions}>조건 수정</button></div>
       <div className="refine-title">더 좁혀보기</div>
-      {energyEligible ? <EnergyRefine max={energyMax} status={energyStatus} known={energyKnown} unknown={baseEvaluated.length - energyKnown} onOpen={() => setEnergyRequested(true)} onRetry={retryEnergy} onChange={changeEnergyMax} /> : null}
+      {energyEligible && !ingredientConditionsPending ? <EnergyRefine max={energyMax} status={energyStatus} known={energyKnown} unknown={baseEvaluated.length - energyKnown} onOpen={() => setEnergyRequested(true)} onRetry={retryEnergy} onChange={changeEnergyMax} /> : null}
       <FilterSection title="브랜드" hint="여러 개 선택 가능">
         <p className="field-note">선택한 브랜드의 제품만 봅니다.</p>
         {refine.brands?.length ? <div className="selected-refinements brand-refine-selection">{refine.brands.map((brand) => <button className="selected-refinement" key={brand} type="button" aria-label={brand + ' 선택 해제'} onClick={() => changeBrandRefine(toggleValue(refine.brands ?? [], brand), true)}>{brand} ×</button>)}<button className="selected-refinement" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button></div> : null}
@@ -892,6 +922,7 @@ export default function App() {
     </div>
   }
   function renderResultList() {
+    if (mode === 'explore' && ingredientConditionsPending && !loading && !error) return <CatalogIngredientNotice load={ingredientLoad} />
     if (error) return <div className="state-message error-message" role="alert"><strong>제품 데이터를 불러오지 못했습니다.</strong><span>{error}</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div>
     if (loading) return <div className="state-message"><strong>제품 데이터를 불러오는 중입니다.</strong></div>
     if (mode === 'explore' && editingConditions) return <div className="state-message"><strong>조건을 골라 주세요.</strong><span>조건을 선택한 뒤 ‘이 조건으로 찾기’를 눌러 주세요.</span></div>
@@ -937,22 +968,22 @@ export default function App() {
   function renderQuickView() {
     if (!selectedProduct) return null
     const isCompared = compareIds.includes(selectedProduct.product_id)
-    return <aside className="research-quick-view is-editorial"><div className="quick-view-topline"><span>제품 정보</span><button ref={quickViewCloseRef} type="button" onClick={closeQuickView}>닫기 ×</button></div><div className="quick-view-scroll"><section className="quick-view-identity"><ProductImage className="quick-view-image" product={selectedProduct} /><div><span>{selectedProduct.brand}</span><h1>{selectedProduct.canonical_name}</h1><p>{selectedProduct.feed_type ?? '형태 미확인'} · {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div></section><div className="quick-view-actions"><button className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !isCompared} onClick={() => toggleCompare(selectedProduct.product_id)}>{isCompared ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { if (mode === 'explore') recordExploreConsideration(selectedProduct.product_id, 'detail_open'); openDetail(selectedProduct.product_id) }}>상세 보기 →</button></div>{selectedEvaluation && activeEvidenceConditions > 0 ? <section className="quick-view-section"><h2>선택한 조건과 비교</h2><dl className="definition-list">{!search.ingredientAvoidTerms?.length || selectedEvaluation.confirmedMatches.length || selectedEvaluation.unknowns.length ? <><Definition label="확인된 조건">{selectedEvaluation.confirmedMatches.length ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ') : <span className="unknown-value">확인된 항목 없음</span>}</Definition><Definition label="미확인 조건">{selectedEvaluation.unknowns.length ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ') : <span className="unknown-value">—</span>}</Definition></> : null}{selectedEvaluation.ingredientReviewedNotFound?.length ? <Definition label="검토 자료에서 못 찾음">{selectedEvaluation.ingredientReviewedNotFound.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')}</Definition> : null}{selectedEvaluation.ingredientInsufficient?.length ? <Definition label="원료 미확인">{selectedEvaluation.ingredientInsufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')}</Definition> : null}</dl></section> : null}<section className="quick-view-section"><h2>핵심 정보</h2><dl className="definition-list"><Definition label="판매 규격">{packageOptionsLabel(selectedProduct)}</Definition><Definition label="제품 표기 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition><Definition label="제품 특징"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition><Definition label="레시피 종류"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition><Definition label="주요 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition><Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition></dl></section></div></aside>
+    return <aside className="research-quick-view is-editorial"><div className="quick-view-topline"><span>제품 정보</span><button ref={quickViewCloseRef} type="button" onClick={closeQuickView}>닫기 ×</button></div><div className="quick-view-scroll"><section className="quick-view-identity"><ProductImage className="quick-view-image" product={selectedProduct} /><div><span>{selectedProduct.brand}</span><h1>{selectedProduct.canonical_name}</h1><p>{selectedProduct.feed_type ?? '형태 미확인'} · {selectedProduct.life_stage ? optionLabel(selectedProduct.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div></section><div className="quick-view-actions"><button className={isCompared ? 'switch-compare-action is-added' : 'switch-compare-action'} type="button" disabled={compareIds.length >= 5 && !isCompared} onClick={() => toggleCompare(selectedProduct.product_id)}>{isCompared ? '비교에서 제거' : compareIds.length >= 5 ? '비교는 최대 5개까지 가능합니다' : `비교에 추가 · ${compareIds.length}/5`}</button><button className="switch-compare-action" type="button" onClick={() => { if (mode === 'explore') recordExploreConsideration(selectedProduct.product_id, 'detail_open'); openDetail(selectedProduct.product_id) }}>상세 보기 →</button></div>{mode === 'explore' && ingredientConditionsPending ? <CatalogIngredientNotice load={ingredientLoad} /> : null}{!ingredientConditionsPending && selectedEvaluation && activeEvidenceConditions > 0 ? <section className="quick-view-section"><h2>선택한 조건과 비교</h2><dl className="definition-list">{!search.ingredientAvoidTerms?.length || selectedEvaluation.confirmedMatches.length || selectedEvaluation.unknowns.length ? <><Definition label="확인된 조건">{selectedEvaluation.confirmedMatches.length ? selectedEvaluation.confirmedMatches.map(relationLabel).join(' · ') : <span className="unknown-value">확인된 항목 없음</span>}</Definition><Definition label="미확인 조건">{selectedEvaluation.unknowns.length ? selectedEvaluation.unknowns.map(unknownLabel).join(' · ') : <span className="unknown-value">—</span>}</Definition></> : null}{selectedEvaluation.ingredientReviewedNotFound?.length ? <Definition label="검토 자료에서 못 찾음">{selectedEvaluation.ingredientReviewedNotFound.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')}</Definition> : null}{selectedEvaluation.ingredientInsufficient?.length ? <Definition label="원료 미확인">{selectedEvaluation.ingredientInsufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ')}</Definition> : null}</dl></section> : null}<section className="quick-view-section"><h2>핵심 정보</h2><dl className="definition-list"><Definition label="판매 규격">{packageOptionsLabel(selectedProduct)}</Definition><Definition label="제품 표기 대상"><ValueList values={selectedProduct.official_targets} labels={TARGET_LABELS} /></Definition><Definition label="제품 특징"><ValueList values={selectedProduct.features} labels={FEATURE_LABELS} /></Definition><Definition label="레시피 종류"><ValueList values={selectedProduct.recipe_families} labels={RECIPE_FAMILY_LABELS} /></Definition><Definition label="주요 레시피"><ValueList values={selectedProduct.recipe_details} labels={RECIPE_DETAIL_LABELS} /></Definition><Definition label="레시피 특성"><ValueList values={selectedProduct.official_recipe_traits} labels={RECIPE_TRAIT_LABELS} /></Definition></dl></section></div></aside>
   }
 
-  if (detailProduct) return <ProductDetail product={detailProduct} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
+  if (detailProduct) return <ProductDetail ingredientLoad={ingredientLoad} product={detailProduct} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
   const resumableCurrent = products.find((product) => product.product_id === switchSession.currentProductId)
   const switchProgress = switchSession.currentProductId
     ? resumableCurrent ? resumableCurrent.brand + ' · ' + resumableCurrent.canonical_name : '이전 작업'
     : switchSession.query ? '현재 사료 검색 중' : null
   if (screen === 'home') return <Home products={products} productCount={products.length} loading={loading} error={Boolean(error)} onRetryCatalog={loadCatalog} onStart={startFromHome} switchProgress={switchProgress} onRestartSwitch={restartSwitch} />
-  if (mode === 'switch') return <SwitchFlow key={switchSession.restartId} products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} onRestart={restartSwitch} />
+  if (mode === 'switch') return <SwitchFlow ingredientLoad={ingredientLoad} key={switchSession.restartId} products={products} loading={loading} error={error} session={switchSession} onSessionChange={commitSwitchSession} onHistoryBack={backSwitchHistory} onHome={goHome} onModeChange={changeMode} onRetryCatalog={loadCatalog} onRestart={restartSwitch} />
 
   const paneTitle = mode === 'explore' ? '조건으로 찾기' : '제품 찾기'
   const paneDescription = mode === 'explore' ? '원하는 항목만 골라주세요.' : null
   const waitingForConditions = mode === 'explore' && editingConditions
   const resultCountText = visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`
-  const resultSummaryText = loading
+  const resultSummaryText = mode === 'explore' && ingredientConditionsPending && !loading && !error ? (ingredientStatus === 'error' ? '원료 정보 조회 실패' : '원료 정보 확인 중') : loading
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
     : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중' : resultCountText
   const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
@@ -966,5 +997,5 @@ export default function App() {
   const comparedNames = compareItems.map((item) => item.product.canonical_name)
   const showMobileRefine = mobileRefineOpen && mode === 'explore' && !editingConditions && !selectedProduct && !compareOpen && !detailProductId
   const shellClassName = ['research-shell', selectedProduct ? 'is-inspecting' : 'is-browsing', showMobileRefine ? 'is-mobile-refining' : ''].filter(Boolean).join(' ')
-  return <div className={shellClassName} data-catalog-mode={mode}><SiteHeader className="research-topbar" onHome={goHome} onModeChange={changeMode} active={mode} status={<><span>제품 {products.length || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />{compareOpen && compareItems.length ? <CompareView items={compareItems} criteriaLabels={compareCriteria} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong>{paneDescription ? <span>{paneDescription}</span> : null}{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{waitingForConditions && loading ? <div className="catalog-inline-state" role="status"><strong>제품 목록을 불러오는 중입니다.</strong><span>조건은 먼저 고를 수 있습니다.</span></div> : null}{waitingForConditions && error ? <div className="catalog-inline-state is-error" role="alert"><strong>제품 목록을 불러오지 못했습니다.</strong><span>선택한 조건은 그대로 유지됩니다.</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div> : null}{renderLeftPane()}</div>{waitingForConditions ? <div className="condition-actions"><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button></div> : null}</aside> : null}{!waitingForConditions ? <section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{resultSummaryText}</span>{!loading && !error && resultProducts.length > 0 && resultPriorityText ? <p className="result-priority-note">{resultPriorityText}</p> : null}</div></div><div className="research-results-scroll">{mode === 'explore' && !loading && !error && resultProducts.length > 0 && search.ingredientAvoidTerms?.length ? <p className="field-note" role="note">선택한 원료가 확인된 제품은 제외했습니다. 자료에서 찾지 못했거나 미확인인 제품도 남아 있습니다.</p> : null}{renderResultList()}</div></section> : null}{renderQuickView()}</main>{compareIds.length && !waitingForConditions ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
+  return <div className={shellClassName} data-catalog-mode={mode}><SiteHeader className="research-topbar" onHome={goHome} onModeChange={changeMode} active={mode} status={<><span>제품 {products.length || '—'}개</span>{error ? <span className="is-error">연결 오류</span> : loading ? <span>불러오는 중</span> : null}</>} />{compareOpen && compareItems.length ? <CompareView ingredientConditionsPending={activeComparisonCriteria && ingredientConditionsPending} ingredientLoad={ingredientLoad} items={compareItems} criteriaLabels={compareCriteria} onClose={closeCompare} onRemove={removeCompare} initialTab={compareTab} onTabChange={changeCompareTab} /> : <>{renderCriteriaBar()}{renderMobileRefineEntry()}<main className="research-workspace">{!selectedProduct ? <aside className="research-filters" id={mode === 'explore' && !editingConditions ? 'mobile-recipe-refine-panel' : undefined}><div className="research-pane-heading"><div><strong>{paneTitle}</strong>{paneDescription ? <span>{paneDescription}</span> : null}{mode === 'explore' && editingConditions ? <span className="condition-draft-count">선택한 조건 {countActiveConditions(draftSearch)}개</span> : null}</div></div><div className="research-filter-scroll">{waitingForConditions && loading ? <div className="catalog-inline-state" role="status"><strong>제품 목록을 불러오는 중입니다.</strong><span>조건은 먼저 고를 수 있습니다.</span></div> : null}{waitingForConditions && error ? <div className="catalog-inline-state is-error" role="alert"><strong>제품 목록을 불러오지 못했습니다.</strong><span>선택한 조건은 그대로 유지됩니다.</span><button className="state-retry" type="button" onClick={loadCatalog}>다시 시도</button></div> : null}{renderLeftPane()}</div>{waitingForConditions ? <div className="condition-actions"><button className="secondary-action" type="button" onClick={resetDraft}>초기화</button><button className="primary-action" type="button" onClick={applyConditions}>이 조건으로 찾기</button></div> : null}</aside> : null}{!waitingForConditions ? <section className="research-results"><div className="research-results-heading"><div><strong>제품 목록</strong><span>{resultSummaryText}</span>{!loading && !error && resultProducts.length > 0 && resultPriorityText ? <p className="result-priority-note">{resultPriorityText}</p> : null}</div></div><div className="research-results-scroll">{mode === 'explore' && !ingredientConditionsPending && !loading && !error && resultProducts.length > 0 && search.ingredientAvoidTerms?.length ? <p className="field-note" role="note">선택한 원료가 확인된 제품은 제외했습니다. 자료에서 찾지 못했거나 미확인인 제품도 남아 있습니다.</p> : null}{renderResultList()}</div></section> : null}{renderQuickView()}</main>{compareIds.length && !waitingForConditions ? <div className="switch-compare-dock" role="status"><strong>비교 {compareIds.length}/5</strong><div className="switch-compare-dock-list">{comparedNames.join(' · ')}</div><button type="button" onClick={openCompare}>비교 보기 →</button></div> : null}</>}</div>
 }

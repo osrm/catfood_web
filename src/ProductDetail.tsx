@@ -1,3 +1,4 @@
+import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
@@ -193,7 +194,8 @@ function ProductImage({ product }: { product: CatalogProduct }) {
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
-export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false }: {
+export default function ProductDetail({ ingredientLoad, product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false }: {
+  ingredientLoad?: CatalogIngredientLoad
   product: CatalogProduct
   onClose: () => void
   onHome?: () => void
@@ -205,6 +207,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   initialTab?: DetailTab
   onTabChange?: (tab: DetailTab) => void
 }) {
+  useCatalogIngredients(ingredientLoad)
   const [tab, setTab] = useState<DetailTab>(initialTab)
   const [reload, setReload] = useState(0)
   const [variants, setVariants] = useState<ProductVariant[]>([])
@@ -321,8 +324,8 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
     && displayedPrimaryIngredientNames.some((ingredient, index) => ingredient !== primaryIngredientNames[index])
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
-  const directIngredientLabel = product.direct_evidence_ingredient_terms.length ? listLabel(product.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
-  const flavorIngredientLabel = product.flavor_associated_ingredient_terms.length ? listLabel(product.flavor_associated_ingredient_terms, RECIPE_LABELS) : null
+  const directIngredientLabel = product.direct_evidence_ingredient_terms?.length ? listLabel(product.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
+  const flavorIngredientLabel = product.flavor_associated_ingredient_terms?.length ? listLabel(product.flavor_associated_ingredient_terms, RECIPE_LABELS) : null
   const hasIngredientSummaryFacts = Boolean(directIngredientLabel || flavorIngredientLabel || hasSupplementalFullIngredients)
   const fullIngredientSummaryFallback = ingredients?.completeness_status === 'full' && !hasIngredientSummaryFacts
     ? fullIngredientSummaryLabel(ingredients)
@@ -398,9 +401,10 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             </section>
             <section className="detail-section">
               <div className="detail-section-heading"><h2>원재료 요약</h2></div>
+              <CatalogIngredientNotice load={ingredientLoad} />
               {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
               {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
-              {!loading.ingredients && !errors.ingredients && ingredients ? <>
+              {(!ingredientLoad || ingredientLoad.status === 'loaded') && !loading.ingredients && !errors.ingredients && ingredients ? <>
                 {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : fullIngredientSummaryFallback ? <p className="detail-summary-meta">{fullIngredientSummaryFallback}</p> : null}
                 {hasIngredientSummaryFacts ? <div className="detail-fact-lines detail-fact-lines-compact">
                   {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
@@ -409,7 +413,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 </div> : null}
                 <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>원재료 보기 →</button>
               </> : null}
-              {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
+              {(!ingredientLoad || ingredientLoad.status === 'loaded') && !loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
             </section>
           </> : null}
           {tab === 'nutrition' ? <section className="detail-section">
@@ -448,6 +452,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
           </section> : null}
           {tab === 'ingredients' ? <section className="detail-section">
             <div className="detail-section-heading"><h2>원재료</h2></div>
+            <CatalogIngredientNotice load={ingredientLoad} />
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>

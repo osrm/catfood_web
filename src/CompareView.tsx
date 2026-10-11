@@ -1,3 +1,4 @@
+import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail, { type SwitchDetailNavigation } from './ProductDetail'
 import { nutritionInterpretationNote } from './nutrition-reading'
@@ -537,8 +538,10 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation }: {
   items: CompareItem[]
+  ingredientConditionsPending?: boolean
+  ingredientLoad?: CatalogIngredientLoad
   criteriaLabels?: string[]
   currentProduct?: CatalogProduct | null
   currentVariantId?: string | null
@@ -581,6 +584,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
     items[1]?.product.product_id ?? null,
   ])
   const detailProductId = controlledDetailProductId === undefined ? localDetailProductId : controlledDetailProductId
+  useCatalogIngredients(ingredientLoad, tab === 'ingredients' || Boolean(detailProductId))
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
   const mobilePairSelectRefs = useRef<Array<HTMLSelectElement | null>>([])
@@ -1007,7 +1011,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
   const activeIngredientsError = ingredientsErrorKeyRef.current === productKey ? ingredientsError : null
   const activeCurrentNutritionError = currentProduct && currentNutritionErrorProductRef.current === currentProduct.product_id ? currentNutritionError : null
 
-  if (detailItem) return <ProductDetail product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} />
+  if (detailItem) return <ProductDetail ingredientLoad={ingredientLoad} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`
@@ -1047,6 +1051,7 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
         <div className="compare-nutrition-tools-desktop"><NutritionReadingTools showEnergyGraph={showEnergyGraph} onToggleEnergyGraph={() => setShowEnergyGraph((value) => !value)} details={currentProduct ? [currentNutrition, ...nutrition] : nutrition} /></div>
         <div className="compare-nutrition-tools-mobile"><NutritionReadingTools showEnergyGraph={showEnergyGraph} onToggleEnergyGraph={() => setShowEnergyGraph((value) => !value)} details={currentProduct ? [currentNutrition, nutritionByProduct.get(mobileCandidate?.product.product_id ?? '')] : mobilePairNutrition} /></div>
       </> : null}
+      {ingredientConditionsPending && tab === 'overview' ? <CatalogIngredientNotice load={ingredientLoad} /> : null}
       {!switchCompare && tab === 'overview' && criteriaLabels.length ? <AppliedCriteriaSummary labels={criteriaLabels} /> : null}
       {switchOverview && currentProduct ? <>
         <div className="compare-table compare-switch-overview-desktop" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
@@ -1202,12 +1207,13 @@ export default function CompareView({ items, criteriaLabels = [], currentProduct
           {hasBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><CompareRow label="별도 확인 자료" items={items} tone="context" render={(item) => <span className="compare-muted">{basisSpecificSummary(nutritionByProduct.get(item.product.product_id))}</span>} /></> : null}
         </> : null}
 
+        {tab === 'ingredients' ? <CatalogIngredientNotice load={ingredientLoad} /> : null}
         {tab === 'ingredients' && !ingredientsLoading && !activeIngredientsError ? <>
           <CompareSection title="원재료" note="검토된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다." />
           <CompareRow label="목록 상태" items={items} render={(item) => { const row = ingredientsByProduct.get(item.product.product_id); if (!row) return '미확인'; const base = row.completeness_status === 'full' ? '전체 목록 확인' : row.completeness_status === 'partial' ? '일부 목록' : row.completeness_status === 'summary' ? '요약 정보' : '상태 미확인'; return row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.length ? `${base} · 전체 목록 보완 있음` : base }} />
           <CompareRow label="적용 범위" items={items} tone="context" render={(item) => <span className="compare-muted">{ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)}</span>} />
-          <CompareRow label="직접 확인 원료" items={items} render={(item) => labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
-          <CompareRow label="향미 연관 원료" items={items} render={(item) => labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
+          <CompareRow label="직접 확인 원료" items={items} render={(item) => item.product.direct_evidence_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
+          <CompareRow label="향미 연관 원료" items={items} render={(item) => item.product.flavor_associated_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
           <CompareRow label="출처 원문" items={items} render={(item) => <IngredientSourceDisclosure row={ingredientsByProduct.get(item.product.product_id)} />} />
         </> : null}
       </div></>}

@@ -1060,3 +1060,49 @@ test('restored bound stays pending until energy arrives without claiming zero re
  assert.equal(app.parseNavigationState(window.location.search).refine.energyMax,350)
 })
 
+
+test('empty-result recipe recovery clears only recipes and preserves primary conditions, brands, energy and basket without new reads', async () => {
+  products = catalog(2)
+  products.forEach(p => { p.feed_type='건식'; p.life_stage='adult'; p.brand='AATU'; p.features=['weight_management']; p.recipe_details=['salmon'] })
+  energyData=[energyFixture(0,370),energyFixture(1,380)]
+  const params=new URLSearchParams({view:'workspace',applied:'1',feed:'건식',age:'adult',features:'weight_management',brands:'AATU',recipeDetails:'beef,duck',energyMax:'400',compare:products[0].product_id})
+  dom.reconfigure({url:'https://catfood.test/?'+params})
+  await act(async()=>root.render(createElement(app.App)))
+  await waitForUi(()=>document.querySelector('.state-message')?.textContent.includes('조건에 맞는 제품이 없습니다.'),'empty result after energy load')
+  const before=app.parseNavigationState(window.location.search)
+  const reads=requests.filter(r=>r.path.startsWith('/rest/')).length
+  assert.equal(rows('.research-result-card').length,0)
+  const clear=rows('.state-message button').find(n=>n.textContent==='레시피 선택 지우기')
+  clear.focus()
+  await click(clear)
+  await waitForUi(()=>document.activeElement===document.querySelector('.mobile-refine-entry button'),'focus leaves the removed recovery control for the mobile refine entry')
+  const after=app.parseNavigationState(window.location.search)
+  assert.deepEqual(after.search,before.search)
+  assert.deepEqual(after.refine,{...before.refine,recipeDetails:[]})
+  assert.deepEqual(after.compareIds,before.compareIds)
+  assert.equal(rows('.research-result-card').length,2)
+  assert.equal(rows('.state-message button').some(n=>n.textContent==='레시피 선택 지우기'),false)
+  assert.equal(requests.filter(r=>r.path.startsWith('/rest/')).length,reads)
+})
+
+test('removing a recipe chip returns focus to visible recipe search while preserving the remaining OR recipe, search text and basket', async () => {
+  products=catalog(2)
+  products[0].recipe_details=['salmon'];products[1].recipe_details=['duck']
+  const params=new URLSearchParams({view:'workspace',applied:'1',recipeDetails:'salmon,duck',compare:products[0].product_id})
+  dom.reconfigure({url:'https://catfood.test/?'+params})
+  await act(async()=>root.render(createElement(app.App)))
+  await waitForUi(()=>rows('.research-result-card').length===2,'both OR recipes rendered')
+  const input=document.querySelector('.recipe-search:not(.brand-search)')
+  input.getClientRects=()=>[{}]
+  await act(async()=>{
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'존재하지않는레시피')
+    input.dispatchEvent(new window.Event('input',{bubbles:true}))
+  })
+  const chip=document.querySelector('button[aria-label="연어 선택 해제"]')
+  chip.focus();await click(chip)
+  await waitForUi(()=>document.activeElement===input,'recipe search gets focus after chip disappears')
+  assert.equal(input.value,'존재하지않는레시피')
+  assert.deepEqual(app.parseNavigationState(window.location.search).refine.recipeDetails,['duck'])
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[products[0].product_id])
+  assert.deepEqual(rows('.research-result-card').map(n=>n.dataset.productId),[products[1].product_id])
+})

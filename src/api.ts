@@ -114,6 +114,13 @@ export interface CompareNutrition {
   basis_specific_nutrition_values?: AdditionalNutrient[]
 }
 
+// Only the energy value and its own evidence; no full nutrition prefetch.
+export type ExploreEnergy = Pick<CompareNutrition,
+  'product_id' | 'variant_id' | 'observation_scope' | 'market_code' |
+  'kcal_per_kg' | 'kcal_per_100g' | 'energy_basis' | 'is_current_resolved_formula' |
+  'supplemental_nutrition_fields' | 'supplemental_observation_scope' |
+  'supplemental_market_code' | 'supplemental_is_current_resolved_formula'>
+
 export interface CompareIngredients {
   product_id: string
   variant_id: string | null
@@ -549,6 +556,28 @@ export async function fetchProductVariants(
     '100',
   )
   return data.map(normalizeVariant)
+}
+
+export async function fetchExploreEnergy(signal?: AbortSignal): Promise<ExploreEnergy[]> {
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(baseUrl + '/rest/v1/compare_product_nutrition')
+  url.searchParams.set('select', 'product_id,variant_id,observation_scope,market_code,kcal_per_kg,kcal_per_100g,energy_basis,is_current_resolved_formula,supplemental_nutrition_fields,supplemental_observation_scope,supplemental_market_code,supplemental_is_current_resolved_formula')
+  url.searchParams.set('order', 'product_id.asc')
+  url.searchParams.set('limit', '1000')
+  const rows: ExploreEnergy[] = []
+  const ids = new Set<string>()
+  for (let offset = 0; ; offset += 1000) {
+    url.searchParams.set('offset', String(offset))
+    const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
+    if (!response.ok) throw new Error('Energy API ' + response.status)
+    const page = await response.json() as ExploreEnergy[]
+    for (const row of page) {
+      if (!row.product_id || ids.has(row.product_id)) throw new Error('Incomplete energy response')
+      ids.add(row.product_id)
+      rows.push({ ...row, supplemental_nutrition_fields: asStringArray(row.supplemental_nutrition_fields) })
+    }
+    if (page.length < 1000) return rows
+  }
 }
 
 export async function fetchCompareNutrition(

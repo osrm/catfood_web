@@ -14,6 +14,7 @@ export interface SearchState {
 export interface RefineState {
   recipeDetails: string[]
   brands?: string[]
+  energyMax?: number
 }
 
 export interface CandidateEvaluation {
@@ -411,6 +412,7 @@ export function countActiveConditions(search: SearchState, refine: RefineState =
     Number(search.grainFree) +
     (search.ingredientAvoidTerms?.length ?? 0) +
     refine.recipeDetails.length +
-    Number(Boolean(refine.brands?.length))
+    Number(Boolean(refine.brands?.length)) +
+    Number(refine.energyMax != null)
   )
 }

@@ -14,7 +14,7 @@ globalThis.document = dom.window.document
 globalThis.sessionStorage = dom.window.sessionStorage
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const { createRoot } = await import('react-dom/client')
-let root, app, devApp, temp, requests, products, packageOptions, packageFailureOffset, catalogFailure
+let root, app, devApp, temp, requests, products, packageOptions, packageFailureOffset, catalogFailure, energyData, energyFailure, energyDeferred
 const nativeFetch = globalThis.fetch
 
 function catalog(count) {
@@ -71,6 +71,7 @@ beforeEach(() => {
   packageOptions = []
   packageFailureOffset = null
   catalogFailure = false
+  energyData = []; energyFailure = false; energyDeferred = null
   requests = []
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
@@ -89,6 +90,12 @@ beforeEach(() => {
       if (offset === packageFailureOffset) return new Response('Temporary failure', { status: 503 })
       const limit = Math.min(Number(url.searchParams.get('limit') ?? 1000), 1000)
       return Response.json(packageOptions.slice(offset, offset + limit))
+    }
+    if (url.pathname.endsWith('/compare_product_nutrition') && url.searchParams.get('limit') === '1000') {
+      if (energyDeferred) return energyDeferred
+      if (energyFailure) return new Response('Private source detail must stay hidden', {status:503})
+      const offset=Number(url.searchParams.get('offset') ?? 0)
+      return Response.json(energyData.slice(offset,offset+1000))
     }
     return Response.json([])
   }
@@ -947,3 +954,109 @@ test('brand selector search, multiple selection, zero-result recovery and condit
   assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,[])
   assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[])
 })
+
+const energyReads = () => requests.filter(r => r.path.endsWith('/compare_product_nutrition') && new URLSearchParams(r.query).get('limit') === '1000')
+const energyFixture = (index, value, extra={}) => ({product_id:products[index]?.product_id ?? 'energy_'+index, observation_scope:'product', kcal_per_100g:value, kcal_per_kg:null, supplemental_nutrition_fields:[], is_current_resolved_formula:false, ...extra})
+async function energyInput(value) {
+ const input=document.querySelector('#energy-max')
+ await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true}))})
+}
+async function energyExplore() {
+ dom.reconfigure({url:'https://catfood.test/?view=workspace&applied=1&feed='+encodeURIComponent('건식')+'&features=weight_management'})
+ await act(async()=>root.render(createElement(app.App)))
+}
+
+test('energy units, scope and URL parsing do not turn unknown or a different formula into a matching value',()=>{
+ assert.equal(app.energyAmount(energyFixture(0,400,{kcal_per_kg:3485})),348.5)
+ assert.equal(app.energyAmount(energyFixture(0,422)),422)
+ for(const value of [null,0,-1,NaN,Infinity]) assert.equal(app.energyAmount(energyFixture(0,value)),null)
+ assert.equal(app.usableEnergy(energyFixture(0,400,{observation_scope:'formula'})),null)
+ assert.equal(app.usableEnergy(energyFixture(0,400,{observation_scope:'formula',is_current_resolved_formula:true})),400)
+ assert.equal(app.usableEnergy(energyFixture(0,400,{observation_scope:'variant',supplemental_nutrition_fields:['energy'],supplemental_observation_scope:'formula',supplemental_is_current_resolved_formula:false})),null)
+ assert.equal(app.usableEnergy(energyFixture(0,400,{observation_scope:'formula',supplemental_nutrition_fields:['energy'],supplemental_observation_scope:'product'})),400)
+ for(const value of ['', '0','-1','Infinity','12x','1e3']) assert.equal(app.parseEnergyMax(value),undefined)
+ const valid=app.parseNavigationState('?view=workspace&applied=1&feed='+encodeURIComponent('건식')+'&features=weight_management&energyMax=348.5')
+ assert.equal(valid.refine.energyMax,348.5)
+ assert.equal(app.parseNavigationState(app.navigationSearch({...valid,mode:'lookup'})).refine.energyMax,348.5)
+ for(const suffix of ['mode=switch&feed=건식&features=weight_management','feed=건식','features=weight_management','feed=건식&features=dental']) assert.equal(app.parseNavigationState('?view=workspace&'+suffix+'&energyMax=350').refine.energyMax,undefined)
+ assert.equal(app.navigationSearch({...valid,mode:'switch'}).includes('energyMax'),false)
+})
+
+test('energy is lazy, keeps unknowns and unofficial weight features, preserves basket, and reuses the read',async()=>{
+ products=catalog(4);products[0].features=['weight_management']
+ energyData=[energyFixture(0,400,{kcal_per_kg:3485}),energyFixture(1,422),energyFixture(2,null),energyFixture(3,500,{observation_scope:'formula',is_current_resolved_formula:false})]
+ await energyExplore()
+ assert.equal(energyReads().length,0)
+ await click(rows('.research-result-compare')[1])
+ const basket=app.parseNavigationState(window.location.search).compareIds
+ await click(document.querySelector('.energy-refine button'));assert.equal(energyReads().length,1)
+ await energyInput('350');await click('이 열량 이하로 보기')
+ assert.deepEqual(rows('.research-result-card').map(n=>n.dataset.productId),[products[0],products[2],products[3]].map(p=>p.product_id))
+ assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,basket)
+ assert.match(document.body.textContent,/348.5 kcal\/100g/)
+ assert.match(document.body.textContent,/열량 미확인/)
+ const runs=searchRuns().length, signals=considerations().length
+ await click(rows('.research-result-compare')[0])
+ assert.equal(searchRuns().length,runs);assert.equal(considerations().length,signals,'no energy action attached to prior intake run')
+ await click('비교 보기')
+ assert.match(document.querySelector('.compare-stage').textContent,/422 kcal\/100g \(선택 350 kcal\/100g 이하\)/)
+ await act(async()=>{button('제품 목록으로').click();await waitForUi(()=>!document.querySelector('.compare-stage') && document.querySelector('.research-results'),'comparison history return')})
+ await click('조건 수정');await click('이 조건으로 찾기')
+ assert.equal(app.parseNavigationState(window.location.search).refine.energyMax,350)
+ assert.equal(energyReads().length,1)
+ await click('열량 조건 지우기')
+ assert.equal(rows('.research-result-card').length,4)
+ assert.equal(energyReads().length,1)
+})
+
+test('deep-link energy pending and failure stay distinct from empty results; manual retry retains bound and basket',async()=>{
+ products=catalog(2);energyFailure=true
+ dom.reconfigure({url:'https://catfood.test/?view=workspace&applied=1&feed=건식&features=weight_management&energyMax=350&compare='+products[0].product_id})
+ await act(async()=>root.render(createElement(app.App)))
+ assert.equal(energyReads().length,1)
+ assert.match(document.querySelector('.research-results').textContent,/열량을 불러오지 못했습니다/)
+ assert.doesNotMatch(document.querySelector('.research-results').textContent,/조건에 맞는 제품이 없습니다|0개의 제품|Private source/)
+ assert.equal(app.parseNavigationState(window.location.search).refine.energyMax,350)
+ energyFailure=false;energyData=[energyFixture(0,340),energyFixture(1,400)]
+ await click('열량 다시 불러오기')
+ assert.equal(energyReads().length,2);assert.equal(rows('.research-result-card').length,1)
+ assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[products[0].product_id])
+})
+
+test('late energy response cannot revive a condition after Home new start',async()=>{
+ products=catalog(2)
+ let resolveEnergy
+ energyDeferred=new Promise(resolve=>{resolveEnergy=resolve})
+ await energyExplore();await click(document.querySelector('.energy-refine button'))
+ assert.match(document.body.textContent,/열량을 불러오는 중/)
+ await click(document.querySelector('.site-wordmark'))
+ await click('조건 고르기');await click('이 조건으로 찾기')
+ await act(async()=>resolveEnergy(Response.json([energyFixture(0,100)])))
+ assert.equal(document.querySelector('.energy-refine'),null)
+ assert.equal(app.parseNavigationState(window.location.search).refine.energyMax,undefined)
+ assert.equal(rows('.research-result-card').length,2)
+})
+
+test('energy helper paginates beyond 1000 and rejects overlapping pages instead of silently losing products',async()=>{
+ energyData=Array.from({length:1001},(_,i)=>({...energyFixture(i,100),product_id:'energy_'+String(i).padStart(5,'0')}))
+ const result=await app.fetchExploreEnergy()
+ assert.equal(result.length,1001);assert.equal(energyReads().length,2)
+ assert.deepEqual(energyReads().map(r=>new URLSearchParams(r.query).get('offset')),['0','1000'])
+ energyData[1000].product_id=energyData[0].product_id
+ await assert.rejects(()=>app.fetchExploreEnergy(),/Incomplete energy response/)
+})
+test('restored bound stays pending until energy arrives without claiming zero results',async()=>{
+ products=catalog(2)
+ let resolveEnergy
+ energyDeferred=new Promise(resolve=>{resolveEnergy=resolve})
+ dom.reconfigure({url:'https://catfood.test/?view=workspace&applied=1&feed=건식&features=weight_management&energyMax=350'})
+ await act(async()=>root.render(createElement(app.App)))
+ assert.equal(rows('.research-result-card').length,0)
+ assert.match(document.querySelector('.research-results').textContent,/열량을 확인하고 있습니다/)
+ assert.doesNotMatch(document.querySelector('.research-results-heading').textContent,/0개의 제품/)
+ assert.equal(searchRuns().length,0)
+ await act(async()=>resolveEnergy(Response.json([energyFixture(0,340),energyFixture(1,400)])))
+ assert.equal(rows('.research-result-card').length,1)
+ assert.equal(app.parseNavigationState(window.location.search).refine.energyMax,350)
+})
+

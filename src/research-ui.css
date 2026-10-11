@@ -3314,3 +3314,14 @@
 .research-shell .brand-refine-grid .choice {
   overflow-wrap: anywhere;
 }
+
+
+/* Contextual energy refine stays within the existing results layout. */
+.energy-refine h3 {font-size:14px;margin:0 0 12px}
+.energy-refine label {display:block;font-size:13px;margin:12px 0 6px}
+.energy-refine button,.energy-refine input {min-height:44px}
+.energy-refine .recipe-list-toggle {display:block}
+.research-result-row .explore-energy-result {grid-column:1 / -1;padding:0 16px 16px;display:flex;align-items:baseline;gap:8px 20px;flex-wrap:wrap;font-size:13px}
+.explore-energy-result strong {font-size:15.5px;font-variant-numeric:tabular-nums}
+.explore-energy-result summary {cursor:pointer;min-height:44px;display:flex;align-items:center}
+.explore-energy-result p {margin:4px 0;max-width:100%;overflow-wrap:anywhere}

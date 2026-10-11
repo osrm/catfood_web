@@ -1,3 +1,4 @@
+import { canRefineEnergy, parseEnergyMax } from './energy-refine'
 import { INGREDIENT_AVOID_OPTIONS, type RefineState, type SearchState } from './search'
 
 export type AppMode = 'switch' | 'explore' | 'lookup'
@@ -62,7 +63,7 @@ export function parseNavigationState(searchString: string): NavigationState {
       grainFree: params.get('grainFree') === '1',
       ingredientAvoidTerms: mode === 'switch' ? [] : allowed(csv(params.get('avoidIngredients')), INGREDIENT_AVOID_TERMS),
     },
-    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36), brands: mode === 'switch' ? [] : unique(params.getAll('brands').map((value) => value.trim()).filter((value) => value && value.length <= 120), 100) },
+    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36), brands: mode === 'switch' ? [] : unique(params.getAll('brands').map((value) => value.trim()).filter((value) => value && value.length <= 120), 100), ...(mode !== 'switch' && FEED_TYPES.has(params.get('feed') ?? '') && allowed(csv(params.get('features')), FEATURES).includes('weight_management') && parseEnergyMax(params.get('energyMax')) != null ? { energyMax: parseEnergyMax(params.get('energyMax')) } : {}) },
     comparisonCriteriaApplied: params.get('criteria') === '1' || params.get('applied') === '1',
     editingConditions: mode === 'explore' ? params.get('applied') !== '1' : false,
     selectedId: params.get('selected') || null,
@@ -101,6 +102,7 @@ export function navigationSearch(state: NavigationState): string {
     if (state.search.grainFree) params.set('grainFree', '1')
     setCsv(params, 'avoidIngredients', allowed(state.search.ingredientAvoidTerms ?? [], INGREDIENT_AVOID_TERMS))
     setCsv(params, 'recipeDetails', state.refine.recipeDetails)
+    if (canRefineEnergy(state.search) && parseEnergyMax(state.refine.energyMax) != null) params.set('energyMax', String(state.refine.energyMax))
     for (const brand of unique((state.refine.brands ?? []).map((value) => value.trim()).filter((value) => value && value.length <= 120), 100)) params.append('brands', brand)
   }
   if (state.selectedId) params.set('selected', state.selectedId)

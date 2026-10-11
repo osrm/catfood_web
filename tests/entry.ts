@@ -12,3 +12,6 @@ export { evaluateComparisonCriteria, evaluateCatalog, INITIAL_SEARCH, INGREDIENT
 export { installDemoPreviewFetch } from '../src/demo-preview'
 export { installRealVisualPreviewFetch } from '../src/real-visual-preview'
 export { installStressPreviewFetch } from '../src/stress-preview'
+
+export * from '../src/energy-refine'
+export { fetchExploreEnergy } from '../src/api'

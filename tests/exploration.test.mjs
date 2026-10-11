@@ -1070,12 +1070,15 @@ test('empty-result recipe recovery clears only recipes and preserves primary con
   await act(async()=>root.render(createElement(app.App)))
   await waitForUi(()=>document.querySelector('.state-message')?.textContent.includes('조건에 맞는 제품이 없습니다.'),'empty result after energy load')
   const before=app.parseNavigationState(window.location.search)
+  const recipeInput=document.querySelector('.recipe-detail-search')
+  recipeInput.getClientRects=()=>[{}]
+  document.querySelector('#energy-max').getClientRects=()=>[{}]
   const reads=requests.filter(r=>r.path.startsWith('/rest/')).length
   assert.equal(rows('.research-result-card').length,0)
   const clear=rows('.state-message button').find(n=>n.textContent==='레시피 선택 지우기')
   clear.focus()
   await click(clear)
-  await waitForUi(()=>document.activeElement===document.querySelector('.mobile-refine-entry button'),'focus leaves the removed recovery control for the mobile refine entry')
+  await waitForUi(()=>document.activeElement===recipeInput,'focus returns to recipe search rather than the visible energy input')
   const after=app.parseNavigationState(window.location.search)
   assert.deepEqual(after.search,before.search)
   assert.deepEqual(after.refine,{...before.refine,recipeDetails:[]})
@@ -1092,7 +1095,7 @@ test('removing a recipe chip returns focus to visible recipe search while preser
   dom.reconfigure({url:'https://catfood.test/?'+params})
   await act(async()=>root.render(createElement(app.App)))
   await waitForUi(()=>rows('.research-result-card').length===2,'both OR recipes rendered')
-  const input=document.querySelector('.recipe-search:not(.brand-search)')
+  const input=document.querySelector('.recipe-detail-search')
   input.getClientRects=()=>[{}]
   await act(async()=>{
     Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'존재하지않는레시피')

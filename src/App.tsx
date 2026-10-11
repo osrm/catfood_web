@@ -646,7 +646,7 @@ export default function App() {
     beginExploreRun(search, nextRefine)
     replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null }))
     if (restoreFocus) window.setTimeout(() => {
-      const input = document.querySelector<HTMLInputElement>('.recipe-search:not(.brand-search)')
+      const input = document.querySelector<HTMLInputElement>('.recipe-detail-search')
       const target = input && input.getClientRects().length ? input : mobileRefineToggleRef.current
       target?.focus()
     }, 0)
@@ -840,7 +840,7 @@ export default function App() {
       </FilterSection>
       <FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
         {refine.recipeDetails.length ? <div className="selected-refinements">{refine.recipeDetails.map((value) => <button className="selected-refinement" key={value} type="button" aria-label={optionLabel(value, RECIPE_DETAIL_LABELS) + ' 선택 해제'} onClick={() => toggleRefineRecipe(value, true)}>{optionLabel(value, RECIPE_DETAIL_LABELS)} ×</button>)}</div> : null}
-        <input className="recipe-search" type="search" value={recipeSearch} aria-label="레시피 이름 검색" placeholder="예: 닭, 연어, 오리" onChange={(event) => setRecipeSearch(event.target.value)} />
+        <input className="recipe-search recipe-detail-search" type="search" value={recipeSearch} aria-label="레시피 이름 검색" placeholder="예: 닭, 연어, 오리" onChange={(event) => setRecipeSearch(event.target.value)} />
         <div className="recipe-detail-grid">{displayedRecipeDetails.map((value) => <button className={refine.recipeDetails.includes(value) ? 'choice is-active' : 'choice'} key={value} type="button" aria-pressed={refine.recipeDetails.includes(value)} onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)}</button>)}</div>
         {!recipeSearch.trim() && recipeDetails.length > 8 ? <button className="recipe-list-toggle" type="button" aria-expanded={showAllRecipes} onClick={() => setShowAllRecipes((current) => !current)}>{showAllRecipes ? '접어두기' : `레시피 전체 보기 · ${recipeDetails.length}개`}</button> : null}
         {recipeSearch.trim() && !visibleRecipeDetails.length ? <p className="field-note" role="status">이 이름으로 확인된 레시피가 없습니다. 다른 이름으로 찾아보세요.</p> : null}

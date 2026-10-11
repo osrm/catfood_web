@@ -868,6 +868,13 @@ test('ingredient editor, applied summary, results, and analytics preserve the th
   assert.equal(rows('.research-result-card').length, 3)
   assert.equal(document.querySelector('.result-priority-note'), null, 'exclude-only search is not described as positive sorting')
   assert.match(window.location.search, /avoidIngredients=chicken/)
+  await click(document.querySelector('.research-result-card[data-product-id="' + products[1].product_id + '"]'))
+  assert.match(document.querySelector('.research-quick-view').textContent, /검토 자료에서 못 찾음/)
+  assert.equal(document.querySelector('.research-quick-view').textContent.includes('확인된 항목 없음'), false)
+  await click('닫기 ×')
+  await click(document.querySelector('.research-result-card[data-product-id="' + products[2].product_id + '"]'))
+  assert.match(document.querySelector('.research-quick-view').textContent, /원료 미확인/)
+  await click('닫기 ×')
   assert.equal(requests.some(request => /compare_product_(nutrition|ingredients)/.test(request.path)), false)
   const criteria = searchRuns().at(-1).body.criteria_snapshot
   assert.ok(criteria.some(item => item.axis === 'ingredient' && item.value === 'chicken' && item.role === 'ingredient_avoid'))

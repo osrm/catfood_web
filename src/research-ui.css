@@ -3303,3 +3303,14 @@
 .research-shell .research-workspace:has(.condition-actions) .field-note {color:var(--cf-muted)}
 .research-shell .research-workspace:has(.condition-actions) .choice.is-active {color:var(--cf-accent);border-color:var(--cf-accent);background:var(--cf-accent-soft)}
 .research-shell .research-quick-view .quick-view-actions button:first-child {background:var(--cf-accent);color:white}
+
+
+/* Brand removal remains a full touch target even when shown as a selected chip. */
+.research-shell .brand-refine-selection .selected-refinement {
+  min-height: 44px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.research-shell .brand-refine-grid .choice {
+  overflow-wrap: anywhere;
+}

@@ -7,6 +7,8 @@ export interface SearchState {
   features: string[]
   recipeFamilies: string[]
   grainFree: boolean
+  // General exploration only; older state and SWITCH criteria can omit it.
+  ingredientAvoidTerms?: string[]
 }
 
 export interface RefineState {
@@ -18,6 +20,8 @@ export interface CandidateEvaluation {
   confirmedMatches: string[]
   unknowns: string[]
   matchCount: number
+  ingredientReviewedNotFound?: string[]
+  ingredientInsufficient?: string[]
 }
 
 export const INITIAL_SEARCH: SearchState = {
@@ -27,10 +31,35 @@ export const INITIAL_SEARCH: SearchState = {
   features: [],
   recipeFamilies: [],
   grainFree: false,
+  ingredientAvoidTerms: [],
 }
 
 export const INITIAL_REFINE: RefineState = {
   recipeDetails: [],
+}
+
+export const INGREDIENT_AVOID_OPTIONS = [
+  ['chicken', '닭'], ['duck', '오리'], ['egg', '계란'], ['salmon', '연어'],
+  ['tuna', '참치'], ['beef', '소'], ['turkey', '칠면조'], ['lamb', '양'],
+  ['pork', '돼지'], ['rabbit', '토끼'], ['herring', '청어'], ['mackerel', '고등어'],
+  ['cod', '대구'], ['trout', '송어'], ['sardine', '정어리'], ['anchovy', '멸치'],
+  ['whitefish', '흰살생선'], ['menhaden', '멘헤이든'], ['venison', '사슴'],
+  ['goat', '염소'], ['goose', '거위'], ['quail', '메추리'], ['boar', '멧돼지'],
+] as const
+export const INGREDIENT_AVOID_LABELS: Record<string, string> = Object.fromEntries(INGREDIENT_AVOID_OPTIONS)
+const INGREDIENT_AVOID_TERMS = new Set<string>(INGREDIENT_AVOID_OPTIONS.map(([term]) => term))
+
+function ingredientAvoidanceEvidence(product: CatalogProduct, search: SearchState) {
+  const ingredientConflicts: string[] = []
+  const ingredientReviewedNotFound: string[] = []
+  const ingredientInsufficient: string[] = []
+  for (const term of new Set(search.ingredientAvoidTerms ?? [])) {
+    if (!INGREDIENT_AVOID_TERMS.has(term)) continue
+    if (product.confirmed_present_ingredient_terms.includes(term)) ingredientConflicts.push(term)
+    else if (product.reviewed_not_found_ingredient_terms.includes(term)) ingredientReviewedNotFound.push(term)
+    else ingredientInsufficient.push(term)
+  }
+  return { ingredientConflicts, ingredientReviewedNotFound, ingredientInsufficient }
 }
 
 const OFFICIAL_TARGET_LABELS: Record<string, string> = {
@@ -180,6 +209,9 @@ export interface ComparisonCriteriaEvaluation {
   confirmedMatches: string[]
   unknowns: string[]
   differences: ComparisonCriteriaDifference[]
+  ingredientConflicts: string[]
+  ingredientReviewedNotFound: string[]
+  ingredientInsufficient: string[]
 }
 
 export function evaluateComparisonCriteria(
@@ -254,7 +286,7 @@ export function evaluateComparisonCriteria(
     }
   }
 
-  return { confirmedMatches, unknowns, differences }
+  return { confirmedMatches, unknowns, differences, ...ingredientAvoidanceEvidence(product, search) }
 }
 
 export function evaluateCatalog(
@@ -265,6 +297,8 @@ export function evaluateCatalog(
   const candidates: CandidateEvaluation[] = []
 
   for (const product of products) {
+    const ingredientEvidence = ingredientAvoidanceEvidence(product, search)
+    if (ingredientEvidence.ingredientConflicts.length) continue
     const confirmedMatches: string[] = []
     const unknowns: string[] = []
     let hasHardConflict = false
@@ -334,6 +368,8 @@ export function evaluateCatalog(
       confirmedMatches,
       unknowns,
       matchCount: confirmedMatches.length,
+      ingredientReviewedNotFound: ingredientEvidence.ingredientReviewedNotFound,
+      ingredientInsufficient: ingredientEvidence.ingredientInsufficient,
     })
   }
 
@@ -358,6 +394,7 @@ export function countActiveConditions(search: SearchState, refine: RefineState =
     search.features.length +
     search.recipeFamilies.length +
     Number(search.grainFree) +
+    (search.ingredientAvoidTerms?.length ?? 0) +
     refine.recipeDetails.length
   )
 }

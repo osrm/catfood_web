@@ -747,7 +747,7 @@ test('EXPLORE previews additional choices and explains their real effect without
   await act(async () => root.render(createElement(app.App)))
   await click('조건 고르기')
   const toggle = document.querySelector('.mobile-additional-toggle')
-  assert.match(toggle.textContent, /실내묘·중성화묘, 제품 특징, 레시피/)
+  assert.match(toggle.textContent, /원료 제외, 제품 대상·특징, 레시피/)
   assert.match(toggle.textContent, /펼치기/)
   await click(toggle)
   await click('체중 관리')
@@ -794,4 +794,94 @@ test('EXPLORE recipe shortlist, full list and name search preserve the existing 
   assert.equal(rows('.research-result-card').length, 2, 'either selected recipe satisfies the existing refine')
   assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
   assert.equal(new URL(window.location.href).searchParams.get('recipeDetails'), 'salmon,cod')
+})
+
+test('ingredient exclusion keeps reviewed and unknown products, excludes confirmed direct or flavor evidence, and preserves positive ordering', () => {
+  const [direct, flavor, reviewed, unknown, other] = products.slice(0, 5)
+  direct.confirmed_present_ingredient_terms = ['chicken']
+  direct.direct_evidence_ingredient_terms = ['chicken']
+  flavor.confirmed_present_ingredient_terms = ['chicken']
+  flavor.flavor_associated_ingredient_terms = ['chicken']
+  reviewed.reviewed_not_found_ingredient_terms = ['chicken', 'duck']
+  unknown.insufficient_evidence_ingredient_terms = ['chicken']
+  unknown.reviewed_not_found_ingredient_terms = ['duck']
+  other.confirmed_present_ingredient_terms = ['duck']
+  reviewed.features = ['hairball']
+  const source = [direct, flavor, reviewed, unknown, other]
+  const before = JSON.stringify(source)
+  const search = { ...app.INITIAL_SEARCH, ingredientAvoidTerms: ['chicken'], features: ['hairball'] }
+  const result = app.evaluateCatalog(source, search)
+  assert.deepEqual(result.map(item => item.product.product_id), [reviewed.product_id, unknown.product_id, other.product_id])
+  assert.deepEqual(result[0].ingredientReviewedNotFound, ['chicken'])
+  assert.deepEqual(result[1].ingredientInsufficient, ['chicken'])
+  assert.equal(result[0].matchCount, 1, 'not-found is not a positive match or quality score')
+  assert.equal(result[1].matchCount, 0)
+  assert.equal(JSON.stringify(source), before, 'API rows remain untouched')
+  const multiple = app.evaluateCatalog(source, { ...search, ingredientAvoidTerms: ['chicken', 'duck'] })
+  assert.deepEqual(multiple.map(item => item.product.product_id), [reviewed.product_id, unknown.product_id])
+  assert.deepEqual(multiple[1].ingredientReviewedNotFound, ['duck'])
+  assert.deepEqual(multiple[1].ingredientInsufficient, ['chicken'])
+  assert.equal(app.evaluateCatalog(source, { ...app.INITIAL_SEARCH }).length, 5)
+  assert.equal(app.evaluateCatalog(source, { ...search, ingredientAvoidTerms: ['poultry'] }).length, 5, 'unsupported families are not expanded into chicken')
+})
+
+test('comparison evaluates excluded ingredients without deleting manual products or declaring absence', () => {
+  const product = products[0]
+  product.confirmed_present_ingredient_terms = ['chicken']
+  product.flavor_associated_ingredient_terms = ['chicken']
+  product.reviewed_not_found_ingredient_terms = ['duck']
+  const search = { ...app.INITIAL_SEARCH, ingredientAvoidTerms: ['chicken', 'duck', 'egg'] }
+  const relation = app.evaluateComparisonCriteria(product, search)
+  assert.deepEqual(relation.ingredientConflicts, ['chicken'])
+  assert.deepEqual(relation.ingredientReviewedNotFound, ['duck'])
+  assert.deepEqual(relation.ingredientInsufficient, ['egg'], 'missing assertion stays unknown')
+  assert.deepEqual(relation.confirmedMatches, [])
+  assert.deepEqual(relation.differences, [], 'ingredient presence is not a product-label difference')
+  assert.equal(app.evaluateCatalog([product], search).length, 0)
+  assert.equal(app.INGREDIENT_AVOID_OPTIONS.length, 23)
+})
+
+test('ingredient editor, applied summary, results, and analytics preserve the three evidence states without detail requests', async () => {
+  products = products.slice(0, 4)
+  products[0].confirmed_present_ingredient_terms = ['chicken']
+  products[0].direct_evidence_ingredient_terms = ['chicken']
+  products[1].reviewed_not_found_ingredient_terms = ['chicken']
+  products[2].insufficient_evidence_ingredient_terms = ['chicken']
+  products[3].reviewed_not_found_ingredient_terms = ['chicken']
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore' })
+  await act(async () => root.render(createElement(app.App)))
+  await click('추가 조건')
+  const section = rows('.filter-section').find(node => node.textContent.includes('피하고 싶은 원료'))
+  assert.ok(section)
+  assert.equal(section.querySelectorAll('.choice').length, 8)
+  await click([...section.querySelectorAll('.choice')].find(node => node.textContent === '닭'))
+  await click('원료 전체 보기')
+  const boar = [...section.querySelectorAll('.choice')].find(node => node.textContent === '멧돼지')
+  await click(boar)
+  await click('원료 접어두기')
+  assert.ok([...section.querySelectorAll('.choice')].some(node => node.textContent === '멧돼지' && node.getAttribute('aria-pressed') === 'true'), 'selected extra ingredient remains visible')
+  await click([...section.querySelectorAll('.choice')].find(node => node.textContent === '멧돼지'))
+  await click('이 조건으로 찾기')
+  const result = document.querySelector('.research-results')
+  assert.match(result.textContent, /검토 자료에서 못 찾음/)
+  assert.match(result.textContent, /원료 미확인/)
+  assert.equal(rows('.research-result-card').length, 3)
+  assert.equal(document.querySelector('.result-priority-note'), null, 'exclude-only search is not described as positive sorting')
+  assert.match(window.location.search, /avoidIngredients=chicken/)
+  await click(document.querySelector('.research-result-card[data-product-id="' + products[1].product_id + '"]'))
+  assert.match(document.querySelector('.research-quick-view').textContent, /검토 자료에서 못 찾음/)
+  assert.equal(document.querySelector('.research-quick-view').textContent.includes('확인된 항목 없음'), false)
+  await click('닫기 ×')
+  await click(document.querySelector('.research-result-card[data-product-id="' + products[2].product_id + '"]'))
+  assert.match(document.querySelector('.research-quick-view').textContent, /원료 미확인/)
+  await click('닫기 ×')
+  assert.equal(requests.some(request => /compare_product_(nutrition|ingredients)/.test(request.path)), false)
+  const criteria = searchRuns().at(-1).body.criteria_snapshot
+  assert.ok(criteria.some(item => item.axis === 'ingredient' && item.value === 'chicken' && item.role === 'ingredient_avoid'))
+  await click('조건 수정')
+  await click('초기화')
+  assert.equal(window.location.search.includes('avoidIngredients=chicken'), true, 'draft reset does not overwrite last applied criteria')
+  await click('이 조건으로 찾기')
+  assert.equal(rows('.research-result-card').length, 4)
+  assert.equal(window.location.search.includes('avoidIngredients'), false)
 })

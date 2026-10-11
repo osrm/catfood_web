@@ -20,6 +20,7 @@ export type CompareItem = {
   changeMatches?: string[]
   conditionDifferences?: string[]
   unknowns?: string[]
+  ingredientConflicts?: string[]
   ingredientReviewedNotFound?: string[]
   ingredientInsufficient?: string[]
 }
@@ -263,12 +264,13 @@ function MobileProductHead({ role, product, variantText, onDetail, onRemove }: {
   </div>
 }
 function hasRelationData(item: CompareItem) {
-  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.conditionDifferences, item.unknowns, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
+  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.conditionDifferences, item.unknowns, item.ingredientConflicts, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
 }
 function RelationSummary({ item }: { item: CompareItem }) {
   const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], differences = item.conditionDifferences ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []
   if (!hasRelationData(item)) return <span className="compare-muted">비교할 검색 조건 없음</span>
   return <div className="compare-relations">
+    {item.ingredientConflicts?.length ? <p className="is-different"><span>피하려는 원료 확인</span><strong>{item.ingredientConflicts.join(' · ')}</strong></p> : null}
     {confirmed.length ? <p className="is-confirmed"><span>확인됨</span><strong>{confirmed.join(' · ')}</strong></p> : null}
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}

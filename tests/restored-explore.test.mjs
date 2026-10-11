@@ -103,7 +103,7 @@ async function waitForUi(predicate, message) {
 
 const searchRuns = () => requests.filter((request) => request.kind === 'search-run')
 const buttons = () => [...document.querySelectorAll('button')]
-const button = (text) => buttons().find((element) => element.textContent.includes(text))
+const button = (text) => buttons().find((element) => element.textContent.trim() === text) ?? buttons().find((element) => element.textContent.includes(text))
 async function click(target) {
   const element = typeof target === 'string' ? button(target) : target
   assert.ok(element, `missing button: ${target}`)

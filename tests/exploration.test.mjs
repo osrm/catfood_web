@@ -348,8 +348,8 @@ test('EXPLORE keeps unknown candidates, orders confirmed conditions first, and e
   assert.deepEqual(rows('.research-result-card').map((card) => card.dataset.productId), products.map((product) => product.product_id))
   const summary = document.querySelector('.research-results-heading span')?.textContent ?? ''
   assert.match(summary, /3개의 제품/)
-  assert.match(summary, /확인된 조건이 많은 순/)
-  assert.match(summary, /미확인 조건이 있는 제품도 포함/)
+  assert.match(document.querySelector('.result-priority-note').textContent, /고른 조건이 더 많이 확인된 제품부터/)
+  assert.match(document.querySelector('.result-priority-note').textContent, /표기가 없는 제품도 함께 봅니다/)
   assert.match(rows('.research-result-card')[2].textContent, /미확인 조건/)
 })
 
@@ -395,8 +395,8 @@ test('EXPLORE guidance keeps the unknown policy in one place and labels recipe r
 
   await click('조건 고르기')
   const editorText = document.body.textContent
-  assert.match(editorText, /사료 형태와 연령, 원하는 조건을 골라주세요\./)
-  assert.equal((editorText.match(/선택한 형태·연령과 표기가 다른 제품은 제외하고, 표기가 없는 제품은 함께 보여줍니다\./g) ?? []).length, 1)
+  assert.match(editorText, /원하는 항목만 골라주세요\./)
+  assert.equal((editorText.match(/제품에 적힌 형태·연령으로 찾습니다\. 표기가 없는 제품도 함께 봅니다\./g) ?? []).length, 1)
   assert.doesNotMatch(editorText, /명백히 충돌하는 제품만 제외|미확인은 남겨둡니다|조건 정보가 없는 제품도 결과에 포함됩니다/)
   assert.doesNotMatch(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)
   assert.match(editorText, /Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다\./)
@@ -447,7 +447,7 @@ test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are re
   assert.doesNotMatch(empty.textContent, /임의로 완화/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
   await click(edit)
-  assert.match(document.body.textContent, /선택한 형태·연령과 표기가 다른 제품은 제외하고, 표기가 없는 제품은 함께 보여줍니다\./)
+  assert.match(document.body.textContent, /제품에 적힌 형태·연령으로 찾습니다\. 표기가 없는 제품도 함께 봅니다\./)
 })
 
 test('LOOKUP retains its 120-row batch and does not collect decisions', async () => {
@@ -738,4 +738,60 @@ test('brand punctuation variants are explicit and unconfirmed phonetic spellings
   assert.deepEqual(app.lookupCatalog(fixture, 'Pro Nutrition Recipe').map(product => product.product_id), [fixture[2].product_id])
   assert.deepEqual(app.lookupCatalog(fixture, '나투로'), [], 'unverified Korean spelling is not guessed')
   assert.deepEqual(app.lookupCatalog(fixture, 'Naturo').map(product => product.product_id), [fixture[3].product_id])
+})
+
+
+test('EXPLORE previews additional choices and explains their real effect without removing unknown products', async () => {
+  products = catalog(3)
+  products[2].features = ['weight_management']
+  await act(async () => root.render(createElement(app.App)))
+  await click('조건 고르기')
+  const toggle = document.querySelector('.mobile-additional-toggle')
+  assert.match(toggle.textContent, /실내묘·중성화묘, 제품 특징, 레시피/)
+  assert.match(toggle.textContent, /펼치기/)
+  await click(toggle)
+  await click('체중 관리')
+  const beforeApply = window.location.href
+  await click(toggle)
+  assert.match(document.querySelector('.mobile-additional-summary').textContent, /체중 관리/)
+  assert.equal(window.location.href, beforeApply, 'draft disclosure does not apply criteria')
+  await click('이 조건으로 찾기')
+  assert.equal(rows('.research-result-card').length, 3)
+  assert.equal(rows('.research-result-card')[0].dataset.productId, products[2].product_id)
+  assert.match(document.querySelector('.result-priority-note').textContent, /체중 관리 표기가 있는 제품부터/)
+  assert.match(document.querySelector('.result-priority-note').textContent, /표기가 없는 제품도 함께 봅니다/)
+})
+
+test('EXPLORE recipe shortlist, full list and name search preserve the existing OR refine and basket', async () => {
+  products = catalog(4)
+  products[0].recipe_details = ['duck', 'turkey', 'lamb', 'beef', 'rabbit', 'tuna', 'herring', 'cod', 'mackerel', 'trout']
+  products[1].recipe_details = ['salmon']
+  products[3].recipe_details = ['chicken']
+  await explore()
+  await click(rows('.research-result-compare')[0])
+  const beforeBrowse = window.location.href
+  assert.equal(rows('.recipe-detail-grid .choice').length, 8)
+  await click('레시피 전체 보기')
+  assert.equal(rows('.recipe-detail-grid .choice').length, 12)
+  assert.equal(window.location.href, beforeBrowse, 'opening the complete list changes no search or basket state')
+  const input = document.querySelector('.recipe-search')
+  async function type(value) {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value)
+      input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    })
+  }
+  await type('존재하지않는레시피')
+  assert.equal(rows('.recipe-detail-grid .choice').length, 0)
+  assert.match(document.querySelector('[role="status"]').textContent, /이 이름으로 확인된 레시피가 없습니다/)
+  assert.equal(window.location.href, beforeBrowse)
+  await type('연어')
+  assert.equal(rows('.recipe-detail-grid .choice').length, 1)
+  await click(document.querySelector('.recipe-detail-grid .choice'))
+  assert.deepEqual(rows('.research-result-card').map(node => node.dataset.productId), [products[1].product_id])
+  await type('대구')
+  await click([...document.querySelectorAll('.recipe-detail-grid .choice')].find(node => node.textContent === '대구'))
+  assert.equal(rows('.research-result-card').length, 2, 'either selected recipe satisfies the existing refine')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
+  assert.equal(new URL(window.location.href).searchParams.get('recipeDetails'), 'salmon,cod')
 })

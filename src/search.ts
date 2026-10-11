@@ -134,14 +134,22 @@ const CONFIRMED_BRAND_ALIAS_GROUPS = [
   ['Zealandia', '질란디아'],
 ] as const
 
-function confirmedBrandAliases(brand: string): readonly string[] {
-  const normalizedBrand = normalizedLookupText(brand)
-  const group = CONFIRMED_BRAND_ALIAS_GROUPS.find((aliases) => aliases.some((alias) => normalizedLookupText(alias) === normalizedBrand))
+// The labels never change at runtime. Normalize and index them once instead of
+// walking every brand group again for every product on every input event.
+const BRAND_ALIASES_BY_LOOKUP = new Map<string, readonly string[]>()
+for (const group of CONFIRMED_BRAND_ALIAS_GROUPS) {
   // A parent brand plus a recipe also searches its named lines, without merging their identities.
-  if (group?.[0] === 'Purina Cat Chow' || group?.[0] === 'Purina Pro Plan') {
-    return [...group, 'Purina', '퓨리나']
+  const aliases: readonly string[] = group[0] === 'Purina Cat Chow' || group[0] === 'Purina Pro Plan'
+    ? [...group, 'Purina', '퓨리나']
+    : group
+  for (const label of group) {
+    const key = normalizedLookupText(label)
+    if (!BRAND_ALIASES_BY_LOOKUP.has(key)) BRAND_ALIASES_BY_LOOKUP.set(key, aliases)
   }
-  return group ?? []
+}
+
+function confirmedBrandAliases(brand: string): readonly string[] {
+  return BRAND_ALIASES_BY_LOOKUP.get(normalizedLookupText(brand)) ?? []
 }
 
 function conditionLabel(value: string, labels: Record<string, string>): string {

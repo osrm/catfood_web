@@ -640,7 +640,19 @@ export default function App() {
     }, 0)
   }
   function retryEnergy() { setEnergyRequested(true); setEnergyRetry(value => value + 1) }
-  function toggleRefineRecipe(value: string) { const nextRefine = { ...refine, recipeDetails: toggleValue(refine.recipeDetails, value) }; setVisibleCount(40); setRefine(nextRefine); setComparisonCriteriaApplied(true); setSelectedId(null); beginExploreRun(search, nextRefine); replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null })) }
+  function changeRecipeRefine(recipeDetails: string[], restoreFocus = false) {
+    const nextRefine = { ...refine, recipeDetails }
+    setVisibleCount(40); setRefine(nextRefine); setComparisonCriteriaApplied(true); setSelectedId(null)
+    beginExploreRun(search, nextRefine)
+    replaceHistory(snapshot({ refine: nextRefine, comparisonCriteriaApplied: true, visibleCount: 40, selectedId: null }))
+    if (restoreFocus) window.setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('.recipe-detail-search')
+      const target = input && input.getClientRects().length ? input : mobileRefineToggleRef.current
+      target?.focus({ preventScroll: true })
+      target?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })
+    }, 0)
+  }
+  function toggleRefineRecipe(value: string, restoreFocus = false) { changeRecipeRefine(toggleValue(refine.recipeDetails, value), restoreFocus) }
   function openExploreProduct(productId: string) {
     quickViewReturnId.current = productId
     setSelectedId(productId)
@@ -828,8 +840,8 @@ export default function App() {
         {brandSearch.trim() && !visibleBrands.length ? <p className="field-note" role="status">이 이름의 브랜드가 없습니다. 다른 이름으로 찾아보세요.</p> : null}
       </FilterSection>
       <FilterSection title="주요 레시피" hint="확인된 레시피로 좁히기"><p className="field-note">선택한 레시피 중 하나 이상이 확인된 제품만 봅니다.</p>
-        {refine.recipeDetails.length ? <div className="selected-refinements">{refine.recipeDetails.map((value) => <button className="selected-refinement" key={value} type="button" onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)} ×</button>)}</div> : null}
-        <input className="recipe-search" type="search" value={recipeSearch} aria-label="레시피 이름 검색" placeholder="예: 닭, 연어, 오리" onChange={(event) => setRecipeSearch(event.target.value)} />
+        {refine.recipeDetails.length ? <div className="selected-refinements">{refine.recipeDetails.map((value) => <button className="selected-refinement" key={value} type="button" aria-label={optionLabel(value, RECIPE_DETAIL_LABELS) + ' 선택 해제'} onClick={() => toggleRefineRecipe(value, true)}>{optionLabel(value, RECIPE_DETAIL_LABELS)} ×</button>)}</div> : null}
+        <input className="recipe-search recipe-detail-search" type="search" value={recipeSearch} aria-label="레시피 이름 검색" placeholder="예: 닭, 연어, 오리" onChange={(event) => setRecipeSearch(event.target.value)} />
         <div className="recipe-detail-grid">{displayedRecipeDetails.map((value) => <button className={refine.recipeDetails.includes(value) ? 'choice is-active' : 'choice'} key={value} type="button" aria-pressed={refine.recipeDetails.includes(value)} onClick={() => toggleRefineRecipe(value)}>{optionLabel(value, RECIPE_DETAIL_LABELS)}</button>)}</div>
         {!recipeSearch.trim() && recipeDetails.length > 8 ? <button className="recipe-list-toggle" type="button" aria-expanded={showAllRecipes} onClick={() => setShowAllRecipes((current) => !current)}>{showAllRecipes ? '접어두기' : `레시피 전체 보기 · ${recipeDetails.length}개`}</button> : null}
         {recipeSearch.trim() && !visibleRecipeDetails.length ? <p className="field-note" role="status">이 이름으로 확인된 레시피가 없습니다. 다른 이름으로 찾아보세요.</p> : null}
@@ -873,7 +885,7 @@ export default function App() {
     if (mode === 'lookup' && !lookupQuery.trim()) return <div className="state-message"><strong>브랜드 또는 제품명을 입력해 주세요.</strong><span>일부만 입력해도 검색할 수 있습니다.</span></div>
     if (!resultProducts.length) return mode === 'lookup'
       ? <div className="state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><button className="state-retry" type="button" onClick={focusLookupInput}>검색어 수정</button></div>
-      : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span>{energyMax != null ? <button className="state-retry" type="button" onClick={() => changeEnergyMax()}>열량 조건 지우기</button> : null}{refine.brands?.length ? <button className="state-retry" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button> : null}<button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
+      : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span>{energyMax != null ? <button className="state-retry" type="button" onClick={() => changeEnergyMax()}>열량 조건 지우기</button> : null}{refine.brands?.length ? <button className="state-retry" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button> : null}{refine.recipeDetails.length ? <button className="state-retry" type="button" onClick={() => changeRecipeRefine([], true)}>레시피 선택 지우기</button> : null}<button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
     return <div className="research-results-list">{visibleProducts.map((product) => {
       const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
       const hasExploreCriteria = mode === 'explore' && activeEvidenceConditions > 0

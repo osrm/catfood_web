@@ -50,6 +50,17 @@
     background: var(--atlas-surface);
     padding: 8px;
   }
-  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-mobile-two-product-key th > strong { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; word-break: keep-all; }
+  .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-mobile-two-product-key th > strong { font-size: 16px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; word-break: keep-all; }
+  /* General nutrition has one visible identity per column. Only names stick;
+     photographs and actions scroll away, leaving space for the actual values. */
+  .compare-stage.is-general-nutrition .compare-nutrition-photos td { padding: 8px 8px 12px; border: 0; background: var(--atlas-surface); text-align: left; }
+  .compare-stage.is-general-nutrition .compare-nutrition-photos img,
+  .compare-stage.is-general-nutrition .compare-nutrition-photos .compare-image-placeholder { width: 72px; height: 88px; object-fit: contain; }
+  .compare-stage.is-general-nutrition .compare-nutrition-actions td { padding: 0 8px 8px; border: 0; background: var(--atlas-surface); }
+  .compare-stage.is-general-nutrition .compare-nutrition-actions .compare-mobile-two-product-actions { display: flex; gap: 8px; margin: 0; }
+  .compare-stage.is-general-nutrition .compare-nutrition-actions button { min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--atlas-primary); font: inherit; font-size: 13px; cursor: pointer; }
+  .compare-stage.is-general-nutrition .compare-nutrition-actions button:last-child { margin-left: auto; color: var(--atlas-muted); }
+  .compare-stage.is-general-nutrition .compare-mobile-two-product-field.is-metric .compare-mobile-two-product-value { font-size: 17px; font-weight: 550; font-variant-numeric: tabular-nums; }
+
   .compare-stage:is(.is-general-nutrition, .is-switch-nutrition) .compare-mobile-two-product-key th > .compare-mobile-two-product-key-brand { font-size: 12px; line-height: 1.4; color: var(--atlas-muted); font-weight: 500; }
 }

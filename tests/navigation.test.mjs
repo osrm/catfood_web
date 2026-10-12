@@ -877,7 +877,12 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
 
   const mobile = document.querySelector('.compare-mobile-two-product-nutrition')
   assert.ok(mobile)
-  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-head').length, 2)
+  const columnHeads = [...mobile.querySelectorAll('th[scope="col"]')]
+  assert.deepEqual(columnHeads.map((node) => node.textContent), [first, second].map((product) => `${product.brand}${product.canonical_name}`))
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-head').length, 0, 'each visible identity occurs once, inside the table column header')
+  const actionCells = [...mobile.querySelectorAll('.compare-nutrition-actions td')]
+  assert.deepEqual(actionCells.map((node) => node.getAttribute('headers')), columnHeads.map((node) => node.id))
+  assert.equal(actionCells.flatMap((node) => [...node.querySelectorAll('button')]).length, 4)
   assert.equal(document.querySelector('.compare-mobile-two-product-overview'), null)
   assert.ok(document.querySelector('.compare-two-product-nutrition-desktop'))
 

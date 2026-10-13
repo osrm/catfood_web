@@ -101,6 +101,7 @@ export default function Home({
   onStart,
   switchProgress,
   onRestartSwitch,
+  onOpenProduct,
 }: {
   productCount: number
   products?: CatalogProduct[]
@@ -110,6 +111,7 @@ export default function Home({
   onStart: (mode: HomeMode, query?: string) => void
   switchProgress?: string | null
   onRestartSwitch?: () => void
+  onOpenProduct: (product: CatalogProduct) => void
 }) {
   const [query, setQuery] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
@@ -153,12 +155,12 @@ export default function Home({
   }
 
   return (
-    <div className="home-shell home-knowledge-shell">
+    <div className="home-shell home-knowledge-shell discovery-home">
       <SiteHeader className="home-header" onModeChange={(mode) => onStart(mode)} status={<div className={error ? 'home-catalog-status is-error' : 'home-catalog-status'} aria-live="polite">{loading ? '제품 목록 불러오는 중' : error ? '제품 목록 조회 실패' : <>현재 확인된 제품 <strong>{catalogCount}개</strong></>}</div>} />
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>어떤 사료를 찾으세요?</h1>
+            <h1>눈여겨본 사료를<br />나란히 놓고 보세요.</h1>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
               <h2 id="home-lookup-title" className="visually-hidden">브랜드·제품명 검색</h2>
@@ -173,20 +175,19 @@ export default function Home({
             <article className="home-entry-route"><div><h2>새 사료를 찾는다면</h2><p>사료 형태·연령과 원하는 조건으로.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
             <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>{switchProgress ? <>이어서 찾기 · {switchProgress}</> : '유지할 점과 바꿀 점을 기준으로.'}</p></div>{switchProgress ? <div className="home-switch-actions"><button type="button" onClick={() => onStart('switch')}>이어서 찾기 →</button><button type="button" onClick={onRestartSwitch}>새로 찾기</button></div> : <button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button>}</article>
           </div></section>
-          {examples.length > 0 ? <aside className="home-product-example" aria-label="제품 정보 예시">
-            <span>사료 정보 둘러보기</span>
+          {examples.length > 0 ? <section className="home-product-example" aria-label="제품 정보 예시">
             <div className="home-example-products">{examples.map((product) => {
               const facts = getHomeExampleFacts(product)
-              return <button className="home-example-product" type="button" key={product.product_id} onClick={() => onStart('lookup', product.brand + ' ' + product.canonical_name)} aria-label={product.brand + ' ' + product.canonical_name + ' 찾기'}>
-                <img src={product.display_image_url!} alt="" />
-                <span className="home-example-brand">{product.brand}</span>
-                <strong>{product.canonical_name}</strong>
-                {facts.meta ? <small className="home-example-meta">{facts.meta}</small> : null}
-                {facts.packageText ? <small className="home-example-package">{facts.packageText}</small> : null}
-                <span className="home-example-action" aria-hidden="true">찾기 →</span>
-              </button>
+              return <article className="home-example-card" key={product.product_id}>
+                <div className="home-example-topline"><span>제품 둘러보기</span><small>{facts.meta}</small></div>
+                <button className="home-example-photo" type="button" onClick={() => onOpenProduct(product)} aria-label={product.brand + ' ' + product.canonical_name + ' 상세 보기'}>
+                  <img src={product.display_image_url!} alt="" />
+                </button>
+                <div className="home-example-identity"><span className="home-example-brand">{product.brand}</span><h2>{product.canonical_name}</h2>{facts.packageText ? <p>{facts.packageText}</p> : null}</div>
+                <div className="home-example-actions"><button type="button" onClick={() => onOpenProduct(product)}>상세 보기 →</button><button type="button" onClick={() => onStart('lookup', product.brand)}>{product.brand} 더 보기</button></div>
+              </article>
             })}</div>
-          </aside> : null}
+          </section> : null}
           <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button></section>
         </section>
 

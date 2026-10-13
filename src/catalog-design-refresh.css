@@ -1694,7 +1694,7 @@ textarea {
 
 
 .research-shell[data-catalog-mode="lookup"] .research-results-list {
-  display: block !important;
+  display: block;
 }
 
 .research-shell[data-catalog-mode="lookup"] .research-result-row,

@@ -1439,3 +1439,45 @@ test('multiple form and age URLs sanitize and round-trip into LOOKUP while retai
   assert.deepEqual(none.search.feedType,[])
   assert.deepEqual(none.search.lifeStage,[])
 })
+
+test('a Home product opens a fresh detail with a searchable list return and no old comparison criteria', async () => {
+  const example = products[0]
+  const oldImage = example.display_image_url
+  example.display_image_url = 'https://images.test/package.webp'
+  try {
+    await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult&compare=' + products[1].product_id)
+    await click('CATFOOD')
+    const open = document.querySelector('.home-example-photo')
+    assert.ok(open)
+    await act(async () => open.click())
+    await waitForUi(() => document.querySelector('.detail-stage'), 'Home example detail')
+    let params = new URL(window.location.href).searchParams
+    assert.equal(params.get('detail'), example.product_id)
+    assert.equal(params.get('q'), example.brand + ' ' + example.canonical_name)
+    assert.equal(params.get('compare'), null)
+    assert.equal(params.get('criteria'), null)
+    assert.equal(params.get('feed'), null)
+    await click('제품 목록')
+    await waitForUi(() => document.querySelector('.lookup-input') && !document.querySelector('.detail-stage'), 'Home example list return')
+    assert.equal(document.querySelector('.lookup-input').value, example.brand + ' ' + example.canonical_name)
+    assert.equal(document.querySelector('[data-product-id="' + example.product_id + '"]') != null, true)
+    assert.equal(new URL(window.location.href).searchParams.get('detail'), null)
+  } finally {
+    example.display_image_url = oldImage
+  }
+})
+
+test('clearing a lookup leaves the comparison basket intact and returns focus to the input', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product')
+  const direct = document.querySelector('.research-result-compare')
+  await act(async () => direct.click())
+  const before = new URL(window.location.href).searchParams.get('compare')
+  await inputValue(document.querySelector('.lookup-input'), '__no_product__')
+  assert.match(document.querySelector('.state-message').textContent, /검색 결과가 없습니다/)
+  await act(async () => document.querySelector('.lookup-clear').click())
+  assert.equal(document.querySelector('.lookup-input').value, '')
+  assert.equal(document.activeElement, document.querySelector('.lookup-input'))
+  assert.equal(new URL(window.location.href).searchParams.get('compare'), before)
+  assert.equal(document.querySelector('.research-result-card'), null)
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
+})

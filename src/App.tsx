@@ -140,10 +140,10 @@ function unknownLabel(value: string) {
 function comparisonDifferenceLabel(difference: ComparisonCriteriaDifference) {
   if (difference.kind === 'brand') return `브랜드 · ${difference.productValues.join(' · ')} (선택 ${difference.selectedValues.join(' 또는 ')})`
   if (difference.kind === 'feedType') {
-    return `사료 형태 · ${difference.productValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')})`
+    return `사료 형태 · ${difference.productValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, FEED_TYPE_LABELS)).join(' 또는 ')})`
   }
   if (difference.kind === 'lifeStage') {
-    return `대상 연령 · ${difference.productValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')})`
+    return `대상 연령 · ${difference.productValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' · ')} (선택 ${difference.selectedValues.map((value) => optionLabel(value, LIFE_STAGE_LABELS)).join(' 또는 ')})`
   }
   const productValues = difference.productValues.slice(0, 3).map((value) => optionLabel(value, RECIPE_DETAIL_LABELS))
   const productLabel = difference.productValues.length > 3 ? `${productValues.join(' · ')} 외 ${difference.productValues.length - 3}개` : productValues.join(' · ')

@@ -1607,7 +1607,9 @@ export default function SwitchFlow({
               <div className="switch-candidate-search">
                 <input
                   ref={candidateSearchInputRef}
-                  type="search"
+                  type="text"
+                  role="searchbox"
+                  enterKeyHint="search"
                   aria-label="후보 제품 검색"
                   placeholder="브랜드 또는 제품명"
                   value={candidateSearch}
@@ -1616,12 +1618,12 @@ export default function SwitchFlow({
                     setVisibleCandidateCount(40)
                   }}
                 />
-                {candidateSearch ? <button type="button" onClick={clearCandidateSearch}>지우기</button> : null}
+                {candidateSearch ? <button type="button" onClick={clearCandidateSearch}>검색 지우기</button> : null}
               </div>
             </div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 조건이나 유지할 조건을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
-              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>조건에 맞는 후보에는 검색어와 일치하는 브랜드·제품명이 없습니다.</span><button className="state-retry" type="button" onClick={clearCandidateSearch}>검색 지우기</button></div> : null}
+              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 지워서 후보를 다시 살펴보세요.</span></div> : null}
               {visibleCandidates.map((evaluation) => {
                 const product = evaluation.product
                 const isCompared = compareIds.includes(product.product_id)

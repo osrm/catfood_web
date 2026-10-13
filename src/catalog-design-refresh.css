@@ -3146,3 +3146,27 @@ summary:focus-visible,
   .detail-stage.is-switch-detail .site-header .mode-nav { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; gap: 18px; height: 48px; }
   .detail-stage.is-switch-detail .detail-tabs { top: 152px; }
 }
+
+/* Keep full product identity readable while avoiding a separate desktop action row. */
+@media (min-width: 1100px) {
+  .research-shell[data-catalog-mode="lookup"]:not(.is-inspecting) .research-result-card {
+    grid-template-columns: 72px minmax(0, 1fr) 88px;
+    grid-template-rows: auto;
+    padding-block: 12px;
+  }
+  .research-shell[data-catalog-mode="lookup"]:not(.is-inspecting) .research-result-image,
+  .research-shell[data-catalog-mode="lookup"]:not(.is-inspecting) .research-result-card .image-placeholder {
+    grid-row: 1;
+  }
+  .research-shell[data-catalog-mode="lookup"]:not(.is-inspecting) .research-result-link {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
+}
+
+.switch-candidate-list .switch-state-message {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}

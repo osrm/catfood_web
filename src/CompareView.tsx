@@ -426,10 +426,14 @@ function MobileTwoProductNutrition({
 }) {
   const energyScale = sharedEnergyScale(items.map((item) => nutritionByProduct.get(item.product.product_id)))
   return <div className="compare-mobile-two-product-nutrition">
-    <MobileTwoProductHeads items={items} onDetail={onDetail} onRemove={onRemove} />
     <table className="compare-mobile-two-product-table compare-mobile-two-product-nutrition-table">
       <caption className="compare-mobile-two-product-visually-hidden">2개 제품 영양 비교</caption>
       <thead className="compare-mobile-two-product-key">
+        <tr className="compare-nutrition-photos">
+          {items.map((item, index) => <td key={item.product.product_id} headers={`compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`}>
+            {item.product.display_image_url ? <img src={item.product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+          </td>)}
+        </tr>
         <tr>
           {items.map((item, index) => {
             const headerId = `compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`
@@ -438,6 +442,14 @@ function MobileTwoProductNutrition({
               <strong>{item.product.canonical_name}</strong>
             </th>
           })}
+        </tr>
+        <tr className="compare-nutrition-actions">
+          {items.map((item, index) => <td key={item.product.product_id} headers={`compare-mobile-two-product-column-${index + 1}-${item.product.product_id}`}>
+            <div className="compare-mobile-two-product-actions">
+              <button type="button" aria-label={`${item.product.brand} ${item.product.canonical_name} 상세 보기`} onClick={() => onDetail(item.product.product_id)}>상세 보기</button>
+              <button type="button" aria-label={`${item.product.brand} ${item.product.canonical_name} 비교에서 제거`} onClick={() => onRemove(item.product.product_id)}>제거</button>
+            </div>
+          </td>)}
         </tr>
       </thead>
 

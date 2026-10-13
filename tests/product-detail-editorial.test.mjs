@@ -393,6 +393,27 @@ test('ingredient tab falls back to source text when structured ingredient names 
   assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent === '원문 보기'), false)
 })
 
+test('overview nutrition reuses the existing read, preserves qualifiers and missing values, and opens the full nutrition tab', async () => {
+  let nutritionReads = 0
+  const baseHandler = handler
+  handler = async (url) => {
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      nutritionReads += 1
+      return Response.json([{ ...nutrition, fat_pct: null, fat_qualifier: null }])
+    }
+    return baseHandler(url)
+  }
+  await render()
+  const glance = document.querySelector('.detail-nutrition-glance')
+  assert.ok(glance)
+  assert.deepEqual([...glance.querySelectorAll('dd')].map((node) => node.textContent), ['97 kcal/100g', '10% 이상', '미확인'])
+  assert.equal(nutritionReads, 1)
+  await click('영양 보기 →')
+  assert.equal(document.querySelector('[role="tab"][aria-selected="true"]').textContent, '영양')
+  assert.match(document.querySelector('.detail-nutrition-list').textContent, /조단백질10% 이상/)
+  assert.equal(nutritionReads, 1, 'opening the complete values does not trigger a second read')
+})
+
 test('overview omits repeated package facts for a confirmed single unit and omits an empty optional fact section', async () => {
   const single = {
     ...target,
@@ -586,6 +607,8 @@ test('detail distinguishes request failure from an empty 200 response and retrie
   }
 
   await render()
+  assert.match(document.querySelector('.detail-overview-nutrition [role="alert"]').textContent, /영양 정보를 불러오지 못했습니다/ )
+  assert.equal(document.querySelector('.detail-nutrition-glance'), null, 'failed overview read is not presented as missing or zero')
   await click('영양')
   assert.ok(document.querySelector('[role="alert"]'))
   assert.match(document.querySelector('[role="alert"]').textContent, /영양 정보를 불러오지 못했습니다\.다시 시도/)

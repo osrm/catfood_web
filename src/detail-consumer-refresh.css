@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@500;600&display=swap');
 
 .detail-stage {
   --detail-bg: #f8f6f0;
@@ -13,7 +12,7 @@
   --detail-danger: #8d3f38;
   background: var(--detail-bg);
   color: var(--detail-text);
-  font-family: "Noto Sans KR", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: var(--cf-font);
 }
 
 .detail-topbar {
@@ -30,7 +29,7 @@
 
 .detail-wordmark {
   color: #24312a;
-  font-family: "Noto Serif KR", "Batang", serif;
+  font-family: var(--cf-font);
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.035em;
@@ -84,7 +83,7 @@
   max-width: none;
   margin: 0;
   color: var(--detail-text);
-  font-family: "Noto Serif KR", "Batang", serif;
+  font-family: var(--cf-font);
   font-size: clamp(29px, 2.55vw, 39px);
   font-weight: 500;
   line-height: 1.42;
@@ -210,7 +209,7 @@
 .detail-basis-block h3 {
   margin: 0;
   color: var(--detail-text);
-  font-family: "Noto Serif KR", "Batang", serif;
+  font-family: var(--cf-font);
   font-size: 23px;
   font-weight: 500;
   line-height: 1.45;
@@ -399,7 +398,7 @@
 .detail-energy > strong {
   display: inline;
   color: #263028;
-  font-family: "Noto Sans KR", Pretendard, sans-serif;
+  font-family: var(--cf-font);
   font-size: clamp(31px, 3vw, 40px);
   font-weight: 500;
   font-variant-numeric: tabular-nums;

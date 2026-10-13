@@ -3339,3 +3339,38 @@
   .research-shell .criteria-bar > button {min-height:44px}
   .research-shell .criteria-empty {display:flex;align-items:center;flex:1;min-height:44px;font-size:13px}
 }
+
+/* Condition editor: common choices are visible; only label-based refinements collapse. */
+.research-workspace:has(.condition-actions) .condition-editor { grid-column:1 / -1; min-width:0; }
+.research-workspace:has(.condition-actions) .research-pane-heading { border-bottom:0; padding-bottom:16px; }
+.research-workspace:has(.condition-actions) .condition-editor .filter-section { border:0; padding:16px 0; }
+.research-workspace:has(.condition-actions) .condition-editor .filter-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin-bottom:14px; }
+.research-workspace:has(.condition-actions) .condition-editor .filter-heading > span:first-child { font-size:17px; font-weight:650; }
+.research-workspace:has(.condition-actions) .condition-editor .condition-policy-note { margin:0 0 24px; }
+.research-workspace:has(.condition-actions) .condition-avoid { border-top:1px solid var(--cf-line); padding-top:12px; }
+.research-workspace:has(.condition-actions) .condition-avoid .field-note { max-width:720px; margin:6px 0 0; }
+.research-workspace:has(.condition-actions) .condition-avoid .recipe-list-toggle { margin-top:6px; }
+.research-workspace:has(.condition-actions) .condition-additional-disclosure { margin-top:12px; border-bottom:0; }
+.research-workspace:has(.condition-actions) .mobile-additional-toggle { display:flex; gap:16px; min-height:82px; }
+.research-workspace:has(.condition-actions) .condition-additional-label { flex:1; }
+.research-workspace:has(.condition-actions) .condition-additional-label strong { font-size:17px; font-weight:650; }
+.research-workspace:has(.condition-actions) .mobile-additional-chevron { font-size:13px; white-space:nowrap; text-decoration:underline; text-underline-offset:4px; }
+.research-workspace:has(.condition-actions) .additional-condition-sections.is-open { display:grid; grid-template-columns:1fr 1fr; gap:0 32px; }
+.research-workspace:has(.condition-actions) .additional-condition-sections[hidden] { display:none; }
+.research-workspace:has(.condition-actions) .condition-priority-note { margin:4px 0 8px; }
+.research-workspace:has(.condition-actions) .research-filter-scroll { padding-bottom:8px; }
+.research-workspace:has(.condition-actions) .condition-actions { border-bottom:0; }
+@media(max-width:760px) {
+ .research-workspace:has(.condition-actions) .research-pane-heading { padding-bottom:8px; }
+ .research-workspace:has(.condition-actions) .condition-basics { gap:0; }
+ .research-workspace:has(.condition-actions) .condition-avoid { padding-top:4px; }
+ .research-workspace:has(.condition-actions) .condition-avoid .filter-section { padding-bottom:2px; }
+ .research-workspace:has(.condition-actions) .condition-additional-disclosure { margin-top:0; }
+ .research-workspace:has(.condition-actions) .condition-editor .filter-heading { margin-bottom:12px; }
+ .research-workspace:has(.condition-actions) .condition-editor .filter-section { padding:10px 0; }
+ .research-workspace:has(.condition-actions) .condition-editor .condition-policy-note { margin:0 0 16px; }
+ .research-workspace:has(.condition-actions) .additional-condition-sections.is-open { grid-template-columns:1fr; }
+ .research-workspace:has(.condition-actions) .mobile-additional-toggle { flex-wrap:wrap; gap:8px 16px; padding:12px 0; min-height:74px; }
+ .research-workspace:has(.condition-actions) .condition-additional-label { flex-basis:70%; }
+ .research-workspace:has(.condition-actions) .research-filter-scroll { padding-bottom:24px; }
+}

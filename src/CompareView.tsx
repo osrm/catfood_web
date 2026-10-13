@@ -1118,40 +1118,39 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         </div>
         <div className="compare-switch-mobile-nutrition compare-mobile-two-product-nutrition">
           {renderMobileCandidatePicker()}
-          <div className="compare-mobile-two-product-heads">
-            <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-current-name">
-              <div className="compare-mobile-two-product-identity">
-                {currentProduct.display_image_url ? <img src={currentProduct.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
-                <div className="compare-mobile-two-product-meta">
-                  <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
-                  <span className="compare-mobile-two-product-brand">{currentProduct.brand}</span>
-                </div>
-              </div>
-              <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-current-name">{currentProduct.canonical_name}</strong>
-              <small className="compare-mobile-switch-use-package">{currentUsePackageLabel(currentVariantId, currentVariantText)}</small>
-            </article>
-            <article className="compare-mobile-two-product-head" aria-labelledby="compare-mobile-switch-candidate-name">
-              <div className="compare-mobile-two-product-identity">
-                {mobileCandidate.product.display_image_url ? <img src={mobileCandidate.product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
-                <div className="compare-mobile-two-product-meta">
-                  <span className="compare-mobile-two-product-slot">표시 중인 후보</span>
-                  <span className="compare-mobile-two-product-brand">{mobileCandidate.product.brand}</span>
-                </div>
-              </div>
-              <strong className="compare-mobile-two-product-name" id="compare-mobile-switch-candidate-name">{mobileCandidate.product.canonical_name}</strong>
-              <div className="compare-mobile-two-product-actions">
-                <button type="button" onClick={() => openDetail(mobileCandidate.product.product_id)}>상세 보기</button>
-                <button type="button" onClick={() => removeComparedProduct(mobileCandidate.product.product_id)}>제거</button>
-              </div>
-            </article>
-          </div>
           <table className="compare-mobile-two-product-table compare-mobile-two-product-nutrition-table">
             <caption className="compare-mobile-two-product-visually-hidden">현재 사료와 선택한 후보의 영양 비교</caption>
-            <thead className="compare-mobile-two-product-key"><tr>
-              <th id="compare-mobile-switch-current" scope="col"><span className="compare-mobile-two-product-key-brand">{currentProduct.brand}</span><strong>{currentProduct.canonical_name}</strong></th>
-              <th id="compare-mobile-switch-candidate" scope="col"><span className="compare-mobile-two-product-key-brand">{mobileCandidate.product.brand}</span><strong>{mobileCandidate.product.canonical_name}</strong></th>
-            </tr></thead>
-            <MobileTwoProductSection title="영양 성분" />
+            <thead className="compare-mobile-two-product-key">
+              <tr className="compare-nutrition-photos">
+                <td headers="compare-mobile-switch-current">
+                  {currentProduct.display_image_url ? <img src={currentProduct.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+                </td>
+                <td headers="compare-mobile-switch-candidate">
+                  {mobileCandidate.product.display_image_url ? <img src={mobileCandidate.product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}
+                </td>
+              </tr>
+              <tr>
+                <th id="compare-mobile-switch-current" scope="col">
+                  <span className="compare-mobile-two-product-slot">현재 사료 · 기준</span>
+                  <span className="compare-mobile-two-product-key-brand">{currentProduct.brand}</span>
+                  <strong>{currentProduct.canonical_name}</strong>
+                </th>
+                <th id="compare-mobile-switch-candidate" scope="col">
+                  <span className="compare-mobile-two-product-slot">후보</span>
+                  <span className="compare-mobile-two-product-key-brand">{mobileCandidate.product.brand}</span>
+                  <strong>{mobileCandidate.product.canonical_name}</strong>
+                </th>
+              </tr>
+              <tr className="compare-nutrition-actions">
+                <td headers="compare-mobile-switch-current"><small className="compare-mobile-switch-use-package">{currentUsePackageLabel(currentVariantId, currentVariantText)}</small></td>
+                <td headers="compare-mobile-switch-candidate">
+                  <div className="compare-mobile-two-product-actions">
+                    <button type="button" aria-label={`${mobileCandidate.product.brand} ${mobileCandidate.product.canonical_name} 상세 보기`} onClick={() => openDetail(mobileCandidate.product.product_id)}>상세 보기</button>
+                    <button type="button" aria-label={`${mobileCandidate.product.brand} ${mobileCandidate.product.canonical_name} 비교에서 제거`} onClick={() => removeComparedProduct(mobileCandidate.product.product_id)}>제거</button>
+                  </div>
+                </td>
+              </tr>
+            </thead>
             <MobileSwitchNutritionField fieldKey="energy" label="열량" tone="metric" current={<CurrentNutritionMetric evidenceField="energy" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, activeCurrentNutritionError, (row) => <EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={switchEnergyScale} text={comparableEnergy(row)} />, '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, activeNutritionError, (row) => <NutritionValue detail={row} field="energy"><EnergyComparisonValue showGraph={showEnergyGraph} detail={row} scale={switchEnergyScale} text={comparableEnergy(row)} /></NutritionValue>, '영양 자료 없음')} />
             <MobileSwitchNutritionField fieldKey="protein" label="조단백질" tone="metric" current={<CurrentNutritionMetric evidenceField="protein" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, activeCurrentNutritionError, (row) => formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, activeNutritionError, (row) => <NutritionValue detail={row} field="protein">{formatStandardNutrient(row, 'protein', row.protein_pct, row.protein_qualifier)}</NutritionValue>, '영양 자료 없음')} />
             <MobileSwitchNutritionField fieldKey="fat" label="조지방" tone="metric" current={<CurrentNutritionMetric evidenceField="fat" value={nutritionLoadValue(currentNutrition, currentNutritionLoading, activeCurrentNutritionError, (row) => formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier), '영양 자료 없음')} detail={currentNutrition} variants={currentVariants} currentVariantId={currentVariantId} variantFailed={currentVariantLookupFailed} variantLoading={currentVariantsLoading} />} candidate={nutritionLoadValue(nutritionByProduct.get(mobileCandidate.product.product_id), nutritionLoading, activeNutritionError, (row) => <NutritionValue detail={row} field="fat">{formatStandardNutrient(row, 'fat', row.fat_pct, row.fat_qualifier)}</NutritionValue>, '영양 자료 없음')} />

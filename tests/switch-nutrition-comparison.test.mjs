@@ -316,6 +316,18 @@ test('SWITCH nutrition keeps current separate and shows only interpretation-chan
 
   const mobile = document.querySelector('.compare-switch-mobile-nutrition')
   assert.ok(mobile)
+  assert.equal(mobile.querySelectorAll('.compare-mobile-two-product-head').length, 0, 'do not repeat names before the column headers')
+  const columns = [...mobile.querySelectorAll('th[scope="col"]')]
+  assert.equal(columns.length, 2)
+  assert.match(columns[0].textContent, /현재 사료 · 기준.*AATU.*연어/)
+  assert.match(columns[1].textContent, /후보.*GO! SOLUTIONS.*LID 오리/)
+  assert.equal(mobile.querySelectorAll('thead strong').length, 2, 'each full identity appears once')
+  const actions = [...mobile.querySelectorAll('.compare-nutrition-actions td')]
+  assert.equal(actions[0].getAttribute('headers'), columns[0].id)
+  assert.equal(actions[0].querySelector('button'), null, 'the current food cannot be removed')
+  assert.equal(actions[1].getAttribute('headers'), columns[1].id)
+  assert.equal(actions[1].querySelectorAll('button').length, 2)
+  assert.equal(actions[1].querySelector('button').getAttribute('aria-label'), 'GO! SOLUTIONS LID 오리 상세 보기')
   assert.match(mobile.textContent, /370 kcal\/100g/)
   assert.match(mobile.textContent, /422 kcal\/100g/)
   assert.match(mobile.textContent, /33% 이상/)

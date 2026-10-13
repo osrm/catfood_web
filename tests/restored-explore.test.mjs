@@ -174,15 +174,23 @@ test('direct and popstate-restored applied explore results create analytics runs
   assert.equal(runs[1].body.candidate_count, 45)
 })
 
-test('EXPLORE additional disclosure keeps draft state separate from applied search state', async () => {
+test('EXPLORE keeps common choices visible while feature disclosure preserves draft and applied state', async () => {
   dom.reconfigure({ url: 'https://catfood.test/?view=workspace' })
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.querySelector('.mobile-additional-toggle') !== null, 'condition editor rendered')
 
   const toggle = document.querySelector('.mobile-additional-toggle')
   assert.equal(toggle.getAttribute('aria-expanded'), 'false', 'new editor starts with additional conditions collapsed')
-  assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 0개/)
-  assert.match(toggle.textContent, /선택 없음/)
+  assert.equal(document.querySelector('.condition-draft-count'), null)
+  assert.equal(toggle.querySelector('small'), null)
+  assert.equal(document.querySelector('#explore-additional-conditions').hidden, true)
+  assert.ok(document.querySelector('.condition-avoid').contains(button('닭')), 'ingredient choices are outside the collapsed feature group')
+  const beforeAvoid = window.location.href
+  await click('닭')
+  assert.equal(button('닭').getAttribute('aria-pressed'), 'true')
+  assert.equal(document.querySelector('#explore-additional-conditions').hidden, true)
+  assert.equal(window.location.href, beforeAvoid, 'visible ingredient selection remains a draft')
+  await click('닭')
   assert.equal(searchRuns().length, 0)
 
   const editingUrl = window.location.href
@@ -220,8 +228,8 @@ test('EXPLORE additional disclosure keeps draft state separate from applied sear
   await click('초기화')
   assert.equal(restoredToggle.getAttribute('aria-expanded'), 'true', 'reset does not change disclosure state')
   assert.equal(button('실내묘').getAttribute('aria-pressed'), 'false')
-  assert.match(document.querySelector('.condition-draft-count').textContent, /선택한 조건 0개/)
-  assert.match(restoredToggle.textContent, /선택 없음/)
+  assert.equal(document.querySelector('.condition-draft-count'), null)
+  assert.equal(restoredToggle.querySelector('small'), null)
   assert.equal(new URL(window.location.href).searchParams.get('targets'), 'indoor', 'reset leaves the applied URL untouched until apply')
   assert.equal(searchRuns().length, runsBeforeReset, 'reset and disclosure do not create search runs')
 })

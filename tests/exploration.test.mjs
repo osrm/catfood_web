@@ -109,7 +109,7 @@ afterEach(async () => { await act(async () => root.unmount()) })
 const searchRuns = () => requests.filter((request) => request.path.endsWith('/search-runs'))
 const considerations = () => requests.filter((request) => request.path.endsWith('/considerations'))
 const rows = (selector) => [...document.querySelectorAll(selector)]
-const button = (text) => rows('button').find((element) => element.textContent.includes(text))
+const button = (text) => rows('button').find((element) => element.textContent.trim() === text) ?? rows('button').find((element) => element.textContent.includes(text))
 async function click(target) {
   const element = typeof target === 'string' ? button(target) : target
   assert.ok(element, `missing button: ${target}`)
@@ -406,7 +406,7 @@ test('EXPLORE guidance keeps the unknown policy in one place and labels recipe r
 
   await click('조건 고르기')
   const editorText = document.body.textContent
-  assert.match(editorText, /원하는 항목만 골라주세요\./)
+  assert.match(editorText, /필요한 항목만 골라주세요\./)
   assert.equal((editorText.match(/제품에 적힌 형태·연령으로 찾습니다\. 표기가 없는 제품도 함께 봅니다\./g) ?? []).length, 1)
   assert.doesNotMatch(editorText, /명백히 충돌하는 제품만 제외|미확인은 남겨둡니다|조건 정보가 없는 제품도 결과에 포함됩니다/)
   assert.doesNotMatch(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)
@@ -758,7 +758,7 @@ test('EXPLORE previews additional choices and explains their real effect without
   await act(async () => root.render(createElement(app.App)))
   await click('조건 고르기')
   const toggle = document.querySelector('.mobile-additional-toggle')
-  assert.match(toggle.textContent, /원료 제외, 제품 대상·특징, 레시피/)
+  assert.match(toggle.textContent, /실내묘 · 중성화묘 · 헤어볼 · 체중 관리/)
   assert.match(toggle.textContent, /펼치기/)
   await click(toggle)
   await click('체중 관리')
@@ -861,7 +861,7 @@ test('ingredient editor, applied summary, results, and analytics preserve the th
   products[3].reviewed_not_found_ingredient_terms = ['chicken']
   dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore' })
   await act(async () => root.render(createElement(app.App)))
-  await click('추가 조건')
+  assert.equal(document.querySelector('#explore-additional-conditions').hidden, true)
   const section = rows('.filter-section').find(node => node.textContent.includes('피하고 싶은 원료'))
   assert.ok(section)
   assert.equal(section.querySelectorAll('.choice').length, 8)

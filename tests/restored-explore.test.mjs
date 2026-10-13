@@ -269,6 +269,7 @@ test('EXPLORE preserves queued compare IDs for unchanged reapply and resets them
   assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 1\/5/)
 
   await click(document.querySelector('.criteria-bar > button'))
+  await click('건식')
   await click('습식')
   await click('이 조건으로 찾기')
   await waitForUi(() => document.querySelector('.state-message') !== null, 'changed conditions applied')

@@ -21,7 +21,6 @@ const csv = (value: string | null): string[] => value
   : []
 const unique = (values: string[], max = Number.POSITIVE_INFINITY): string[] => [...new Set(values)].slice(0, max)
 const allowed = (values: string[], options: Set<string>): string[] => unique(values.filter((value) => options.has(value)))
-const allowedOne = (value: string | null, options: Set<string>): string => value && options.has(value) ? value : ''
 
 export type NavigationState = {
   mode: AppMode
@@ -55,15 +54,15 @@ export function parseNavigationState(searchString: string): NavigationState {
     screen: requestedWorkspace ? 'workspace' : 'home',
     lookupQuery: params.get('q') ?? '',
     search: {
-      feedType: allowedOne(params.get('feed'), FEED_TYPES),
-      lifeStage: allowedOne(params.get('age'), LIFE_STAGES),
+      feedType: allowed(csv(params.get('feed')), FEED_TYPES),
+      lifeStage: allowed(csv(params.get('age')), LIFE_STAGES),
       officialTargets: allowed(csv(params.get('targets')), TARGETS),
       features: allowed(csv(params.get('features')), FEATURES),
       recipeFamilies: allowed(csv(params.get('recipes')), RECIPE_FAMILIES),
       grainFree: params.get('grainFree') === '1',
       ingredientAvoidTerms: mode === 'switch' ? [] : allowed(csv(params.get('avoidIngredients')), INGREDIENT_AVOID_TERMS),
     },
-    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36), brands: mode === 'switch' ? [] : unique(params.getAll('brands').map((value) => value.trim()).filter((value) => value && value.length <= 120), 100), ...(mode !== 'switch' && FEED_TYPES.has(params.get('feed') ?? '') && allowed(csv(params.get('features')), FEATURES).includes('weight_management') && parseEnergyMax(params.get('energyMax')) != null ? { energyMax: parseEnergyMax(params.get('energyMax')) } : {}) },
+    refine: { recipeDetails: unique(csv(params.get('recipeDetails')), 36), brands: mode === 'switch' ? [] : unique(params.getAll('brands').map((value) => value.trim()).filter((value) => value && value.length <= 120), 100), ...(mode !== 'switch' && allowed(csv(params.get('feed')), FEED_TYPES).length === 1 && allowed(csv(params.get('features')), FEATURES).includes('weight_management') && parseEnergyMax(params.get('energyMax')) != null ? { energyMax: parseEnergyMax(params.get('energyMax')) } : {}) },
     comparisonCriteriaApplied: params.get('criteria') === '1' || params.get('applied') === '1',
     editingConditions: mode === 'explore' ? params.get('applied') !== '1' : false,
     selectedId: params.get('selected') || null,
@@ -94,8 +93,8 @@ export function navigationSearch(state: NavigationState): string {
     if (state.comparisonCriteriaApplied) params.set('criteria', '1')
   }
   if (state.mode === 'explore' || (state.mode === 'lookup' && state.comparisonCriteriaApplied)) {
-    if (state.search.feedType) params.set('feed', state.search.feedType)
-    if (state.search.lifeStage) params.set('age', state.search.lifeStage)
+    setCsv(params, 'feed', state.search.feedType)
+    setCsv(params, 'age', state.search.lifeStage)
     setCsv(params, 'targets', state.search.officialTargets)
     setCsv(params, 'features', state.search.features)
     setCsv(params, 'recipes', state.search.recipeFamilies)

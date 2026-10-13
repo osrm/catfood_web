@@ -127,8 +127,8 @@ async function selectValue(element, value) {
 test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, caps compare at five, and keeps Home round-trippable', () => {
   const state = app.parseNavigationState('?view=workspace&mode=wat&feed=invalid&age=nope&targets=indoor,bad,indoor&features=hairball,bad&recipes=fish,bad&detailTab=nope&compareTab=nope&compare=a,a,b,c,d,e,f&compareOpen=1')
   assert.equal(state.mode, 'explore')
-  assert.equal(state.search.feedType, '')
-  assert.equal(state.search.lifeStage, '')
+  assert.deepEqual(state.search.feedType, [])
+  assert.deepEqual(state.search.lifeStage, [])
   assert.deepEqual(state.search.officialTargets, ['indoor'])
   assert.deepEqual(state.search.features, ['hairball'])
   assert.deepEqual(state.search.recipeFamilies, ['fish'])
@@ -146,13 +146,13 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
     lookupQuery: 'Product',
     comparisonCriteriaApplied: true,
     editingConditions: false,
-    search: { ...state.search, feedType: '건식', lifeStage: 'adult' },
+    search: { ...state.search, feedType: ['건식'], lifeStage: ['adult'] },
   })
   const restoredLookup = app.parseNavigationState(lookupSearch)
   assert.equal(restoredLookup.mode, 'lookup')
   assert.equal(restoredLookup.lookupQuery, 'Product')
-  assert.equal(restoredLookup.search.feedType, '건식')
-  assert.equal(restoredLookup.search.lifeStage, 'adult')
+  assert.deepEqual(restoredLookup.search.feedType, ['건식'])
+  assert.deepEqual(restoredLookup.search.lifeStage, ['adult'])
   assert.equal(restoredLookup.comparisonCriteriaApplied, true)
   assert.equal(restoredLookup.editingConditions, false)
   assert.equal(new URLSearchParams(lookupSearch).get('criteria'), '1')
@@ -164,7 +164,7 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
     mode: 'lookup',
     lookupQuery: 'Product',
     comparisonCriteriaApplied: false,
-    search: { ...state.search, feedType: '건식', lifeStage: 'adult' },
+    search: { ...state.search, feedType: ['건식'], lifeStage: ['adult'] },
   })
   const pureLookupParams = new URLSearchParams(pureLookupSearch)
   assert.equal(pureLookupParams.get('criteria'), null)
@@ -173,7 +173,7 @@ test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, cap
 
   const legacyLookup = app.parseNavigationState('?view=workspace&mode=lookup&q=Product&applied=1&feed=건식&age=adult')
   assert.equal(legacyLookup.comparisonCriteriaApplied, true)
-  assert.equal(legacyLookup.search.lifeStage, 'adult')
+  assert.deepEqual(legacyLookup.search.lifeStage, ['adult'])
 
   const homeSearch = app.navigationSearch({ ...state, screen: 'home' })
   assert.equal(homeSearch, '')
@@ -374,7 +374,7 @@ test('unapplied condition edits keep the last applied comparison basis when movi
     await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')
     await click('조건 수정')
     await click('키튼')
-    assert.match(document.querySelector('.condition-draft-count').textContent, /2개/)
+    assert.match(document.querySelector('.condition-draft-count').textContent, /3개/)
 
     await click('제품 찾기')
     const params = new URL(window.location.href).searchParams
@@ -1422,4 +1422,20 @@ test('comparison return uses the current list position after an older quick view
     Object.defineProperty(window, 'scrollY', descriptor)
     window.scrollTo = nativeScrollTo
   }
+})
+
+test('multiple form and age URLs sanitize and round-trip into LOOKUP while retaining legacy single links', () => {
+  const state=app.parseNavigationState('?view=workspace&applied=1&feed=건식,습식,건식,bad&age=adult,senior,adult,bad&features=weight_management&energyMax=400')
+  assert.deepEqual(state.search.feedType,['건식','습식'])
+  assert.deepEqual(state.search.lifeStage,['adult','senior'])
+  assert.equal(state.refine.energyMax,undefined,'mixed form selection cannot restore a single-form energy bound')
+  const restored=app.parseNavigationState(app.navigationSearch({...state,mode:'lookup',lookupQuery:'Royal Canin'}))
+  assert.deepEqual(restored.search,state.search)
+  assert.equal(restored.comparisonCriteriaApplied,true)
+  const old=app.parseNavigationState('?view=workspace&applied=1&feed=건식&age=adult')
+  assert.deepEqual(old.search.feedType,['건식'])
+  assert.deepEqual(old.search.lifeStage,['adult'])
+  const none=app.parseNavigationState('?view=workspace&feed=bad&age=bad')
+  assert.deepEqual(none.search.feedType,[])
+  assert.deepEqual(none.search.lifeStage,[])
 })

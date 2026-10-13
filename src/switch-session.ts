@@ -1,5 +1,5 @@
 import type { CompareTab, DetailTab } from './navigation-state'
-import type { SearchState } from './search'
+import type { SwitchSearchState as SearchState } from './search'
 
 export type SwitchStep = 'current' | 'sku' | 'change' | 'keep' | 'results'
 export type SwitchHistoryAction = 'replace' | 'push'

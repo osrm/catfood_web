@@ -3372,5 +3372,5 @@
  .research-workspace:has(.condition-actions) .additional-condition-sections.is-open { grid-template-columns:1fr; }
  .research-workspace:has(.condition-actions) .mobile-additional-toggle { flex-wrap:wrap; gap:8px 16px; padding:12px 0; min-height:74px; }
  .research-workspace:has(.condition-actions) .condition-additional-label { flex-basis:70%; }
- .research-workspace:has(.condition-actions) .research-filter-scroll { padding-bottom:24px; }
+ .research-workspace:has(.condition-actions) .research-filter-scroll { padding-bottom:calc(104px + env(safe-area-inset-bottom)); }
 }

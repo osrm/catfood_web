@@ -495,7 +495,11 @@ test('SWITCH candidate search scans the full evaluated pool and preserves compar
   assert.match(document.querySelector('.switch-compare-dock').textContent, /검색 후보 49/)
   assert.deepEqual(session().compareIds, ['product_search_49'])
 
-  const clear = [...document.querySelectorAll('.switch-candidate-list .state-retry')].find((node) => node.textContent.trim() === '검색 지우기')
+  const clearControls = [...document.querySelectorAll('.switch-candidate-pane button')].filter((node) => node.textContent.trim() === '검색 지우기')
+  assert.equal(clearControls.length, 1, 'one explicit clear action works in populated and zero-result search')
+  assert.equal(searchInput.getAttribute('role'), 'searchbox')
+  assert.equal(searchInput.type, 'text', 'avoid a second browser-native search cancel action')
+  const clear = clearControls[0]
   await click(clear)
   assert.equal(searchInput.value, '')
   assert.equal(document.activeElement, searchInput, 'clear action returns focus to candidate search input')

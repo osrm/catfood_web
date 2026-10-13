@@ -52,3 +52,9 @@ The condition editor uses 15px choice labels and at least 46px choice targets. M
 ## SWITCH mobile nutrition identity — 2026-10-13
 
 SWITCH mobile nutrition shares the general nutrition table composition: photograph, one semantic role/brand/full-name column header, then package/actions and values. Only the column headers stick, including current/candidate roles. The current use package remains visible before the values and the current food has no removal control. Candidate picker, detail return and removal continue to use existing session handlers. Values use 17px text with full units/qualifiers; field-level exceptions and folded original records retain their meaning. Desktop and ingredient layouts are unchanged.
+
+## Search result clarity — 2026-10-13
+
+SWITCH candidate search exposes one explicit `검색 지우기` action for both matching and empty results. A text input with searchbox semantics and a search enter-key hint avoids an additional browser-native cancel action; clearing still preserves current product/package/conditions/basket and returns focus to the search input. The zero-result message points to editing or clearing the query without adding a second clear button.
+
+Wide (1100px+) uninspected LOOKUP results place the existing product-view cue beside the full identity instead of on an extra row. Full names, form/age, selling packages, package images and the separate comparison control remain. Mobile, intermediate widths, EXPLORE and inspector layouts retain their current composition.

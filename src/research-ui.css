@@ -3346,6 +3346,27 @@
 .research-workspace:has(.condition-actions) .condition-editor .filter-section { border:0; padding:16px 0; }
 .research-workspace:has(.condition-actions) .condition-editor .filter-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin-bottom:14px; }
 .research-workspace:has(.condition-actions) .condition-editor .filter-heading > span:first-child { font-size:17px; font-weight:650; }
+/* Choices lead; selection also has a shape cue, not only a color change. */
+.research-workspace:has(.condition-actions) .condition-editor .choice {
+ position:relative; min-height:46px; padding:10px 12px; font-size:15px; font-weight:500;
+ color:var(--cf-ink); background:var(--cf-surface); border-color:#cbd2d7; border-radius:4px;
+}
+.research-workspace:has(.condition-actions) .condition-editor .choice:hover { background:var(--atlas-selection-bg); border-color:var(--atlas-selection); }
+.research-workspace:has(.condition-actions) .condition-editor .choice.is-active {
+ color:#fff; background:var(--atlas-selection); border-color:var(--atlas-selection); font-weight:650;
+}
+.research-workspace:has(.condition-actions) .condition-editor :is(.condition-avoid,.additional-condition-sections) .choice { padding-left:32px; }
+.research-workspace:has(.condition-actions) .condition-editor :is(.condition-avoid,.additional-condition-sections) .choice::before {
+ content:""; position:absolute; left:11px; top:50%; width:12px; height:12px; box-sizing:border-box;
+ border:1px solid #87939b; border-radius:2px; transform:translateY(-50%);
+}
+.research-workspace:has(.condition-actions) .condition-editor :is(.condition-avoid,.additional-condition-sections) .choice.is-active::before {
+ width:11px; height:6px; left:12px; border:0; border-left:2px solid currentColor; border-bottom:2px solid currentColor;
+ border-radius:0; transform:translateY(-70%) rotate(-45deg);
+}
+.research-workspace:has(.condition-actions) .condition-editor .choice:focus-visible { outline:2px solid var(--cf-ink); outline-offset:3px; }
+.research-workspace:has(.condition-actions) .condition-editor .filter-hint { font-size:12px; font-weight:400; color:var(--cf-muted); }
+.research-workspace:has(.condition-actions) .condition-editor .field-note { font-size:12px; line-height:1.65; color:var(--cf-muted); }
 .research-workspace:has(.condition-actions) .condition-editor .condition-policy-note { margin:0 0 24px; }
 .research-workspace:has(.condition-actions) .condition-avoid { border-top:1px solid var(--cf-line); padding-top:12px; }
 .research-workspace:has(.condition-actions) .condition-avoid .field-note { max-width:720px; margin:6px 0 0; }
@@ -3363,12 +3384,14 @@
 @media(max-width:760px) {
  .research-workspace:has(.condition-actions) .research-pane-heading { padding-bottom:8px; }
  .research-workspace:has(.condition-actions) .condition-basics { gap:0; }
+ .research-workspace:has(.condition-actions) .condition-basics .choice { padding-inline:8px; }
+ .research-workspace:has(.condition-actions) .condition-editor .field-note { line-height:1.55; }
  .research-workspace:has(.condition-actions) .condition-avoid { padding-top:4px; }
  .research-workspace:has(.condition-actions) .condition-avoid .filter-section { padding-bottom:2px; }
  .research-workspace:has(.condition-actions) .condition-additional-disclosure { margin-top:0; }
- .research-workspace:has(.condition-actions) .condition-editor .filter-heading { margin-bottom:12px; }
+ .research-workspace:has(.condition-actions) .condition-editor .filter-heading { margin-bottom:10px; }
  .research-workspace:has(.condition-actions) .condition-editor .filter-section { padding:10px 0; }
- .research-workspace:has(.condition-actions) .condition-editor .condition-policy-note { margin:0 0 16px; }
+ .research-workspace:has(.condition-actions) .condition-editor .condition-policy-note { margin:0 0 12px; }
  .research-workspace:has(.condition-actions) .additional-condition-sections.is-open { grid-template-columns:1fr; }
  .research-workspace:has(.condition-actions) .mobile-additional-toggle { flex-wrap:wrap; gap:8px 16px; padding:12px 0; min-height:74px; }
  .research-workspace:has(.condition-actions) .condition-additional-label { flex-basis:70%; }

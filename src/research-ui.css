@@ -3343,6 +3343,8 @@
 /* Condition editor: common choices are visible; only label-based refinements collapse. */
 .research-workspace:has(.condition-actions) .condition-editor { grid-column:1 / -1; min-width:0; }
 .research-workspace:has(.condition-actions) .research-pane-heading { border-bottom:0; padding-bottom:16px; }
+.research-workspace:has(.condition-actions) .condition-heading-line { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.research-workspace:has(.condition-actions) .condition-heading-line .condition-draft-count { margin:0; font-size:12px; line-height:1.4; white-space:nowrap; }
 .research-workspace:has(.condition-actions) .condition-editor .filter-section { border:0; padding:16px 0; }
 .research-workspace:has(.condition-actions) .condition-editor .filter-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin-bottom:14px; }
 .research-workspace:has(.condition-actions) .condition-editor .filter-heading > span:first-child { font-size:17px; font-weight:650; }

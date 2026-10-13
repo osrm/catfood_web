@@ -1,6 +1,9 @@
 # Consumer frontend design
 
-All five screen families share SiteHeader and pinned Pretendard Variable body text. Headings, product names and values use the same Pretendard family; font size, weight and spacing distinguish their roles. Product identity, readable facts and existing actions lead; evidence remains available on demand. The canvas and record surfaces are white, with neutral gray separators and quiet row backgrounds; text and product-brand facts are neutral, enabled primary actions use deep green, selection/navigation retain their separate slate role, and energy graphics use gray. These roles do not rank products or imply suitability.
+All five screen families share SiteHeader and pinned Pretendard Variable body text. Headings, product names and values use the same Pretendard family; font size, weight and spacing distinguish their roles. Product identity, readable facts and existing actions lead; evidence remains available on demand. In the current implementation, canvas and record surfaces are white, with neutral gray separators and quiet row backgrounds; text and product-brand facts are neutral, enabled primary actions use deep green, selection/navigation retain their separate slate role, and energy graphics use gray. These roles do not rank products or imply suitability.
+
+
+The current palette and composition describe the shipped implementation, not permanent limits on visual direction. Neutral product facts do not require a visually neutral service. Future redesign may change typography, image presence, composition and color roles while preserving data and interaction contracts. See [the 2026-10-13 reference reassessment](reference-reassessment-20261013.md) before further visual work. That brief is a next-design criterion, not a claim that a new design has shipped or been validated by people.
 
 ## Stylesheet ownership
 

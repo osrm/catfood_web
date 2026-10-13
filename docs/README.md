@@ -9,6 +9,7 @@
 | [저장소 README](../README.md) | 실행·빌드·배포, 공개 API 경계와 현재 검색 동작 |
 | [UI reference principles](ui-reference-principles.md) | 화면별 정보 순서와 레퍼런스에서 채택한 인터랙션 원칙 |
 | [Consumer design system](consumer-design-system.md) | 현재 공통 시각 구성과 비교의 읽기 방식 |
+| [공식 화면 재검토](reference-reassessment-20261013.md) | 중립적인 사실과 시각 표현을 구분하는 다음 디자인 기준; 구현·사람 검증 결과가 아님 |
 | [Brand search aliases](brand-search-aliases.md) | 한글·영문 브랜드 검색 별칭과 브랜드 identity 구분 |
 | [원료 제외](explore-ingredient-exclusion.md) | 확인된 원료 제외, 미발견·근거 부족 유지와 비교 관계 |
 | [복수 브랜드 좁히기](explore-brand-refinement.md) | OR 선택·URL·검색·비교 보존 |

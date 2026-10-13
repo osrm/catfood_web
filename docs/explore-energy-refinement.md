@@ -1,6 +1,6 @@
 # Contextual energy refinement
 
-Energy is available in general EXPLORE results only after a feed type and the official weight-management feature have been selected. It is optional and does not infer dieting intent, quality, safety or feeding amounts.
+Energy is available in general EXPLORE results only after exactly one feed type and the official weight-management feature have been selected. It is optional and does not infer dieting intent, quality, safety or feeding amounts.
 
 - Opening the control (or restoring a valid energyMax URL) lazily reads only energy and its evidence from the existing public nutrition view. No API/schema change. Sorted 1,000-row pages are read sequentially; duplicate/overlapping pages fail. The comparison helper's five-row limit is unchanged.
 - Positive finite maximum kcal/100g, entered by the user, is applied on submit. No default threshold or low/normal/high badges. kg wins when both units exist and is divided by ten; no moisture/cup conversion.

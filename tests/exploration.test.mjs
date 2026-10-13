@@ -153,8 +153,8 @@ test('comparison criteria keeps unknown policy and OR recipe meaning without cha
   product.recipe_details = ['chicken']
 
   const search = {
-    feedType: '건식',
-    lifeStage: 'adult',
+    feedType: ['건식'],
+    lifeStage: ['adult'],
     officialTargets: [],
     features: ['hairball'],
     recipeFamilies: [],
@@ -407,7 +407,7 @@ test('EXPLORE guidance keeps the unknown policy in one place and labels recipe r
   await click('조건 고르기')
   const editorText = document.body.textContent
   assert.match(editorText, /필요한 항목만 골라주세요\./)
-  assert.equal((editorText.match(/제품에 적힌 형태·연령으로 찾습니다\. 표기가 없는 제품도 함께 봅니다\./g) ?? []).length, 1)
+  assert.equal((editorText.match(/여러 개 고르면 그중 하나에 해당하는 제품을 찾습니다\. 표기가 없는 제품도 함께 봅니다\./g) ?? []).length, 1)
   assert.doesNotMatch(editorText, /명백히 충돌하는 제품만 제외|미확인은 남겨둡니다|조건 정보가 없는 제품도 결과에 포함됩니다/)
   assert.doesNotMatch(editorText, /제품에 표기된 연령 구분을 기준으로 합니다\./)
   assert.match(editorText, /Grain-Free 표기가 없다고 해서 곡물이 들어 있다고 판단하지 않습니다\./)
@@ -458,7 +458,7 @@ test('EXPLORE: exactly 40 and zero candidates do not offer more; unknowns are re
   assert.doesNotMatch(empty.textContent, /임의로 완화/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('조건 수정'))
   await click(edit)
-  assert.match(document.body.textContent, /제품에 적힌 형태·연령으로 찾습니다\. 표기가 없는 제품도 함께 봅니다\./)
+  assert.match(document.body.textContent, /여러 개 고르면 그중 하나에 해당하는 제품을 찾습니다\. 표기가 없는 제품도 함께 봅니다\./)
 })
 
 test('LOOKUP retains its 120-row batch and does not collect decisions', async () => {
@@ -1112,4 +1112,45 @@ test('removing a recipe chip returns focus to visible recipe search while preser
   assert.deepEqual(app.parseNavigationState(window.location.search).refine.recipeDetails,['duck'])
   assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[products[0].product_id])
   assert.deepEqual(rows('.research-result-card').map(n=>n.dataset.productId),[products[1].product_id])
+})
+
+test('basic alternatives use OR within form/age and AND across axes without inferring unknown facts', () => {
+  const source=catalog(7)
+  source[1].feed_type='습식';source[1].life_stage='senior'
+  source[2].feed_type='동결건조';source[2].life_stage='senior'
+  source[3].life_stage='kitten'
+  source[4].feed_type=null
+  source[5].feed_type='습식';source[5].life_stage=null
+  source[6].feed_type=null;source[6].life_stage=null
+  const search={...app.INITIAL_SEARCH,feedType:['건식','습식'],lifeStage:['adult','senior']}
+  const result=app.evaluateCatalog(source,search)
+  assert.deepEqual(result.map(x=>x.product.product_id),[source[0],source[1],source[4],source[5],source[6]].map(x=>x.product_id))
+  assert.equal(result[0].matchCount,2,'alternatives are not separate ranking requirements')
+  assert.deepEqual(result[0].confirmedMatches,['형태:건식','생애주기:adult'])
+  assert.deepEqual(result.at(-1).unknowns,['사료 형태','제품 표기 생애주기'])
+  assert.equal(app.evaluateComparisonCriteria(source[1],search).differences.length,0)
+  assert.deepEqual(app.evaluateComparisonCriteria(source[2],search).differences[0],{kind:'feedType',selectedValues:['건식','습식'],productValues:['동결건조']})
+  assert.deepEqual(app.evaluateComparisonCriteria(source[3],search).differences[0],{kind:'lifeStage',selectedValues:['adult','senior'],productValues:['kitten']})
+  assert.equal(app.canRefineEnergy({...search,features:['weight_management']}),false)
+  assert.equal(app.canRefineEnergy({...search,feedType:['건식'],features:['weight_management']}),true)
+})
+
+test('multiple basic choices toggle independently, preserve unchanged sets and clear on actual applied changes', async () => {
+  products=catalog(3);products[1].feed_type='습식';products[1].life_stage='senior';products[2].feed_type='동결건조';products[2].life_stage='kitten'
+  dom.reconfigure({url:'https://catfood.test/?view=workspace'})
+  await act(async()=>root.render(createElement(app.App)))
+  await click('건식');await click('습식');await click('성묘');await click('시니어')
+  assert.match(document.querySelector('.condition-draft-count').textContent,/4개/)
+  assert.equal(rows('.condition-basics button[aria-pressed="true"]').length,4)
+  await click('이 조건으로 찾기')
+  assert.deepEqual(rows('.research-result-card').map(x=>x.dataset.productId),[products[0].product_id,products[1].product_id])
+  await click(document.querySelector('.research-result-compare'))
+  const basket=app.parseNavigationState(window.location.search).compareIds
+  await click('조건 수정');await click('건식');await click('건식');await click('이 조건으로 찾기')
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,basket,'same set in a different selection order preserves basket')
+  await click('조건 수정');await click('습식');await click('이 조건으로 찾기')
+  assert.deepEqual(app.parseNavigationState(window.location.search).search.feedType,['건식'])
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[])
+  await click('조건 수정');await click('초기화')
+  assert.equal(rows('.condition-basics button[aria-pressed="true"]').length,0)
 })

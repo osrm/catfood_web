@@ -3357,12 +3357,12 @@
 .research-workspace:has(.condition-actions) .condition-editor .choice.is-active {
  color:#fff; background:var(--atlas-selection); border-color:var(--atlas-selection); font-weight:650;
 }
-.research-workspace:has(.condition-actions) .condition-editor :is(.condition-avoid,.additional-condition-sections) .choice { padding-left:32px; }
-.research-workspace:has(.condition-actions) .condition-editor :is(.condition-avoid,.additional-condition-sections) .choice::before {
+.research-workspace:has(.condition-actions) .condition-editor :is(.condition-basics,.condition-avoid,.additional-condition-sections) .choice { padding-left:32px; }
+.research-workspace:has(.condition-actions) .condition-editor :is(.condition-basics,.condition-avoid,.additional-condition-sections) .choice::before {
  content:""; position:absolute; left:11px; top:50%; width:12px; height:12px; box-sizing:border-box;
  border:1px solid #87939b; border-radius:2px; transform:translateY(-50%);
 }
-.research-workspace:has(.condition-actions) .condition-editor :is(.condition-avoid,.additional-condition-sections) .choice.is-active::before {
+.research-workspace:has(.condition-actions) .condition-editor :is(.condition-basics,.condition-avoid,.additional-condition-sections) .choice.is-active::before {
  width:11px; height:6px; left:12px; border:0; border-left:2px solid currentColor; border-bottom:2px solid currentColor;
  border-radius:0; transform:translateY(-70%) rotate(-45deg);
 }

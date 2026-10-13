@@ -4,7 +4,7 @@ import type { SearchState, RefineState } from './search'
 import { nutritionInterpretationNote } from './nutrition-reading'
 
 export function canRefineEnergy(search: SearchState) {
-  return ['건식', '습식', '동결건조'].includes(search.feedType) && search.features.includes('weight_management')
+  return search.feedType.length === 1 && ['건식', '습식', '동결건조'].includes(search.feedType[0]) && search.features.includes('weight_management')
 }
 export function parseEnergyMax(value: unknown): number | undefined {
   if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+(\.\d+)?$/.test(value.trim()))) return undefined

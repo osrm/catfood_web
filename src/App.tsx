@@ -81,8 +81,7 @@ const RECIPE_TRAIT_LABELS: Record<string, string> = { grain_free: 'Grain-Free �
 
 type Mode = 'switch' | 'explore' | 'lookup'
 type Screen = 'home' | 'workspace'
-type ArraySearchField = 'officialTargets' | 'features' | 'recipeFamilies' | 'ingredientAvoidTerms'
-type SingleSearchField = 'feedType' | 'lifeStage'
+type ArraySearchField = 'feedType' | 'lifeStage' | 'officialTargets' | 'features' | 'recipeFamilies' | 'ingredientAvoidTerms'
 type Option = readonly [string, string]
 type ListRestore = { scrollTop: number; documentScrollTop?: number; visibleCount: number; focusId: string | null }
 type HistoryPayload = {
@@ -153,8 +152,8 @@ function comparisonDifferenceLabel(difference: ComparisonCriteriaDifference) {
 }
 function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
   const values: string[] = []
-  if (search.feedType) values.push(`사료 형태 · ${optionLabel(search.feedType, FEED_TYPE_LABELS)}`)
-  if (search.lifeStage) values.push(`연령 · ${optionLabel(search.lifeStage, LIFE_STAGE_LABELS)}`)
+  if (search.feedType.length) values.push(`사료 형태 · ${search.feedType.map(value => optionLabel(value, FEED_TYPE_LABELS)).join(' 또는 ')}`)
+  if (search.lifeStage.length) values.push(`연령 · ${search.lifeStage.map(value => optionLabel(value, LIFE_STAGE_LABELS)).join(' 또는 ')}`)
   values.push(
     ...search.officialTargets.map((value) => `제품 표기 대상 · ${optionLabel(value, TARGET_LABELS)}`),
     ...search.features.map((value) => `제품 특징 · ${optionLabel(value, FEATURE_LABELS)}`),
@@ -169,8 +168,8 @@ function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
 }
 function exploreCriteriaSnapshot(search: SearchState, refine: RefineState): DecisionCriterion[] {
   const criteria: DecisionCriterion[] = []
-  if (search.feedType) criteria.push({ axis: 'feed_type', value: search.feedType, role: 'hard_constraint', source: 'user_selected' })
-  if (search.lifeStage) criteria.push({ axis: 'life_stage', value: search.lifeStage, role: 'hard_constraint', source: 'user_selected' })
+  search.feedType.forEach(value => criteria.push({ axis: 'feed_type', value, role: 'hard_constraint', source: 'user_selected' }))
+  search.lifeStage.forEach(value => criteria.push({ axis: 'life_stage', value, role: 'hard_constraint', source: 'user_selected' }))
   search.officialTargets.forEach((value) => criteria.push({ axis: 'official_target', value, role: 'desired', source: 'user_selected' }))
   search.features.forEach((value) => criteria.push({ axis: 'feature', value, role: 'desired', source: 'user_selected' }))
   search.recipeFamilies.forEach((value) => criteria.push({ axis: 'recipe_family', value, role: 'desired', source: 'user_selected' }))
@@ -181,7 +180,7 @@ function exploreCriteriaSnapshot(search: SearchState, refine: RefineState): Deci
   return criteria
 }
 function exploreRunKey(search: SearchState, refine: RefineState): string {
-  return JSON.stringify([{ ...search, ingredientAvoidTerms: [...(search.ingredientAvoidTerms ?? [])].sort() }, { ...refine, brands: [...(refine.brands ?? [])].sort() }])
+  return JSON.stringify([{ ...search, feedType: [...search.feedType].sort(), lifeStage: [...search.lifeStage].sort(), ingredientAvoidTerms: [...(search.ingredientAvoidTerms ?? [])].sort() }, { ...refine, brands: [...(refine.brands ?? [])].sort() }])
 }
 
 function FilterButtons({ options, selected, onToggle }: { options: readonly Option[]; selected: string[]; onToggle: (value: string) => void }) {
@@ -538,10 +537,10 @@ export default function App() {
   const baseEvaluated = useMemo(() => ingredientConditionsPending ? [] : evaluateCatalog(products, search, refine), [products, search, refine, ingredientConditionsPending])
   const energyPending = energyMax != null && energyRows == null
   const evaluated = useMemo(() => energyMax == null ? baseEvaluated : energyPending ? [] : baseEvaluated.filter(item => {
-    const amount = item.product.feed_type === search.feedType ? usableEnergy(energyByProduct.get(item.product.product_id)) : null
+    const amount = item.product.feed_type === search.feedType[0] ? usableEnergy(energyByProduct.get(item.product.product_id)) : null
     return amount == null || amount <= energyMax
   }), [baseEvaluated, energyMax, energyPending, energyByProduct, search.feedType])
-  const energyKnown = baseEvaluated.filter(item => item.product.feed_type === search.feedType && usableEnergy(energyByProduct.get(item.product.product_id)) != null).length
+  const energyKnown = baseEvaluated.filter(item => item.product.feed_type === search.feedType[0] && usableEnergy(energyByProduct.get(item.product.product_id)) != null).length
   const lookupResults = useMemo(() => lookupCatalog(products, lookupQuery), [products, lookupQuery])
   const brandOptions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -581,8 +580,8 @@ export default function App() {
       const evaluation = evaluateComparisonCriteria(product, search, refine)
       const energyConfirmed: string[] = [], energyUnknown: string[] = [], energyDifferences: string[] = []
       if (energyMax != null) {
-        const amount = product.feed_type === search.feedType ? usableEnergy(energyByProduct.get(product.product_id)) : null
-        if (product.feed_type !== search.feedType) energyUnknown.push('열량 · 사료 형태가 달라 비교하지 않음')
+        const amount = product.feed_type === search.feedType[0] ? usableEnergy(energyByProduct.get(product.product_id)) : null
+        if (product.feed_type !== search.feedType[0]) energyUnknown.push('열량 · 사료 형태가 달라 비교하지 않음')
         else if (energyPending) energyUnknown.push(energyError ? '열량 조회 실패' : '열량 확인 중')
         else if (amount == null) energyUnknown.push('열량 미확인')
         else if (amount <= energyMax) energyConfirmed.push('열량 · ' + energyText(amount) + ' (선택 ' + energyText(energyMax) + ' 이하)')
@@ -654,7 +653,6 @@ export default function App() {
   }
   function recordExploreConsideration(productId: string, signal: 'detail_open' | 'compare_add') { if (energyMax != null) return; if (!evaluated.slice(0, 40).some((item) => item.product.product_id === productId)) return; void exploreRunTail.current.then((id) => recordProductConsideration(id, productId, signal)) }
   function resetExploreRun(nextMode?: Mode) { if (nextMode !== 'explore') { exploreRunGeneration.current += 1; exploreRunTail.current = Promise.resolve(null); exploreRunId.current = null; exploreRunStateKey.current = null } }
-  function setDraftSingle(field: SingleSearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: current[field] === value ? '' : value })) }
   function toggleDraftArray(field: ArraySearchField, value: string) { setDraftSearch((current) => ({ ...current, [field]: toggleValue(current[field] ?? [], value) })) }
   function changeBrandRefine(brands: string[], restoreFocus = false) {
     const nextRefine = { ...refine, brands }
@@ -818,8 +816,8 @@ export default function App() {
 
   function activeCriteria() {
     const values: string[] = []
-    if (search.feedType) values.push(optionLabel(search.feedType, FEED_TYPE_LABELS))
-    if (search.lifeStage) values.push(optionLabel(search.lifeStage, LIFE_STAGE_LABELS))
+    if (search.feedType.length) values.push(search.feedType.map(value => optionLabel(value, FEED_TYPE_LABELS)).join(' 또는 '))
+    if (search.lifeStage.length) values.push(search.lifeStage.map(value => optionLabel(value, LIFE_STAGE_LABELS)).join(' 또는 '))
     values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)), ...search.features.map((value) => optionLabel(value, FEATURE_LABELS)), ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
     if (search.grainFree) values.push('Grain-Free 표기')
     values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
@@ -835,10 +833,10 @@ export default function App() {
     const avoidOptions = INGREDIENT_AVOID_OPTIONS.filter(([term], index) => showAllAvoidIngredients || index < 8 || draftSearch.ingredientAvoidTerms?.includes(term))
     return <div className="condition-editor">
       <div className="condition-basics">
-        <FilterSection title="사료 형태" hint="하나 선택"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType ? [draftSearch.feedType] : []} onToggle={(value) => setDraftSingle('feedType', value)} /></FilterSection>
-        <FilterSection title="대상 연령" hint="하나 선택"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage ? [draftSearch.lifeStage] : []} onToggle={(value) => setDraftSingle('lifeStage', value)} /></FilterSection>
+        <FilterSection title="사료 형태" hint="여러 개 선택 가능"><FilterButtons options={FEED_TYPES} selected={draftSearch.feedType} onToggle={(value) => toggleDraftArray('feedType', value)} /></FilterSection>
+        <FilterSection title="대상 연령" hint="여러 개 선택 가능"><FilterButtons options={LIFE_STAGES} selected={draftSearch.lifeStage} onToggle={(value) => toggleDraftArray('lifeStage', value)} /></FilterSection>
       </div>
-      <p className="field-note condition-policy-note">제품에 적힌 형태·연령으로 찾습니다. 표기가 없는 제품도 함께 봅니다.</p>
+      <p className="field-note condition-policy-note">여러 개 고르면 그중 하나에 해당하는 제품을 찾습니다. 표기가 없는 제품도 함께 봅니다.</p>
       <div className="condition-avoid">
         <FilterSection title="피하고 싶은 원료" hint="여러 개 선택 가능">
           <FilterButtons options={avoidOptions} selected={draftSearch.ingredientAvoidTerms ?? []} onToggle={(value) => toggleDraftArray('ingredientAvoidTerms', value)} />
@@ -865,8 +863,8 @@ export default function App() {
   function renderConditionSummary() {
     const hasPrimary = countActiveConditions(search) > 0
     return <><div className="condition-summary">
-      {search.feedType ? <SummaryRow label="형태" value={search.feedType} /> : null}
-      {search.lifeStage ? <SummaryRow label="연령" value={optionLabel(search.lifeStage, LIFE_STAGE_LABELS)} /> : null}
+      {search.feedType.length ? <SummaryRow label="형태" value={search.feedType.join(" 또는 ")} /> : null}
+      {search.lifeStage.length ? <SummaryRow label="연령" value={search.lifeStage.map(value => optionLabel(value, LIFE_STAGE_LABELS)).join(" 또는 ")} /> : null}
       {search.officialTargets.length ? <SummaryRow label="제품 표기 대상" value={compactList(search.officialTargets, TARGET_LABELS)} /> : null}
       {search.features.length ? <SummaryRow label="제품 특징" value={compactList(search.features, FEATURE_LABELS)} /> : null}
       {search.recipeFamilies.length ? <SummaryRow label="레시피" value={compactList(search.recipeFamilies, RECIPE_FAMILY_LABELS)} /> : null}
@@ -916,7 +914,7 @@ export default function App() {
       <span className="criteria-label">적용된 조건</span>
       <div className="criteria-chips">{criteria.length ? criteria.map((value) => <span key={value}>{value}</span>) : <span>추가 조건 없음</span>}</div>
       {criteria.length ? <details className="criteria-disclosure">
-        <summary>적용된 조건 {criteria.length}개</summary>
+        <summary>적용된 조건 {countActiveConditions(search, refine)}개</summary>
         <ul className="criteria-expanded-values" aria-label="적용된 조건 전체">{criteria.map(value => <li key={value}>{value}</li>)}</ul>
       </details> : <span className="criteria-empty">적용된 조건 없음</span>}
       <button type="button" onClick={editConditions}>조건 수정</button>
@@ -962,7 +960,7 @@ export default function App() {
         >
           <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
         </button>
-        {mode === 'explore' && energyEligible && needsEnergy && energyRows != null ? <EnergyResult row={energyByProduct.get(product.product_id)} sameFeed={product.feed_type === search.feedType} /> : null}
+        {mode === 'explore' && energyEligible && needsEnergy && energyRows != null ? <EnergyResult row={energyByProduct.get(product.product_id)} sameFeed={product.feed_type === search.feedType[0]} /> : null}
       </div>
     })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
   }
@@ -988,9 +986,9 @@ export default function App() {
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
     : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중' : resultCountText
   const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
-  const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType || search.lifeStage)
+  const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType.length || search.lifeStage.length)
     ? (priorityLabels.length === 1
-      ? priorityLabels[0].replace(/ 표기$/, '') + (search.feedType || search.lifeStage ? ' 등 고른 조건이 더 많이 확인된 제품부터 보여줍니다.' : ' 표기가 있는 제품부터 보여줍니다.')
+      ? priorityLabels[0].replace(/ 표기$/, '') + (search.feedType.length || search.lifeStage.length ? ' 등 고른 조건이 더 많이 확인된 제품부터 보여줍니다.' : ' 표기가 있는 제품부터 보여줍니다.')
       : priorityLabels.length > 1
         ? '고른 조건이 더 많이 확인된 제품부터 보여줍니다.'
         : '선택한 형태·연령이 확인된 제품부터 보여줍니다.') + ' 표기가 없는 제품도 함께 봅니다.'

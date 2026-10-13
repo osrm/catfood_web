@@ -13,7 +13,7 @@ import {
   type CatalogProduct,
   type ProductVariant,
 } from './api'
-import { lookupCatalog, toggleValue, type SearchState } from './search'
+import { lookupCatalog, toggleValue, type SwitchSearchState as SearchState } from './search'
 import {
   createInitialSwitchSession,
   switchSelectionKey,

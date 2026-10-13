@@ -43,7 +43,7 @@ General mobile nutrition uses 17px values and 44px actions. Long full names rema
 
 ## EXPLORE condition hierarchy — 2026-10-13
 
-The editor exposes food form, target age and ingredient exclusions immediately. Single-choice form/age and multiple-choice ingredients are labelled beside each group; all are optional. The zero-selected counter is omitted. Product label targets, features and recipes share one disclosure with concrete examples and a selected summary when collapsed. Ingredient choices do not belong to its count or open state, and selecting them does not open it. Expanded refinements describe their existing ordering effect, not a strict match or suitability guarantee.
+The editor exposes food form, target age and ingredient exclusions immediately. Form, age and ingredient exclusions support multiple selection and are labelled beside each group; all are optional. The zero-selected counter is omitted. Product label targets, features and recipes share one disclosure with concrete examples and a selected summary when collapsed. Ingredient choices do not belong to its count or open state, and selecting them does not open it. Expanded refinements describe their existing ordering effect, not a strict match or suitability guarantee.
 
 Heading, spacing and a few group separators replace the repeated basic/additional dividers. Existing evaluator, draft/apply/reset, history, unknown retention, ingredient review distinction and search requests remain unchanged. This is a reversible hierarchy refinement checked in rendered flows, not human usability validation.
 
@@ -58,3 +58,9 @@ SWITCH mobile nutrition shares the general nutrition table composition: photogra
 SWITCH candidate search exposes one explicit `검색 지우기` action for both matching and empty results. A text input with searchbox semantics and a search enter-key hint avoids an additional browser-native cancel action; clearing still preserves current product/package/conditions/basket and returns focus to the search input. The zero-result message points to editing or clearing the query without adding a second clear button.
 
 Wide (1100px+) uninspected LOOKUP results place the existing product-view cue beside the full identity instead of on an extra row. Full names, form/age, selling packages, package images and the separate comparison control remain. Mobile, intermediate widths, EXPLORE and inspector layouts retain their current composition.
+
+## EXPLORE multiple basic choices — 2026-10-13
+
+General EXPLORE form and labelled age are arrays: alternatives within each axis use OR; form and age axes combine with AND. Unknown product facts remain unknown and stay in results under the existing policy. An observed match contributes once per axis, not once for every selected alternative. Summaries say `또는`, comparison relations compare against the whole selected set, and each selected choice counts toward the draft count. Reclicking deselects only that choice. Checkbox cues and `여러 개 선택 가능` apply to both groups.
+
+CSV feed/age URLs accept old single-value links, deduplicate and filter invalid values. Applied criteria, LOOKUP transfer, history, detail/compare return and reload retain both arrays. Reordering the same selection is not an actual condition change; real applied changes preserve the existing basket reset boundary. SWITCH uses its existing scalar criteria type and session serialization. Energy refinement remains available only with exactly one selected form plus weight-management feature, so wet/dry forms are not silently treated as one comparable energy context.

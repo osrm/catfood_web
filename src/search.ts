@@ -1,14 +1,20 @@
 import type { CatalogProduct } from './api'
 
 export interface SearchState {
-  feedType: string
-  lifeStage: string
+  feedType: string[]
+  lifeStage: string[]
   officialTargets: string[]
   features: string[]
   recipeFamilies: string[]
   grainFree: boolean
   // General exploration only; older state and SWITCH criteria can omit it.
   ingredientAvoidTerms?: string[]
+}
+
+// SWITCH chooses one replacement/retained value per basic axis.
+export type SwitchSearchState = Omit<SearchState, 'feedType' | 'lifeStage'> & {
+  feedType: string
+  lifeStage: string
 }
 
 export interface RefineState {
@@ -27,8 +33,8 @@ export interface CandidateEvaluation {
 }
 
 export const INITIAL_SEARCH: SearchState = {
-  feedType: '',
-  lifeStage: '',
+  feedType: [],
+  lifeStage: [],
   officialTargets: [],
   features: [],
   recipeFamilies: [],
@@ -235,23 +241,23 @@ export function evaluateComparisonCriteria(
   const unknowns: string[] = []
   const differences: ComparisonCriteriaDifference[] = []
 
-  if (search.feedType) {
+  if (search.feedType.length) {
     if (!product.feed_type) {
       unknowns.push('사료 형태')
-    } else if (product.feed_type === search.feedType) {
-      confirmedMatches.push(`형태:${search.feedType}`)
+    } else if (search.feedType.includes(product.feed_type)) {
+      confirmedMatches.push(`형태:${product.feed_type}`)
     } else {
-      differences.push({ kind: 'feedType', selectedValues: [search.feedType], productValues: [product.feed_type] })
+      differences.push({ kind: 'feedType', selectedValues: search.feedType, productValues: [product.feed_type] })
     }
   }
 
-  if (search.lifeStage) {
+  if (search.lifeStage.length) {
     if (!product.life_stage) {
       unknowns.push('제품 표기 생애주기')
-    } else if (product.life_stage === search.lifeStage) {
-      confirmedMatches.push(`생애주기:${search.lifeStage}`)
+    } else if (search.lifeStage.includes(product.life_stage)) {
+      confirmedMatches.push(`생애주기:${product.life_stage}`)
     } else {
-      differences.push({ kind: 'lifeStage', selectedValues: [search.lifeStage], productValues: [product.life_stage] })
+      differences.push({ kind: 'lifeStage', selectedValues: search.lifeStage, productValues: [product.life_stage] })
     }
   }
 
@@ -322,21 +328,21 @@ export function evaluateCatalog(
     const unknowns: string[] = []
     let hasHardConflict = false
 
-    if (search.feedType) {
+    if (search.feedType.length) {
       if (!product.feed_type) {
         unknowns.push('사료 형태')
-      } else if (product.feed_type === search.feedType) {
-        confirmedMatches.push(`형태:${search.feedType}`)
+      } else if (search.feedType.includes(product.feed_type)) {
+        confirmedMatches.push(`형태:${product.feed_type}`)
       } else {
         hasHardConflict = true
       }
     }
 
-    if (search.lifeStage) {
+    if (search.lifeStage.length) {
       if (!product.life_stage) {
         unknowns.push('제품 표기 생애주기')
-      } else if (product.life_stage === search.lifeStage) {
-        confirmedMatches.push(`생애주기:${search.lifeStage}`)
+      } else if (search.lifeStage.includes(product.life_stage)) {
+        confirmedMatches.push(`생애주기:${product.life_stage}`)
       } else {
         hasHardConflict = true
       }
@@ -407,8 +413,8 @@ export function evaluateCatalog(
 
 export function countActiveConditions(search: SearchState, refine: RefineState = INITIAL_REFINE): number {
   return (
-    Number(Boolean(search.feedType)) +
-    Number(Boolean(search.lifeStage)) +
+    search.feedType.length +
+    search.lifeStage.length +
     search.officialTargets.length +
     search.features.length +
     search.recipeFamilies.length +

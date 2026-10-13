@@ -3164,3 +3164,9 @@ summary:focus-visible,
     align-self: center;
   }
 }
+
+.switch-candidate-list .switch-state-message {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}

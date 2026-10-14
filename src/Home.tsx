@@ -31,30 +31,10 @@ const DEMO_RECALLS: DemoRecall[] = [
 ]
 
 const GUIDES = [
-  {
-    number: '01',
-    title: '제품 · 배합 · 규격은 왜 나눠 보나요?',
-    text: '규격은 용량과 포장 단위입니다. 실제 레시피 차이가 확인될 때만 배합을 따로 구분합니다.',
-    tag: 'Catfood 사용법',
-  },
-  {
-    number: '02',
-    title: '‘미확인’은 ‘없음’과 어떻게 다른가요?',
-    text: '‘미확인’과 ‘없음’은 다르게 표시합니다. 뜻은 아래 용어집에서 확인할 수 있습니다.',
-    tag: '데이터 읽기',
-  },
-  {
-    number: '03',
-    title: '원재료 포함 여부는 어떻게 읽나요?',
-    text: '확인됨, 검토한 자료에서 찾지 못함, 판단할 근거가 부족함을 구분해 표시합니다.',
-    tag: '원재료',
-  },
-  {
-    number: '04',
-    title: '건식과 습식 영양 정보는 어떻게 비교하나요?',
-    text: '수분 함량과 표시 방식이 달라 숫자 하나만으로 단순 비교하지 않습니다.',
-    tag: '영양 정보',
-  },
+  { number: '01', tag: '열량', title: '열량 단위가 다르면?', example: '3,480 kcal/kg = 348 kcal/100g', text: 'kcal/kg는 1kg, kcal/100g는 100g에 들어 있는 열량입니다. kg 기준 값을 10으로 나누면 100g 기준이 됩니다. 표시 단위를 맞춘 환산이며, 더 높은 값이 더 좋은 사료라는 뜻은 아닙니다.' },
+  { number: '02', tag: '영양 표기', title: '‘이상’과 ‘이하’는 어떻게 읽나요?', example: '조단백질 30% 이상 ≠ 정확히 30%', text: '‘이상’은 최소값, ‘이하’는 최대값으로 읽습니다. 실제 함량이나 평균값으로 단정할 수 없으므로 숫자와 함께 붙은 표현도 확인하세요.' },
+  { number: '03', tag: '원재료', title: '오리 레시피면 오리만 들어 있나요?', example: '레시피 이름 ≠ 전체 원재료', text: '레시피 이름과 실제 원재료 목록은 다릅니다. 피하고 싶은 원료가 있다면 이름만으로 판단하지 말고 원재료 목록을 확인하세요. 자료에서 찾지 못했다는 것도 실제로 없다는 보장은 아닙니다.' },
+  { number: '04', tag: '확인 상태', title: '‘미확인’이라고 나오면?', example: '미확인 ≠ 없음', text: '현재 자료로 판단할 수 없다는 뜻입니다. 성분이 없거나 제품이 조건에 맞지 않는다고 단정하지 않습니다. 원문과 확인된 범위는 제품 상세에서 살펴볼 수 있습니다.' },
 ]
 
 const GLOSSARY = [
@@ -84,24 +64,14 @@ const GLOSSARY = [
   },
 ]
 
-function getHomeExampleFacts(product: CatalogProduct) {
-  const labels: Record<string, string> = {kitten: '키튼', adult: '성묘', senior: '시니어', all_life_stages: '전연령', gestation_lactation_and_kitten: '임신·수유·키튼'}
-  return {
-    meta: [product.feed_type ?? '형태 미확인', product.life_stage ? labels[product.life_stage] ?? product.life_stage : '연령 미확인'].join(' · '),
-    packageText: product.representative_package_size_text ? `판매 대표 규격 · ${product.representative_package_size_text}` : null,
-  }
-}
-
 export default function Home({
   productCount,
-  products = [],
   loading,
   error,
   onRetryCatalog,
   onStart,
   switchProgress,
   onRestartSwitch,
-  onOpenProduct,
 }: {
   productCount: number
   products?: CatalogProduct[]
@@ -111,7 +81,6 @@ export default function Home({
   onStart: (mode: HomeMode, query?: string) => void
   switchProgress?: string | null
   onRestartSwitch?: () => void
-  onOpenProduct: (product: CatalogProduct) => void
 }) {
   const [query, setQuery] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
@@ -120,7 +89,7 @@ export default function Home({
   const trimmedQuery = query.trim()
   const catalogCount = productCount ? productCount.toLocaleString('ko-KR') : '—'
   const demo = isDemoPreview()
-  const examples = products.filter((product, index, all) => product.display_image_url && all.findIndex((other) => other.display_image_url && other.brand === product.brand) === index).slice(0, 2)
+
 
   function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -160,35 +129,49 @@ export default function Home({
       <main className="home-main home-knowledge-main">
         <section className="home-start">
           <div className="home-start-copy">
-            <h1>눈여겨본 사료를<br />나란히 놓고 보세요.</h1>
+            <h1>어떤 사료를 찾으세요?</h1>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
-            <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
-              <h2 id="home-lookup-title" className="visually-hidden">브랜드·제품명 검색</h2>
-              <form className="home-entry-search" onSubmit={submitLookup}>
-                <label className="home-entry-search-field"><span className="home-entry-search-icon" aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="브랜드 또는 제품명" aria-label="브랜드 또는 제품명 검색" /></label>
-                <button className="home-entry-search-submit" type="submit" disabled={!trimmedQuery}>검색</button>
-              </form>
-              <div className="home-brand-shortcuts"><span>브랜드로 찾기</span>{['AATU', 'GO! SOLUTIONS', '로얄캐닌'].map((brand) => <button className="home-brand-shortcut" type="button" key={brand} onClick={() => onStart('lookup', brand)}>{brand}</button>)}</div>
-            </section>
           </div>
-          <section className="home-entry-board" aria-label="CATFOOD 시작 방법"><div className="home-entry-routes">
-            <article className="home-entry-route"><div><h2>새 사료를 찾는다면</h2><p>사료 형태·연령과 원하는 조건으로.</p></div><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></article>
-            <article className="home-entry-route"><div><h2>먹이는 사료를 바꾸려면</h2><p>{switchProgress ? <>이어서 찾기 · {switchProgress}</> : '유지할 점과 바꿀 점을 기준으로.'}</p></div>{switchProgress ? <div className="home-switch-actions"><button type="button" onClick={() => onStart('switch')}>이어서 찾기 →</button><button type="button" onClick={onRestartSwitch}>새로 찾기</button></div> : <button type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button>}</article>
-          </div></section>
-          {examples.length > 0 ? <section className="home-product-example" aria-label="제품 정보 예시">
-            <div className="home-example-products">{examples.map((product) => {
-              const facts = getHomeExampleFacts(product)
-              return <article className="home-example-card" key={product.product_id}>
-                <div className="home-example-topline"><span>제품 둘러보기</span><small>{facts.meta}</small></div>
-                <button className="home-example-photo" type="button" onClick={() => onOpenProduct(product)} aria-label={product.brand + ' ' + product.canonical_name + ' 상세 보기'}>
-                  <img src={product.display_image_url!} alt="" />
-                </button>
-                <div className="home-example-identity"><span className="home-example-brand">{product.brand}</span><h2>{product.canonical_name}</h2>{facts.packageText ? <p>{facts.packageText}</p> : null}</div>
-                <div className="home-example-actions"><button type="button" onClick={() => onOpenProduct(product)}>상세 보기 →</button><button type="button" onClick={() => onStart('lookup', product.brand)}>{product.brand} 더 보기</button></div>
-              </article>
-            })}</div>
-          </section> : null}
-          <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button></section>
+          <section className="home-entry-board" aria-label="현재 사료에서 다음 후보 찾기">
+            <article className="home-entry-route">
+              <span className="home-route-kicker">현재 사료에서 시작하기</span>
+              <h2>먹이는 사료를 바꾸고 싶다면</h2>
+              <p>유지할 점과 바꿀 점을 정하고,<br className="home-route-break" /> 다음 후보를 찾아보세요.</p>
+              <ol className="home-switch-steps" aria-label="후보를 찾는 순서"><li>먹이는 사료</li><li>바꿀 점과 유지할 점</li><li>다음 후보</li></ol>
+              {switchProgress ? <div className="home-switch-resume"><p className="home-switch-progress">{switchProgress}</p><div className="home-switch-actions"><button type="button" onClick={() => onStart('switch')}>이어서 찾기 →</button><button type="button" onClick={onRestartSwitch}>새로 찾기</button></div></div> : <button className="home-switch-start" type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button>}
+            </article>
+          </section>
+          <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
+            <h2 id="home-lookup-title">제품 정보부터 보고 싶다면</h2>
+            <form className="home-entry-search" onSubmit={submitLookup}>
+              <label className="home-entry-search-field"><span className="home-entry-search-icon" aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="브랜드 또는 제품명" aria-label="브랜드 또는 제품명 검색" /></label>
+              <button className="home-entry-search-submit" type="submit" disabled={!trimmedQuery}>검색</button>
+            </form>
+            <div className="home-brand-shortcuts"><span>브랜드로 찾기</span>{['AATU', 'GO! SOLUTIONS', '로얄캐닌'].map((brand) => <button className="home-brand-shortcut" type="button" key={brand} onClick={() => onStart('lookup', brand)}>{brand}</button>)}</div>
+            <div className="home-explore-route"><p>제품을 정하지 않았다면<br />사료 형태·연령·원료 조건으로 찾아보세요.</p><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></div>
+          </section>
+        </section>
+
+        <section className="home-section home-guides" aria-labelledby="home-guides-title">
+          <div className="home-section-heading"><h2 id="home-guides-title">사료 정보를 읽는 법</h2><p>숫자와 이름에서 놓치기 쉬운 것들.</p></div>
+          <div className="home-guide-grid">
+            {GUIDES.map((guide) => <details className="home-guide" key={guide.number}>
+              <summary><span className="home-guide-top"><small>{guide.tag}</small><b aria-hidden="true">+</b></span><h3>{guide.title}</h3><span className="home-guide-example">{guide.example}</span></summary>
+              <p>{guide.text}</p>
+            </details>)}
+          </div>
+        </section>
+
+        <section className="home-section home-official-safety" aria-labelledby="home-official-safety-title">
+          <div className="home-section-heading"><h2 id="home-official-safety-title">리콜·안전 공지 확인</h2><p>공식 기관 원문</p></div>
+          <div className="home-official-safety-body">
+            <div><p>공지의 제품명뿐 아니라<br />포장에 적힌 생산번호와 기한도 함께 확인하세요.</p><details className="home-safety-help"><summary>내 사료와 같은 생산분인지 확인하려면</summary><p>포장에 적힌 LOT(생산번호), 소비기한과 용량을 공지의 대상과 대조하세요. 해외 공지가 한국에서 판매되는 제품에도 적용되는지는 별도로 확인해야 합니다.</p></details></div>
+            <nav className="home-official-links" aria-label="공식 리콜 및 안전 공지 출처">
+              <a href="https://www.fda.gov/animal-veterinary/safety-health/recalls-withdrawals" target="_blank" rel="noopener noreferrer"><span>미국 FDA<small>미국 · 동물용 제품 리콜 목록</small></span><span aria-hidden="true">↗</span><span className="visually-hidden">새 탭에서 열기</span></a>
+              <a href="https://www.mafra.go.kr/home/5108/subview.do" target="_blank" rel="noopener noreferrer"><span>농림축산식품부<small>한국 · 공지·공고</small></span><span aria-hidden="true">↗</span><span className="visually-hidden">새 탭에서 열기</span></a>
+            </nav>
+          </div>
+          <p className="home-safety-scope">외부 공식 사이트로 이동합니다. 이 화면은 리콜 목록을 자동 수집하거나 내 제품의 해당 여부를 판정하지 않습니다.</p>
         </section>
 
         {demo ? (
@@ -214,6 +197,8 @@ export default function Home({
           </section>
         ) : null}
 
+        <section className="home-reading-note" aria-label="정보 안내"><button ref={infoTriggerRef} type="button" aria-expanded={infoOpen} aria-controls="home-info-panel" onClick={showReadingGuide}>정보 안내 →</button><p>용어와 정보 표시 원칙</p></section>
+
         <section id="home-info-panel" className="home-info-panel" aria-labelledby="home-info-title" hidden={!infoOpen}>
           <div className="home-section-heading home-info-heading">
             <div>
@@ -222,26 +207,6 @@ export default function Home({
             </div>
             <button className="home-info-close" type="button" onClick={closeReadingGuide}>정보 안내 닫기</button>
           </div>
-
-          <section className="home-section home-guides" aria-labelledby="home-guides-title">
-            <div className="home-section-heading">
-              <div>
-                <span>읽는 법</span>
-                <h2 id="home-guides-title">비교할 때 알아두면 좋은 4가지</h2>
-              </div>
-              <p>제품 정보를 읽을 때 헷갈리기 쉬운 기준만 짧게 정리했습니다.</p>
-            </div>
-
-            <div className="home-guide-grid">
-              {GUIDES.map((guide) => (
-                <article className="home-guide" key={guide.number}>
-                  <div className="home-guide-top"><span>{guide.number}</span><small>{guide.tag}</small></div>
-                  <h3>{guide.title}</h3>
-                  <p>{guide.text}</p>
-                </article>
-              ))}
-            </div>
-          </section>
 
           <section className="home-section home-glossary" aria-labelledby="home-glossary-title">
             <div className="home-section-heading">

@@ -50,7 +50,7 @@ DECIDE
 최종 판단은 사용자가 한다
 ```
 
-현재 제품이 있는 switching에서는 현재 제품을 기준점으로 두고 `CHANGE / KEEP -> DIFFERENCES` 흐름을 추가할 수 있다.
+현재 사료를 기준으로 무엇을 바꾸고 유지할지 정하는 SWITCH가 핵심 의사결정 흐름이다. 비교는 후보의 변화와 유지 여부를 검토하는 수단이다. EXPLORE와 LOOKUP도 독립 진입으로 유지한다.
 
 ## Information layers
 
@@ -91,7 +91,7 @@ DECIDE
 
 ### Home — orientation before density
 
-Home은 긴 마케팅 landing page나 데이터 dashboard가 아니다.
+Home은 현재 사료에서 다음 후보를 찾는 출발점이다. 메인 문구는 `어떤 사료를 찾으세요?`로 유지한다. 현재 사료 진입을 우선하고 제품 직접 검색·조건 탐색도 바로 접근할 수 있게 한다. 데이터 읽기 주제는 발견하기 쉬운 기본 콘텐츠로 두며, 리콜·안전 정보는 실제 제공 범위와 공식 원문 접근을 구분한다. 긴 마케팅 landing page나 데이터 dashboard로 만들지 않는다.
 
 가져올 점:
 - 브랜드/제품 직접 검색과 탐색 시작이 즉시 보여야 한다.

@@ -7,13 +7,14 @@ The current palette and composition describe the shipped implementation, not per
 
 ## Stylesheet ownership
 
-main.tsx imports the structural screen stylesheets, catalog-design-refresh.css, and the narrowly scoped nutrition-reading-clarity.css. The existing structural sheets retain responsive and interaction rules. catalog-design-refresh.css owns shared visual treatment and its --atlas-* roles; nutrition-reading-clarity.css only owns the nutrition evidence disclosure and sticky product-identity behavior introduced by the reading-clarity change. Shared structural controls continue to use --cf-*.
+main.tsx imports the structural screen stylesheets, catalog-design-refresh.css, the narrowly scoped nutrition-reading-clarity.css, and product-discovery.css. The existing structural sheets retain responsive and interaction rules. catalog-design-refresh.css owns shared visual treatment and its --atlas-* roles; nutrition-reading-clarity.css only owns the nutrition evidence disclosure and sticky product-identity behavior introduced by the reading-clarity change. product-discovery.css owns only the revised HOME hierarchy, reading disclosures and official-source directory. It does not restyle results, detail, comparison or SWITCH. Shared structural controls continue to use --cf-*.
 
 Edit current owner rules rather than creating a separate theme per screen. Check computed styles where existing selectors overlap; a source declaration alone does not establish the rendered result.
 
 ## Reading and interaction
 
-HOME begins with a wide search area, followed by two subordinate entry paths and actual catalog examples with white photograph surfaces. Title, package photography and full product names form the visual hierarchy. Package images identify products alongside full names, form/age and representative selling-package facts. Examples come from the loaded public catalog and are not recommendations. Existing empty/error/loading states, search handlers and reading-guide focus behavior remain.
+HOME retains the exact title `어떤 사료를 찾으세요?`. Current-food switching is the primary task: identify the food, choose what to change and keep, then inspect candidates. Existing resume and new-start controls keep their separate state behavior. Brand/product search and condition exploration remain independent secondary entrances. Arbitrary catalog package examples no longer lead the page. Four reading topics are visible on HOME with native details/summary explanations; the optional information panel retains glossary/principles and its focus-return behavior.
+The safety area is an explicitly labelled external-source directory, not a live recall feed or a product-specific risk verdict. US FDA animal/veterinary recalls and Korean MAFRA general announcements are labelled with their different scopes. No fictitious event or "no recalls" claim is published. Demo-only fictitious records remain development fixtures.
 
 Product identity precedes actions and facts. Detail comparison actions use the existing handlers and five-product cap. Returning from detail preserves basket changes. SWITCH keeps its own current product, selected package and candidate basket. Candidate photos align with the full product name; the basket uses a compact white surface and primary action rather than a large dark overlay. Desktop basket content shares one row; mobile retains selected-name context below the count/action and reserves matching bottom clearance.
 
@@ -67,3 +68,10 @@ Wide (1100px+) uninspected LOOKUP results place the existing product-view cue be
 General EXPLORE form and labelled age are arrays: alternatives within each axis use OR; form and age axes combine with AND. Unknown product facts remain unknown and stay in results under the existing policy. An observed match contributes once per axis, not once for every selected alternative. Summaries say `또는`, comparison relations compare against the whole selected set, and each selected choice counts toward the draft count. Reclicking deselects only that choice. Checkbox cues and `여러 개 선택 가능` apply to both groups.
 
 CSV feed/age URLs accept old single-value links, deduplicate and filter invalid values. Applied criteria, LOOKUP transfer, history, detail/compare return and reload retain both arrays. Reordering the same selection is not an actual condition change; real applied changes preserve the existing basket reset boundary. SWITCH uses its existing scalar criteria type and session serialization. Energy refinement remains available only with exactly one selected form plus weight-management feature, so wet/dry forms are not silently treated as one comparable energy context.
+
+
+## HOME direction correction — 2026-10-13
+The earlier general-comparison hero and product-gallery candidate were held after product-direction review. Comparison supports current-food switching; it is not the HOME promise. A new native Stitch screen informed the primary/secondary entry layout and accordion reading hierarchy. Its invented comparison tray, unverified feeding/legal copy and placeholder links were excluded. This candidate reuses the service typography and action roles. Visual judgment remains separate from browser checks and human validation.
+Official links verified on 2026-10-13:
+- https://www.fda.gov/animal-veterinary/safety-health/recalls-withdrawals
+- https://www.mafra.go.kr/home/5108/subview.do

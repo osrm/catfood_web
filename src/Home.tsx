@@ -32,7 +32,6 @@ const DEMO_RECALLS: DemoRecall[] = [
 
 const GUIDES = [
   { number: '01', tag: '열량', title: '열량 단위가 다르면?', example: '3,480 kcal/kg = 348 kcal/100g', text: 'kcal/kg는 1kg, kcal/100g는 100g에 들어 있는 열량입니다. kg 기준 값을 10으로 나누면 100g 기준이 됩니다. 표시 단위를 맞춘 환산이며, 더 높은 값이 더 좋은 사료라는 뜻은 아닙니다.' },
-  { number: '02', tag: '영양 표기', title: '‘이상’과 ‘이하’는 어떻게 읽나요?', example: '조단백질 30% 이상 ≠ 정확히 30%', text: '‘이상’은 최소값, ‘이하’는 최대값으로 읽습니다. 실제 함량이나 평균값으로 단정할 수 없으므로 숫자와 함께 붙은 표현도 확인하세요.' },
   { number: '03', tag: '원재료', title: '오리 레시피면 오리만 들어 있나요?', example: '레시피 이름 ≠ 전체 원재료', text: '레시피 이름과 실제 원재료 목록은 다릅니다. 피하고 싶은 원료가 있다면 이름만으로 판단하지 말고 원재료 목록을 확인하세요. 자료에서 찾지 못했다는 것도 실제로 없다는 보장은 아닙니다.' },
   { number: '04', tag: '확인 상태', title: '‘미확인’이라고 나오면?', example: '미확인 ≠ 없음', text: '현재 자료로 판단할 수 없다는 뜻입니다. 성분이 없거나 제품이 조건에 맞지 않는다고 단정하지 않습니다. 원문과 확인된 범위는 제품 상세에서 살펴볼 수 있습니다.' },
 ]
@@ -90,7 +89,6 @@ export default function Home({
   const catalogCount = productCount ? productCount.toLocaleString('ko-KR') : '—'
   const demo = isDemoPreview()
 
-
   function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!trimmedQuery) return
@@ -134,10 +132,8 @@ export default function Home({
           </div>
           <section className="home-entry-board" aria-label="현재 사료에서 다음 후보 찾기">
             <article className="home-entry-route">
-              <span className="home-route-kicker">현재 사료에서 시작하기</span>
               <h2>먹이는 사료를 바꾸고 싶다면</h2>
-              <p>유지할 점과 바꿀 점을 정하고,<br className="home-route-break" /> 다음 후보를 찾아보세요.</p>
-              <ol className="home-switch-steps" aria-label="후보를 찾는 순서"><li>먹이는 사료</li><li>바꿀 점과 유지할 점</li><li>다음 후보</li></ol>
+              <p>지금 사료에서 유지할 점과 바꿀 점을 정해보세요.</p>
               {switchProgress ? <div className="home-switch-resume"><p className="home-switch-progress">{switchProgress}</p><div className="home-switch-actions"><button type="button" onClick={() => onStart('switch')}>이어서 찾기 →</button><button type="button" onClick={onRestartSwitch}>새로 찾기</button></div></div> : <button className="home-switch-start" type="button" onClick={() => onStart('switch')}>먹이는 사료 찾기 →</button>}
             </article>
           </section>
@@ -154,6 +150,24 @@ export default function Home({
 
         <section className="home-section home-guides" aria-labelledby="home-guides-title">
           <div className="home-section-heading"><h2 id="home-guides-title">사료 정보를 읽는 법</h2><p>숫자와 이름에서 놓치기 쉬운 것들.</p></div>
+          <figure className="home-label-reader" aria-labelledby="home-label-caption">
+            <figcaption id="home-label-caption">
+              <span>성분표 읽기 예시</span>
+              <h3>‘30% 이상’은<br /> 정확히 30%일까요?</h3>
+              <p>숫자 옆의 ‘이상’과 ‘이하’도<br /> 함께 읽어야 합니다.</p>
+            </figcaption>
+            <div className="home-label-sheet">
+              <table>
+                <caption className="visually-hidden">성분표의 최소·최대 표기를 읽는 방법</caption>
+                <thead><tr><th scope="col">표기 예시</th><th scope="col">이렇게 읽습니다</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row"><span className="home-label-nutrient">조단백질</span><span className="home-label-value">30% <mark>이상</mark></span></th><td><strong>최소 30%</strong><p>실제 함량이 정확히 30%라는 뜻은 아닙니다.</p></td></tr>
+                  <tr><th scope="row"><span className="home-label-nutrient">조섬유</span><span className="home-label-value">4% <mark>이하</mark></span></th><td><strong>최대 4%</strong><p>실제 함량은 표시된 최대값보다 적을 수 있습니다.</p></td></tr>
+                </tbody>
+              </table>
+              <p className="home-label-scope">설명을 위한 예시이며, 특정 제품의 성분표가 아닙니다.</p>
+            </div>
+          </figure>
           <div className="home-guide-grid">
             {GUIDES.map((guide) => <details className="home-guide" key={guide.number}>
               <summary><span className="home-guide-top"><small>{guide.tag}</small><b aria-hidden="true">+</b></span><h3>{guide.title}</h3><span className="home-guide-example">{guide.example}</span></summary>

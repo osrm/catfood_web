@@ -5,15 +5,11 @@
 .discovery-home .home-start-copy { grid-area:title; display:block; padding:0; background:transparent; }
 .discovery-home .home-start-copy h1 { margin:0; max-width:none; font-family:var(--cf-font); font-size:clamp(32px,3.5vw,44px); font-weight:650; line-height:1.35; letter-spacing:-.04em; }
 .discovery-home .home-entry-board { grid-area:current; margin:0; border:0; background:#f2f5f3; padding:28px 30px; }
-.discovery-home .home-entry-route { display:block; padding:0; min-height:0; }
-.discovery-home .home-route-kicker { display:block; margin-bottom:12px; color:var(--atlas-muted); font-size:13px; font-weight:500; }
+.discovery-home .home-entry-route { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:0; border:0; padding:0; min-height:0; }
 .discovery-home .home-entry-route h2 { margin:0 0 12px; font-size:25px; font-weight:650; line-height:1.5; letter-spacing:-.035em; }
-.discovery-home .home-entry-route > p { margin:0; font-size:15px; line-height:1.8; color:var(--atlas-muted); }
-.discovery-home .home-switch-steps { display:flex; flex-wrap:wrap; gap:6px 16px; list-style:none; margin:24px 0; padding:0; counter-reset:step; }
-.discovery-home .home-switch-steps li { display:flex; align-items:center; gap:6px; font-size:13px; line-height:1.6; }
-.discovery-home .home-switch-steps li::before { counter-increment:step; content:counter(step,decimal-leading-zero); color:var(--atlas-muted); font-variant-numeric:tabular-nums; font-size:11px; }
+.discovery-home .home-entry-route > p { margin:0 0 24px; font-size:15px; line-height:1.8; color:var(--atlas-muted); }
 .discovery-home .home-entry-route > button,
-.discovery-home .home-switch-actions button:first-child { min-height:48px; padding:12px 20px; border:1px solid var(--atlas-primary); background:var(--atlas-primary); color:white; font-size:14px; font-weight:650; text-align:center; border-radius:3px; }
+.discovery-home .home-switch-actions button:first-child { align-self:flex-start; min-height:48px; padding:12px 20px; border:1px solid var(--atlas-primary); background:var(--atlas-primary); color:white; font-size:14px; font-weight:650; text-align:center; border-radius:3px; }
 .discovery-home .home-switch-progress { margin:0 0 12px; font-size:14px; line-height:1.65; overflow-wrap:anywhere; }
 .discovery-home .home-switch-actions { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
 .discovery-home .home-switch-actions button { min-height:48px; padding:10px 12px; font-size:14px; }
@@ -34,6 +30,23 @@
 .discovery-home .home-section-heading { margin:0 0 16px; padding:0; border:0; display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px 20px; }
 .discovery-home .home-section-heading h2 { margin:0; font-size:23px; font-weight:650; letter-spacing:-.025em; line-height:1.5; }
 .discovery-home .home-section-heading > p { margin:0; font-size:13px; color:var(--atlas-muted); line-height:1.7; }
+.discovery-home .home-label-reader { display:grid; grid-template-columns:minmax(220px,.8fr) minmax(0,1.5fr); gap:40px; margin:22px 0 28px; padding:28px 0; border-top:2px solid var(--atlas-ink); }
+.discovery-home .home-label-reader figcaption > span { display:block; margin-bottom:14px; color:var(--atlas-muted); font-size:12px; }
+.discovery-home .home-label-reader h3 { margin:0 0 16px; font-size:25px; line-height:1.55; font-weight:600; letter-spacing:-.025em; }
+.discovery-home .home-label-reader figcaption p { margin:0; color:var(--atlas-muted); font-size:14px; line-height:1.8; }
+.discovery-home .home-label-sheet { min-width:0; }
+.discovery-home .home-label-sheet table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.discovery-home .home-label-sheet th { text-align:left; }
+.discovery-home .home-label-sheet thead th { padding:0 16px 12px; font-size:12px; color:var(--atlas-muted); font-weight:500; border-bottom:1px solid var(--atlas-line); }
+.discovery-home .home-label-sheet thead th:first-child { width:36%; }
+.discovery-home .home-label-sheet tbody th,
+.discovery-home .home-label-sheet tbody td { padding:20px 16px; vertical-align:middle; border-bottom:1px solid var(--atlas-line); }
+.discovery-home .home-label-nutrient { display:block; margin-bottom:8px; font-size:12px; font-weight:500; color:var(--atlas-muted); }
+.discovery-home .home-label-value { display:block; font-size:25px; line-height:1.5; font-weight:650; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.discovery-home .home-label-value mark { background:transparent; color:inherit; text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:6px; }
+.discovery-home .home-label-sheet td strong { font-size:17px; font-weight:650; line-height:1.7; }
+.discovery-home .home-label-sheet td p { margin:5px 0 0; font-size:14px; line-height:1.8; color:var(--atlas-muted); }
+.discovery-home .home-label-scope { margin:12px 16px 0; font-size:12px; line-height:1.8; color:var(--atlas-muted); }
 .discovery-home .home-guide-grid { display:block; border-top:1px solid var(--atlas-line); border-bottom:0; }
 .discovery-home .home-guide { min-height:0; padding:0; border:0; border-bottom:1px solid var(--atlas-line); }
 .discovery-home .home-guide + .home-guide { border-left:0; }
@@ -68,7 +81,6 @@
 @media(max-width:1000px) {
  .discovery-home .home-start { gap:24px; }
  .discovery-home .home-entry-board { padding:24px; }
- .discovery-home .home-switch-steps { gap:8px 12px; }
  .discovery-home .home-entry-route h2 { font-size:22px; }
  .discovery-home .home-guide summary { grid-template-columns:70px minmax(0,1fr) minmax(180px,.8fr); gap:12px; }
 }
@@ -77,13 +89,8 @@
  .discovery-home .home-start { grid-template-columns:minmax(0,1fr); grid-template-areas:"title" "current" "lookup"; gap:22px; }
  .discovery-home .home-start-copy h1 { font-size:30px; line-height:1.4; }
  .discovery-home .home-entry-board { padding:22px; }
- .discovery-home .home-route-kicker { margin-bottom:8px; font-size:12px; }
  .discovery-home .home-entry-route h2 { font-size:21px; margin-bottom:8px; }
  .discovery-home .home-entry-route > p { font-size:14px; line-height:1.75; }
- .discovery-home .home-route-break { display:none; }
- .discovery-home .home-switch-steps { margin:18px 0; gap:6px 12px; }
- .discovery-home .home-switch-steps li { font-size:12px; }
- .discovery-home .home-switch-steps li::before { font-size:10px; }
  .discovery-home .home-entry-lookup { padding:0; }
  .discovery-home .home-entry-lookup h2 { font-size:17px; margin-bottom:12px; }
  .discovery-home .home-explore-route { margin-top:12px; padding-top:12px; gap:10px; }
@@ -102,4 +109,20 @@
  .discovery-home .home-official-links a { font-size:14px; }
  .discovery-home .home-section-heading { margin-bottom:12px; }
  .discovery-home .home-safety-scope { font-size:12px; }
+}
+
+@media(max-width:760px) {
+ .discovery-home .home-label-reader { grid-template-columns:minmax(0,1fr); gap:20px; padding:22px 0 0; margin:18px 0 24px; }
+ .discovery-home .home-label-reader h3 { font-size:23px; margin-bottom:10px; }
+ .discovery-home .home-label-reader h3 br,
+ .discovery-home .home-label-reader figcaption p br { display:none; }
+ .discovery-home .home-label-reader figcaption > span { margin-bottom:10px; }
+ .discovery-home .home-label-sheet thead th { padding:0 6px 10px; }
+ .discovery-home .home-label-sheet thead th:first-child { width:40%; }
+ .discovery-home .home-label-sheet tbody th,
+ .discovery-home .home-label-sheet tbody td { padding:16px 6px; }
+ .discovery-home .home-label-value { font-size:23px; }
+ .discovery-home .home-label-sheet td strong { font-size:16px; }
+ .discovery-home .home-label-sheet td p { font-size:13px; }
+ .discovery-home .home-label-scope { margin:12px 6px 0; }
 }

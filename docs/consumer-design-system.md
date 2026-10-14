@@ -13,7 +13,7 @@ Edit current owner rules rather than creating a separate theme per screen. Check
 
 ## Reading and interaction
 
-HOME retains the exact title `어떤 사료를 찾으세요?`. Current-food switching is the primary task: identify the food, choose what to change and keep, then inspect candidates. Existing resume and new-start controls keep their separate state behavior. Brand/product search and condition exploration remain independent secondary entrances. Arbitrary catalog package examples no longer lead the page. Four reading topics are visible on HOME with native details/summary explanations; the optional information panel retains glossary/principles and its focus-return behavior.
+HOME retains the exact title `어떤 사료를 찾으세요?`. Current-food switching is the primary task: identify the food, choose what to change and keep, then inspect candidates. Existing resume and new-start controls keep their separate state behavior. Brand/product search and condition exploration remain independent secondary entrances. Arbitrary catalog package examples no longer lead the page. HOME teaches min/max qualifiers through a visible, clearly labelled illustrative nutrition table; three further reading topics use native details/summary explanations; the optional information panel retains glossary/principles and its focus-return behavior.
 The safety area is an explicitly labelled external-source directory, not a live recall feed or a product-specific risk verdict. US FDA animal/veterinary recalls and Korean MAFRA general announcements are labelled with their different scopes. No fictitious event or "no recalls" claim is published. Demo-only fictitious records remain development fixtures.
 
 Product identity precedes actions and facts. Detail comparison actions use the existing handlers and five-product cap. Returning from detail preserves basket changes. SWITCH keeps its own current product, selected package and candidate basket. Candidate photos align with the full product name; the basket uses a compact white surface and primary action rather than a large dark overlay. Desktop basket content shares one row; mobile retains selected-name context below the count/action and reserves matching bottom clearance.
@@ -75,3 +75,7 @@ The earlier general-comparison hero and product-gallery candidate were held afte
 Official links verified on 2026-10-13:
 - https://www.fda.gov/animal-veterinary/safety-health/recalls-withdrawals
 - https://www.mafra.go.kr/home/5108/subview.do
+
+
+## HOME reading example — 2026-10-14
+The primary entry uses one heading, one short explanation and the existing action; the repeated kicker and three-step labels are removed. A semantic example table shows how “30% 이상” and “4% 이하” mean minimum and maximum, with qualifiers underlined instead of judging the values by colour. It is explicitly a teaching example, not a real product panel. No new data request, real-product claim, quality score or measured mean is introduced. Unit conversion, recipe/ingredient and unknown disclosures, official-source links, all entry handlers and resume/restart semantics remain.

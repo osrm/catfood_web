@@ -194,8 +194,9 @@ function ProductImage({ product }: { product: CatalogProduct }) {
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
-export default function ProductDetail({ ingredientLoad, product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false }: {
+export default function ProductDetail({ ingredientLoad, product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false, embedded = false }: {
   ingredientLoad?: CatalogIngredientLoad
+  embedded?: boolean
   product: CatalogProduct
   onClose: () => void
   onHome?: () => void
@@ -356,10 +357,12 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
   const tabId = `detail-tab-${tab}`
 
   return <main className={`detail-stage${switchNavigation ? ' is-switch-detail' : ''}`} ref={stageRef}>
-    <SiteHeader className={`detail-topbar${switchNavigation ? ' switch-detail-header' : ''}`} headerRef={topbarRef} onHome={switchNavigation?.onHome ?? onHome} active={switchNavigation ? 'switch' : undefined} onModeChange={switchNavigation ? (mode) => { if (mode !== 'switch') switchNavigation.onModeChange(mode) } : undefined}>
+    {embedded ? <nav className="detail-topbar detail-return-bar" aria-label="상세 화면 복귀" ref={topbarRef}>
+      <button className="detail-return-action" type="button" onClick={onClose}>{backLabel}</button>
+    </nav> : <SiteHeader className={`detail-topbar${switchNavigation ? ' switch-detail-header' : ''}`} headerRef={topbarRef} onHome={switchNavigation?.onHome ?? onHome} active={switchNavigation ? 'switch' : undefined} onModeChange={switchNavigation ? (mode) => { if (mode !== 'switch') switchNavigation.onModeChange(mode) } : undefined}>
       <button className="detail-return-action" type="button" onClick={onClose}>{backLabel}</button>
       {switchNavigation ? <button className="detail-restart-action" type="button" onClick={switchNavigation.onRestart}>처음부터 시작</button> : null}
-    </SiteHeader>
+    </SiteHeader>}
     <div className="detail-layout">
       <aside className="detail-identity">
         <div className="detail-identity-copy">

@@ -1049,3 +1049,17 @@
 @media(max-width:760px){
  .detail-layout {width:calc(100% - 40px)}.detail-identity {grid-template-columns:84px minmax(0,1fr);gap:22px;padding:26px 0}.detail-product-image,.detail-image-placeholder {width:84px;height:120px}.detail-identity-copy h1 {font-size:25px;line-height:1.5}.detail-identity-copy > span {font-size:11px}.detail-identity-copy p {font-size:12px}.detail-identity-actions {grid-column:1/-1;grid-row:2;justify-self:start}.detail-identity-actions button {font-size:13px}.detail-tabs {top:64px;gap:20px;min-height:52px}.detail-tabs button {font-size:12px;min-height:52px}.detail-body {margin:24px 0 60px}.detail-section {margin-bottom:30px}.detail-section-heading h2 {font-size:18px}.detail-fact-lines .detail-fact {grid-template-columns:110px minmax(0,1fr);gap:16px}.detail-fact span {font-size:12px}.detail-fact strong {font-size:14px}.detail-ingredient-list {columns:1}.detail-disclosure summary {font-size:13px}.detail-section-heading {flex-wrap:wrap;gap:6px}
 }
+
+
+/* A comparison already has the site navigation; its detail only needs a return action. */
+.detail-stage .detail-return-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 56px;
+  min-height: 56px;
+  padding: 6px max(20px, calc((100vw - 1180px) / 2));
+  background: var(--cf-bg);
+}
+.detail-stage .detail-return-bar > button { min-height: 44px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
+.detail-stage:has(.detail-return-bar) .detail-tabs { top: 56px; }

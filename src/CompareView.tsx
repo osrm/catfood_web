@@ -596,7 +596,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     items[1]?.product.product_id ?? null,
   ])
   const detailProductId = controlledDetailProductId === undefined ? localDetailProductId : controlledDetailProductId
-  useCatalogIngredients(ingredientLoad, tab === 'ingredients' || Boolean(detailProductId))
+  useCatalogIngredients(ingredientLoad, tab === 'ingredients' && !detailProductId)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
   const switchCompareHeadingRef = useRef<HTMLHeadingElement | null>(null)
@@ -1038,7 +1038,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const activeIngredientsError = ingredientsErrorKeyRef.current === productKey ? ingredientsError : null
   const activeCurrentNutritionError = currentProduct && currentNutritionErrorProductRef.current === currentProduct.product_id ? currentNutritionError : null
 
-  if (detailItem) return <ProductDetail embedded={!switchDetailNavigation} ingredientLoad={ingredientLoad} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} />
+  if (detailItem) return <ProductDetail embedded={!switchDetailNavigation} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`

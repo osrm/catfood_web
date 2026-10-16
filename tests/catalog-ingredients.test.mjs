@@ -68,7 +68,7 @@ after(async()=>{globalThis.fetch=nativeFetch;dom.window.close();if(temp)await rm
 beforeEach(()=>{
  dom.reconfigure({url:'https://catfood.test/'});sessionStorage.clear();document.getElementById('root').replaceChildren()
  rows=[product('product_0000000000000001','Alpha',{confirmed_present_ingredient_terms:['chicken'],direct_evidence_ingredient_terms:['chicken'],ingredient_term_result_count:2}),product('product_0000000000000002','Beta',{reviewed_not_found_ingredient_terms:['chicken'],ingredient_term_result_count:2})]
- requests=[];factsHandler=async()=>Response.json(rows)
+ requests=[];factsHandler=async(url)=>Response.json(url.searchParams.has('product_id') ? rows.filter(row=>'eq.'+row.product_id===url.searchParams.get('product_id')) : rows)
  globalThis.fetch=window.fetch=async(input,init={})=>{
    const url=new URL(String(input));assert.equal(url.origin,'https://api.test');requests.push({url,signal:init.signal})
    if(url.pathname.endsWith('/effective_product_catalog_summary'))return url.searchParams.get('select').split(',').includes('ingredient_term_result_count')?factsHandler(url,init):Response.json(rows)
@@ -110,13 +110,14 @@ test('ingredient exclusion deep link waits, then excludes confirmed products wit
  const cards=[...document.querySelectorAll('[data-product-id]')];assert.ok(cards.some(x=>x.dataset.productId===rows[1].product_id));assert.ok(!cards.some(x=>x.dataset.productId===rows[0].product_id))
  assert.equal(facts().length,1)
 })
-test('detail summary defers fallback, failure keeps detail and retry loads facts once for later visits',async()=>{
+test('detail summary retries only its product and does not mark catalog-wide facts loaded',async()=>{
  let p=deferred();factsHandler=()=>p.promise
  await mount('?view=workspace&mode=lookup&q=Alpha&detail='+rows[0].product_id)
  assert.match(text(),/Alpha/);assert.match(text(),/원료 확인 정보를 불러오는 중/);assert.doesNotMatch(text(),/직접 확인 원료/)
  await act(async()=>p.resolve(new Response('failure',{status:503})));assert.match(text(),/원료 확인 정보를 불러오지 못했습니다/);assert.match(text(),/Alpha/)
- factsHandler=async()=>Response.json(rows);await click('다시 시도');assert.match(text(),/직접 확인 원료/);assert.match(text(),/닭/);assert.equal(facts().length,2)
- await click('돌아가기');await click('Alpha');await click('상세 보기');assert.equal(facts().length,2)
+ factsHandler=async()=>Response.json([rows[0]]);const beforeRetry=requests.length;await click('다시 시도');assert.match(text(),/직접 확인 원료/);assert.match(text(),/닭/);assert.equal(facts().length,2);assert.equal(requests.length,beforeRetry+1)
+ await click('돌아가기');await click('Alpha');await click('상세 보기');assert.equal(facts().length,3)
+ assert.ok(facts().every(request=>request.url.searchParams.get('product_id')==='eq.'+rows[0].product_id))
 })
 test('aborted catalog generation cannot apply an old ingredient response after unmount',async()=>{
  const p=deferred();factsHandler=()=>p.promise
@@ -153,4 +154,78 @@ test('name lookup carrying applied ingredient conditions stays usable without a 
  await mount('?view=workspace&mode=lookup&q=Alpha&applied=1&avoidIngredients=chicken')
  await click('Alpha');assert.match(text(),/Alpha/);assert.equal(facts().length,0);assert.doesNotMatch(text(),/원료 확인 정보를 불러오는 중/)
  await click('비교에 추가');await click('닫기');await click('비교 보기');assert.equal(facts().length,1)
+})
+
+
+test('product fact API filters exactly one product and rejects incomplete or unrelated results', async () => {
+ const id=rows[0].product_id
+ const loaded=await app.fetchProductIngredientFacts(id)
+ assert.deepEqual(loaded.direct_evidence_ingredient_terms,['chicken'])
+ assert.equal(facts()[0].url.searchParams.get('product_id'),'eq.'+id)
+ assert.equal(facts()[0].url.searchParams.get('limit'),'1')
+ for(const invalid of [[],[rows[1]],[rows[0],rows[0]],[{...rows[0],direct_evidence_ingredient_terms:null}]]){
+  factsHandler=async()=>Response.json(invalid)
+  await assert.rejects(app.fetchProductIngredientFacts(id))
+ }
+ factsHandler=async()=>Response.json([{...rows[0],ingredient_term_result_count:0,confirmed_present_ingredient_terms:[],direct_evidence_ingredient_terms:[]}])
+ assert.equal((await app.fetchProductIngredientFacts(id)).ingredient_term_result_count,0)
+})
+
+test('comparison detail uses one product without starting its hidden ingredients tab global load', async () => {
+ const products=await app.fetchCatalog();let globalRequests=0
+ const props={items:products.map(product=>({product})),initialTab:'ingredients',onClose(){},onRemove(){},ingredientLoad:{status:'idle',onRequest(){globalRequests++},onRetry(){}}}
+ await act(async()=>root.render(createElement(app.CompareView,{...props,detailProductId:rows[0].product_id})))
+ assert.equal(facts().length,1)
+ assert.equal(facts()[0].url.searchParams.get('product_id'),'eq.'+rows[0].product_id)
+ assert.match(text(),/직접 확인 원료/)
+ assert.equal(globalRequests,0)
+ await act(async()=>root.render(createElement(app.CompareView,{...props,detailProductId:null})))
+ assert.equal(globalRequests,1,'the visible comparison ingredients tab still requests complete facts')
+})
+
+test('scoped detail response never substitutes for the complete exclusion read after return', async () => {
+ await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=chicken&detail='+rows[1].product_id)
+ assert.equal(facts().length,1)
+ assert.equal(facts()[0].url.searchParams.get('product_id'),'eq.'+rows[1].product_id)
+ assert.match(text(),/전체 원재료 2개 확인/)
+ await click('돌아가기')
+ assert.equal(facts().length,2)
+ assert.equal(facts()[1].url.searchParams.get('product_id'),null)
+ const cards=[...document.querySelectorAll('[data-product-id]')]
+ assert.ok(cards.some(x=>x.dataset.productId===rows[1].product_id))
+ assert.ok(!cards.some(x=>x.dataset.productId===rows[0].product_id))
+})
+
+test('scoped facts retry deduplicates active clicks and ignores a late previous product response', async () => {
+ const products=await app.fetchCatalog(),first=deferred(),retry=deferred()
+ factsHandler=()=>first.promise
+ await act(async()=>root.render(createElement(app.ProductDetail,{product:products[0],onClose(){}})))
+ assert.equal(facts().length,1)
+ const oldSignal=facts()[0].signal
+ factsHandler=async()=>new Response('failed',{status:503})
+ await act(async()=>root.render(createElement(app.ProductDetail,{product:products[1],onClose(){}})))
+ assert.equal(oldSignal.aborted,true)
+ assert.match(text(),/원료 확인 정보를 불러오지 못했습니다/)
+ factsHandler=()=>retry.promise
+ const button=[...document.querySelectorAll('button')].find(x=>x.textContent==='다시 시도')
+ await act(async()=>{button.click();button.click()})
+ assert.equal(facts().length,3)
+ await settle(first,[rows[0]])
+ assert.doesNotMatch(text(),/직접 확인 원료|전체 원재료 2개 확인/)
+ await settle(retry,[rows[1]])
+ assert.match(text(),/전체 원재료 2개 확인/)
+ assert.doesNotMatch(text(),/직접 확인 원료/)
+})
+
+test('restored SWITCH detail skips global facts and retains current product and comparison session', async () => {
+ const session=app.createInitialSwitchSession('Alpha')
+ session.currentProductId=rows[0].product_id;session.variantSelection={kind:'unknown',variantId:null};session.step='results';session.compareIds=[rows[1].product_id];session.detailProductId=rows[1].product_id
+ app.writeSwitchSession(session,window.sessionStorage)
+ await mount('?view=workspace&mode=switch')
+ assert.equal(facts().length,1)
+ assert.equal(facts()[0].url.searchParams.get('product_id'),'eq.'+rows[1].product_id)
+ const saved=app.readSwitchSession(window.sessionStorage)
+ assert.equal(saved.currentProductId,rows[0].product_id)
+ assert.deepEqual(saved.compareIds,[rows[1].product_id])
+ assert.equal(saved.variantSelection.kind,'unknown')
 })

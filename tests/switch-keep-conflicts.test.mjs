@@ -171,6 +171,10 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
     brand: '다른브랜드', feed_type: '건식', life_stage: 'senior', recipe_families: ['fish'],
     reviewed_not_found_ingredient_terms: ['chicken'],
   })
+  const incomplete = product('product_000000000106', '자료 부족 후보', {
+    brand: '다른브랜드', feed_type: '습식', life_stage: 'senior',
+    insufficient_evidence_ingredient_terms: ['chicken'],
+  })
   const searchRuns = []
   requestHandler = async (url, init) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
@@ -183,7 +187,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   }
 
   await act(async () => root.render(createElement(app.SwitchFlow, {
-    products: [current, matching, sameBrand, ingredientConflict, dryCandidate],
+    products: [current, matching, sameBrand, ingredientConflict, dryCandidate, incomplete],
     loading: false, error: null, initialQuery: '현재 건식',
     onHome() {}, onModeChange() {}, onRetryCatalog() {},
   })))
@@ -198,7 +202,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click(exactButton('현재브랜드 유지'))
   await click(exactButton('건식 유지'))
   await click(exactButton('성묘 유지'))
-  await click(exactButton('가금류'))
+  await click(exactButton('가금류 레시피 유지'))
   await click(exactButton('실내묘'))
   assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true')
 
@@ -212,31 +216,58 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   assert.match(document.querySelector('[role="status"]').textContent, /사료 형태 유지 조건을 해제했습니다/)
   await click(exactButton('시니어'))
   assert.match(document.querySelector('[role="status"]').textContent, /연령 유지 조건을 해제했습니다/)
-  await click(exactButton('생선'))
-  assert.match(document.querySelector('[role="status"]').textContent, /레시피 계열 유지 조건을 해제했습니다/)
+  await click(exactButton('생선 레시피'))
+  assert.match(document.querySelector('[role="status"]').textContent, /다른 레시피를 골라 이전의 레시피 유지 선택을 해제했습니다/)
 
   await click(exactButton('다음 →'))
   assert.equal(exactButton('현재브랜드 유지'), undefined)
   assert.equal(exactButton('건식 유지'), undefined)
   assert.equal(exactButton('성묘 유지'), undefined)
-  assert.equal(exactButton('가금류'), undefined)
+  assert.equal(exactButton('가금류 레시피 유지'), undefined)
   assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must survive')
 
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'switch results')
   const session = document.querySelector('.switch-session-bar').textContent
-  assert.match(session, /바꿀 조건.*다른 브랜드.*습식.*시니어.*생선.*피함 · 닭/s)
-  assert.match(session, /유지할 조건.*실내묘/s)
-  assert.doesNotMatch(session, /유지할 조건.*현재브랜드/s)
-  assert.doesNotMatch(session, /유지할 조건.*건식/s)
-  assert.doesNotMatch(session, /유지할 조건.*성묘/s)
-  assert.doesNotMatch(session, /유지할 조건.*가금류/s)
+  assert.match(session, /바꿀 점.*다른 브랜드.*습식.*시니어.*생선.*피함 · 닭/s)
+  assert.match(session, /유지할 점.*실내묘/s)
+  assert.doesNotMatch(session, /유지할 점.*현재브랜드/s)
+  assert.doesNotMatch(session, /유지할 점.*건식/s)
+  assert.doesNotMatch(session, /유지할 점.*성묘/s)
+  assert.doesNotMatch(session, /유지할 점.*가금류/s)
 
   const candidates = document.querySelector('.switch-candidate-list').textContent
   assert.match(candidates, /전환 습식 생선/)
   assert.doesNotMatch(candidates, /같은 브랜드 습식/)
   assert.doesNotMatch(candidates, /닭 포함 습식/)
   assert.doesNotMatch(candidates, /다른 건식 후보/)
+  const matchedRow = all('.switch-candidate-row').find((row) => row.textContent.includes('전환 습식 생선'))
+  assert.match(matchedRow.querySelector('.is-keep').textContent, /유지할 점.*실내묘 표기/s)
+  assert.match(matchedRow.querySelector('.is-change').textContent, /바꿀 점.*습식.*시니어 표기.*생선 레시피/s)
+  assert.match(matchedRow.querySelector('.is-ingredient-reviewed').textContent, /검토한 자료에서 찾지 못함/)
+  const unknownRow = all('.switch-candidate-row').find((row) => row.textContent.includes('자료 부족 후보'))
+  assert.ok(unknownRow, 'incomplete data remains a candidate')
+  assert.equal(unknownRow.querySelector('.is-keep'), null, 'missing target must not become a confirmed KEEP match')
+  assert.match(unknownRow.querySelector('.is-unknown').textContent, /미확인.*생선 레시피.*실내묘 표기/s)
+  assert.doesNotMatch(unknownRow.querySelector('.is-change').textContent, /생선|실내묘/)
+  assert.match(unknownRow.querySelector('.is-ingredient-unknown').textContent, /판단 근거 부족/)
+  await click(matchedRow)
+  const inspectorRelations = document.querySelector('.switch-inspector-decision').textContent
+  assert.match(inspectorRelations, /유지할 점.*실내묘 표기/s)
+  assert.match(inspectorRelations, /바꿀 점.*시니어 표기.*생선 레시피/s)
+  assert.doesNotMatch(inspectorRelations, /공식 대상 ·|연령 ·|레시피 ·/)
+  await click(document.querySelector('.switch-preview-topline button'))
+  await click(all('.switch-candidate-row').find((row) => row.textContent.includes('자료 부족 후보')))
+  const unknownRelations = document.querySelector('.switch-inspector-decision')
+  const unknownField = [...unknownRelations.querySelectorAll('dt')].find((node) => node.textContent === '미확인').parentElement
+  assert.match(unknownField.textContent, /생선 레시피.*실내묘 표기/s)
+  assert.doesNotMatch(unknownField.textContent, /(?:미확인| · )(?:공식 대상|레시피|연령) ·/)
+  const confirmedFields = [...unknownRelations.querySelectorAll('dt')].filter((node) => node.textContent === '유지할 점' || node.textContent === '바꿀 점').map((node) => node.parentElement.textContent).join(' ')
+  assert.doesNotMatch(confirmedFields, /생선 레시피|실내묘 표기/, 'unknown facts must remain outside confirmed matches in quick view')
+  await click(document.querySelector('.switch-preview-topline button'))
+
+
+
 
   await waitForUi(() => searchRuns.length === 1, 'criteria snapshot')
   const snapshot = searchRuns[0].criteria_snapshot
@@ -254,12 +285,12 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click('다른 브랜드로 보기')
   await click(exactButton('습식'))
   await click(exactButton('시니어'))
-  await click(exactButton('생선'))
+  await click(exactButton('생선 레시피'))
   await click(exactButton('다음 →'))
 
   assert.equal(exactButton('현재브랜드 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('건식 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('성묘 유지').getAttribute('aria-pressed'), 'false')
-  assert.equal(exactButton('가금류').getAttribute('aria-pressed'), 'false')
+  assert.equal(exactButton('가금류 레시피 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must remain selected')
 })

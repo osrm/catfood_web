@@ -1061,5 +1061,5 @@
   padding: 6px max(20px, calc((100vw - 1180px) / 2));
   background: var(--cf-bg);
 }
-.detail-stage .detail-return-bar > button { min-height: 44px; padding: 8px 0; }
+.detail-stage .detail-return-bar > button { min-height: 44px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
 .detail-stage:has(.detail-return-bar) .detail-tabs { top: 56px; }

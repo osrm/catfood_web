@@ -826,4 +826,3 @@ test('detail retry ignores a late previous-product response after product change
   assert.match(document.body.textContent, /188 kcal\/100g/)
   assert.doesNotMatch(document.body.textContent, /999 kcal/)
 })
-

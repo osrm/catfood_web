@@ -31,7 +31,7 @@ async function setup(page){
  const toggle=page.locator('.switch-change-additional-toggle');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click()
  await (await visibleButton(page,'시니어')).click();await page.locator('.switch-step-actions .switch-primary-action').click()
  await page.getByRole('heading',{name:'무엇을 그대로 유지할까요?'}).waitFor()
- await (await visibleButton(page,'건식 유지')).click();await (await visibleButton(page,'생선')).click()
+ await (await visibleButton(page,'건식 유지')).click();await (await visibleButton(page,'생선 레시피 유지')).click()
  await page.locator('.switch-step-actions .switch-primary-action').click();await page.locator('.switch-candidate-row').first().waitFor({state:'visible',timeout:30000})
 }
 async function waitVisibleImages(page){await page.waitForFunction(()=>[...document.querySelectorAll('img')].filter(i=>{const r=i.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth}).every(i=>i.complete&&i.naturalWidth>0),null,{timeout:10000})}
@@ -39,12 +39,12 @@ async function tabUntil(page,predicate,{reverse=false,max=80}={}){for(let i=1;i<
 async function metrics(page){return page.evaluate(()=>{const q=s=>document.querySelector(s),R=e=>{if(!e)return null;const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}},S=e=>{if(!e)return null;const s=getComputedStyle(e);return{fontSize:s.fontSize,lineHeight:s.lineHeight,fontWeight:s.fontWeight,wordBreak:s.wordBreak,overflowWrap:s.overflowWrap,whiteSpace:s.whiteSpace,textOverflow:s.textOverflow}};const rows=[...document.querySelectorAll('.switch-candidate-row')],visible=rows.filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'});return{viewport:{w:innerWidth,h:innerHeight},document:{w:document.documentElement.scrollWidth,h:document.documentElement.scrollHeight},session:R(q('.switch-session-bar')),visibleRowCount:visible.length,firstCandidate:R(visible[0]),firstIdentity:S(visible[0]?.querySelector('.switch-candidate-identity>strong')),firstRelation:S(visible[0]?.querySelector('.switch-relation-line>strong')),selectedIdentity:S(q('.switch-candidate-row.is-selected .switch-candidate-identity>strong')),selectedRelation:S(q('.switch-candidate-row.is-selected .switch-relation-line>strong')),inspector:R(q('.switch-candidate-inspector')),identity:R(q('.switch-inspector-identity')),actions:R(q('.switch-inspector-actions')),actionButtons:[...document.querySelectorAll('.switch-inspector-actions button')].map(R),decision:R(q('.switch-inspector-decision')),facts:R([...document.querySelectorAll('.switch-inspector-section')].at(-1)),inspectorIdentity:S(q('.switch-inspector-identity h1')),inspectorRelation:S(q('.switch-inspector-decision dd'))}})}
 async function exercise(page,key){
  const rows=page.locator('.switch-candidate-row'),count=await rows.count();assert.ok(count>0)
- const beforeOpen=await metrics(page);assert.equal(beforeOpen.firstIdentity.fontSize,'17px');assert.equal(beforeOpen.firstRelation.fontSize,'13px')
+ const beforeOpen=await metrics(page);assert.equal(beforeOpen.firstIdentity.fontSize,'19px');assert.equal(beforeOpen.firstRelation.fontSize,'14px')
  const texts=[];for(let i=0;i<count;i++)texts.push(norm(await rows.nth(i).textContent()))
  const unknownIndex=texts.findIndex(t=>t.includes('미확인'));const longIndex=texts.reduce((best,t,i)=>t.length>texts[best].length?i:best,0)
  const selected=rows.first();await selected.click();await page.locator('.switch-candidate-inspector').waitFor({state:'visible'});await waitVisibleImages(page)
  const openMetrics=await metrics(page);assert.equal(openMetrics.inspectorRelation.fontSize,'13px')
- if(key.startsWith('desktop')){assert.equal(openMetrics.selectedIdentity.fontSize,'17px');assert.equal(openMetrics.selectedRelation.fontSize,'13px')}
+ if(key.startsWith('desktop')){assert.equal(openMetrics.selectedIdentity.fontSize,'19px');assert.equal(openMetrics.selectedRelation.fontSize,'14px')}
  const relationText=norm(await selected.textContent()),unknownText=unknownIndex>=0?texts[unknownIndex]:null,longText=texts[longIndex]
  // Pointer opened the inspector; from the selected row, reach controls only with real Tab traversal.
  const closeReach=await tabUntil(page,x=>x.text.includes('닫기 ×'))
@@ -57,7 +57,7 @@ async function exercise(page,key){
  const addReachAfterBack=await tabUntil(page,x=>x.text.includes('비교에서 제거'));await page.keyboard.press('Enter');assert.doesNotMatch(norm(await add.textContent()),/비교에서 제거/)
  const closeByShiftTab=await tabUntil(page,x=>x.text.includes('닫기 ×'),{reverse:true});await page.keyboard.press('Enter');await page.locator('.switch-candidate-inspector').waitFor({state:'detached'})
  const focusAfterKeyboard=await page.evaluate(()=>({cls:document.activeElement?.className||'',text:document.activeElement?.textContent?.replace(/\s+/g,' ').trim()||'',insideInspector:!!document.activeElement?.closest('.switch-candidate-inspector')}));assert.match(focusAfterKeyboard.cls,/switch-candidate-row/);assert.equal(focusAfterKeyboard.insideInspector,false)
- const afterClose=await metrics(page);assert.equal(afterClose.firstIdentity.fontSize,'17px');assert.equal(afterClose.firstRelation.fontSize,'13px')
+ const afterClose=await metrics(page);assert.equal(afterClose.firstIdentity.fontSize,'19px');assert.equal(afterClose.firstRelation.fontSize,'14px')
  await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>!!document.activeElement?.closest('.switch-candidate-inspector')),false)
  await selected.click();await page.locator('.switch-candidate-inspector').waitFor({state:'visible'});await page.locator('.switch-preview-topline button').click();await page.locator('.switch-candidate-inspector').waitFor({state:'detached'})
  const focusAfterPointer=await page.evaluate(()=>document.activeElement?.className||'');assert.match(focusAfterPointer,/switch-candidate-row/)
@@ -70,7 +70,7 @@ for(const [key,w,h] of [['mobile-390x844',390,844],['desktop-1440x900',1440,900]
  report.scenarios[key]=await exercise(page,key);await context.close()
 }
 for(const [key,w,h] of [['boundary-760',760,844],['boundary-761',761,844]]){
- const {context,page}=await pageAt(w,h);await setup(page);const before=await metrics(page);assert.equal(before.firstIdentity.fontSize,'17px');assert.equal(before.firstRelation.fontSize,'13px')
+ const {context,page}=await pageAt(w,h);await setup(page);const before=await metrics(page);assert.equal(before.firstIdentity.fontSize,'19px');assert.equal(before.firstRelation.fontSize,'14px')
  await page.locator('.switch-candidate-row').first().click();await page.locator('.switch-candidate-inspector').waitFor({state:'visible'});await waitVisibleImages(page);const m=await metrics(page);assert.equal(m.inspectorRelation.fontSize,'13px')
  report.scenarios[key]={before,open:m};await context.close()
 }

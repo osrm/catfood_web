@@ -991,6 +991,8 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
 
 test('detail tablist supports arrow-key focus movement', async () => {
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&detail=${products[0].product_id}`)
+  assert.equal(document.querySelectorAll('.site-header').length, 1, 'standalone detail retains its site header')
+  assert.equal(document.querySelector('.detail-return-bar'), null)
   const overview = document.getElementById('detail-tab-overview')
   overview.focus()
   await act(async () => overview.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
@@ -1031,6 +1033,9 @@ for (const mode of ['lookup', 'explore']) {
     await renderApp('https://catfood.test/catfood_web/?' + params)
     const comparisonUrl = window.location.href
     await click('상세 보기')
+    assert.equal(document.querySelectorAll('.site-header').length, 1, 'comparison detail reuses the parent site header')
+    assert.ok(document.querySelector('.research-topbar .site-nav'), 'browse navigation remains available')
+    assert.ok(document.querySelector('.detail-return-bar'), 'embedded detail keeps a dedicated return action')
     const back = document.querySelector('.detail-topbar button')
     assert.equal(back.textContent, '← 비교로 돌아가기')
     await click('비교로 돌아가기')

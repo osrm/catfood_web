@@ -1,0 +1,111 @@
+/* Keep interaction feedback quiet. Inputs also match :focus-visible after a
+   pointer click in Chrome, so they use a neutral baseline rather than a box. */
+:root { --interaction-focus: #626b66; }
+
+:is(.research-shell.research-shell, .home-flow-shell.home-flow-shell, .detail-stage.detail-stage) :is(button, a, summary, select, textarea):focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+:is(.research-shell.research-shell, .home-flow-shell.home-flow-shell, .detail-stage.detail-stage) :is(button, a, summary, select, textarea):focus-visible {
+  outline: 2px solid var(--interaction-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.home-flow-shell.discovery-home .home-entry-search:is(:focus-within, :has(input:focus-visible)) {
+  border-color: #a59c93;
+  border-bottom-color: var(--interaction-focus);
+  background: #fff;
+  outline: none;
+  box-shadow: none;
+}
+.home-flow-shell.discovery-home .home-entry-search input:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+.research-shell[data-catalog-mode="lookup"] .research-workspace .lookup-input:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  border-bottom-color: var(--interaction-focus);
+}
+.switch-workflow-shell .switch-find-search:is(:focus-within, :has(input:focus-visible)) {
+  background: #fff;
+  border-color: #e1e5e8;
+  border-bottom-color: var(--interaction-focus);
+  outline: none;
+  box-shadow: none;
+}
+.switch-workflow-shell .switch-find-search input:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-search input:is(:focus, :focus-visible),
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-ingredient-search:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
+  background: #fff;
+  border-color: #e1e5e8;
+  border-bottom-color: var(--interaction-focus);
+}
+
+/* Product selection is shown by the existing checkbox/action label, rather
+   than a second outline or colored background around the whole product. */
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item:is(.is-compared, :focus-within) {
+  border-color: #dce2df;
+  background: #fff;
+  box-shadow: none;
+}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row.is-selected {
+  background: transparent;
+  box-shadow: none;
+}
+.research-shell[data-catalog-mode="lookup"] .research-result-row.is-compared,
+.research-shell .research-result-row.is-compared {
+  background: transparent;
+  box-shadow: none;
+}
+.research-shell.research-shell .research-result-compare.is-added,
+.research-shell.research-shell .switch-compare-action.is-added,
+.switch-workflow-shell.switch-workflow-shell .switch-compare-action.is-added,
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-choice.is-active,
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare.is-added {
+  border-color: #cbd3d0;
+  background: #f4f6f4;
+  color: #263b35;
+  box-shadow: none;
+}
+/* Reserve the same space before/after single selection; no text is injected
+   into the accessible name. Multiple selections retain their checkboxes. */
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .is-single-selection .switch-choice::after {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 8px;
+  vertical-align: -2px;
+  background-size: 100% 100%;
+}
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .is-single-selection .switch-choice.is-active::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7l3 3 5-6' fill='none' stroke='%23345c4e' stroke-width='2'/%3E%3C/svg%3E");
+}
+
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:focus-visible,
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-compare-selection>summary:focus-visible,
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement summary:focus-visible {
+  outline: 2px solid var(--interaction-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:focus:not(:focus-visible),
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-compare-selection>summary:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+/* A programmatically focused heading announces arrival; it is not a control. */
+.switch-workflow-shell .compare-stage.is-switch-compare .compare-header h1[tabindex="-1"]:focus {
+  outline: none;
+  box-shadow: none;
+}

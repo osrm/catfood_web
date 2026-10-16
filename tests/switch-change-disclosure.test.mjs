@@ -144,6 +144,7 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
   assert.ok(toggle)
   assert.equal(toggle.getAttribute('aria-expanded'), 'false')
   assert.equal(document.querySelector('.switch-change-additional-content').hidden, true)
+  assert.ok(document.querySelector('.switch-change-mobile-criteria').compareDocumentPosition(document.querySelector('.switch-no-change')) & window.Node.DOCUMENT_POSITION_FOLLOWING, 'ordinary change choices precede the no-change alternative')
 
   await click(toggle)
   assert.equal(toggle.getAttribute('aria-expanded'), 'true')
@@ -166,9 +167,16 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
 
   await click(document.querySelector('.switch-step-actions .switch-primary-action'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /그대로 유지/)
-  assert.match(document.querySelector('.switch-keep-change-summary').textContent, /바꾸기로 정함.*키튼/s)
+  assert.match(document.querySelector('.switch-keep-change-summary').textContent, /바꿀 점.*키튼/s)
   assert.match(document.querySelector('.switch-current-facts-summary').textContent, /현재 제품에서 확인됨.*건식.*성묘/s)
   assert.doesNotMatch(document.querySelector('.switch-current-facts-summary').textContent, /키튼/, 'current facts stay separate from CHANGE intent')
+  const facts = document.querySelector('.switch-current-facts-detail')
+  assert.equal(facts.open, false)
+  await act(async () => facts.querySelector('summary').click())
+  assert.equal(facts.open, true)
+  assert.equal(exactButton('건식 유지').getAttribute('aria-pressed'), 'false', 'viewing facts does not select KEEP values')
+  await act(async () => facts.querySelector('summary').click())
+  assert.equal(facts.open, false)
 
   await click(exactButton('← 바꿀 것 수정'))
   assert.match(document.querySelector('.switch-step-header h1').textContent, /바꾸고 싶나요/)
@@ -182,11 +190,11 @@ test('mobile CHANGE disclosure preserves advanced selection across collapse and 
 
   await click(document.querySelector('.switch-no-change'))
   assert.equal(document.querySelector('.switch-no-change').classList.contains('is-selected'), true)
-  assert.match(document.querySelector('.switch-no-change').textContent, /유지 조건도 고르지 않으면 전체 후보에서 탐색합니다/)
+  assert.equal(document.querySelector('.switch-no-change').getAttribute('aria-pressed'), 'true')
   assert.doesNotMatch(document.querySelector('.switch-no-change').textContent, /비슷한 후보/)
   assert.equal(reentryKitten.getAttribute('aria-pressed'), 'false')
   assert.equal(document.querySelector('.switch-change-additional-summary'), null)
-  assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '필요할 때만 선택하세요.')
+  assert.equal(document.querySelector('.switch-change-additional-toggle small').textContent.trim(), '연령·원료·레시피 등')
   assert.equal(document.querySelector('.switch-change-additional-toggle').getAttribute('aria-expanded'), 'true', 'clearing values must not auto-fold the disclosure')
 })
 
@@ -195,8 +203,9 @@ test('mobile CHANGE disclosure counts only advanced selections and retains deskt
     readFile(new URL('../src/SwitchFlow.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/switch-change-disclosure.css', import.meta.url), 'utf8'),
     readFile(new URL('../src/switch-change-keep-editorial.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/switch-consumer-flow.css', import.meta.url), 'utf8'),
   ]))
-  const [flow, css, editorial] = source
+  const [flow, css, editorial, refinement] = source
   const helper = flow.slice(flow.indexOf('function additionalChangeLabels'), flow.indexOf('function buildConditions'))
   for (const token of ['criteria.lifeStage', 'ingredientAvoidTerms', 'criteria.officialTargets', 'criteria.features', 'criteria.recipeFamilies', 'criteria.grainFree']) {
     assert.match(helper, new RegExp(token.replace('.', '\\.')))
@@ -210,5 +219,6 @@ test('mobile CHANGE disclosure counts only advanced selections and retains deskt
   assert.match(flow, /switch-current-facts-summary/)
   assert.match(editorial, /\.switch-decision-step-layout \.switch-choice \{[\s\S]*?min-height:\s*44px/)
   assert.match(editorial, /\.switch-decision-step-layout \.switch-primary-action,[\s\S]*?min-height:\s*48px/)
-  assert.doesNotMatch(css + editorial, /position:\s*(?:fixed|sticky)/)
+  const decisionRules = (refinement.match(/[^{}]*switch-decision-step-layout[^{}]*\{[^{}]*\}/g) ?? []).join('\n')
+  assert.doesNotMatch(css + editorial + decisionRules, /position:\s*(?:fixed|sticky)/)
 })

@@ -230,7 +230,7 @@ async function chooseCurrentAndReachChange() {
   await waitForUi(() => all('.switch-find-result').some((node) => node.textContent.includes(current.canonical_name)), 'current search result')
   await click(all('.switch-find-result').find((node) => node.textContent.includes(current.canonical_name)))
   await click('이 제품을 현재 사료로 선택')
-  await waitForUi(() => document.body.textContent.includes('현재 먹이는 규격을 골라주세요'), 'SKU step')
+  await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'SKU step')
   await waitForUi(() => skuButton('1 kg'), '1 kg SKU')
   await click(skuButton('1 kg'))
   await click(exactButton('다음 →'))
@@ -273,7 +273,7 @@ test('explicit CHANGE to SKU back preserves edited CHANGE, ingredient avoidance,
   assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])
 
   await click('← 사용 규격')
-  await waitForUi(() => document.body.textContent.includes('현재 먹이는 규격을 골라주세요'), 'explicit back to SKU')
+  await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'explicit back to SKU')
   assert.equal(session().variantSelection.variantId, 'variant_current_back_1')
   assert.equal(skuButton('1 kg')?.getAttribute('aria-pressed'), null)
   assert.match(skuButton('1 kg')?.textContent ?? '', /선택됨/)

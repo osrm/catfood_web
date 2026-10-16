@@ -215,6 +215,21 @@ test('step identifiers reset the actual mobile document owner', () => {
   resultsSettle?.cancel()
 })
 
+test('closed KEEP facts use the visible disclosure as the scroll anchor', () => {
+  document.getElementById('root').innerHTML = '<main class="switch-step-main"><details class="switch-current-facts-detail"><summary>Current facts</summary><section class="switch-current-facts-summary"></section></details></main>'
+  document.documentElement.scrollTop = 511
+  const intent = helper.beginSwitchExplicitScrollIntent('keep')
+  const settle = helper.resetSwitchExplicitNavigationScroll(intent)
+  assert.ok(settle)
+  assert.equal(document.documentElement.scrollTop, 0)
+  // Removing folded content must not invalidate the still-visible destination.
+  document.querySelector('.switch-current-facts-summary').remove()
+  document.documentElement.scrollTop = 200
+  drainActiveFrames()
+  assert.equal(document.documentElement.scrollTop, 0)
+  assert.equal(document.querySelector('details').open, false)
+})
+
 test('desktop keeps the existing internal step scroller and does not move the document', () => {
   stepScreen('change')
   const main = document.querySelector('.switch-step-main')

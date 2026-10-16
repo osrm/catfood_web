@@ -1,5 +1,5 @@
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail, { type SwitchDetailNavigation } from './ProductDetail'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import {
@@ -599,6 +599,12 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   useCatalogIngredients(ingredientLoad, tab === 'ingredients' || Boolean(detailProductId))
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const mobileCandidateToggleRef = useRef<HTMLButtonElement | null>(null)
+  const switchCompareHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const pendingSwitchRemovalFocusRef = useRef<{ remainingCount: number; trigger: Element | null } | null>(null)
+
+  useLayoutEffect(() => {
+    if (currentProduct) switchCompareHeadingRef.current?.focus({ preventScroll: true })
+  }, [currentProduct?.product_id])
   const mobilePairSelectRefs = useRef<Array<HTMLSelectElement | null>>([])
   const pendingRemovalFocusRef = useRef<{ slot: 0 | 1 | null; remainingCount: number } | null>(null)
   const nutritionLoadedKeyRef = useRef<string | null>(null)
@@ -709,6 +715,18 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
   const mobileCandidate = items.find((item) => item.product.product_id === mobileCandidateId) ?? items[0] ?? null
   const mobileCandidateIndex = mobileCandidate ? items.findIndex((item) => item.product.product_id === mobileCandidate.product.product_id) : -1
+  useLayoutEffect(() => {
+    const pending = pendingSwitchRemovalFocusRef.current
+    if (!pending || !currentProduct || items.length !== pending.remainingCount) return
+    pendingSwitchRemovalFocusRef.current = null
+    if (document.activeElement !== pending.trigger && document.activeElement !== document.body) return
+    const mobile = window.matchMedia?.('(max-width: 760px)').matches ?? true
+    const target = mobile && (tab === 'overview' || tab === 'nutrition') && items.length > 1
+      ? mobileCandidateToggleRef.current
+      : tabRefs.current[TABS.findIndex(([key]) => key === tab)]
+    target?.focus({ preventScroll: true })
+  }, [currentProduct, productKey, mobileCandidate?.product.product_id, tab])
+
 
   useEffect(() => {
     setMobileCandidateId((current) => current && productIds.includes(current) ? current : productIds[0] ?? null)
@@ -1010,13 +1028,10 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         remainingCount: items.length - 1,
       }
     }
-    onRemove(productId)
-    if (currentProduct && mobilePairSlot >= 0) {
-      window.setTimeout(() => {
-        if (items.length - 1 > 2) mobilePairSelectRefs.current[mobilePairSlot]?.focus({ preventScroll: true })
-        else document.querySelector<HTMLElement>('.compare-table-wrap')?.focus({ preventScroll: true })
-      }, 0)
+    if (currentProduct && items.length > 1) {
+      pendingSwitchRemovalFocusRef.current = { remainingCount: items.length - 1, trigger: document.activeElement }
     }
+    onRemove(productId)
   }
 
   const activeNutritionError = nutritionErrorKeyRef.current === productKey ? nutritionError : null
@@ -1047,7 +1062,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     : `${items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.`
 
   return <main className={stageClassName}>
-    <header className="compare-header"><div><h1>제품 비교</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>← 제품 목록으로</button></header>
+    <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? tab === 'ingredients' ? '담은 후보 비교' : '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button
       key={key} id={`compare-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`compare-panel-${key}`} tabIndex={tab === key ? 0 : -1}
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}

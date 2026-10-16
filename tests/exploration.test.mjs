@@ -314,7 +314,7 @@ for (const mode of ['explore', 'switch']) {
     assert.equal(searchRuns().length, 1, 'pagination is not a new search run')
     await click(rows(selector)[84])
     await click('비교에 추가')
-    await click('비교 보기')
+    await click(mode === 'switch' ? '현재 사료와 비교' : '비교 보기')
     assert.match(document.querySelector('.compare-stage').textContent, /Product 0(84|85)/)
     if (mode === 'explore') {
       const closeCompareButton = button('제품 목록으로')
@@ -327,7 +327,7 @@ for (const mode of ['explore', 'switch']) {
         )
       })
     } else {
-      await click('제품 목록으로')
+      await click('후보 목록으로')
     }
     assert.equal(rows(selector).length, 85, 'returning from compare retains expanded results')
     assert.equal(considerations().length, 1)
@@ -338,7 +338,7 @@ for (const mode of ['explore', 'switch']) {
     if (mode === 'explore') {
       assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /비교 2\/5/, 'unchanged EXPLORE reapply preserves the queued general comparison')
     } else {
-      assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /비교 2\/5/, 'unchanged SWITCH reapply also preserves its independent comparison')
+      assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /담은 후보 2\/5/, 'unchanged SWITCH reapply also preserves its independent comparison')
     }
     assert.equal(searchRuns().length, 2)
     assert.deepEqual(searchRuns()[1].body.initial_presented_product_ids, initialIds)
@@ -401,7 +401,6 @@ test('quick view moves focus to close and returns it to the opening product with
 test('EXPLORE guidance keeps the unknown policy in one place and labels recipe refine separately', async () => {
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
-  assert.match(document.body.textContent, /사료 형태·연령·원료 조건으로 찾아보세요\./)
   assert.doesNotMatch(document.body.textContent, /명백히 충돌하는 제품만 제외/)
 
   await click('조건 고르기')

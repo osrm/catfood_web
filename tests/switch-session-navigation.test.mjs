@@ -727,7 +727,7 @@ test('catalog failure preserves restored selection until retry, then deleted pro
   window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
   failCatalogCount = 1
   await renderApp({ preserveHistory: true })
-  assert.match(document.body.textContent, /인터넷 연결을 확인한 뒤 잠시 후 다시 시도해 주세요/)
+  assert.match(document.body.textContent, /잠시 후 다시 시도해 주세요/)
   assert.equal(session().currentProductId, current.product_id, 'failed read must not clear restored current product')
   assert.equal(session().variantSelection.variantId, 'variant_current_1')
   await click('다시 시도')

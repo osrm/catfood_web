@@ -668,7 +668,7 @@ export default function SwitchFlow({
     selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
   } = activeSession
   const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
-  const needsIngredientFacts = step !== 'current' && step !== 'sku' || Boolean(detailProductId)
+  const needsIngredientFacts = !detailProductId && step !== 'current' && step !== 'sku'
   useCatalogIngredients(ingredientLoad, !loading && !error && needsIngredientFacts)
   const currentVariantId = variantSelection.kind === 'variant' ? variantSelection.variantId : null
   const setStep = (value: SwitchStep, action: SwitchHistoryAction = 'replace', entry?: SwitchHistoryEntry | null) => setSessionField('step', value, action, entry)
@@ -1801,7 +1801,7 @@ export default function SwitchFlow({
   }
 
   if (detailProduct && !compareOpen) {
-    return <ProductDetail ingredientLoad={ingredientLoad} product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {

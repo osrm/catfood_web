@@ -556,13 +556,14 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
   }))
 }
 
-// One complete fact read per catalog generation; never replace missing rows/fields with empty facts.
-export async function fetchCatalogIngredientFacts(productIds: string[], signal?: AbortSignal): Promise<CatalogIngredientFacts[]> {
+// Shared validation keeps incomplete reads distinct from loaded empty facts.
+async function fetchIngredientFacts(productIds: string[], signal?: AbortSignal, productId?: string): Promise<CatalogIngredientFacts[]> {
   const { baseUrl, publishableKey } = apiConfig()
   const url = new URL(`${baseUrl}/rest/v1/effective_product_catalog_summary`)
   url.searchParams.set('select', ['product_id', ...CATALOG_INGREDIENT_FIELDS].join(','))
   url.searchParams.set('order', 'product_id.asc')
-  url.searchParams.set('limit', '1000')
+  url.searchParams.set('limit', productId ? '1' : '1000')
+  if (productId) url.searchParams.set('product_id', `eq.${productId}`)
   const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
   if (!response.ok) throw new Error(`Ingredient facts API ${response.status}`)
   const rows: unknown = await response.json()
@@ -579,6 +580,16 @@ export async function fetchCatalogIngredientFacts(productIds: string[], signal?:
   }
   if (seen.size !== expected.size) throw new Error('Catalog changed or ingredient facts are incomplete')
   return rows.map(row => Object.fromEntries(['product_id', ...CATALOG_INGREDIENT_FIELDS].map(field => [field, row[field]])) as CatalogIngredientFacts)
+}
+
+// Catalog-wide completeness is required by filtering and comparison criteria.
+export function fetchCatalogIngredientFacts(productIds: string[], signal?: AbortSignal) {
+  return fetchIngredientFacts(productIds, signal)
+}
+
+export async function fetchProductIngredientFacts(productId: string, signal?: AbortSignal): Promise<CatalogIngredientFacts> {
+  const rows = await fetchIngredientFacts([productId], signal, productId)
+  return rows[0]
 }
 
 export async function fetchProductVariants(

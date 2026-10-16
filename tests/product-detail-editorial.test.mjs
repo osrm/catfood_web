@@ -196,7 +196,7 @@ beforeEach(() => {
     }])
     return Response.json([])
   }
-  globalThis.fetch = window.fetch = async (input) => handler(new URL(input instanceof Request ? input.url : String(input)))
+  globalThis.fetch = window.fetch = async (input, init = {}) => handler(new URL(input instanceof Request ? input.url : String(input)), init)
   root = createRoot(document.getElementById('root'))
 })
 
@@ -594,7 +594,7 @@ test('nutrition describes dry matter only for the dry-matter basis', async () =>
   }
 })
 
-test('detail distinguishes request failure from an empty 200 response and retries the existing resource group', async () => {
+test('detail distinguishes request failure from an empty 200 response and retries only the failed resource', async () => {
   const calls = new Map()
   let failNutrition = true
   handler = async (url) => {
@@ -624,7 +624,7 @@ test('detail distinguishes request failure from an empty 200 response and retrie
     'compare_product_ingredients',
     'product_detail_manufacturing',
     'product_detail_markets',
-  ]) assert.equal(calls.get(key), 2, `${key} is retried with the existing grouped policy`)
+  ]) assert.equal(calls.get(key), key === 'compare_product_nutrition' ? 2 : 1, `${key} only retries when it failed`)
 })
 
 
@@ -759,4 +759,70 @@ test('comparison renders provided-energy evidence without inventing an empty ing
   })
   assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.trim() === '출처 원문 보기'), false)
   assert.match(document.body.textContent, /확인된 목록 없음/)
+})
+
+
+for (const [resource, endpoint, tab] of [
+  ['nutrition', 'compare_product_nutrition', '개요'],
+  ['ingredients', 'compare_product_ingredients', '원재료'],
+  ['variants', 'switch_current_variant_options', '개요'],
+  ['manufacturing', 'product_detail_manufacturing', '제조 · 유통'],
+  ['markets', 'product_detail_markets', '제조 · 유통'],
+]) {
+  test('detail retry only reloads failed ' + resource + ' and preserves successful information', async () => {
+    const normal = handler, calls = new Map()
+    let resolveRetry
+    const pending = new Promise((resolve) => { resolveRetry = resolve })
+    handler = async (url) => {
+      const key = url.pathname.split('/').at(-1)
+      calls.set(key, (calls.get(key) ?? 0) + 1)
+      if (key === endpoint && calls.get(key) === 1) return new Response('temporary server failure', { status: 500 })
+      if (key === endpoint && calls.get(key) === 2) return pending
+      return normal(url)
+    }
+    await render()
+    if (tab !== '개요') await click(tab)
+    const error = [...document.querySelectorAll('[role="alert"]')].find((node) => node.querySelector('button'))
+    assert.ok(error, 'failed data offers a manual retry')
+    const selectedTab = document.querySelector('.detail-tabs [aria-selected="true"]').textContent
+    const firstCalls = new Map(calls)
+    await act(async () => { error.querySelector('button').click(); error.querySelector('button').click() })
+    assert.equal(document.querySelector('.detail-tabs [aria-selected="true"]').textContent, selectedTab)
+    for (const [key, count] of firstCalls) {
+      const retried = key === endpoint || (resource === 'manufacturing' && key === 'product_detail_manufacturing_scope')
+      assert.equal(calls.get(key), count + (retried ? 1 : 0), key + ' request count during retry')
+    }
+    await click('개요')
+    if (resource !== 'nutrition') assert.match(document.body.textContent, /97 kcal\/100g/, 'loaded nutrition stays visible')
+    if (resource !== 'ingredients') assert.match(document.body.textContent, /일부 목록 · 2개/, 'loaded ingredients stay visible')
+    await act(async () => { resolveRetry(await normal(new URL('https://api.test/' + endpoint))); await Promise.resolve() })
+    assert.equal(document.querySelectorAll('[role="alert"]').length, 0)
+    if (resource === 'nutrition') assert.match(document.body.textContent, /97 kcal\/100g/)
+    assert.equal(calls.get(endpoint), 2, 'no automatic or duplicate retries')
+  })
+}
+
+test('detail retry ignores a late previous-product response after product change', async () => {
+  const normal = handler
+  let nutritionCalls = 0, resolveOld, oldSignal
+  const pending = new Promise((resolve) => { resolveOld = resolve })
+  const nextProduct = { ...target, product_id: 'product_editorial0002', canonical_name: '다음 제품' }
+  handler = async (url, init) => {
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      if ((url.searchParams.get('product_id') ?? '').includes(nextProduct.product_id)) return Response.json([{ ...nutrition, product_id: nextProduct.product_id, kcal_per_100g: 188 }])
+      nutritionCalls += 1
+      if (nutritionCalls === 1) return new Response('temporary failure', { status: 500 })
+      oldSignal = init.signal
+      return pending
+    }
+    return normal(url)
+  }
+  await render()
+  await click('다시 시도')
+  await act(async () => { root.render(createElement(app.ProductDetail, { product: nextProduct, onClose() {} })); await Promise.resolve() })
+  assert.equal(oldSignal.aborted, true)
+  assert.match(document.body.textContent, /188 kcal\/100g/)
+  await act(async () => { resolveOld(Response.json([{ ...nutrition, kcal_per_100g: 999 }])); await Promise.resolve() })
+  assert.match(document.body.textContent, /188 kcal\/100g/)
+  assert.doesNotMatch(document.body.textContent, /999 kcal/)
 })

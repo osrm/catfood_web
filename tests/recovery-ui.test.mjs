@@ -280,6 +280,7 @@ test('catalog 503 retries once, preserves LOOKUP query, and opens quick view', a
   await act(async () => homeSearch.closest('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
   await waitForUi(() => document.querySelector('[role="alert"]'), 'lookup catalog error')
 
+  assert.doesNotMatch(document.body.textContent, /인터넷 연결을 확인/, 'a server error is not reported as a connectivity diagnosis')
   const retryButton = button('다시 시도')
   await act(async () => {
     retryButton.click()

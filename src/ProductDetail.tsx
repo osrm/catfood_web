@@ -210,7 +210,6 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
 }) {
   useCatalogIngredients(ingredientLoad)
   const [tab, setTab] = useState<DetailTab>(initialTab)
-  const [reload, setReload] = useState(0)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [nutrition, setNutrition] = useState<CompareNutrition | null>(null)
   const [ingredients, setIngredients] = useState<CompareIngredients | null>(null)
@@ -225,7 +224,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
   const panelRef = useRef<HTMLDivElement | null>(null)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const pendingTabChangeRef = useRef<{ tab: DetailTab; focus: boolean; productId: string } | null>(null)
-  const retry = () => setReload((value) => value + 1)
+  const resourceRequests = useRef<Partial<Record<DetailResource, AbortController>>>({})
 
   useEffect(() => { setTab(initialTab) }, [initialTab, product.product_id])
   useLayoutEffect(() => {
@@ -281,25 +280,53 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
     selectTab(TABS[next][0], true)
   }
 
-  useEffect(() => {
-    const controller = new AbortController(); let active = true
-    setLoading(INITIAL_LOADING); setErrors(INITIAL_ERRORS); setVariants([]); setNutrition(null); setIngredients(null); setManufacturing(null); setManufacturingScope([]); setMarkets([])
-    function load<T>(resource: DetailResource, request: Promise<T>, apply: (value: T) => void, fallback: string) {
-      request.then((value) => { if (active) apply(value) }).catch((reason: unknown) => {
+  function loadResource(resource: DetailResource) {
+    if (resourceRequests.current[resource]) return
+    const controller = new AbortController()
+    resourceRequests.current[resource] = controller
+    const active = () => resourceRequests.current[resource] === controller && !controller.signal.aborted
+    setLoading((current) => ({ ...current, [resource]: true }))
+    setErrors((current) => ({ ...current, [resource]: null }))
+    function load<T>(request: Promise<T>, apply: (value: T) => void, fallback: string) {
+      request.then((value) => { if (active()) apply(value) }).catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        if (active) setErrors((current) => ({ ...current, [resource]: fallback }))
-      }).finally(() => { if (active) setLoading((current) => ({ ...current, [resource]: false })) })
+        if (active()) setErrors((current) => ({ ...current, [resource]: fallback }))
+      }).finally(() => {
+        if (!active()) return
+        delete resourceRequests.current[resource]
+        setLoading((current) => ({ ...current, [resource]: false }))
+      })
     }
-    load('variants', fetchProductVariants(product.product_id, controller.signal), setVariants, '판매 규격을 불러오지 못했습니다.')
-    load('nutrition', fetchCompareNutrition([product.product_id], controller.signal), (rows) => setNutrition(rows[0] ?? null), '영양 정보를 불러오지 못했습니다.')
-    load('ingredients', fetchCompareIngredients([product.product_id], controller.signal), (rows) => setIngredients(rows[0] ?? null), '원재료 정보를 불러오지 못했습니다.')
-    load('manufacturing', Promise.all([
-      fetchProductManufacturing(product.product_id, controller.signal),
-      fetchProductManufacturingScope(product.product_id, controller.signal),
-    ]), ([detail, scopeRows]) => { setManufacturing(detail); setManufacturingScope(scopeRows) }, '제조 정보를 불러오지 못했습니다.')
-    load('markets', fetchProductMarkets(product.product_id, controller.signal), setMarkets, '유통 정보를 불러오지 못했습니다.')
-    return () => { active = false; controller.abort() }
-  }, [product.product_id, reload])
+    switch (resource) {
+      case 'variants':
+        load(fetchProductVariants(product.product_id, controller.signal), setVariants, '판매 규격을 불러오지 못했습니다.')
+        break
+      case 'nutrition':
+        load(fetchCompareNutrition([product.product_id], controller.signal), (rows) => setNutrition(rows[0] ?? null), '영양 정보를 불러오지 못했습니다.')
+        break
+      case 'ingredients':
+        load(fetchCompareIngredients([product.product_id], controller.signal), (rows) => setIngredients(rows[0] ?? null), '원재료 정보를 불러오지 못했습니다.')
+        break
+      case 'manufacturing':
+        load(Promise.all([
+          fetchProductManufacturing(product.product_id, controller.signal),
+          fetchProductManufacturingScope(product.product_id, controller.signal),
+        ]), ([detail, scopeRows]) => { setManufacturing(detail); setManufacturingScope(scopeRows) }, '제조 정보를 불러오지 못했습니다.')
+        break
+      case 'markets':
+        load(fetchProductMarkets(product.product_id, controller.signal), setMarkets, '유통 정보를 불러오지 못했습니다.')
+        break
+    }
+  }
+
+  useEffect(() => {
+    setLoading(INITIAL_LOADING); setErrors(INITIAL_ERRORS); setVariants([]); setNutrition(null); setIngredients(null); setManufacturing(null); setManufacturingScope([]); setMarkets([])
+    for (const resource of Object.keys(INITIAL_LOADING) as DetailResource[]) loadResource(resource)
+    return () => {
+      for (const controller of Object.values(resourceRequests.current)) controller?.abort()
+      resourceRequests.current = {}
+    }
+  }, [product.product_id])
 
   const manufacturingCountryRows = manufacturingScope.filter((row) => row.country_code)
   const manufacturingVariantRows = manufacturingCountryRows.filter((row) => row.observation_scope === 'variant')
@@ -388,7 +415,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
             <section className="detail-section detail-overview-nutrition">
               <div className="detail-section-heading"><h2>열량 · 영양</h2></div>
               <div className="detail-section-content">
-                {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : errors.nutrition ? <LoadError message={errors.nutrition} onRetry={retry} /> : nutrition && nutritionStructured ? <>
+                {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : errors.nutrition ? <LoadError message={errors.nutrition} onRetry={() => loadResource('nutrition')} /> : nutrition && nutritionStructured ? <>
                   <dl className="detail-nutrition-glance">
                     <div className="detail-nutrition-glance-energy"><dt>열량</dt><dd>{energyValue(nutrition)}{nutritionInterpretationNote(nutrition, 'energy') ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'energy')}</small> : null}</dd></div>
                     {standardRows.slice(0, 2).map(([label, key, value, qualifier]) => <div key={key}><dt>{label}</dt><dd>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}{nutritionInterpretationNote(nutrition, key) ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, key)}</small> : null}</dd></div>)}
@@ -401,7 +428,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
               <div className="detail-section-heading"><h2>한국 판매 규격</h2></div>
               <div className="detail-section-content">
                 {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
-                {errors.variants ? <LoadError message={errors.variants} onRetry={retry} /> : null}
+                {errors.variants ? <LoadError message={errors.variants} onRetry={() => loadResource('variants')} /> : null}
                 {!loading.variants && !errors.variants && variants.length ? <>
                   <div className="detail-size-list">{variants.map((variant) => <span key={variant.variant_id}>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</span>)}</div>
                   {showPackageDetails ? <details className="detail-disclosure">
@@ -421,7 +448,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
               <div className="detail-section-content">
                 <CatalogIngredientNotice load={ingredientLoad} />
                 {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
-                {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
+                {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
                 {(!ingredientLoad || ingredientLoad.status === 'loaded') && !loading.ingredients && !errors.ingredients && ingredients ? <>
                   {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : fullIngredientSummaryFallback ? <p className="detail-summary-meta">{fullIngredientSummaryFallback}</p> : null}
                   {hasIngredientSummaryFacts ? <div className="detail-fact-lines detail-fact-lines-compact">
@@ -438,7 +465,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
           {tab === 'nutrition' ? <section className="detail-section">
             <div className="detail-section-heading"><h2>영양 · 열량</h2></div>
             {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : null}
-            {errors.nutrition ? <LoadError message={errors.nutrition} onRetry={retry} /> : null}
+            {errors.nutrition ? <LoadError message={errors.nutrition} onRetry={() => loadResource('nutrition')} /> : null}
             {!loading.nutrition && !errors.nutrition && nutrition ? <>
               {nutritionStructured ? <>
                 <div className="detail-energy">
@@ -473,7 +500,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
             <div className="detail-section-heading"><h2>원재료</h2></div>
             <CatalogIngredientNotice load={ingredientLoad} />
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
-            {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={retry} /> : null}
+            {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
               <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
               {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
@@ -506,7 +533,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
             <section className="detail-section">
               <div className="detail-section-heading"><h2>제조 정보</h2></div>
               {loading.manufacturing ? <div className="detail-state">제조 정보를 불러오는 중입니다.</div> : null}
-              {errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={retry} /> : null}
+              {errors.manufacturing ? <LoadError message={errors.manufacturing} onRetry={() => loadResource('manufacturing')} /> : null}
               {!loading.manufacturing && !errors.manufacturing && manufacturing ? <>
                 <div className="detail-fact-lines">
                   {manufacturing.observation_scope === 'variant' ? <div className="detail-fact detail-manufacturing-country-fact">
@@ -536,7 +563,7 @@ export default function ProductDetail({ ingredientLoad, product, onClose, backLa
             <section className="detail-section">
               {loading.markets || errors.markets || markets.length === 0 ? <div className="detail-section-heading"><h2>해외 판매 · 배합</h2></div> : null}
               {loading.markets ? <div className="detail-state">유통 정보를 불러오는 중입니다.</div> : null}
-              {errors.markets ? <LoadError message={errors.markets} onRetry={retry} /> : null}
+              {errors.markets ? <LoadError message={errors.markets} onRetry={() => loadResource('markets')} /> : null}
               {!loading.markets && !errors.markets && markets.length ? <details className="detail-disclosure detail-market-disclosure">
                 <summary>해외 판매 · 배합 보기</summary>
                 <div className="detail-market-list">{markets.map((market) => <div className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}>

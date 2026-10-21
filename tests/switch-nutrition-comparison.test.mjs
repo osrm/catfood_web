@@ -222,8 +222,8 @@ beforeEach(() => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     requests.push(url)
     assert.equal(url.origin, 'https://api.test')
-    const filter = url.searchParams.get('product_id') ?? ''
-    if (url.pathname.endsWith('/compare_product_nutrition')) {
+    const filter = productFilter(url) ?? ''
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) {
       if (filter === `in.(${current.product_id})`) {
         if (failCurrentNutrition) return new Response('current failed', { status: 500 })
         const row = currentNutritionScope === 'variant'
@@ -308,8 +308,8 @@ test('SWITCH nutrition keeps current separate and shows only interpretation-chan
   await renderSwitch()
 
   const nutritionFilters = requests
-    .filter((url) => url.pathname.endsWith('/compare_product_nutrition'))
-    .map((url) => url.searchParams.get('product_id'))
+    .filter((url) => url.pathname.endsWith('/compare_product_nutrition_scoped'))
+    .map((url) => productFilter(url))
   assert.ok(nutritionFilters.includes(`in.(${current.product_id})`))
   assert.ok(nutritionFilters.includes(`in.(${candidates.map((value) => value.product_id).join(',')})`))
   assert.equal(nutritionFilters.some((filter) => filter?.includes(current.product_id) && filter?.includes(candidates[0].product_id)), false)
@@ -467,7 +467,7 @@ test('general two-product nutrition comparison keeps non-SWITCH values and full 
   assert.match(mobile.textContent, /원래 표기 보기/)
   assert.equal(document.querySelector('.compare-switch-mobile-nutrition'), null)
   assert.equal(document.querySelector('.compare-current-product-head'), null)
-  const currentRead = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition') && url.searchParams.get('product_id') === `in.(${current.product_id})`)
+  const currentRead = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition_scoped') && productFilter(url) === `in.(${current.product_id})`)
   assert.equal(currentRead, undefined)
 })
 
@@ -507,3 +507,8 @@ test('candidate formula uncertainty is visible beside applicable numeric fields'
     assert.match(mobileCandidateMetric('칼슘').textContent, /미확인/)
   } finally { Object.assign(candidateRows[0], previous) }
 })
+
+function productFilter(url) {
+  const ids = url.searchParams.get('p_product_ids')
+  return ids ? `in.(${JSON.parse(`[${ids.slice(1, -1)}]`).join(',')})` : url.searchParams.get('product_id')
+}

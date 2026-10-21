@@ -450,13 +450,27 @@ async function fetchRows<T>(
 }
 
 async function fetchCompareRows<T>(
-  view: 'compare_product_nutrition',
+  view: 'compare_product_nutrition_scoped' | 'compare_product_ingredients_scoped',
   fields: string,
   productIds: string[],
   signal?: AbortSignal,
 ): Promise<T[]> {
   if (productIds.length === 0) return []
-  return fetchRows<T>(view, fields, `in.(${productIds.join(',')})`, signal, undefined, '5')
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/rpc/${view}`)
+  url.searchParams.set('select', fields)
+  url.searchParams.set('p_product_ids', `{${productIds.map((id) => JSON.stringify(id)).join(',')}}`)
+  url.searchParams.set('limit', '5')
+
+  const response = await fetch(url, {
+    signal,
+    headers: requestHeaders(publishableKey),
+  })
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 240)
+    throw new Error(`Data API ${response.status}: ${detail || response.statusText}`)
+  }
+  return (await response.json()) as T[]
 }
 
 function fallbackPackageLabel(product: CatalogProduct): string {
@@ -634,7 +648,7 @@ export async function fetchCompareNutrition(
   signal?: AbortSignal,
 ): Promise<CompareNutrition[]> {
   const data = await fetchCompareRows<CompareNutrition>(
-    'compare_product_nutrition',
+    'compare_product_nutrition_scoped',
     COMPARE_NUTRITION_FIELDS,
     productIds,
     signal,
@@ -646,22 +660,9 @@ export async function fetchCompareIngredients(
   productIds: string[],
   signal?: AbortSignal,
 ): Promise<CompareIngredients[]> {
-  if (productIds.length === 0) return []
-  const { baseUrl, publishableKey } = apiConfig()
-  const url = new URL(`${baseUrl}/rest/v1/rpc/compare_product_ingredients_scoped`)
-  url.searchParams.set('select', COMPARE_INGREDIENT_FIELDS)
-  url.searchParams.set('p_product_ids', `{${productIds.map((id) => JSON.stringify(id)).join(',')}}`)
-  url.searchParams.set('limit', '5')
-
-  const response = await fetch(url, {
-    signal,
-    headers: requestHeaders(publishableKey),
-  })
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 240)
-    throw new Error(`Data API ${response.status}: ${detail || response.statusText}`)
-  }
-  const data = (await response.json()) as CompareIngredients[]
+  const data = await fetchCompareRows<CompareIngredients>(
+    'compare_product_ingredients_scoped', COMPARE_INGREDIENT_FIELDS, productIds, signal,
+  )
   return data.map(normalizeCompareIngredients)
 }
 

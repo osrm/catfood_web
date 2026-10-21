@@ -176,7 +176,7 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="root"></div>'
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([nutrition])
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json([nutrition])
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([ingredients])
     if (url.pathname.endsWith('/product_detail_manufacturing')) return Response.json([{
       product_id: target.product_id,
@@ -397,7 +397,7 @@ test('overview nutrition reuses the existing read, preserves qualifiers and miss
   let nutritionReads = 0
   const baseHandler = handler
   handler = async (url) => {
-    if (url.pathname.endsWith('/compare_product_nutrition')) {
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) {
       nutritionReads += 1
       return Response.json([{ ...nutrition, fat_pct: null, fat_qualifier: null }])
     }
@@ -573,7 +573,7 @@ test('nutrition describes dry matter only for the dry-matter basis', async () =>
 
   for (const item of cases) {
     handler = async (url) => {
-      if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([{
+      if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json([{
         ...nutrition,
         supplemental_nutrition_fields: [],
         basis_specific_nutrition_basis: item.basis,
@@ -600,7 +600,7 @@ test('detail distinguishes request failure from an empty 200 response and retrie
   handler = async (url) => {
     const key = url.pathname.split('/').at(-1)
     calls.set(key, (calls.get(key) ?? 0) + 1)
-    if (key === 'compare_product_nutrition' && failNutrition) {
+    if (key === 'compare_product_nutrition_scoped' && failNutrition) {
       return new Response('temporary', { status: 503 })
     }
     return Response.json([])
@@ -620,11 +620,11 @@ test('detail distinguishes request failure from an empty 200 response and retrie
   assert.match(document.body.textContent, /확인된 영양 정보가 없습니다/)
   for (const key of [
     'switch_current_variant_options',
-    'compare_product_nutrition',
+    'compare_product_nutrition_scoped',
     'compare_product_ingredients_scoped',
     'product_detail_manufacturing',
     'product_detail_markets',
-  ]) assert.equal(calls.get(key), key === 'compare_product_nutrition' ? 2 : 1, `${key} only retries when it failed`)
+  ]) assert.equal(calls.get(key), key === 'compare_product_nutrition_scoped' ? 2 : 1, `${key} only retries when it failed`)
 })
 
 
@@ -638,7 +638,7 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
   }
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([nutritionWithBasis])
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json([nutritionWithBasis])
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([ingredients])
     return Response.json([])
   }
@@ -732,7 +732,7 @@ test('comparison renders provided-energy evidence without inventing an empty ing
   }
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([noSupplementNutrition])
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json([noSupplementNutrition])
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([noSourceIngredients])
     return Response.json([])
   }
@@ -763,7 +763,7 @@ test('comparison renders provided-energy evidence without inventing an empty ing
 
 
 for (const [resource, endpoint, tab] of [
-  ['nutrition', 'compare_product_nutrition', '개요'],
+  ['nutrition', 'compare_product_nutrition_scoped', '개요'],
   ['ingredients', 'compare_product_ingredients_scoped', '원재료'],
   ['variants', 'switch_current_variant_options', '개요'],
   ['manufacturing', 'product_detail_manufacturing', '제조 · 유통'],
@@ -808,8 +808,8 @@ test('detail retry ignores a late previous-product response after product change
   const pending = new Promise((resolve) => { resolveOld = resolve })
   const nextProduct = { ...target, product_id: 'product_editorial0002', canonical_name: '다음 제품' }
   handler = async (url, init) => {
-    if (url.pathname.endsWith('/compare_product_nutrition')) {
-      if ((url.searchParams.get('product_id') ?? '').includes(nextProduct.product_id)) return Response.json([{ ...nutrition, product_id: nextProduct.product_id, kcal_per_100g: 188 }])
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) {
+      if ((url.searchParams.get('p_product_ids') ?? '').includes(nextProduct.product_id)) return Response.json([{ ...nutrition, product_id: nextProduct.product_id, kcal_per_100g: 188 }])
       nutritionCalls += 1
       if (nutritionCalls === 1) return new Response('temporary failure', { status: 500 })
       oldSignal = init.signal

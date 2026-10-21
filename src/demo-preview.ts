@@ -61,7 +61,7 @@ export function installDemoPreviewFetch(): void {
     let rows: unknown[] | null = null
     if (view === 'effective_product_catalog_summary') rows = DEMO_PREVIEW_PRODUCTS
     if (view === 'switch_current_variant_options') rows = DEMO_VARIANTS
-    if (view === 'compare_product_nutrition') rows = DEMO_NUTRITION
+    if (view === 'compare_product_nutrition' || view === 'compare_product_nutrition_scoped') rows = DEMO_NUTRITION
     if (view === 'compare_product_ingredients_scoped') rows = DEMO_PREVIEW_INGREDIENTS
     if (view === 'product_detail_manufacturing') rows = DEMO_MANUFACTURING
     if (view === 'product_detail_markets') rows = DEMO_MARKETS

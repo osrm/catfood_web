@@ -696,7 +696,7 @@ test('general comparison preserves repaired pair focus while nutrition refetch i
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
     if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json(products)
-    if (url.pathname.endsWith('/compare_product_nutrition')) {
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) {
       nutritionRequests += 1
       if (nutritionRequests === 1) return Response.json([])
       if (nutritionRequests === 2) return delayedNutrition
@@ -773,7 +773,7 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
 
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
-    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(nutritionRows)
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json(nutritionRows)
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
     return Response.json([])
@@ -851,7 +851,7 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
 
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
-    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(nutritionRows)
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json(nutritionRows)
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) {
       const filter = url.searchParams.get('product_id') ?? ''
@@ -952,7 +952,7 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
   ]
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
-    if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(rows)
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) return Response.json(rows)
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
     return Response.json([])
@@ -1159,7 +1159,7 @@ async function renderEnergyFixture(rows) {
   document.body.innerHTML = '<div id="root"></div>'
   globalThis.fetch = window.fetch = async input => {
     const url = new URL(String(input))
-    return Response.json(url.pathname.endsWith('/compare_product_nutrition') ? rows : [])
+    return Response.json(url.pathname.endsWith('/compare_product_nutrition_scoped') ? rows : [])
   }
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(app.CompareView, {items: rows.map(row => ({product: products.find(p => p.product_id === row.product_id)})), initialTab: 'nutrition', onClose() {}, onRemove() {}})))

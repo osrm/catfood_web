@@ -177,7 +177,7 @@ beforeEach(() => {
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
     if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([nutrition])
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([ingredients])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([ingredients])
     if (url.pathname.endsWith('/product_detail_manufacturing')) return Response.json([{
       product_id: target.product_id,
       observation_scope: 'variant',
@@ -283,7 +283,7 @@ test('ingredient tab applies only reviewed exact reading-help names while preser
   const rawText = sourceNames.join(', ')
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{
       ...ingredients,
       variant_id: null,
       observation_scope: 'formula',
@@ -326,7 +326,7 @@ test('ingredient reading help never translates partial string matches', async ()
   const sourceNames = ['chicken fat', 'pea flour concentrate', 'natural flavour']
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{
       ...ingredients,
       completeness_status: 'full',
       raw_text: sourceNames.join(', '),
@@ -350,7 +350,7 @@ test('ingredient reading help never translates partial string matches', async ()
 test('ingredient tab uses normalized names as the primary body when source raw text is absent', async () => {
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{
       ...ingredients,
       completeness_status: 'full',
       raw_text: null,
@@ -374,7 +374,7 @@ test('ingredient tab uses normalized names as the primary body when source raw t
 test('ingredient tab falls back to source text when structured ingredient names are absent', async () => {
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{
       ...ingredients,
       completeness_status: 'full',
       raw_text: '참치 70% (원문 한정 표현), 미네랄',
@@ -431,7 +431,7 @@ test('overview omits repeated package facts for a confirmed single unit and omit
       sale_total_weight_g: 80,
       sales_bundle_status: 'not_a_bundle',
     }])
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{ ...ingredients, completeness_status: 'full' }])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{ ...ingredients, completeness_status: 'full' }])
     return Response.json([])
   }
   await act(async () => {
@@ -456,7 +456,7 @@ test('overview falls back to a full ingredient count when no summary facts exist
   const names = Array.from({ length: 36 }, (_, index) => `ingredient-${index + 1}`)
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{
       ...ingredients,
       completeness_status: 'full',
       raw_text: names.join(', '),
@@ -580,7 +580,7 @@ test('nutrition describes dry matter only for the dry-matter basis', async () =>
         basis_specific_nutrition_values: [{ nutrient_key: 'protein', raw_name: null, amount: 42, unit: '%', qualifier: 'reported' }],
       }])
       if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-      if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([ingredients])
+      if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([ingredients])
       return Response.json([])
     }
     await act(async () => {
@@ -621,7 +621,7 @@ test('detail distinguishes request failure from an empty 200 response and retrie
   for (const key of [
     'switch_current_variant_options',
     'compare_product_nutrition',
-    'compare_product_ingredients',
+    'compare_product_ingredients_scoped',
     'product_detail_manufacturing',
     'product_detail_markets',
   ]) assert.equal(calls.get(key), key === 'compare_product_nutrition' ? 2 : 1, `${key} only retries when it failed`)
@@ -639,7 +639,7 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
     if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([nutritionWithBasis])
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([ingredients])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([ingredients])
     return Response.json([])
   }
 
@@ -693,7 +693,7 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
 test('comparison labels non-current supplemental ingredient sources as supporting material outside and inside disclosure', async () => {
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([{
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([{
       ...ingredients,
       supplemental_is_current_resolved_formula: false,
     }])
@@ -733,7 +733,7 @@ test('comparison renders provided-energy evidence without inventing an empty ing
   handler = async (url) => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json(variants)
     if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json([noSupplementNutrition])
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([noSourceIngredients])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([noSourceIngredients])
     return Response.json([])
   }
 
@@ -764,7 +764,7 @@ test('comparison renders provided-energy evidence without inventing an empty ing
 
 for (const [resource, endpoint, tab] of [
   ['nutrition', 'compare_product_nutrition', '개요'],
-  ['ingredients', 'compare_product_ingredients', '원재료'],
+  ['ingredients', 'compare_product_ingredients_scoped', '원재료'],
   ['variants', 'switch_current_variant_options', '개요'],
   ['manufacturing', 'product_detail_manufacturing', '제조 · 유통'],
   ['markets', 'product_detail_markets', '제조 · 유통'],

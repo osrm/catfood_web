@@ -702,7 +702,7 @@ test('general comparison preserves repaired pair focus while nutrition refetch i
       if (nutritionRequests === 2) return delayedNutrition
       return Response.json([])
     }
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
     return Response.json([])
   }
@@ -774,7 +774,7 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
     if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(nutritionRows)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
     return Response.json([])
   }
@@ -852,7 +852,7 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
     if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(nutritionRows)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) {
       const filter = url.searchParams.get('product_id') ?? ''
       if (filter.includes(first.product_id)) return Response.json([variant(first.product_id, 'variant_first', '3 kg', 3000)])
@@ -953,7 +953,7 @@ test('comparison energy normalizes kg-only, preserves 100g-only, keeps kg priori
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
     if (url.pathname.endsWith('/compare_product_nutrition')) return Response.json(rows)
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
     return Response.json([])
   }

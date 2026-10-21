@@ -193,14 +193,17 @@ export function installStressPreviewFetch(): void {
     if (view === 'effective_product_catalog_summary') rows = STRESS_PRODUCTS
     if (view === 'switch_current_variant_options') rows = STRESS_VARIANTS
     if (view === 'compare_product_nutrition') rows = STRESS_NUTRITION
-    if (view === 'compare_product_ingredients') rows = STRESS_INGREDIENTS
+    if (view === 'compare_product_ingredients_scoped') rows = STRESS_INGREDIENTS
     if (view === 'product_detail_manufacturing') rows = STRESS_MANUFACTURING
     if (view === 'product_detail_markets') rows = STRESS_MARKETS
 
     if (!rows) return nativeFetch(input, init)
     if (init?.signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError')
 
-    const ids = productIdsFromFilter(url.searchParams.get('product_id'))
+    const scopedIds = url.searchParams.get('p_product_ids')
+    const ids: string[] | null = scopedIds
+      ? JSON.parse(`[${scopedIds.slice(1, -1)}]`)
+      : productIdsFromFilter(url.searchParams.get('product_id'))
     const filtered = ids
       ? rows.filter((row) => row && typeof row === 'object' && 'product_id' in row && ids.includes(String((row as { product_id: unknown }).product_id)))
       : rows

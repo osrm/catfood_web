@@ -240,7 +240,7 @@ beforeEach(() => {
       if (filter === `in.(${candidates.slice(0, 2).map((value) => value.product_id).join(',')})`) return Response.json(candidateRows.slice(0, 2))
       return Response.json([])
     }
-    if (url.pathname.endsWith('/compare_product_ingredients')) return Response.json([])
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([])
     if (url.pathname.endsWith('/switch_current_variant_options')) {
       const id = filter.replace(/^eq\./, '')
       if (id === current.product_id) {

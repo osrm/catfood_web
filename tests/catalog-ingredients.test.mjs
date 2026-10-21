@@ -72,7 +72,7 @@ beforeEach(()=>{
  globalThis.fetch=window.fetch=async(input,init={})=>{
    const url=new URL(String(input));assert.equal(url.origin,'https://api.test');requests.push({url,signal:init.signal})
    if(url.pathname.endsWith('/effective_product_catalog_summary'))return url.searchParams.get('select').split(',').includes('ingredient_term_result_count')?factsHandler(url,init):Response.json(rows)
-   if(url.pathname.endsWith('/compare_product_ingredients'))return Response.json(rows.map(row=>({product_id:row.product_id,ingredient_names:['chicken','peas'],raw_text:'chicken, peas',ingredient_count:2,completeness_status:'full',declaration_scope:'product'})))
+   if(url.pathname.endsWith('/compare_product_ingredients_scoped'))return Response.json(rows.map(row=>({product_id:row.product_id,ingredient_names:['chicken','peas'],raw_text:'chicken, peas',ingredient_count:2,completeness_status:'full',declaration_scope:'product'})))
    return Response.json([])
  };root=createRoot(document.getElementById('root'))
 })

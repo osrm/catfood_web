@@ -62,13 +62,16 @@ export function installDemoPreviewFetch(): void {
     if (view === 'effective_product_catalog_summary') rows = DEMO_PREVIEW_PRODUCTS
     if (view === 'switch_current_variant_options') rows = DEMO_VARIANTS
     if (view === 'compare_product_nutrition') rows = DEMO_NUTRITION
-    if (view === 'compare_product_ingredients') rows = DEMO_PREVIEW_INGREDIENTS
+    if (view === 'compare_product_ingredients_scoped') rows = DEMO_PREVIEW_INGREDIENTS
     if (view === 'product_detail_manufacturing') rows = DEMO_MANUFACTURING
     if (view === 'product_detail_markets') rows = DEMO_MARKETS
 
     if (!rows) return nativeFetch(input, init)
 
-    const ids = productIdsFromFilter(url.searchParams.get('product_id'))
+    const scopedIds = url.searchParams.get('p_product_ids')
+    const ids: string[] | null = scopedIds
+      ? JSON.parse(`[${scopedIds.slice(1, -1)}]`)
+      : productIdsFromFilter(url.searchParams.get('product_id'))
     const filtered = ids
       ? rows.filter((row) => {
           if (!row || typeof row !== 'object' || !('product_id' in row)) return false

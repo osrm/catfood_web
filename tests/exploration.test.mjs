@@ -188,7 +188,7 @@ test('detail preserves supplemental raw ingredients without parsed names', async
   const fallbackFetch = globalThis.fetch
   globalThis.fetch = window.fetch = async (input, init) => {
     const url = new URL(String(input))
-    if (url.pathname.endsWith('/compare_product_ingredients')) {
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
       return Response.json([{
         product_id: products[0].product_id, ingredient_names: [], ingredient_count: 0,
         completeness_status: 'partial', raw_text: 'Primary declaration',
@@ -210,7 +210,7 @@ test('detail distinguishes a timeout from missing facts and retries successfully
   let failing = true
   globalThis.fetch = window.fetch = async (input, init) => {
     const url = new URL(String(input))
-    if (url.pathname.endsWith('/compare_product_ingredients')) {
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
       if (failing) return Response.json({ code: '57014', message: 'canceling statement due to statement timeout' }, { status: 500 })
       return Response.json([{ product_id: products[0].product_id, ingredient_names: ['Test ingredient'], ingredient_count: 1, completeness_status: 'full', raw_text: 'Recovered ingredient declaration' }])
     }

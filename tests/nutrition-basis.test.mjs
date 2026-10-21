@@ -136,7 +136,7 @@ beforeEach(() => {
   globalThis.fetch = window.fetch = async (input) => {
     const url = new URL(String(input))
     requests.push(url)
-    if (url.pathname.endsWith('/compare_product_nutrition')) {
+    if (url.pathname.endsWith('/compare_product_nutrition_scoped')) {
       const rows = []
       if (url.search.includes(targetProduct.product_id)) rows.push(dryMatterRow)
       if (url.search.includes(unrelatedProduct.product_id)) rows.push(unrelatedRow)
@@ -195,7 +195,7 @@ test('detail separates dry-matter evidence from standard nutrition and leaves tr
   ])
   assert.match(text, /수분미확인/)
   assert.match(text, /조회분미확인/)
-  const nutritionRequest = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition'))
+  const nutritionRequest = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition_scoped'))
   assert.match(nutritionRequest.searchParams.get('select'), /basis_specific_nutrition_basis/)
   assert.match(nutritionRequest.searchParams.get('select'), /basis_specific_nutrition_values/)
 })

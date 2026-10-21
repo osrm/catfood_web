@@ -238,7 +238,7 @@ test('comparison hides server diagnostics and retries nutrition', async () => {
   const fallbackFetch = globalThis.fetch
   let failing = true
   globalThis.fetch = window.fetch = async (input, init) => {
-    if (new URL(String(input)).pathname.endsWith('/compare_product_nutrition')) {
+    if (new URL(String(input)).pathname.endsWith('/compare_product_nutrition_scoped')) {
       if (failing) return Response.json({ code: '57014', message: 'canceling statement due to statement timeout' }, { status: 500 })
       return Response.json([{ product_id: products[0].product_id, protein_pct: 38, protein_qualifier: 'reported', additional_nutrients: [] }])
     }

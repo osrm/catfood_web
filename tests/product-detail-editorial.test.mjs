@@ -204,9 +204,9 @@ afterEach(async () => {
   await act(async () => root.unmount())
 })
 
-async function render() {
+async function render(props = {}) {
   await act(async () => {
-    root.render(createElement(app.ProductDetail, { product: target, onClose() {} }))
+    root.render(createElement(app.ProductDetail, { product: target, onClose() {}, ...props }))
     await Promise.resolve()
   })
 }
@@ -622,9 +622,67 @@ test('detail distinguishes request failure from an empty 200 response and retrie
     'switch_current_variant_options',
     'compare_product_nutrition_scoped',
     'compare_product_ingredients_scoped',
-    'product_detail_manufacturing',
-    'product_detail_markets',
   ]) assert.equal(calls.get(key), key === 'compare_product_nutrition_scoped' ? 2 : 1, `${key} only retries when it failed`)
+  assert.equal(calls.has('product_detail_manufacturing'), false)
+  assert.equal(calls.has('product_detail_markets'), false)
+})
+
+for (const [tab, expected] of [
+  ['overview', ['switch_current_variant_options', 'compare_product_nutrition_scoped', 'compare_product_ingredients_scoped', 'effective_product_catalog_summary']],
+  ['nutrition', ['switch_current_variant_options', 'compare_product_nutrition_scoped']],
+  ['ingredients', ['switch_current_variant_options', 'compare_product_ingredients_scoped', 'effective_product_catalog_summary']],
+  ['context', ['switch_current_variant_options', 'product_detail_manufacturing', 'product_detail_manufacturing_scope', 'product_detail_markets']],
+]) {
+  test('detail direct ' + tab + ' entry requests only visible resources and reuses them', async () => {
+    const calls = [], normal = handler
+    handler = async (url, init) => {
+      calls.push(url.pathname.split('/').at(-1))
+      return normal(url, init)
+    }
+    await render({ initialTab: tab, product: { ...target, ingredient_term_result_count: undefined } })
+    assert.deepEqual([...calls].sort(), [...expected].sort())
+    const selectedLabel = document.querySelector('.detail-tabs [aria-selected="true"]').textContent
+    await click('제조 · 유통')
+    await click('영양')
+    await click('원재료')
+    await click('개요')
+    await click(selectedLabel)
+    assert.equal(new Set(calls).size, calls.length, 'each resource is fetched once across tab round trips')
+    assert.equal(calls.length, 7)
+  })
+}
+
+test('detail retains pending reads across tab changes without treating unrequested data as empty', async () => {
+  const normal = handler, calls = []
+  let resolveNutrition, signal
+  const pending = new Promise((resolve) => { resolveNutrition = resolve })
+  handler = async (url, init) => {
+    const endpoint = url.pathname.split('/').at(-1)
+    calls.push(endpoint)
+    if (endpoint === 'compare_product_nutrition_scoped') { signal = init.signal; return pending }
+    return normal(url, init)
+  }
+  await render({ initialTab: 'context' })
+  assert.equal(calls.includes('compare_product_nutrition_scoped'), false)
+  await click('영양')
+  assert.match(document.body.textContent, /영양 정보를 불러오는 중/)
+  assert.doesNotMatch(document.body.textContent, /확인된 영양 정보가 없습니다/)
+  await click('제조 · 유통')
+  await click('영양')
+  assert.equal(signal.aborted, false)
+  assert.equal(calls.filter((item) => item === 'compare_product_nutrition_scoped').length, 1)
+  await act(async () => { resolveNutrition(Response.json([nutrition])); await Promise.resolve() })
+  assert.match(document.body.textContent, /97 kcal\/100g/)
+})
+
+test('detail product change requests the new initial tab rather than the previous product tab', async () => {
+  const normal = handler, calls = []
+  handler = async (url, init) => { calls.push(url.pathname.split('/').at(-1)); return normal(url, init) }
+  await render({ initialTab: 'context' })
+  calls.length = 0
+  await render({ product: { ...target, product_id: 'product_editorial0002' }, initialTab: 'nutrition' })
+  assert.deepEqual(calls.sort(), ['compare_product_nutrition_scoped', 'switch_current_variant_options'])
+  assert.equal(document.querySelector('.detail-tabs [aria-selected="true"]').textContent, '영양')
 })
 
 

@@ -38,6 +38,12 @@ const TABS: Array<[DetailTab, string]> = [
 ]
 const INITIAL_LOADING: Record<DetailResource, boolean> = { facts: true, variants: true, nutrition: true, ingredients: true, manufacturing: true, markets: true }
 const INITIAL_ERRORS: Record<DetailResource, string | null> = { facts: null, variants: null, nutrition: null, ingredients: null, manufacturing: null, markets: null }
+const TAB_RESOURCES: Record<DetailTab, DetailResource[]> = {
+  overview: ['facts', 'variants', 'nutrition', 'ingredients'],
+  nutrition: ['variants', 'nutrition'],
+  ingredients: ['facts', 'variants', 'ingredients'],
+  context: ['variants', 'manufacturing', 'markets'],
+}
 const LIFE_STAGE_LABELS: Record<string, string> = { kitten: '키튼', adult: '성묘', senior: '시니어', all_life_stages: '전연령', gestation_lactation_and_kitten: '임신·수유·키튼' }
 const TARGET_LABELS: Record<string, string> = { indoor: '실내묘', sterilized: '중성화묘' }
 const FEATURE_LABELS: Record<string, string> = { weight_management: '체중 관리', stool: '변 상태', hairball: '헤어볼', digestive: '소화', urinary: '요로', skin_coat: '피부·피모', dental: '덴탈' }
@@ -226,6 +232,8 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const pendingTabChangeRef = useRef<{ tab: DetailTab; focus: boolean; productId: string } | null>(null)
   const resourceRequests = useRef<Partial<Record<DetailResource, AbortController>>>({})
+  const startedResources = useRef(new Set<DetailResource>())
+  const resourceProductId = useRef<string | null>(null)
 
   useEffect(() => { setTab(initialTab) }, [initialTab, product.product_id])
   useLayoutEffect(() => {
@@ -282,6 +290,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   }
 
   function loadResource(resource: DetailResource) {
+    startedResources.current.add(resource)
     if (resource === 'facts' && product.ingredient_term_result_count != null) {
       setLoading((current) => ({ ...current, facts: false }))
       return
@@ -329,12 +338,21 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
 
   useEffect(() => {
     setLoading(INITIAL_LOADING); setErrors(INITIAL_ERRORS); setIngredientFacts(null); setVariants([]); setNutrition(null); setIngredients(null); setManufacturing(null); setManufacturingScope([]); setMarkets([])
-    for (const resource of Object.keys(INITIAL_LOADING) as DetailResource[]) loadResource(resource)
+    startedResources.current.clear()
     return () => {
       for (const controller of Object.values(resourceRequests.current)) controller?.abort()
       resourceRequests.current = {}
     }
   }, [product.product_id])
+
+  useEffect(() => {
+    // A new product uses its incoming tab before the tab state has synchronized.
+    const requestedTab = resourceProductId.current === product.product_id ? tab : initialTab
+    resourceProductId.current = product.product_id
+    for (const resource of TAB_RESOURCES[requestedTab]) {
+      if (!startedResources.current.has(resource)) loadResource(resource)
+    }
+  }, [product.product_id, tab])
 
   const manufacturingCountryRows = manufacturingScope.filter((row) => row.country_code)
   const manufacturingVariantRows = manufacturingCountryRows.filter((row) => row.observation_scope === 'variant')

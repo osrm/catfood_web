@@ -87,7 +87,7 @@ beforeEach(() => {
       if (catalogFailure) return new Response('Data API 503: internal provenance should never be shown', { status: 503 })
       return Response.json(products)
     }
-    if (url.pathname.endsWith('/switch_current_variant_options')) {
+    if (url.pathname.endsWith('/catalog_package_options')) {
       const offset = Number(url.searchParams.get('offset') ?? 0)
       if (offset === packageFailureOffset) return new Response('Temporary failure', { status: 503 })
       const limit = Math.min(Number(url.searchParams.get('limit') ?? 1000), 1000)
@@ -600,12 +600,15 @@ test('catalog loads all package options despite the API 1000-row cap', async () 
   assert.equal(packageOptions.length, 1198)
   assert.equal(loaded.length, 599)
   assert.ok(loaded.every((product) => product.available_package_labels.length === 2))
-  const queries = requests.filter((request) => request.path.endsWith('/switch_current_variant_options'))
+  const queries = requests.filter((request) => request.path.endsWith('/catalog_package_options'))
   assert.deepEqual(queries.map((request) => new URLSearchParams(request.query).get('offset')), ['0', '1000'])
+  assert.ok(queries.every((request) => new URLSearchParams(request.query).get('select') === 'product_id,variant_id,package_size_text,package_weight_g,units_per_sale,sale_total_weight_g,display_rank'))
+  assert.equal(requests.some((request) => request.path.endsWith('/switch_current_variant_options')), false, 'catalog packaging must not use the full SWITCH view')
   packageFailureOffset = 1000
   const fallback = await app.fetchCatalog()
   assert.equal(fallback.length, 599, 'package failure must not hide the catalog')
   assert.ok(fallback.every((product) => product.available_package_labels.length === 0), 'partial pages must not appear to be a complete package list')
+  assert.equal(requests.some((request) => request.path.endsWith('/switch_current_variant_options')), false, 'failed package requests must not retry the full SWITCH view')
 })
 
 for (const confirmedCount of [3, 4]) {

@@ -20,6 +20,52 @@ before(async () => {
 })
 after(async () => { globalThis.fetch = nativeFetch; if (temp) await rm(temp, { recursive: true }) })
 
+test('catalog packaging uses narrow metadata while selected-product variants retain full facts', async () => {
+  const requests = []
+  const controller = new AbortController()
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input)
+    requests.push(url)
+    assert.equal(init.signal, controller.signal)
+    assert.equal(init.headers['Accept-Profile'], 'api')
+    if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json([{
+      product_id: 'product_a', representative_package_size_text: '85 g', representative_units_per_sale: 12,
+    }])
+    if (url.pathname.endsWith('/catalog_package_options')) return Response.json([
+      { product_id: 'product_a', variant_id: 'variant_a', package_size_text: '85 g', package_weight_g: 85, units_per_sale: 12, sale_total_weight_g: 1020, display_rank: 1 },
+      { product_id: 'product_a', variant_id: 'variant_b', package_size_text: '2 kg', package_weight_g: 2000, units_per_sale: 1, sale_total_weight_g: 2000, display_rank: 2 },
+    ])
+    assert.equal(url.pathname, '/rest/v1/switch_current_variant_options')
+    assert.equal(url.searchParams.get('product_id'), 'eq.product_a')
+    assert.match(url.searchParams.get('select'), /formula_evidence_status/)
+    assert.match(url.searchParams.get('select'), /confirmed_present_ingredient_terms/)
+    return Response.json([{ product_id: 'product_a', variant_id: 'variant_a', formula_evidence_status: 'conflicting', confirmed_present_ingredient_terms: ['chicken'] }])
+  }
+  const catalog = await api.fetchCatalog(controller.signal)
+  assert.deepEqual(catalog[0].available_package_labels, ['85 g × 12', '2 kg'])
+  assert.equal(requests.some((url) => url.pathname.endsWith('/switch_current_variant_options')), false)
+  const variants = await api.fetchProductVariants('product_a', controller.signal)
+  assert.equal(variants[0].formula_evidence_status, 'conflicting')
+  assert.deepEqual(variants[0].confirmed_present_ingredient_terms, ['chicken'])
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 1)
+})
+
+test('aborting catalog packaging propagates cancellation without retry or fallback', async () => {
+  const requests = []
+  const controller = new AbortController()
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input)
+    requests.push(url.pathname)
+    if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json([])
+    assert.equal(url.pathname, '/rest/v1/catalog_package_options')
+    assert.equal(init.signal, controller.signal)
+    controller.abort()
+    throw new DOMException('Aborted', 'AbortError')
+  }
+  await assert.rejects(api.fetchCatalog(controller.signal), { name: 'AbortError' })
+  assert.deepEqual(requests, ['/rest/v1/effective_product_catalog_summary', '/rest/v1/catalog_package_options'])
+})
+
 for (const [resource, method, fields] of [['ingredients', 'fetchCompareIngredients', 17], ['nutrition', 'fetchCompareNutrition', 28]]) {
 test(resource + ': empty selection does not make a request', async () => {
   globalThis.fetch = () => { throw new Error('unexpected request') }

@@ -509,7 +509,7 @@ export function productPackageOptionsLabel(product: CatalogProduct): string {
 
 async function fetchCatalogPackageOptions(signal?: AbortSignal): Promise<CatalogPackageOption[]> {
   const { baseUrl, publishableKey } = apiConfig()
-  const url = new URL(`${baseUrl}/rest/v1/switch_current_variant_options`)
+  const url = new URL(`${baseUrl}/rest/v1/catalog_package_options`)
   url.searchParams.set('select', CATALOG_PACKAGE_FIELDS)
   url.searchParams.set('order', 'product_id.asc,display_rank.asc,variant_id.asc')
   // The public API caps each response at 1,000 rows, even with a larger limit.

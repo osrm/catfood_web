@@ -38,18 +38,18 @@ export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, o
   const editing = records.retained.find((row) => row.id === editingId)
   const active = records.retained.filter((row) => row.active)
   return <section className="journey-records" id="journey-records" tabIndex={-1} aria-label="남긴 후보와 이번 정리">
-    <div className="journey-panel-heading"><h2>남긴 후보 <span>{active.length}/5</span></h2><button type="button" onClick={() => setCopy(true)}>기록 복사</button></div>
+    <div className="journey-panel-heading"><h2>남긴 후보 <span>{active.length}/5</span></h2><button className="secondary-action" type="button" onClick={() => setCopy(true)}>기록 복사</button></div>
     <p>비교에 담은 제품과 별개입니다. 검토한 뒤 기억해 둘 후보만 남겨 주세요.</p>
     <p className="journey-note">{storageAvailable ? '이 탭에서만 보관합니다. 탭을 닫기 전 필요하면 복사해 두세요.' : '브라우저 저장을 사용할 수 없어 새로고침하면 기록을 잃을 수 있습니다. 필요한 기록은 복사해 두세요.'}</p>
     {active.length ? <ul>{active.map((row) => <li key={row.id}>
-      <div className="journey-panel-heading"><strong>{row.candidate.brand} · {row.candidate.name}</strong><button type="button" onClick={() => onRemove(row.id)}>남긴 후보에서 제거</button></div>
+      <div className="journey-panel-heading"><strong>{row.candidate.brand} · {row.candidate.name}</strong><button className="journey-inline-action" type="button" onClick={() => onRemove(row.id)}>남긴 후보에서 제거</button></div>
       {row.context.selectionKey !== selectionKey ? <strong className="journey-old-context">이전 기준에서 남긴 후보</strong> : null}
       <p className="journey-note">기준: {row.context.current.brand} · {row.context.current.name} · {row.context.variantLabel}</p>
-      <details><summary>당시 조건과 내 메모</summary><p>{row.context.labels.join(' · ') || '따로 고른 조건 없음'}</p><p>{row.note || '작성한 메모 없음'}</p><button type="button" onClick={() => setEditingId(row.id)}>후보 메모 {row.note ? '수정' : '쓰기'}</button></details>
+      <details><summary>당시 조건과 내 메모</summary><p>{row.context.labels.join(' · ') || '따로 고른 조건 없음'}</p><p>{row.note || '작성한 메모 없음'}</p><button className="journey-inline-action" type="button" onClick={() => setEditingId(row.id)}>후보 메모 {row.note ? '수정' : '쓰기'}</button></details>
     </li>)}</ul> : <p>아직 남긴 후보가 없습니다. 후보 상세나 비교 화면에서 남길 수 있습니다.</p>}
     <div className="journey-outcome"><strong>이번에는 어떻게 정리할까요? (선택)</strong><div>
-      <button type="button" aria-pressed={records.outcome?.kind === 'keep_current' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('keep_current')}>지금 사료 유지</button>
-      <button type="button" aria-pressed={records.outcome?.kind === 'undecided' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('undecided')}>아직 못 고름</button></div><small>고른 뒤에도 계속 살펴볼 수 있습니다.</small>
+      <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'keep_current' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('keep_current')}>지금 사료 유지</button>
+      <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'undecided' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('undecided')}>아직 못 고름</button></div><small>고른 뒤에도 계속 살펴볼 수 있습니다.</small>
       {records.outcome && records.outcome.context.selectionKey !== selectionKey ? <p>이전 기준의 정리: {records.outcome.kind === 'keep_current' ? '지금 사료 유지' : '아직 못 고름'} · {records.outcome.context.current.brand} {records.outcome.context.current.name}</p> : null}
     </div>{copy ? <JourneyCopy records={records} onClose={() => setCopy(false)} /> : null}{editing ? <JourneyMemo title="후보 메모" value={editing.note} onSave={(note) => onNote(editing.id, note)} onClose={() => setEditingId(null)} /> : null}
   </section>

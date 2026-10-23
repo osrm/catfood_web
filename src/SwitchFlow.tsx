@@ -1219,12 +1219,12 @@ export default function SwitchFlow({
         {evaluation.keepMatches.length ? <div><dt>유지할 점에서 확인</dt><dd>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
         {evaluation.unknowns.length ? <div><dt>자료로 확인하지 못한 점</dt><dd>{evaluation.unknowns.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
       </dl> : null}
-      <button type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '남긴 후보' : '검토 후보로 남기기'}</button>
-      {full && !retained ? <p>5개를 남겼습니다. <button type="button" onClick={() => document.getElementById('journey-records')?.focus()}>남긴 후보 정리</button></p> : null}</div>
+      <button className="primary-action" type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '남긴 후보' : '검토 후보로 남기기'}</button>
+      {full && !retained ? <p>5개를 남겼습니다. <button className="journey-inline-action" type="button" onClick={() => document.getElementById('journey-records')?.focus()}>남긴 후보 정리</button></p> : null}</div>
   }
   function renderJourneyOverlays() {
     return <>{memoOpen ? <JourneyMemo value={journey.memo} onSave={(memo) => updateJourney((value) => ({ ...value, memo, context: journeyContext() }))} onClose={() => setMemoOpen(false)} /> : null}
-      {restartOpen ? <JourneyDialog title="새로 찾아볼까요?" onClose={() => setRestartOpen(false)}><p>탐색 메모와 남긴 후보가 지워집니다. 필요하면 먼저 복사해 두세요.</p><button type="button" onClick={() => setCopyOpen(true)}>기록 복사</button><button type="button" onClick={() => { clearJourneyRecords(); updateJourney(() => readJourneyRecords()); setRestartOpen(false); updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null) }}>새로 찾기</button></JourneyDialog> : null}
+      {restartOpen ? <JourneyDialog title="새로 찾아볼까요?" onClose={() => setRestartOpen(false)}><p>탐색 메모와 남긴 후보가 지워집니다. 필요하면 먼저 복사해 두세요.</p><button className="secondary-action" type="button" onClick={() => setCopyOpen(true)}>기록 복사</button><button className="primary-action" type="button" onClick={() => { clearJourneyRecords(); updateJourney(() => readJourneyRecords()); setRestartOpen(false); updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null) }}>새로 찾기</button></JourneyDialog> : null}
       {copyOpen ? <JourneyCopy records={journey} onClose={() => setCopyOpen(false)} /> : null}</>
   }
 

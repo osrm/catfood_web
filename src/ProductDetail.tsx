@@ -611,7 +611,8 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             </section>
           </> : null}
         </div>
+        {reviewActions || reviewSummary ? <div className="detail-review">{reviewActions}{reviewSummary}</div> : null}
       </section>
     </div>
-  {reviewActions}{reviewSummary}</main>
+  </main>
 }

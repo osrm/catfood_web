@@ -272,7 +272,7 @@ async function switchResults() {
 }
 
 for (const mode of ['explore', 'switch']) {
-  test(`${mode}: reach every candidate, compare later products, preserve unchanged reapply, and keep V1 tracking at 40`, async () => {
+  test(`${mode}: reach every candidate, compare later products, preserve unchanged reapply, and report bounded V2 interaction context beyond 40`, async () => {
     if (mode === 'switch') products = catalog(86) // one current product + 85 candidates
     await (mode === 'explore' ? explore() : switchResults())
     const selector = mode === 'explore' ? '.research-result-card' : '.switch-candidate-row'
@@ -288,7 +288,7 @@ for (const mode of ['explore', 'switch']) {
     await click(rows(selector)[40])
     await click('비교에 추가')
     await click('상세 보기')
-    assert.equal(considerations().length, 1, '41st product detail and compare must not be sent')
+    assert.ok(considerations().some((entry) => entry.body.product_id === products[mode === 'switch' ? 41 : 40].product_id && entry.body.context_kind === 'load_more'), '41st product has bounded additional context')
     if (mode === 'explore') {
       const closeDetailButton = button('돌아가기')
       assert.ok(closeDetailButton)
@@ -330,7 +330,7 @@ for (const mode of ['explore', 'switch']) {
       await click('후보 목록으로')
     }
     assert.equal(rows(selector).length, 85, 'returning from compare retains expanded results')
-    assert.equal(considerations().length, 1)
+    assert.ok(considerations().some((entry) => entry.body.signal_type === 'compare_view'))
     await click('조건 수정')
     if (mode === 'switch') await click('다음 →')
     await click(mode === 'explore' ? '이 조건으로 찾기' : '후보 제품 보기')
@@ -340,8 +340,8 @@ for (const mode of ['explore', 'switch']) {
     } else {
       assert.match(document.querySelector('.switch-compare-dock')?.textContent ?? '', /담은 후보 2\/5/, 'unchanged SWITCH reapply also preserves its independent comparison')
     }
-    assert.equal(searchRuns().length, 2)
-    assert.deepEqual(searchRuns()[1].body.initial_presented_product_ids, initialIds)
+    assert.equal(searchRuns().length, 1, 'unchanged reapply reconnects the same valid run')
+    assert.deepEqual(searchRuns()[0].body.initial_presented_product_ids, initialIds)
   })
 }
 
@@ -553,7 +553,8 @@ test('later candidates still respect the five-product comparison limit', async (
   await click(rows('.research-result-card')[45])
   assert.equal(button('비교는 최대 5개까지 가능합니다').disabled, true)
   assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 5\/5/)
-  assert.equal(considerations().length, 0)
+  assert.equal(considerations().filter((entry) => entry.body.signal_type === 'compare_add').length, 5, 'only the five explicit additions are collected')
+  assert.ok(considerations().every((entry) => entry.body.presented_product_ids.length <= 40))
 })
 
 test('production preview queries cannot replace fetch; dev fixtures never emit analytics', async () => {

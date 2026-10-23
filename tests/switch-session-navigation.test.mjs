@@ -22,6 +22,9 @@ let failCatalogCount = 0
 let failVariantCount = 0
 let searchRuns = []
 let considerations = []
+let decisions = []
+let holdDecision = null
+let failDecisionCount = 0
 
 function product(id, name, overrides = {}) {
   return {
@@ -153,6 +156,9 @@ beforeEach(() => {
   failVariantCount = 0
   searchRuns = []
   considerations = []
+  decisions = []
+  holdDecision = null
+  failDecisionCount = 0
   sessionStorage.clear()
   window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
   document.body.innerHTML = '<div id="root"></div>'
@@ -202,7 +208,13 @@ function installFetch() {
     }
     if (url.pathname.endsWith('/considerations')) {
       considerations.push(JSON.parse(init.body))
-      return Response.json({ ok: true })
+      return Response.json({ status: 'recorded' })
+    }
+    if (url.pathname.endsWith('/decisions')) {
+      decisions.push(JSON.parse(init.body))
+      if (failDecisionCount > 0) { failDecisionCount -= 1; return new Response('', { status: 503 }) }
+      if (holdDecision) return holdDecision()
+      return Response.json({ status: 'recorded' })
     }
     if (url.pathname.includes('/compare_product_') || url.pathname.includes('/product_')) return Response.json([])
     return Response.json([])
@@ -1090,4 +1102,144 @@ test('SWITCH detail header preserves navigation and restart from both candidate 
   assert.equal(document.activeElement, document.querySelector('.switch-find-search input'))
   await browserBack(() => document.querySelector('.switch-find-search input'), 'back after detail restart')
   assert.deepEqual(session(), restarted)
+})
+
+function journey() { return app.readJourneyRecords() }
+async function textareaValue(element, value) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(element, value)
+    element.dispatchEvent(new window.Event('input', { bubbles: true }))
+  })
+}
+async function retainAFromDetail() {
+  await selectCandidate()
+  await click('상세 보기')
+  await waitForUi(() => button('검토 후보로 남기기'), 'retention available in full detail')
+  await click('검토 후보로 남기기')
+}
+test('optional memo preserves applied criteria and never enters navigation or exact intake payloads; cancel keeps saved text', async () => {
+  await renderApp(); await reachResultsWithConditions()
+  const key = app.switchSelectionKey(session())
+  await click(exactButton('내 메모'))
+  await textareaValue(document.querySelector('dialog textarea'), 'PRIVATE_MEMO 잘 안 먹어서 알아보는 중')
+  await click('메모 남기기')
+  assert.equal(journey().memo, 'PRIVATE_MEMO 잘 안 먹어서 알아보는 중')
+  assert.equal(app.switchSelectionKey(session()), key)
+  assert.doesNotMatch(window.location.href + JSON.stringify(window.history.state) + JSON.stringify(searchRuns) + JSON.stringify(considerations), /PRIVATE_MEMO/)
+  await click(exactButton('내 메모'))
+  await textareaValue(document.querySelector('dialog textarea'), '저장하지 않은 변경')
+  await act(async () => document.querySelector('dialog').dispatchEvent(new window.Event('cancel', { cancelable: true })))
+  assert.equal(journey().memo, 'PRIVATE_MEMO 잘 안 먹어서 알아보는 중')
+  await remountApp()
+  assert.equal(journey().memo, 'PRIVATE_MEMO 잘 안 먹어서 알아보는 중')
+  assert.equal(app.switchSelectionKey(session()), key)
+})
+test('explicit retained candidate is independent of basket, current reselection and changed conditions; restart alone clears it', async () => {
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  const original = structuredClone(journey().retained[0].context)
+  assert.equal(journey().retained.filter((row) => row.active).length, 1)
+  await click('비교에 추가')
+  await click('비교에서 제거')
+  assert.equal(journey().retained[0].active, true)
+  await click('돌아가기')
+  await waitForUi(() => document.querySelector('.switch-results-stage') && !document.querySelector('.detail-stage'), 'return from retained detail')
+  await click('조건 수정')
+  await click('현재 사료 다시 선택')
+  assert.equal(session().currentProductId, null)
+  assert.deepEqual(journey().retained[0].context, original)
+  await click('처음부터 시작')
+  assert.ok(document.querySelector('dialog[aria-label="새로 찾아볼까요?"]'))
+  await click(exactButton('새로 찾기'))
+  assert.equal(journey().retained.length, 0)
+  await remountApp()
+  assert.equal(journey().retained.length, 0, 'old navigation cannot resurrect separate cleared records')
+})
+test('rapid retain then remove serializes server revisions on the original run even before first acknowledgement', async () => {
+  let release
+  let intercepted = false
+  holdDecision = () => { if (intercepted) return Response.json({ status: 'recorded' }); intercepted = true; return new Promise((resolve) => { release = resolve }) }
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  await waitForUi(() => decisions.length === 1, 'first retain reaches intake')
+  await click('남긴 후보에서 제거')
+  assert.equal(journey().retained[0].active, false)
+  assert.equal(decisions.length, 1, 'removal waits for retain ack')
+  await act(async () => { release(Response.json({ status: 'recorded' })); await new Promise((resolve) => setTimeout(resolve, 30)) })
+  assert.equal(decisions.length, 2)
+  assert.deepEqual(decisions.map((row) => [row.kind, row.revision, row.expected_previous_revision]), [['candidate_retained',1,0],['retained_candidate_removed',2,1]])
+  assert.equal(decisions[0].search_run_id, decisions[1].search_run_id)
+  assert.equal(decisions[0].record_id, decisions[1].record_id)
+  await click('검토 후보로 남기기')
+  await waitForUi(() => decisions.length === 3, 're-retain after removal')
+  assert.equal(decisions[2].revision, 3)
+  assert.equal(decisions[2].record_id, decisions[0].record_id)
+})
+test('keep-current and undecided are explicit and serialize on one result record', async () => {
+  await renderApp(); await reachResultsWithConditions()
+  assert.equal(journey().outcome, null)
+  await click('지금 사료 유지')
+  await click('아직 못 고름')
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)) })
+  assert.equal(journey().outcome.kind, 'undecided')
+  assert.deepEqual(decisions.map((row) => [row.kind,row.revision]), [['keep_current',1],['undecided',2]])
+  assert.equal(decisions[0].record_id, decisions[1].record_id)
+  assert.equal(decisions[0].product_id, null)
+  assert.deepEqual(session().compareIds, [])
+})
+test('five retained records expose a removal path instead of silently dropping one', async () => {
+  await renderApp(); await reachResultsWithConditions()
+  const context = { selectionKey: 'old', current: { productId: current.product_id, brand: current.brand, name: current.canonical_name }, variantId: null, variantLabel: '사용 규격 모름', criteria: [], labels: [] }
+  app.writeJourneyRecords({ memo: '', outcome: null, retained: Array.from({ length: 5 }, (_, i) => ({ id: `saved-${i}`, revision: 1, active: true, candidate: { productId: `saved-product-${i}`, brand: '기존 후보', name: `후보 ${i}` }, context, note: '', createdAt: '2026-10-23', searchRunId: null })) })
+  await remountApp(); await selectCandidate(); await click('상세 보기'); await click('검토 후보로 남기기')
+  assert.equal(journey().retained.filter((row) => row.active).length, 5)
+  assert.match(document.body.textContent, /남긴 후보는 최대 5개/)
+  assert.ok(button('남긴 후보 정리'))
+  assert.equal(document.activeElement.id, 'journey-records')
+})
+
+test('outcome reload preserves acknowledged server revision before switching to undecided', async () => {
+  await renderApp(); await reachResultsWithConditions(); await click('지금 사료 유지')
+  await waitForUi(() => journey().outcome?.intakeRevision === 1, 'keep acknowledged')
+  await remountApp(); await click('아직 못 고름')
+  await waitForUi(() => journey().outcome?.intakeRevision === 2, 'undecided acknowledged after reload')
+  assert.equal(decisions.at(-1).revision, 2)
+  assert.equal(decisions.at(-1).expected_previous_revision, 1)
+  assert.equal(decisions.at(-1).search_run_id, decisions[0].search_run_id)
+  assert.equal(decisions.at(-1).record_id, decisions[0].record_id)
+})
+test('lost retain acknowledgement replays the exact pending operation before sending removal', async () => {
+  failDecisionCount = 2
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  await waitForUi(() => journey().retained[0]?.pendingIntake?.pending, 'unacknowledged retain persisted')
+  assert.equal(decisions.length, 2)
+  const first = decisions[0]
+  await click('남긴 후보에서 제거')
+  await waitForUi(() => decisions.length === 4 && journey().retained[0]?.intakeRevision === 2, 'pending retain recovered before removal')
+  assert.deepEqual(decisions[2], first)
+  assert.equal(decisions[3].kind, 'retained_candidate_removed')
+  assert.equal(decisions[3].revision, 2)
+  assert.equal(journey().retained[0].active, false)
+})
+
+test('changed applied criteria mark retained snapshots as previous context without rewriting them', async () => {
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  const original = structuredClone(journey().retained[0].context)
+  await click('돌아가기')
+  await waitForUi(() => document.querySelector('.switch-results-stage') && !document.querySelector('.detail-stage'), 'return to results before criteria edit')
+  await click('조건 수정'); await click('다른 브랜드로 보기'); await click(exactButton('다음 →')); await click('후보 제품 보기')
+  assert.notEqual(session().appliedCriteriaKey, original.selectionKey)
+  assert.deepEqual(journey().retained[0].context, original)
+  assert.match(document.querySelector('.journey-old-context').textContent, /이전 기준/)
+})
+
+test('a delayed decision acknowledgement cannot resurrect records after explicit new journey', async () => {
+  let release
+  holdDecision = () => new Promise((resolve) => { release = resolve })
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  await waitForUi(() => decisions.length === 1, 'retained decision pending')
+  await click('처음부터 시작'); await click(exactButton('새로 찾기'))
+  await waitForUi(() => document.querySelector('.switch-find-search'), 'fresh journey mounted')
+  await act(async () => { release(Response.json({ status: 'recorded' })); await new Promise((resolve) => setTimeout(resolve, 30)) })
+  assert.equal(journey().retained.length, 0)
+  assert.equal(journey().outcome, null)
+  assert.equal(session().currentProductId, null)
 })

@@ -550,8 +550,11 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, reviewActions, reviewSummary, onDisplayedCandidates }: {
   items: CompareItem[]
+  reviewActions?: (product: CatalogProduct) => ReactNode
+  reviewSummary?: ReactNode
+  onDisplayedCandidates?: (ids: string[]) => void
   ingredientConditionsPending?: boolean
   ingredientLoad?: CatalogIngredientLoad
   criteriaLabels?: string[]
@@ -573,6 +576,12 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const [showEnergyGraph, setShowEnergyGraph] = useState(false)
   const [reload, setReload] = useState(0)
   const [nutrition, setNutrition] = useState<CompareNutrition[]>([])
+  const [currentIngredients, setCurrentIngredients] = useState<CompareIngredients | null>(null)
+  const [currentIngredientsLoading, setCurrentIngredientsLoading] = useState(Boolean(currentProduct && initialTab === 'ingredients'))
+  const [currentIngredientsError, setCurrentIngredientsError] = useState<string | null>(null)
+  const [currentIngredientsReload, setCurrentIngredientsReload] = useState(0)
+  const currentIngredientsLoaded = useRef<string | null>(null)
+  const currentIngredientsFailed = useRef<string | null>(null)
   const [currentNutrition, setCurrentNutrition] = useState<CompareNutrition | null>(null)
   const [currentNutritionLoading, setCurrentNutritionLoading] = useState(Boolean(currentProduct && initialTab === 'nutrition'))
   const [currentNutritionError, setCurrentNutritionError] = useState<string | null>(null)
@@ -715,6 +724,22 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const detailItem = detailProductId ? items.find((item) => item.product.product_id === detailProductId) ?? null : null
   const mobileCandidate = items.find((item) => item.product.product_id === mobileCandidateId) ?? items[0] ?? null
   const mobileCandidateIndex = mobileCandidate ? items.findIndex((item) => item.product.product_id === mobileCandidate.product.product_id) : -1
+  const displayedCallback = useRef(onDisplayedCandidates)
+  displayedCallback.current = onDisplayedCandidates
+  const [mobileViewport, setMobileViewport] = useState(() => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(max-width: 760px)').matches))
+  useEffect(() => {
+    const query = window.matchMedia?.('(max-width: 760px)')
+    if (!query) return
+    const update = () => setMobileViewport(query.matches)
+    update(); query.addEventListener?.('change', update)
+    return () => query.removeEventListener?.('change', update)
+  }, [])
+  const displayedIds = mobileViewport && tab !== 'ingredients'
+    ? currentProduct ? [mobileCandidate?.product.product_id].filter((id): id is string => Boolean(id)) : mobilePairItems.map((item) => item.product.product_id)
+    : items.map((item) => item.product.product_id)
+  const displayedKey = displayedIds.join('|')
+  useEffect(() => { if (!detailProductId) displayedCallback.current?.(displayedIds) }, [displayedKey, detailProductId])
+
   useLayoutEffect(() => {
     const pending = pendingSwitchRemovalFocusRef.current
     if (!pending || !currentProduct || items.length !== pending.remainingCount) return
@@ -880,6 +905,11 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   }, [tab, productKey, reload])
 
   useEffect(() => {
+    currentIngredientsLoaded.current = null
+    currentIngredientsFailed.current = null
+    setCurrentIngredients(null)
+    setCurrentIngredientsError(null)
+    setCurrentIngredientsLoading(Boolean(currentProduct && tab === 'ingredients'))
     currentNutritionLoadedProductRef.current = null
     currentVariantsLoadedProductRef.current = null
     currentNutritionErrorProductRef.current = null
@@ -892,9 +922,9 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   }, [currentProduct?.product_id])
 
   useEffect(() => {
-    if (!currentProduct || tab !== 'nutrition') return
+    if (!currentProduct || tab !== 'nutrition' && tab !== 'ingredients') return
     const productId = currentProduct.product_id
-    const needNutrition = currentNutritionLoadedProductRef.current !== productId && currentNutritionErrorProductRef.current !== productId
+    const needNutrition = tab === 'nutrition' && currentNutritionLoadedProductRef.current !== productId && currentNutritionErrorProductRef.current !== productId
     const needVariants = currentVariantsLoadedProductRef.current !== productId
     if (!needNutrition && !needVariants) {
       setCurrentNutritionLoading(false)
@@ -934,6 +964,26 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     } else setCurrentVariantsLoading(false)
     return () => { active = false; controller.abort() }
   }, [currentProduct?.product_id, tab, currentNutritionReload])
+
+  useEffect(() => {
+    if (!currentProduct || tab !== 'ingredients') return
+    const id = currentProduct.product_id
+    if (currentIngredientsLoaded.current === id || currentIngredientsFailed.current === id) { setCurrentIngredientsLoading(false); return }
+    let active = true
+    const controller = new AbortController()
+    setCurrentIngredientsLoading(true)
+    fetchCompareIngredients([id], controller.signal).then((rows) => {
+      if (!active) return
+      setCurrentIngredients(rows[0] ?? null)
+      currentIngredientsLoaded.current = id
+      setCurrentIngredientsError(null)
+    }).catch((error: unknown) => {
+      if (!active || error instanceof DOMException && error.name === 'AbortError') return
+      currentIngredientsFailed.current = id
+      setCurrentIngredientsError('현재 사료 원재료를 불러오지 못했습니다.')
+    }).finally(() => { if (active) setCurrentIngredientsLoading(false) })
+    return () => { active = false; controller.abort() }
+  }, [currentProduct?.product_id, tab, currentIngredientsReload])
 
   function openDetail(productId: string) {
     if (onDetailOpen) onDetailOpen(productId)
@@ -1038,7 +1088,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const activeIngredientsError = ingredientsErrorKeyRef.current === productKey ? ingredientsError : null
   const activeCurrentNutritionError = currentProduct && currentNutritionErrorProductRef.current === currentProduct.product_id ? currentNutritionError : null
 
-  if (detailItem) return <ProductDetail embedded={!switchDetailNavigation} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} />
+  if (detailItem) return <ProductDetail embedded={!switchDetailNavigation} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} reviewActions={reviewActions?.(detailItem.product)} reviewSummary={reviewSummary} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`
@@ -1058,11 +1108,11 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
       ? `현재 사료와 ${items.length}개 후보의 제품 정보를 같은 항목으로 비교합니다.`
       : tab === 'nutrition'
         ? `현재 사료를 기준으로 담아둔 ${items.length}개 후보의 영양 정보를 같은 항목에서 비교합니다.`
-        : `담아둔 ${items.length}개 후보의 원재료 정보를 비교합니다. 현재 사료는 포함하지 않습니다.`
+        : `현재 사료와 담아둔 ${items.length}개 후보의 원재료를 살펴봅니다.`
     : `${items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.`
 
   return <main className={stageClassName}>
-    <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? tab === 'ingredients' ? '담은 후보 비교' : '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
+    <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button
       key={key} id={`compare-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`compare-panel-${key}`} tabIndex={tab === key ? 0 : -1}
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}
@@ -1192,6 +1242,19 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
           <SwitchOverviewRow label="원래 표기·자료" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutritionLoading ? '조회 중' : activeCurrentNutritionError ? '조회 실패' : currentNutrition ? <NutritionScope detail={currentNutrition} variants={currentVariants} failed={currentVariantLookupFailed} loading={currentVariantsLoading} /> : '영양 자료 없음'} candidateValue={(item) => nutritionLoading ? '조회 중' : activeNutritionError ? '조회 실패' : nutritionByProduct.get(item.product.product_id) ? <NutritionScope detail={nutritionByProduct.get(item.product.product_id)} variants={variantsByProduct[item.product.product_id]} failed={variantLookupFailures.includes(item.product.product_id)} loading={variantsLoading} /> : '영양 자료 없음'} />
           {hasSwitchBasisSpecificNutrition ? <><CompareSection title="다른 기준의 영양자료" note="일반 표시값과 합치거나 환산하지 않고 별도로 보여줍니다." /><SwitchOverviewRow label="별도 확인 자료" currentProduct={currentProduct} items={items} tone="context" currentValue={() => currentNutrition ? basisSpecificSummary(currentNutrition) : currentNutritionLoading ? '조회 중' : activeCurrentNutritionError ? '조회 실패' : '영양 자료 없음'} candidateValue={(item) => nutritionByProduct.get(item.product.product_id) ? basisSpecificSummary(nutritionByProduct.get(item.product.product_id)) : nutritionLoading ? '조회 중' : activeNutritionError ? '조회 실패' : '영양 자료 없음'} /></> : null}
         </div>
+      </> : currentProduct && tab === 'ingredients' ? <>
+        {currentIngredientsError && currentIngredientsFailed.current === currentProduct.product_id ? <div className="compare-state is-error" role="alert"><p>{currentIngredientsError} 후보 자료는 그대로 표시합니다.</p><button type="button" onClick={() => { currentIngredientsFailed.current = null; setCurrentIngredientsError(null); setCurrentIngredientsReload((value) => value + 1) }}>현재 사료 다시 시도</button></div> : null}
+        <div className="compare-table" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
+          <div className="compare-head-row"><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
+          <CompareSection title="원재료" note="원문을 확인하며 현재 사료와 같은 점·다른 점을 살펴보세요." />
+          <SwitchOverviewRow label="목록 상태" currentProduct={currentProduct} items={items}
+            currentValue={() => currentIngredientsLoading ? '불러오는 중' : currentIngredientsError ? '조회 실패' : currentIngredients ? currentIngredients.completeness_status === 'full' ? '전체 목록 확인' : currentIngredients.completeness_status === 'partial' ? '일부 목록' : '목록 상태 미확인' : '원재료 자료 없음'}
+            candidateValue={(item) => ingredientsLoading ? '불러오는 중' : activeIngredientsError ? '조회 실패' : ingredientsByProduct.get(item.product.product_id)?.completeness_status === 'full' ? '전체 목록 확인' : ingredientsByProduct.has(item.product.product_id) ? '일부 목록 또는 요약' : '원재료 자료 없음'} />
+          <SwitchOverviewRow label="직접 확인 원료" currentProduct={currentProduct} items={items} currentValue={(product) => product.direct_evidence_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)} candidateValue={(item) => item.product.direct_evidence_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
+          <SwitchOverviewRow label="향미 연관 원료" currentProduct={currentProduct} items={items} currentValue={(product) => product.flavor_associated_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)} candidateValue={(item) => item.product.flavor_associated_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
+          <SwitchOverviewRow label="출처 원문" currentProduct={currentProduct} items={items} currentValue={() => currentIngredientsLoading ? '불러오는 중' : currentIngredientsError ? '조회 실패' : <IngredientSourceDisclosure row={currentIngredients ?? undefined} />} candidateValue={(item) => ingredientsLoading ? '불러오는 중' : activeIngredientsError ? '조회 실패' : <IngredientSourceDisclosure row={ingredientsByProduct.get(item.product.product_id)} />} />
+          <SwitchOverviewRow label="자료 기준" currentProduct={currentProduct} items={items} tone="context" currentValue={() => <details><summary>자료 보기</summary>{ingredientDetailContext(currentIngredients ?? undefined, currentVariants, currentVariantLookupFailed, currentVariantsLoading)}</details>} candidateValue={(item) => <details><summary>자료 보기</summary>{ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)}</details>} />
+        </div>
       </> : <>
         {items.length > 2 && (tab === 'overview' || tab === 'nutrition') ? renderMobileGeneralPairPicker() : null}
         {twoProductOverview ? <MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
@@ -1244,6 +1307,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         </> : null}
       </div></>}
     </section>
-
+    {reviewActions ? <section aria-label="검토한 후보 남기기">{items.map((item) => <div key={item.product.product_id}>{reviewActions(item.product)}</div>)}</section> : null}
+    {reviewSummary}
   </main>
 }

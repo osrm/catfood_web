@@ -1,12 +1,19 @@
 import './switch-consumer-flow.css'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import SiteHeader from './SiteHeader'
+import { JourneyMemo, JourneyRecordsPanel, JourneyDialog, JourneyCopy } from './JourneyReview'
+import { readJourneyRecords, writeJourneyRecords, clearJourneyRecords, hasJourneyWork, type JourneyRecords, type JourneyContext, type RetainedCandidate, type JourneyPendingIntake } from './journey-records'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
 import {
   createDecisionSearchRun,
   recordProductConsideration,
+  recordExplicitDecision,
+  isDecisionCollectionEnabled,
+  type ExplicitDecisionInput,
+  type ExplicitDecisionKind,
+  type ConsiderationSignal,
   type DecisionCriterion,
 } from './analytics'
 import {
@@ -685,6 +692,22 @@ export default function SwitchFlow({
   const setCompareIds = (value: string[] | ((current: string[]) => string[])) => setSessionField('compareIds', value)
   const setCompareOpen = (value: boolean) => setSessionField('compareOpen', value)
   const setDetailProductId = (value: string | null) => setSessionField('detailProductId', value)
+  const [journey, setJourney] = useState<JourneyRecords>(readJourneyRecords)
+  const journeyRef = useRef(journey)
+  const journeyMounted = useRef(true)
+  useEffect(() => { journeyMounted.current = true; return () => { journeyMounted.current = false } }, [])
+  const [journeyStorageAvailable, setJourneyStorageAvailable] = useState(true)
+  const [memoOpen, setMemoOpen] = useState(false)
+  const [restartOpen, setRestartOpen] = useState(false)
+  const [copyOpen, setCopyOpen] = useState(false)
+  const [retainNotice, setRetainNotice] = useState('')
+  function updateJourney(updater: (value: JourneyRecords) => JourneyRecords) {
+    if (!journeyMounted.current) return
+    const next = updater(journeyRef.current)
+    journeyRef.current = next
+    setJourney(next)
+    setJourneyStorageAvailable(writeJourneyRecords(next))
+  }
   const [previewProductId, setPreviewProductId] = useState<string | null>(null)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [variantLoading, setVariantLoading] = useState(false)
@@ -697,6 +720,9 @@ export default function SwitchFlow({
   const previousChangeDisclosureStep = useRef(step)
   const switchRunId = useRef<string | null>(null)
   const switchRunGeneration = useRef(0)
+  const switchRunSelection = useRef<string | null>(null)
+  const considerationPromises = useRef(new Map<string, Promise<boolean>>())
+  const decisionOperations = useRef(new Map<string, Promise<{ ack: { runId: string; revision: number } | null; pending: JourneyPendingIntake }>>())
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
@@ -733,6 +759,7 @@ export default function SwitchFlow({
     else updateSession(fallback)
   }
   function openSwitchDetail(productId: string) {
+    recordSwitchConsideration(productId, 'detail_open')
     updateSession((current) => ({ ...current, detailProductId: productId, detailTab: 'overview' }), 'push', 'detail')
   }
   function closeSwitchDetail() {
@@ -1002,13 +1029,22 @@ export default function SwitchFlow({
     candidateSearchInputRef.current?.focus({ preventScroll: true })
   }
 
-  function beginSwitchRun() {
+  function beginSwitchRun(runOrigin: 'submitted' | 'restored' = 'submitted') {
     if (!currentProduct) return
+    const selection = switchSelectionKey(activeSession)
+    if (switchRunSelection.current !== selection) {
+      switchRunSelection.current = selection
+      switchRunGeneration.current += 1
+      switchRunTail.current = Promise.resolve(null)
+      switchRunId.current = null
+      considerationPromises.current.clear()
+    }
     const generation = switchRunGeneration.current
     const previous = switchRunTail.current
     const next = previous.then((previousRunId) => {
       if (switchRunGeneration.current !== generation) return null
       return createDecisionSearchRun({
+        runOrigin,
         parentSearchRunId: previousRunId ?? switchRunId.current,
         mode: 'switch',
         currentProductId: currentProduct.product_id,
@@ -1033,9 +1069,14 @@ export default function SwitchFlow({
     })
   }
 
+  useEffect(() => {
+    if (step !== 'results' || !currentProduct || loading || error || ingredientFactsPending || switchRunId.current) return
+    beginSwitchRun('restored')
+  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, loading, error, ingredientFactsPending])
+
   function openCandidate(productId: string) {
     setSelectedCandidateId(productId)
-    recordSwitchConsideration(productId, 'detail_open')
+    recordSwitchConsideration(productId, 'quick_view_open')
   }
 
   function closeCandidate(productId: string) {
@@ -1043,13 +1084,148 @@ export default function SwitchFlow({
     setSelectedCandidateId(null)
   }
 
-  function recordSwitchConsideration(
-    productId: string,
-    signal: 'detail_open' | 'compare_add',
-  ) {
-    if (!trackedCandidates.some((item) => item.product.product_id === productId)) return
-    void switchRunTail.current.then((searchRunId) =>
-      recordProductConsideration(searchRunId, productId, signal))
+  function considerationContext(productId: string) {
+    const initial = trackedCandidates.map((item) => item.product.product_id)
+    if (initial.includes(productId)) return { kind: 'initial' as const, presentedProductIds: initial }
+    const source = candidateSearchActive ? searchedCandidates : candidates
+    const index = source.findIndex((item) => item.product.product_id === productId)
+    const batch = index < 0 ? [productId] : source.slice(Math.floor(index / 40) * 40, Math.floor(index / 40) * 40 + 40).map((item) => item.product.product_id)
+    return { kind: candidateSearchActive ? 'named_search' as const : 'load_more' as const, presentedProductIds: batch }
+  }
+  function recordSwitchConsideration(productId: string, signal: ConsiderationSignal, displayedProductIds?: string[]) {
+    const generation = switchRunGeneration.current
+    const context = { ...considerationContext(productId), displayedProductIds }
+    const request = switchRunTail.current.then((searchRunId) => {
+      if (generation === switchRunGeneration.current) return recordProductConsideration(searchRunId, productId, signal, context)
+      return false
+    })
+    considerationPromises.current.set(productId, request)
+    return request
+  }
+  function journeyContext(): JourneyContext | null {
+    if (!currentProduct) return null
+    const labels = [...criteriaLabels(change).map((value) => `바꿀 점 · ${value}`), ...criteriaLabels(keep).map((value) => `유지할 점 · ${value}`)]
+    if (changeBrand) labels.push('다른 브랜드')
+    if (keepBrand) labels.push(`브랜드 유지 · ${currentProduct.brand}`)
+    labels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+    return { selectionKey: activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession),
+      current: { productId: currentProduct.product_id, brand: currentProduct.brand, name: currentProduct.canonical_name },
+      variantId: currentVariantId, variantLabel: currentVariantText, labels,
+      criteria: switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }) }
+  }
+  function queueJourneyDecision(id: string, kind: ExplicitDecisionKind | null, productId: string | null, resolveRun: () => Promise<string | null>) {
+    if (!isDecisionCollectionEnabled()) return
+    const local = journeyRef.current.retained.find((row) => row.id === id) ?? (journeyRef.current.outcome?.id === id ? journeyRef.current.outcome : null)
+    const initial = { ack: local?.searchRunId && local.intakeRevision ? { runId: local.searchRunId, revision: local.intakeRevision } : null,
+      pending: local?.pendingIntake ?? { pending: null, following: [] } }
+    const previous = decisionOperations.current.get(id) ?? Promise.resolve(initial)
+    const next = previous.then(async (state) => {
+      let ack = state.ack
+      const following = [...state.pending.following]
+      if (kind) following.push({ kind, productId, runId: ack?.runId ?? await resolveRun() })
+      let pending: ExplicitDecisionInput | null = state.pending.pending
+      const persist = () => updateJourney((value) => ({ ...value,
+        retained: value.retained.map((row) => row.id === id ? { ...row, searchRunId: ack?.runId ?? row.searchRunId, intakeRevision: ack?.revision ?? row.intakeRevision, pendingIntake: { pending, following: [...following] } } : row),
+        outcome: value.outcome?.id === id ? { ...value.outcome, searchRunId: ack?.runId ?? value.outcome.searchRunId, intakeRevision: ack?.revision ?? value.outcome.intakeRevision, pendingIntake: { pending, following: [...following] } } : value.outcome,
+      }))
+      while (pending || following.length) {
+        if (!pending) {
+          const action = following.shift()!
+          const runId = ack?.runId ?? action.runId
+          if (!runId || action.kind === 'retained_candidate_removed' && !ack) continue
+          const revision = (ack?.revision ?? 0) + 1
+          pending = { recordId: id, revision, previousRevision: revision - 1, searchRunId: runId, kind: action.kind, productId: action.productId }
+        }
+        persist()
+        if (!await recordExplicitDecision(pending)) { persist(); return { ack, pending: { pending, following } } }
+        ack = { runId: pending.searchRunId!, revision: pending.revision }
+        pending = null
+        persist()
+      }
+      return { ack, pending: { pending: null, following: [] } }
+    })
+    decisionOperations.current.set(id, next)
+  }
+  useEffect(() => {
+    // Replay exact pending operations, never recreate past UI actions under a new run.
+    for (const row of [...journeyRef.current.retained, ...(journeyRef.current.outcome ? [journeyRef.current.outcome] : [])]) {
+      if (row.pendingIntake?.pending || row.pendingIntake?.following.length) queueJourneyDecision(row.id, null, null, async () => null)
+    }
+  }, [])
+
+  function retainCandidate(product: CatalogProduct) {
+    const context = journeyContext()
+    if (!context) return
+    if (journeyRef.current.retained.some((row) => row.active && row.candidate.productId === product.product_id && row.context.selectionKey === context.selectionKey)) return
+    if (journeyRef.current.retained.filter((row) => row.active).length >= 5) { setRetainNotice('남긴 후보는 최대 5개입니다. 아래 기록에서 하나를 제거한 뒤 남겨 주세요.'); document.getElementById('journey-records')?.focus(); return }
+    const previous = journeyRef.current.retained.find((row) => !row.active && row.candidate.productId === product.product_id && row.context.selectionKey === context.selectionKey)
+    const row: RetainedCandidate = previous ? { ...previous, active: true, revision: previous.revision + 1 } : {
+      id: crypto.randomUUID(), revision: 1, active: true, candidate: { productId: product.product_id, brand: product.brand, name: product.canonical_name },
+      context, note: '', createdAt: new Date().toISOString(), searchRunId: null,
+    }
+    updateJourney((value) => ({ ...value, context, retained: previous ? value.retained.map((item) => item.id === row.id ? row : item) : [...value.retained, row] }))
+    setRetainNotice(`${product.brand} · ${product.canonical_name}을 남겼습니다.`)
+    const generation = switchRunGeneration.current
+    const pendingRun = switchRunTail.current
+    const membership = considerationPromises.current.get(product.product_id)
+    const initiallyPresented = trackedCandidates.some((item) => item.product.product_id === product.product_id)
+    queueJourneyDecision(row.id, 'candidate_retained', product.product_id, async () => {
+      const runId = await pendingRun
+      if (!runId || generation !== switchRunGeneration.current) return null
+      if (!initiallyPresented && !await membership) return null
+      return runId
+    })
+  }
+
+  function removeRetained(id: string) {
+    const row = journeyRef.current.retained.find((item) => item.id === id)
+    if (!row?.active) return
+    updateJourney((value) => ({ ...value, retained: value.retained.map((item) => item.id === id ? { ...item, active: false, revision: item.revision + 1 } : item) }))
+    queueJourneyDecision(id, 'retained_candidate_removed', row.candidate.productId, async () => row.searchRunId)
+    requestAnimationFrame(() => document.getElementById('journey-records')?.focus({ preventScroll: true }))
+  }
+  function setJourneyOutcome(kind: 'keep_current' | 'undecided') {
+    const context = journeyContext()
+    if (!context) return
+    const previous = journeyRef.current.outcome?.context.selectionKey === context.selectionKey ? journeyRef.current.outcome : null
+    if (previous?.kind === kind) return
+    const row = { ...previous, id: previous?.id ?? crypto.randomUUID(), revision: (previous?.revision ?? 0) + 1, kind, context, searchRunId: previous?.searchRunId ?? null }
+    updateJourney((value) => ({ ...value, context, outcome: row }))
+    const generation = switchRunGeneration.current
+    const pendingRun = switchRunTail.current
+    queueJourneyDecision(row.id, kind, null, async () => generation === switchRunGeneration.current ? pendingRun : null)
+  }
+
+  function renderJourneyRecords() {
+    return <>{retainNotice ? <p role="status">{retainNotice}</p> : null}<JourneyRecordsPanel records={journey}
+      selectionKey={activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession)} storageAvailable={journeyStorageAvailable}
+      onNote={(id, note) => updateJourney((value) => ({ ...value, retained: value.retained.map((row) => row.id === id ? { ...row, note } : row) }))}
+      onRemove={removeRetained} onOutcome={setJourneyOutcome} /></>
+  }
+  useEffect(() => {
+    if (step !== 'results') return
+    const context = journeyContext()
+    if (context) updateJourney((value) => ({ ...value, context }))
+  }, [step, activeSession.appliedCriteriaKey, currentVariantText])
+
+  function renderRetainAction(product: CatalogProduct) {
+    const evaluation = candidates.find((item) => item.product.product_id === product.product_id)
+    const retained = journey.retained.some((row) => row.active && row.candidate.productId === product.product_id && row.context.selectionKey === activeSession.appliedCriteriaKey)
+    const full = journey.retained.filter((row) => row.active).length >= 5
+    return <div className="journey-retain"><strong>{product.brand} · {product.canonical_name}</strong>
+      {currentProduct ? <p>지금 사료: {currentProduct.brand} · {currentProduct.canonical_name} · {currentVariantText}</p> : null}
+      {evaluation ? <dl className="journey-related-facts">
+        {evaluation.changeMatches.length ? <div><dt>바꾸고 싶은 점에서 확인</dt><dd>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
+        {evaluation.keepMatches.length ? <div><dt>유지할 점에서 확인</dt><dd>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
+        {evaluation.unknowns.length ? <div><dt>자료로 확인하지 못한 점</dt><dd>{evaluation.unknowns.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
+      </dl> : null}
+      <button className="primary-action" type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '남긴 후보' : '검토 후보로 남기기'}</button>
+      {full && !retained ? <p>5개를 남겼습니다. <button className="journey-inline-action" type="button" onClick={() => document.getElementById('journey-records')?.focus()}>남긴 후보 정리</button></p> : null}</div>
+  }
+  function renderJourneyOverlays() {
+    return <>{memoOpen ? <JourneyMemo value={journey.memo} onSave={(memo) => updateJourney((value) => ({ ...value, memo, context: journeyContext() }))} onClose={() => setMemoOpen(false)} /> : null}
+      {restartOpen ? <JourneyDialog title="새로 찾아볼까요?" onClose={() => setRestartOpen(false)}><p>탐색 메모와 남긴 후보가 지워집니다. 필요하면 먼저 복사해 두세요.</p><button className="secondary-action" type="button" onClick={() => setCopyOpen(true)}>기록 복사</button><button className="primary-action" type="button" onClick={() => { clearJourneyRecords(); updateJourney(() => readJourneyRecords()); setRestartOpen(false); updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null) }}>새로 찾기</button></JourneyDialog> : null}
+      {copyOpen ? <JourneyCopy records={journey} onClose={() => setCopyOpen(false)} /> : null}</>
   }
 
   function toggleCompare(productId: string) {
@@ -1142,7 +1318,8 @@ export default function SwitchFlow({
 
   function restartTask() {
     if (onRestart) onRestart()
-    else updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null)
+    else if (hasJourneyWork(journeyRef.current)) setRestartOpen(true)
+    else { clearJourneyRecords(); updateSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null) }
   }
 
   function renderNavigation() {
@@ -1371,11 +1548,12 @@ export default function SwitchFlow({
         <ReferenceRail product={currentProduct} variantText={currentVariantText} step="change" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
-            <span>CHANGE</span>
+            <span>바꿀 점</span>
             <h1>무엇을 바꾸고 싶나요?</h1>
             <p>지금 사료에서 달라졌으면 하는 점을 골라주세요.</p>
           </div>
 
+          <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div>
           {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
 
 
@@ -1478,10 +1656,12 @@ export default function SwitchFlow({
         <ReferenceRail product={currentProduct} variantText={currentVariantText} step="keep" onChangeProduct={resetCurrentProduct} />
         <main className="switch-step-main">
           <div className="switch-step-header">
-            <span>KEEP</span>
+            <span>유지할 점</span>
             <h1>무엇을 그대로 유지할까요?</h1>
             <p>다음 사료도 같았으면 하는 점을 골라주세요.</p>
           </div>
+
+          <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div>
 
           <div className="switch-keep-change-summary">
             <strong>바꿀 점</strong>
@@ -1574,6 +1754,9 @@ export default function SwitchFlow({
     if (compareOpen && compareItems.length > 0) {
       return (
         <CompareView
+          reviewActions={renderRetainAction}
+          reviewSummary={renderJourneyRecords()}
+          onDisplayedCandidates={(ids) => ids.forEach((id) => recordSwitchConsideration(id, 'compare_view', ids))}
           items={compareItems}
           currentProduct={currentProduct}
           currentVariantId={currentVariantId}
@@ -1627,6 +1810,7 @@ export default function SwitchFlow({
           <div><span>바꿀 점</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
           <div><span>유지할 점</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
           </details>
+          <button type="button" onClick={() => setMemoOpen(true)}>내 메모</button>
           <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
         </div>
 
@@ -1771,6 +1955,7 @@ export default function SwitchFlow({
             </aside>
           ) : null}
         </section>
+        {renderJourneyRecords()}
 
         {compareIds.length > 0 ? (
           <div className="switch-compare-dock" role="region" aria-label="비교할 후보">
@@ -1801,7 +1986,7 @@ export default function SwitchFlow({
   }
 
   if (detailProduct && !compareOpen) {
-    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} reviewActions={detailProduct.product_id !== currentProduct?.product_id ? renderRetainAction(detailProduct) : undefined} reviewSummary={renderJourneyRecords()} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {
@@ -1820,6 +2005,7 @@ export default function SwitchFlow({
   return (
     <div className={`research-shell switch-workflow-shell${compareDetailOpen ? ' is-detail-view' : ''}`}>
       {compareDetailOpen ? null : renderNavigation()}
+      {renderJourneyOverlays()}
       {step === 'current' ? renderCurrentStage() : null}
       {step === 'sku' ? renderSkuStep() : null}
       {step === 'change' ? renderChangeStep() : null}

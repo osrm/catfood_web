@@ -164,14 +164,15 @@ test('direct and popstate-restored applied explore results create analytics runs
     window.history.back()
     await waitForUi(
       () => document.querySelectorAll('.research-result-card').length === 40
-        && searchRuns().length === 2,
+        && searchRuns().length === 1,
       'applied explore results and new search run restored by popstate',
     )
   })
   const runs = searchRuns()
-  assert.equal(runs.length, 2)
-  assert.equal(runs[1].body.mode, 'explore')
-  assert.equal(runs[1].body.candidate_count, 45)
+  assert.equal(runs.length, 1, 'same valid restored run is reused')
+  assert.equal(runs[0].body.mode, 'explore')
+  assert.equal(runs[0].body.candidate_count, 45)
+  assert.equal(runs[0].body.run_origin, 'restored')
 })
 
 test('EXPLORE keeps common choices visible while feature disclosure preserves draft and applied state', async () => {

@@ -355,7 +355,7 @@ test('comparison tabs load only active data and reuse successful candidate varia
   assert.equal(requests.length, afterNutrition, 'overview must not start hidden reads after nutrition')
 
   await click(ingredientsTab)
-  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped')).length, 2, 'candidate batch and current are separate')
   assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 3, 'candidate variants are reused from nutrition')
   const afterIngredients = requests.length
 
@@ -384,9 +384,9 @@ test('general comparison overview is read-free and first active tab controls whi
 
 test('deep-linked comparison tab starts only its required reads', async () => {
   await renderCompare({ initialTab: 'ingredients' })
-  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped')).length, 1)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped')).length, 2)
   assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_nutrition_scoped')).length, 0)
-  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 2)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/switch_current_variant_options')).length, 3)
 })
 
 
@@ -494,3 +494,54 @@ function productFilter(url) {
   const ids = url.searchParams.get('p_product_ids')
   return ids ? `in.(${JSON.parse(`[${ids.slice(1, -1)}]`).join(',')})` : url.searchParams.get('product_id')
 }
+
+test('SWITCH ingredients keeps five candidate reads plus one separate current read and isolates failure/retry', async () => {
+  const five = Array.from({ length: 5 }, (_, i) => ({ product: product(`product_candidate_${i}`, '후보', `다섯 후보 ${i}`) }))
+  let failCurrent = true
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input)); requests.push(url)
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+      const ids = JSON.parse(url.searchParams.get('p_product_ids').replace('{', '[').replace('}', ']'))
+      if (ids.length === 1 && ids[0] === current.product_id && failCurrent) return new Response('', { status: 503 })
+      return Response.json(ids.map((id) => ({ product_id: id, variant_id: null, observation_scope: 'product', completeness_status: 'full', ingredient_count: 1, ingredient_names: [id === current.product_id ? 'Current ingredient original' : 'Candidate ingredient original'], raw_text: id === current.product_id ? 'Current ingredient original' : 'Candidate ingredient original' })))
+    }
+    return Response.json([])
+  }
+  await renderCompare({ items: five })
+  assert.equal(requests.length, 0)
+  await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '원재료'))
+  const reads = requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped'))
+  assert.equal(reads.length, 2)
+  assert.equal(JSON.parse(reads[0].searchParams.get('p_product_ids').replace('{', '[').replace('}', ']')).length, 5)
+  assert.deepEqual(JSON.parse(reads[1].searchParams.get('p_product_ids').replace('{', '[').replace('}', ']')), [current.product_id])
+  assert.match(document.querySelector('.compare-stage').textContent, /현재 사료 원재료를 불러오지 못했습니다/)
+  assert.match(document.querySelector('.compare-stage').textContent, /Candidate ingredient original/)
+  assert.doesNotMatch(document.querySelector('.compare-stage').textContent, /Current ingredient original/)
+  failCurrent = false
+  await click([...document.querySelectorAll('button')].find((node) => node.textContent === '현재 사료 다시 시도'))
+  await settle()
+  assert.match(document.querySelector('.compare-stage').textContent, /Current ingredient original/)
+  assert.equal(requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped')).length, 3, 'manual current retry leaves successful candidate batch intact')
+  const after = requests.length
+  await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '개요'))
+  await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '원재료'))
+  assert.equal(requests.length, after, 'successful current/candidate source data are reused')
+})
+
+test('displayed consideration candidates follow the 760px layout and distinguish the ingredient multi-column table', async () => {
+  const original = window.matchMedia
+  const listeners = new Set()
+  const media = { matches: true, addEventListener(_type, fn) { listeners.add(fn) }, removeEventListener(_type, fn) { listeners.delete(fn) } }
+  window.matchMedia = (query) => { assert.equal(query, '(max-width: 760px)'); return media }
+  const displayed = []
+  try {
+    await renderCompare({ onDisplayedCandidates: (ids) => displayed.push(ids) })
+    assert.deepEqual(displayed.at(-1), [candidateA.product_id])
+    await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '원재료'))
+    assert.deepEqual(displayed.at(-1), [candidateA.product_id, candidateB.product_id])
+    await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '개요'))
+    assert.deepEqual(displayed.at(-1), [candidateA.product_id])
+    await act(async () => { media.matches = false; listeners.forEach((listener) => listener()) })
+    assert.deepEqual(displayed.at(-1), [candidateA.product_id, candidateB.product_id])
+  } finally { window.matchMedia = original }
+})

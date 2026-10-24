@@ -290,7 +290,7 @@ async function chooseCurrent(productName = current.canonical_name) {
   await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'SKU step')
 }
 
-async function reachResultsWithConditions({ variantMode = 'variant' } = {}) {
+async function reachResultsWithConditions({ variantMode = 'variant', avoidIngredient = true } = {}) {
   await chooseCurrent()
   if (variantMode === 'variant') {
     await waitForUi(() => variantButton('1 kg') !== undefined, 'variant option')
@@ -302,7 +302,7 @@ async function reachResultsWithConditions({ variantMode = 'variant' } = {}) {
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'CHANGE step')
   await click(exactButton('습식'))
   const ingredient = document.querySelector('.switch-current-ingredients button')
-  if (ingredient) await click(ingredient)
+  if (ingredient && avoidIngredient) await click(ingredient)
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step')
   if (exactButton('실내묘')) await click(exactButton('실내묘'))
@@ -865,7 +865,12 @@ test('selected ingredient evidence precedes detail tabs and survives comparison-
   assert.match(context.textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
   assert.match(context.textContent, /없다고 확정한 결과는 아니에요/)
   assert.ok(context.compareDocumentPosition(document.querySelector('.detail-tabs')) & window.Node.DOCUMENT_POSITION_FOLLOWING)
-  await click(exactButton('원재료'))
+  const ingredientAction = context.querySelector('.primary-action')
+  assert.match(ingredientAction.textContent, /원재료 확인/)
+  assert.equal([...context.querySelectorAll('button')].find(node => node.textContent.includes('영양도 비교하기')).classList.contains('primary-action'), false)
+  await click(ingredientAction)
+  assert.equal(document.querySelector('#detail-tab-ingredients').getAttribute('aria-selected'), 'true')
+  assert.equal(document.activeElement.id, 'detail-tab-ingredients')
   assert.match(document.querySelector('.detail-selection-context').textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
   await click(exactButton('개요'))
   await click(exactButton('비교에 추가'))
@@ -963,11 +968,22 @@ test('ingredient groups retain exact batch order in search runs and load-more co
   assert.equal(record.presented_product_ids[record.position], last.dataset.switchCompareProductId)
 })
 
+test('detail without ingredient avoidance retains a direct current-food comparison action', async () => {
+  await renderApp(); await reachResultsWithConditions({ avoidIngredient: false })
+  await selectCandidate(candidateA.canonical_name); await click('상세 보기')
+  const action = document.querySelector('.detail-selection-context .primary-action')
+  assert.match(action.textContent, /현재 사료와 영양 비교/)
+  assert.deepEqual(session().ingredientAvoidTerms, [])
+  await click(action)
+  assert.equal(session().compareTab, 'nutrition')
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+})
+
 test('detail nutrition shortcut preserves comparison order and displays the explicitly requested candidate', async () => {
   await renderApp(); await reachResultsWithConditions()
   await click(all('.switch-candidate-compare')[0])
   await selectCandidate(candidateB.canonical_name); await click('상세 보기')
-  await click('현재 사료와 영양 비교')
+  await click('영양도 비교하기')
   await waitForUi(() => document.querySelector('.compare-stage'), 'nutrition comparison shortcut')
   assert.deepEqual(session().compareIds, [candidateA.product_id, candidateB.product_id])
   assert.equal(session().compareTab, 'nutrition')
@@ -986,8 +1002,9 @@ test('detail nutrition shortcut respects the existing five-candidate limit', asy
   for (const control of all('.switch-candidate-compare').slice(0, 5)) await click(control)
   const original = [...session().compareIds]
   await selectCandidate(rows[5].canonical_name); await click('상세 보기')
-  const shortcut = button('현재 사료와 영양 비교')
+  const shortcut = button('영양도 비교하기')
   assert.equal(shortcut.disabled, true)
+  assert.equal(document.querySelector('.detail-selection-context .primary-action').disabled, false, 'ingredient inspection is available even when comparison is full')
   assert.deepEqual(session().compareIds, original)
   assert.equal(session().compareOpen, false)
 })

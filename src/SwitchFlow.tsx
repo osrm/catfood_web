@@ -1226,14 +1226,17 @@ export default function SwitchFlow({
       <button className="primary-action" type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '남긴 후보' : '검토 후보로 남기기'}</button>
       {full && !retained ? <p>5개를 남겼습니다. <button className="journey-inline-action" type="button" onClick={() => document.getElementById('journey-records')?.focus()}>남긴 후보 정리</button></p> : null}</div>
   }
-  function renderCandidateContext(product: CatalogProduct) {
+  function renderCandidateContext(product: CatalogProduct, selectTab: (tab: SwitchSessionState['detailTab']) => void) {
     const evaluation = candidates.find((item) => item.product.product_id === product.product_id)
     if (!evaluation || !currentProduct) return null
     return <section className="detail-selection-context" aria-label="현재 사료와 선택한 조건의 확인 결과">
       <p className="detail-selection-baseline">지금 먹이는 사료 · <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong> · {currentVariantText}</p>
       {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
       <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} />
-      {evaluation.ingredientInsufficient.length ? <button className="primary-action detail-criterion-action" type="button" onClick={() => changeSwitchDetailTab('ingredients')}>원재료부터 확인 →</button> : <button className="primary-action detail-criterion-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateNutrition(product.product_id)}>현재 사료와 영양 비교 →</button>}
+      <div className="detail-criterion-actions">
+        {ingredientAvoidTerms.length ? <button className="primary-action detail-criterion-action" type="button" onClick={() => selectTab('ingredients')}>{evaluation.ingredientInsufficient.length ? '원재료부터 확인 →' : '원재료 확인 →'}</button> : <button className="primary-action detail-criterion-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateNutrition(product.product_id)}>현재 사료와 영양 비교 →</button>}
+        {ingredientAvoidTerms.length && !evaluation.ingredientInsufficient.length ? <button className="detail-inline-link" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateNutrition(product.product_id)}>영양도 비교하기 →</button> : null}
+      </div>
       {evaluation.ingredientInsufficient.length === 0 && compareIds.length >= 5 && !compareIds.includes(product.product_id) ? <p className="detail-selection-terms">비교는 최대 5개까지 담을 수 있어요. 기존 후보를 정리한 뒤 비교해 주세요.</p> : null}
     </section>
   }
@@ -2029,7 +2032,7 @@ export default function SwitchFlow({
   }
 
   if (detailProduct && !compareOpen) {
-    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} selectionContext={renderCandidateContext(detailProduct)} reviewActions={detailProduct.product_id !== currentProduct?.product_id ? renderRetainAction(detailProduct) : undefined} reviewSummary={renderJourneyRecords()} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} selectionContext={(selectTab) => renderCandidateContext(detailProduct, selectTab)} reviewActions={detailProduct.product_id !== currentProduct?.product_id ? renderRetainAction(detailProduct) : undefined} reviewSummary={renderJourneyRecords()} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {

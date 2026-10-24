@@ -441,6 +441,7 @@ test('formula-scope uncertainty stays visible without leaking to product supplem
   await renderSwitch()
   const energy = mobileCurrentMetric('열량')
   assert.match(energy.textContent, /현재 판매 제품과 같은 배합인지 미확인/)
+  assert.equal(document.querySelector('.compare-energy-difference'), null, 'uncertain current formula cannot support a definite current-food difference')
   const protein = mobileCurrentMetric('조단백질')
   assert.equal(protein.querySelector('small'), null)
   assert.equal(protein.textContent.includes('같은 배합인지'), false)
@@ -502,10 +503,51 @@ test('candidate formula uncertainty is visible beside applicable numeric fields'
   try {
     await renderSwitch()
     assert.match(mobileCandidateMetric('열량').textContent, /422 kcal\/100g.*현재 판매 제품과 같은 배합인지 미확인/)
+    assert.equal(mobileCandidateMetric('열량').querySelector('.compare-energy-difference'), null)
     assert.match(mobileCandidateMetric('조단백질').textContent, /31% 이상/)
     assert.doesNotMatch(mobileCandidateMetric('조단백질').textContent, /같은 배합인지/)
     assert.match(mobileCandidateMetric('칼슘').textContent, /미확인/)
   } finally { Object.assign(candidateRows[0], previous) }
+})
+
+test('current-food energy difference follows the displayed candidate without changing package evidence', async () => {
+  const previous = candidateRows[1].kcal_per_100g
+  candidateRows[1].kcal_per_100g = 300
+  try {
+    await renderSwitch()
+    assert.match(mobileCandidateMetric('열량').querySelector('.compare-energy-difference').textContent, /100g당 52 kcal 높음/)
+    assert.match(mobileCurrentMetric('열량').textContent, /이 값은 3 kg 포장에서 확인/)
+    assert.equal(mobileCandidateMetric('조단백질').querySelector('.compare-energy-difference'), null)
+    const desktopEnergy = [...document.querySelectorAll('.compare-switch-nutrition-desktop .compare-row')].find(row => row.querySelector('.compare-row-label')?.textContent.trim() === '열량')
+    assert.match(desktopEnergy.querySelectorAll('.compare-energy-difference')[0].textContent, /52 kcal 높음/)
+    await act(async () => document.querySelector('.compare-mobile-candidate-picker>button').click())
+    await act(async () => document.querySelector(`.compare-mobile-candidate-options [data-product-id="${candidates[1].product_id}"]`).click())
+    assert.match(mobileCandidateMetric('열량').querySelector('.compare-energy-difference').textContent, /100g당 70 kcal 낮음/)
+    assert.match(mobileCurrentMetric('열량').textContent, /370 kcal\/100g/)
+  } finally { candidateRows[1].kcal_per_100g = previous }
+})
+
+for (const [name, values, expected] of [
+  ['kg precedence and decimal subtraction', { kcal_per_kg: 3485, kcal_per_100g: 422 }, '100g당 21.5 kcal 낮음'],
+  ['equal provided energy', { kcal_per_kg: null, kcal_per_100g: 370 }, '100g당 표기 열량이 같아요'],
+  ['missing candidate energy', { kcal_per_kg: null, kcal_per_100g: null }, null],
+  ['invalid negative energy', { kcal_per_kg: null, kcal_per_100g: -1 }, null],
+]) test(`current-food energy difference handles ${name}`, async () => {
+  const previous = { ...candidateRows[0] }
+  Object.assign(candidateRows[0], values)
+  try {
+    await renderSwitch()
+    const difference = mobileCandidateMetric('열량').querySelector('.compare-energy-difference')
+    if (expected == null) assert.equal(difference, null)
+    else assert.ok(difference.textContent.includes(expected), difference.textContent)
+  } finally { Object.assign(candidateRows[0], previous) }
+})
+
+test('failed current nutrition never creates a candidate energy difference', async () => {
+  failCurrentNutrition = true
+  await renderSwitch()
+  assert.match(mobileCurrentMetric('열량').textContent, /조회 실패/)
+  assert.equal(document.querySelector('.compare-energy-difference'), null)
 })
 
 function productFilter(url) {

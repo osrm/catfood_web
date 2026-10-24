@@ -203,7 +203,7 @@ function Fact({ label, value }: { label: string; value: string }) { return <div 
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
 export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false, embedded = false, selectionContext, reviewActions, reviewSummary }: {
-  selectionContext?: ReactNode
+  selectionContext?: (selectTab: (tab: DetailTab) => void) => ReactNode
   reviewActions?: ReactNode
   reviewSummary?: ReactNode
   embedded?: boolean
@@ -274,7 +274,11 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   function selectTab(next: DetailTab, focus = false) {
     if (next === tab) {
       onTabChange?.(next)
-      if (focus) tabRefs.current[TABS.findIndex(([key]) => key === next)]?.focus({ preventScroll: true })
+      if (focus) {
+        const tabButton = tabRefs.current[TABS.findIndex(([key]) => key === next)]
+        tabButton?.focus({ preventScroll: true })
+        tabButton?.scrollIntoView?.({ block: 'nearest' })
+      }
       return
     }
     pendingTabChangeRef.current = { tab: next, focus, productId: product.product_id }
@@ -436,7 +440,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
         {onToggleCompare && !selectionContext ? <div className="detail-identity-actions"><button className={compared ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
       </aside>
       <section className="detail-document">
-        {selectionContext}
+        {selectionContext?.((next) => selectTab(next, true))}
         {onToggleCompare && selectionContext ? <div className="detail-context-actions"><button className="detail-inline-link" type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
         <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist" ref={tabsRef}>
           {TABS.map(([key, label], index) => <button key={key} id={`detail-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`detail-panel-${key}`} tabIndex={tab === key ? 0 : -1} className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}>{label}</button>)}

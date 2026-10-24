@@ -515,7 +515,7 @@ test('current-food energy difference follows the displayed candidate without cha
   candidateRows[1].kcal_per_100g = 300
   try {
     await renderSwitch()
-    assert.match(mobileCandidateMetric('열량').querySelector('.compare-energy-difference').textContent, /100g당 52 kcal 높음/)
+    assert.match(mobileCandidateMetric('열량').querySelector('.compare-energy-difference').textContent, /표시된 값 기준100g당 52 kcal 높음/)
     assert.match(mobileCurrentMetric('열량').textContent, /이 값은 3 kg 포장에서 확인/)
     assert.equal(mobileCandidateMetric('조단백질').querySelector('.compare-energy-difference'), null)
     const desktopEnergy = [...document.querySelectorAll('.compare-switch-nutrition-desktop .compare-row')].find(row => row.querySelector('.compare-row-label')?.textContent.trim() === '열량')

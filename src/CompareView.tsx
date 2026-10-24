@@ -124,7 +124,7 @@ function CurrentEnergyDifference({ current, candidate }: { current: CompareNutri
   const next = selectedEnergy(candidate)?.amount
   if (baseline == null || next == null || !Number.isFinite(baseline) || !Number.isFinite(next) || baseline < 0 || next < 0) return null
   const difference = Number((next - baseline).toFixed(3))
-  return <small className="compare-energy-difference">{difference === 0 ? '100g당 표기 열량이 같아요' : <>현재 사료보다<br />100g당 {formatNumber(Math.abs(difference), ' kcal')} {difference > 0 ? '높음' : '낮음'}</>}</small>
+  return <small className="compare-energy-difference">{difference === 0 ? '100g당 표기 열량이 같아요' : <>표시된 값 기준<br />100g당 {formatNumber(Math.abs(difference), ' kcal')} {difference > 0 ? '높음' : '낮음'}</>}</small>
 }
 function sharedEnergyScale(details: Array<CompareNutrition | undefined | null>) {
   const amounts = details.map((detail) => selectedEnergy(detail)?.amount).filter((amount): amount is number => amount != null && Number.isFinite(amount) && amount >= 0)

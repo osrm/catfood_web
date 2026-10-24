@@ -1223,7 +1223,7 @@ export default function SwitchFlow({
         {evaluation.keepMatches.length ? <div><dt>유지할 점에서 확인</dt><dd>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
         {evaluation.unknowns.length ? <div><dt>자료로 확인하지 못한 점</dt><dd>{evaluation.unknowns.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
       </dl> : null}
-      <button className="primary-action" type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '남긴 후보' : '검토 후보로 남기기'}</button>
+      <button className="primary-action" type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '후보로 남김' : '후보로 남기기'}</button>
       {full && !retained ? <p>5개를 남겼습니다. <button className="journey-inline-action" type="button" onClick={() => document.getElementById('journey-records')?.focus()}>남긴 후보 정리</button></p> : null}</div>
   }
   function renderCandidateContext(product: CatalogProduct, selectTab: (tab: SwitchSessionState['detailTab']) => void) {

@@ -1229,8 +1229,8 @@ async function textareaValue(element, value) {
 async function retainAFromDetail() {
   await selectCandidate()
   await click('상세 보기')
-  await waitForUi(() => button('검토 후보로 남기기'), 'retention available in full detail')
-  await click('검토 후보로 남기기')
+  await waitForUi(() => button('후보로 남기기'), 'retention available in full detail')
+  await click('후보로 남기기')
 }
 test('optional memo preserves applied criteria and never enters navigation or exact intake payloads; cancel keeps saved text', async () => {
   await renderApp(); await reachResultsWithConditions()
@@ -1283,7 +1283,7 @@ test('rapid retain then remove serializes server revisions on the original run e
   assert.deepEqual(decisions.map((row) => [row.kind, row.revision, row.expected_previous_revision]), [['candidate_retained',1,0],['retained_candidate_removed',2,1]])
   assert.equal(decisions[0].search_run_id, decisions[1].search_run_id)
   assert.equal(decisions[0].record_id, decisions[1].record_id)
-  await click('검토 후보로 남기기')
+  await click('후보로 남기기')
   await waitForUi(() => decisions.length === 3, 're-retain after removal')
   assert.equal(decisions[2].revision, 3)
   assert.equal(decisions[2].record_id, decisions[0].record_id)
@@ -1304,7 +1304,7 @@ test('five retained records expose a removal path instead of silently dropping o
   await renderApp(); await reachResultsWithConditions()
   const context = { selectionKey: 'old', current: { productId: current.product_id, brand: current.brand, name: current.canonical_name }, variantId: null, variantLabel: '사용 규격 모름', criteria: [], labels: [] }
   app.writeJourneyRecords({ memo: '', outcome: null, retained: Array.from({ length: 5 }, (_, i) => ({ id: `saved-${i}`, revision: 1, active: true, candidate: { productId: `saved-product-${i}`, brand: '기존 후보', name: `후보 ${i}` }, context, note: '', createdAt: '2026-10-23', searchRunId: null })) })
-  await remountApp(); await selectCandidate(); await click('상세 보기'); await click('검토 후보로 남기기')
+  await remountApp(); await selectCandidate(); await click('상세 보기'); await click('후보로 남기기')
   assert.equal(journey().retained.filter((row) => row.active).length, 5)
   assert.match(document.body.textContent, /남긴 후보는 최대 5개/)
   assert.ok(button('남긴 후보 정리'))

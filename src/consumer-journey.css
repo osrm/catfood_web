@@ -58,6 +58,8 @@ body,.research-shell,.detail-stage,.compare-stage {background:var(--cf-bg);color
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>strong {font-size:19px;line-height:1.5;font-weight:650;letter-spacing:-.025em;word-break:keep-all;overflow-wrap:anywhere}
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>small {font-size:13px;line-height:1.7;color:var(--cf-muted)}
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row>.switch-candidate-relations {grid-column:2;grid-row:2;width:auto;gap:6px;margin:0;padding:0}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row .switch-relation-line {min-width:0;max-width:100%;align-items:stretch;flex-wrap:wrap}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row .switch-relation-line>:is(strong,small) {display:block;min-width:0;max-width:100%;white-space:normal;overflow:visible;overflow-wrap:anywhere;-webkit-line-clamp:unset}
 .switch-candidate-relations .switch-relation-line.is-ingredient-reviewed,
 .switch-candidate-relations .switch-relation-line.is-ingredient-unknown {display:flex;flex-direction:column;gap:3px;color:var(--cf-ink);background:none;border:0}
 .switch-candidate-relations .switch-relation-line.is-ingredient-reviewed>span,

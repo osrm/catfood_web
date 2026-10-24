@@ -590,18 +590,18 @@ function candidateRelationLabel(label: string) {
   return label
 }
 
-function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
+function RelationBlock({ evaluation, showReviewed = true }: { evaluation: SwitchEvaluation; showReviewed?: boolean }) {
   const hasAny = evaluation.keepMatches.length > 0
     || evaluation.changeMatches.length > 0
     || evaluation.unknowns.length > 0
-    || evaluation.ingredientReviewedNotFound.length > 0
+    || (showReviewed && evaluation.ingredientReviewedNotFound.length > 0)
     || evaluation.ingredientInsufficient.length > 0
 
   if (!hasAny) return null
 
   return (
     <div className="switch-candidate-relations">
-      {evaluation.ingredientReviewedNotFound.length > 0 ? (
+      {showReviewed && evaluation.ingredientReviewedNotFound.length > 0 ? (
         <div className="switch-relation-line is-ingredient-reviewed" data-evidence-state="reviewed-not-found"><span>피할 원료 확인</span><strong>검토한 자료에서 {evaluation.ingredientReviewedNotFound.join(' · ')} 원료를 찾지 못했어요.</strong><small>원료가 없다고 확정한 결과는 아니에요.</small></div>
       ) : null}
       {evaluation.ingredientInsufficient.length > 0 ? (
@@ -758,9 +758,9 @@ export default function SwitchFlow({
     if (onHistoryBack) onHistoryBack(fallback, fallback)
     else updateSession(fallback)
   }
-  function openSwitchDetail(productId: string) {
+  function openSwitchDetail(productId: string, initialTab: SwitchSessionState['detailTab'] = 'overview') {
     recordSwitchConsideration(productId, 'detail_open')
-    updateSession((current) => ({ ...current, detailProductId: productId, detailTab: 'overview' }), 'push', 'detail')
+    updateSession((current) => ({ ...current, detailProductId: productId, detailTab: initialTab }), 'push', 'detail')
   }
   function closeSwitchDetail() {
     const fallback = { ...activeSession, detailProductId: null, detailTab: 'overview' as const }
@@ -935,16 +935,19 @@ export default function SwitchFlow({
     })
   }, [products, currentProduct, conditions, ingredientFactsPending])
 
-  const trackedCandidates = candidates.slice(0, 40)
+  const presentedCandidates = useMemo(() => ingredientAvoidTerms.length
+    ? [...candidates.filter((item) => item.ingredientInsufficient.length === 0), ...candidates.filter((item) => item.ingredientInsufficient.length > 0)]
+    : candidates, [candidates, ingredientAvoidTerms.length])
+  const trackedCandidates = presentedCandidates.slice(0, 40)
   const candidateSearchActive = candidateSearch.trim().length > 0
   const searchedCandidates = useMemo(() => {
-    if (!candidateSearchActive) return candidates
+    if (!candidateSearchActive) return presentedCandidates
     const matchedIds = new Set(
-      lookupCatalog(candidates.map((item) => item.product), candidateSearch)
+      lookupCatalog(presentedCandidates.map((item) => item.product), candidateSearch)
         .map((product) => product.product_id),
     )
-    return candidates.filter((item) => matchedIds.has(item.product.product_id))
-  }, [candidates, candidateSearch, candidateSearchActive])
+    return presentedCandidates.filter((item) => matchedIds.has(item.product.product_id))
+  }, [presentedCandidates, candidateSearch, candidateSearchActive])
   const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
@@ -1087,7 +1090,7 @@ export default function SwitchFlow({
   function considerationContext(productId: string) {
     const initial = trackedCandidates.map((item) => item.product.product_id)
     if (initial.includes(productId)) return { kind: 'initial' as const, presentedProductIds: initial }
-    const source = candidateSearchActive ? searchedCandidates : candidates
+    const source = candidateSearchActive ? searchedCandidates : presentedCandidates
     const index = source.findIndex((item) => item.product.product_id === productId)
     const batch = index < 0 ? [productId] : source.slice(Math.floor(index / 40) * 40, Math.floor(index / 40) * 40 + 40).map((item) => item.product.product_id)
     return { kind: candidateSearchActive ? 'named_search' as const : 'load_more' as const, presentedProductIds: batch }
@@ -1230,7 +1233,16 @@ export default function SwitchFlow({
       <p className="detail-selection-baseline">지금 먹이는 사료 · <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong> · {currentVariantText}</p>
       {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
       <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} />
+      {evaluation.ingredientInsufficient.length ? <button className="primary-action detail-criterion-action" type="button" onClick={() => changeSwitchDetailTab('ingredients')}>원재료부터 확인 →</button> : <button className="primary-action detail-criterion-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateNutrition(product.product_id)}>현재 사료와 영양 비교 →</button>}
+      {evaluation.ingredientInsufficient.length === 0 && compareIds.length >= 5 && !compareIds.includes(product.product_id) ? <p className="detail-selection-terms">비교는 최대 5개까지 담을 수 있어요. 기존 후보를 정리한 뒤 비교해 주세요.</p> : null}
     </section>
+  }
+  function compareCandidateNutrition(productId: string) {
+    if (compareIds.length >= 5 && !compareIds.includes(productId)) return
+    if (!compareIds.includes(productId)) recordSwitchConsideration(productId, 'compare_add')
+    pendingCompareReturnFocus.current = true
+    requestExplicitScroll('compare')
+    updateSession((current) => ({ ...current, selectedCandidateId: productId, compareIds: current.compareIds.includes(productId) ? current.compareIds : [...current.compareIds, productId], compareOpen: true, compareTab: 'nutrition', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
   }
   function renderJourneyOverlays() {
     return <>{memoOpen ? <JourneyMemo value={journey.memo} onSave={(memo) => updateJourney((value) => ({ ...value, memo, context: journeyContext() }))} onClose={() => setMemoOpen(false)} /> : null}
@@ -1764,6 +1776,7 @@ export default function SwitchFlow({
     if (compareOpen && compareItems.length > 0) {
       return (
         <CompareView
+          requestedCandidateId={selectedCandidateId}
           detailContext={renderCandidateContext}
           reviewActions={renderRetainAction}
           reviewSummary={renderJourneyRecords()}
@@ -1802,6 +1815,53 @@ export default function SwitchFlow({
         : `${candidates.length}개의 제품`
     const candidateSummaryText = candidateCountText
     const comparedNames = compareItems.map((item) => `${item.product.brand} · ${item.product.canonical_name}`)
+    const sharedKeep = candidates[0]?.keepMatches.filter((label) => candidates.every((item) => item.keepMatches.includes(label))) ?? []
+    const sharedChange = candidates[0]?.changeMatches.filter((label) => candidates.every((item) => item.changeMatches.includes(label))) ?? []
+    const reviewedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length === 0)
+    const unresolvedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length > 0)
+    const renderCandidateRow = (evaluation: SwitchEvaluation) => {
+      const product = evaluation.product
+      const isCompared = compareIds.includes(product.product_id)
+      const unresolved = evaluation.ingredientInsufficient.length > 0
+      const rowEvaluation = ingredientAvoidTerms.length ? { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) } : evaluation
+      const compareDisabled = compareIds.length >= 5 && !isCompared
+      return (
+        <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}>
+          <button
+            className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'}
+            ref={(node) => {
+              if (node) candidateButtonRefs.current.set(product.product_id, node)
+              else candidateButtonRefs.current.delete(product.product_id)
+            }}
+            type="button"
+            aria-label={`${product.brand} ${product.canonical_name} ${unresolved ? '원료 확인' : '빠른 보기'}`}
+            aria-describedby={ingredientAvoidTerms.length ? unresolved ? 'switch-unresolved-note' : 'switch-reviewed-note' : undefined}
+            onClick={() => openCandidate(product.product_id)}
+          >
+            <ProductImage className="switch-candidate-image" product={product} />
+            <span className="switch-candidate-identity">
+              <span>{product.brand}</span><strong>{product.canonical_name}</strong>
+              <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
+              {product.direct_evidence_ingredient_terms?.length ? <small className="switch-candidate-ingredients">확인한 원료 · {product.direct_evidence_ingredient_terms.map(ingredientLabel).join(' · ')}</small> : null}
+            </span>
+            <RelationBlock evaluation={rowEvaluation} showReviewed={!ingredientAvoidTerms.length || unresolved} />
+            <span className="switch-candidate-open">{unresolved ? '원료 확인 →' : '빠른 보기 →'}</span>
+          </button>
+          <button
+            className={isCompared ? 'switch-candidate-compare is-added' : 'switch-candidate-compare'}
+            type="button"
+            data-switch-compare-product-id={product.product_id}
+            aria-pressed={isCompared}
+            aria-label={`${product.canonical_name} ${isCompared ? '비교에서 제거' : '비교에 추가'}`}
+            disabled={compareDisabled}
+            onClick={() => toggleCompare(product.product_id)}
+          >
+            <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
+          </button>
+        </div>
+      )
+    }
+
 
     return (
       <main className="switch-results-stage switch-results-language switch-results-prototype">
@@ -1849,44 +1909,16 @@ export default function SwitchFlow({
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 점이나 유지할 점을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 지워서 후보를 다시 살펴보세요.</span></div> : null}
-              {visibleCandidates.map((evaluation) => {
-                const product = evaluation.product
-                const isCompared = compareIds.includes(product.product_id)
-                const compareDisabled = compareIds.length >= 5 && !isCompared
-                return (
-                  <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}>
-                    <button
-                      className={selectedCandidateId === product.product_id ? 'switch-candidate-row is-selected' : 'switch-candidate-row'}
-                      ref={(node) => {
-                        if (node) candidateButtonRefs.current.set(product.product_id, node)
-                        else candidateButtonRefs.current.delete(product.product_id)
-                      }}
-                      type="button"
-                      aria-label={`${product.brand} ${product.canonical_name} 빠른 보기`}
-                      onClick={() => openCandidate(product.product_id)}
-                    >
-                      <ProductImage className="switch-candidate-image" product={product} />
-                      <span className="switch-candidate-identity">
-                        <span>{product.brand}</span><strong>{product.canonical_name}</strong>
-                        <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
-                      </span>
-                      <RelationBlock evaluation={evaluation} />
-                      <span className="switch-candidate-open">빠른 보기 →</span>
-                    </button>
-                    <button
-                      className={isCompared ? 'switch-candidate-compare is-added' : 'switch-candidate-compare'}
-                      type="button"
-                      data-switch-compare-product-id={product.product_id}
-                      aria-pressed={isCompared}
-                      aria-label={`${product.canonical_name} ${isCompared ? '비교에서 제거' : '비교에 추가'}`}
-                      disabled={compareDisabled}
-                      onClick={() => toggleCompare(product.product_id)}
-                    >
-                      <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
-                    </button>
-                  </div>
-                )
-              })}
+              {ingredientAvoidTerms.length ? <>
+                {reviewedCandidates.length ? <section className="switch-candidate-group is-reviewed" aria-labelledby="switch-reviewed-heading">
+                  <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">선택한 원료를 찾지 못한 후보</h2><p id="switch-reviewed-note">검토한 자료 기준이에요. 원료가 없다고 확정한 결과는 아니에요.</p></div>
+                  {reviewedCandidates.map(renderCandidateRow)}
+                </section> : null}
+                {unresolvedCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-labelledby="switch-unresolved-heading">
+                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">원료 확인이 더 필요한 제품</h2><p id="switch-unresolved-note">피하려는 원료가 있는지 아직 확인하지 못했어요. 원재료를 먼저 살펴보세요.</p></div>
+                  {unresolvedCandidates.map(renderCandidateRow)}
+                </section> : null}
+              </> : visibleCandidates.map(renderCandidateRow)}
               {visibleCandidateCount < searchedCandidates.length ? (
                 <button className="load-more" type="button" onClick={() => setVisibleCandidateCount((count) => count + 40)}>
                   제품 더 보기 · {searchedCandidates.length - visibleCandidates.length}개 남음
@@ -1922,11 +1954,10 @@ export default function SwitchFlow({
                     className="switch-compare-action"
                     type="button"
                     onClick={() => {
-                      recordSwitchConsideration(selectedCandidate.product.product_id, 'detail_open')
-                      openSwitchDetail(selectedCandidate.product.product_id)
+                      openSwitchDetail(selectedCandidate.product.product_id, selectedCandidate.ingredientInsufficient.length ? 'ingredients' : 'overview')
                     }}
                   >
-                    상세 보기 →
+                    {selectedCandidate.ingredientInsufficient.length ? '원재료부터 확인 →' : '상세 보기 →'}
                   </button>
                 </div>
 

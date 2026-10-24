@@ -550,7 +550,8 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, detailContext, reviewActions, reviewSummary, onDisplayedCandidates }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, detailContext, reviewActions, reviewSummary, onDisplayedCandidates }: {
+  requestedCandidateId?: string | null
   detailContext?: (product: CatalogProduct) => ReactNode
   items: CompareItem[]
   reviewActions?: (product: CatalogProduct) => ReactNode
@@ -599,7 +600,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const [nutritionError, setNutritionError] = useState<string | null>(null)
   const [ingredientsError, setIngredientsError] = useState<string | null>(null)
   const [localDetailProductId, setLocalDetailProductId] = useState<string | null>(null)
-  const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(() => items[0]?.product.product_id ?? null)
+  const [mobileCandidateId, setMobileCandidateId] = useState<string | null>(() => items.some((item) => item.product.product_id === requestedCandidateId) ? requestedCandidateId ?? null : items[0]?.product.product_id ?? null)
   const [mobileCandidatePickerOpen, setMobileCandidatePickerOpen] = useState(false)
   const [mobilePairIds, setMobilePairIds] = useState<[string | null, string | null]>(() => [
     items[0]?.product.product_id ?? null,
@@ -758,6 +759,10 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     setMobileCandidateId((current) => current && productIds.includes(current) ? current : productIds[0] ?? null)
     setMobileCandidatePickerOpen(false)
   }, [productIds.join('|')])
+
+  useEffect(() => {
+    if (requestedCandidateId && productIds.includes(requestedCandidateId)) setMobileCandidateId(requestedCandidateId)
+  }, [requestedCandidateId])
 
   useEffect(() => {
     setMobilePairIds((current) => {

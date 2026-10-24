@@ -433,10 +433,11 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
           <p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p>
         </div>
         <ProductImage product={product} />
-        {onToggleCompare ? <div className="detail-identity-actions"><button className={compared ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
+        {onToggleCompare && !selectionContext ? <div className="detail-identity-actions"><button className={compared ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
       </aside>
       <section className="detail-document">
         {selectionContext}
+        {onToggleCompare && selectionContext ? <div className="detail-context-actions"><button className="detail-inline-link" type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
         <nav className="detail-tabs" aria-label="제품 상세 항목" role="tablist" ref={tabsRef}>
           {TABS.map(([key, label], index) => <button key={key} id={`detail-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`detail-panel-${key}`} tabIndex={tab === key ? 0 : -1} className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}>{label}</button>)}
         </nav>

@@ -842,7 +842,8 @@ test('candidate inspector keeps full relationships and closing restores selected
   assert.match(inspector.textContent, /선택한 조건과 비교/)
   assert.match(inspector.textContent, /비교 기준.*현재브랜드.*현재 건식 사료.*1 kg/s)
   assert.match(inspector.textContent, /제품 정보 요약/)
-  assert.match(selectedRow.textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
+  assert.match(selectedRow.closest('.switch-candidate-group').textContent, /선택한 원료를 찾지 못한 후보/)
+  assert.equal(selectedRow.querySelector('.is-ingredient-reviewed'), null, 'shared reviewed result is explained once at group level')
   assert.match(inspector.textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
 
   await click(inspector.querySelector('.switch-preview-topline button'))
@@ -888,11 +889,13 @@ test('unknown ingredient and chicken in the name stay distinct from reviewed-not
   assert.match(unknown.textContent, /제품 이름에는 닭고기 표기가 있어요/)
   assert.equal(unknown.querySelector('[data-evidence-state="reviewed-not-found"]'), null)
   await selectCandidate(uncertain.canonical_name)
-  await click('상세 보기')
+  await click('원재료부터 확인')
   const context = document.querySelector('.detail-selection-context')
   assert.match(context.textContent, /닭 원료가 있는지 아직 확인하지 못했어요/)
   assert.doesNotMatch(context.textContent, /찾지 못했어요|알레르기 안전|잘 맞아요/)
   assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])
+  assert.equal(document.querySelector('#detail-tab-ingredients').getAttribute('aria-selected'), 'true')
+  assert.ok(context.compareDocumentPosition(document.querySelector('.detail-context-actions')) & window.Node.DOCUMENT_POSITION_FOLLOWING)
 })
 
 
@@ -930,12 +933,63 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
 
   const row = all('.switch-candidate-row').find((node) => node.textContent.includes(candidateA.canonical_name))
   assert.ok(row)
-  const relationLines = [...row.querySelectorAll('.switch-relation-line')]
+  await selectCandidate(candidateA.canonical_name)
+  const relationLines = [...document.querySelector('.switch-candidate-inspector').querySelectorAll('.switch-relation-line')]
   const rendered = relationLines.map((line) => line.textContent).join(' ')
   for (const term of terms) assert.match(rendered, new RegExp(term))
   const ingredientLine = relationLines.find((line) => line.textContent.includes('원료 확인'))
   assert.ok(ingredientLine)
   for (const term of terms) assert.ok(ingredientLine.querySelector('strong').textContent.includes(term))
+})
+
+test('ingredient groups retain exact batch order in search runs and load-more considerations', async () => {
+  const rows = Array.from({ length: 45 }, (_, index) => ({ ...candidateA, product_id: `product_group_${index}`, brand: `브랜드${String(index).padStart(2, '0')}`, canonical_name: `그룹 제품 ${index}`, reviewed_not_found_ingredient_terms: index % 2 ? [] : ['chicken'], insufficient_evidence_ingredient_terms: index % 2 ? ['chicken'] : [] }))
+  catalogProducts = [current, ...rows]
+  await renderApp(); await reachResultsWithConditions()
+  await waitForUi(() => searchRuns.length === 1, 'grouped run recorded')
+  const renderedIds = all('.switch-candidate-item').map(item => item.querySelector('[data-switch-compare-product-id]').dataset.switchCompareProductId)
+  assert.equal(renderedIds.length, 40)
+  assert.deepEqual(searchRuns[0].initial_presented_product_ids, renderedIds)
+  assert.equal(all('.switch-candidate-group.is-reviewed .switch-candidate-row').length, 23)
+  assert.equal(all('.switch-candidate-group.is-unresolved .switch-candidate-row').length, 17)
+  await click('제품 더 보기')
+  assert.equal(all('.switch-candidate-row').length, 45)
+  const last = all('.switch-candidate-compare').at(-1)
+  await click(last)
+  await waitForUi(() => considerations.length === 1, 'load-more grouped consideration')
+  const record = considerations[0]
+  assert.equal(record.context_kind, 'load_more')
+  assert.deepEqual(record.presented_product_ids, all('.switch-candidate-compare').slice(40).map(node => node.dataset.switchCompareProductId))
+  assert.equal(record.presented_product_ids[record.position], last.dataset.switchCompareProductId)
+})
+
+test('detail nutrition shortcut preserves comparison order and displays the explicitly requested candidate', async () => {
+  await renderApp(); await reachResultsWithConditions()
+  await click(all('.switch-candidate-compare')[0])
+  await selectCandidate(candidateB.canonical_name); await click('상세 보기')
+  await click('현재 사료와 영양 비교')
+  await waitForUi(() => document.querySelector('.compare-stage'), 'nutrition comparison shortcut')
+  assert.deepEqual(session().compareIds, [candidateA.product_id, candidateB.product_id])
+  assert.equal(session().compareTab, 'nutrition')
+  assert.equal(session().currentProductId, current.product_id)
+  assert.equal(session().variantSelection.variantId, 'variant_current_1')
+  assert.match(document.querySelector('.compare-mobile-candidate-picker>button').textContent, new RegExp(candidateB.canonical_name))
+  await click('후보 목록으로')
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'return to candidate from shortcut')
+  assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])
+})
+
+test('detail nutrition shortcut respects the existing five-candidate limit', async () => {
+  const rows = Array.from({ length: 6 }, (_, index) => ({ ...candidateA, product_id: `product_limit_${index}`, brand: `브랜드${index}`, canonical_name: `한도 제품 ${index}` }))
+  catalogProducts = [current, ...rows]
+  await renderApp(); await reachResultsWithConditions()
+  for (const control of all('.switch-candidate-compare').slice(0, 5)) await click(control)
+  const original = [...session().compareIds]
+  await selectCandidate(rows[5].canonical_name); await click('상세 보기')
+  const shortcut = button('현재 사료와 영양 비교')
+  assert.equal(shortcut.disabled, true)
+  assert.deepEqual(session().compareIds, original)
+  assert.equal(session().compareOpen, false)
 })
 
 test('SWITCH candidate detail comparison changes survive browser and explicit return without changing current SKU or criteria', async () => {
@@ -944,7 +998,7 @@ test('SWITCH candidate detail comparison changes survive browser and explicit re
   await selectCandidate(candidateA.canonical_name)
   const before = session()
   await click('상세 보기')
-  await waitForUi(() => document.querySelector('.detail-identity-actions'), 'detail comparison action')
+  await waitForUi(() => document.querySelector('.detail-context-actions'), 'detail comparison action')
   await click('비교에 추가')
   await browserBack(() => document.querySelector('.switch-candidate-inspector') && !document.querySelector('.detail-stage'), 'candidate detail add return')
   assert.deepEqual(session().compareIds, [candidateA.product_id])

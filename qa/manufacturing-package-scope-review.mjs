@@ -106,9 +106,9 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  report.views[`${label}-compare`]={text:(await page.locator('.compare-stage').innerText()).slice(0,2200),targets:compareTargets,horizontalLayout:comparePage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
 
  await page.goto(`${BASE}?view=workspace&mode=switch`,{waitUntil:'domcontentloaded'})
- const search=page.locator('.switch-find-search input');await search.fill('현재 사료');await page.locator('.switch-find-result').filter({hasText:'현재 사료'}).click();await page.getByRole('button',{name:/이 제품을 현재 사료로 선택/}).click()
+ const search=page.locator('.switch-find-search input');await search.fill('현재 사료');await page.locator('.switch-find-result').filter({hasText:'현재 사료'}).click()
  await page.locator('.switch-sku-option').filter({hasText:'1 kg'}).click();await page.locator('.switch-step-actions .switch-primary-action').click()
- await page.getByRole('button',{name:'다른 브랜드로 보기'}).click();await page.locator('.switch-step-actions .switch-primary-action').click()
+ await page.getByRole('button',{name:'다른 브랜드로 보기'}).click()
  await page.locator('.switch-step-actions .switch-primary-action').click();await page.locator('.switch-candidate-row').filter({hasText:multi.canonical_name}).click()
  await page.locator('.switch-candidate-inspector').waitFor();assert.match(await page.locator('.switch-candidate-inspector').innerText(),/확인된 포장 기준/)
  await page.evaluate(()=>{const xs=[...document.querySelectorAll('.switch-candidate-inspector dt')].filter(n=>n.textContent?.trim()==='제조국');xs[0]?.scrollIntoView({block:'center'})})

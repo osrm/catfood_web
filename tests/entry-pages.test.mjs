@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import fs from 'node:fs/promises'
 import { JSDOM } from 'jsdom'
-import { renderEntryPages } from '../scripts/build-entry-pages.mjs'
+import { renderEntryPages, entryApplicationUrls } from '../scripts/build-entry-pages.mjs'
 
 const snapshot = JSON.parse(await fs.readFile(new URL('../data/entry-products.json', import.meta.url), 'utf8'))
 test('public identity entries have unique crawlable product URLs, exact app identities and consistent canonical addresses', () => {
@@ -38,8 +38,14 @@ test('entry HTML escapes catalog text and refuses ambiguous identity/canonical i
 test('enhanced entry loads only built application assets at the project root and retains no-JS identity content', () => {
   const pages = renderEntryPages(snapshot, undefined, { script: './assets/index-example.js', stylesheet: './assets/index-example.css' })
   const doc = new JSDOM(pages.get('foods/aatu-salmon/index.html'), { url: 'https://osrm.github.io/catfood_web/foods/aatu-salmon/' }).window.document
-  assert.equal(doc.querySelector('script[type=module]').src, 'https://osrm.github.io/catfood_web/assets/index-example.js')
+  const assets = { script: './assets/index-example.js', stylesheet: './assets/index-example.css' }
+  assert.deepEqual(entryApplicationUrls('https://osrm.github.io/catfood_web/foods/aatu-salmon/', assets, snapshot.products[0].productId), {
+    script: 'https://osrm.github.io/catfood_web/assets/index-example.js',
+    stylesheet: 'https://osrm.github.io/catfood_web/assets/index-example.css',
+    location: 'https://osrm.github.io/catfood_web/?view=workspace&mode=lookup&detail=product_d99406c26240b263',
+  })
+  assert.equal(entryApplicationUrls('https://example.test/foods/aatu-salmon/', assets, snapshot.products[0].productId).script, 'https://example.test/assets/index-example.js')
   assert.equal(doc.querySelector('#root h1').textContent, snapshot.products[0].name)
-  assert.match(doc.querySelector('script:not([type=module])').textContent, /view=workspace&mode=lookup&detail=product_d99406c26240b263/)
+  assert.match(doc.querySelector('script[type=module]').textContent, /history.replaceState/)
   assert.throws(() => renderEntryPages(snapshot, undefined, { script: 'https://untrusted.test/script.js', stylesheet: './assets/index-example.css' }), /built application assets/)
 })

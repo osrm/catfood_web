@@ -211,6 +211,7 @@ function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
 
 export default function App() {
   const [restartJourneyOpen, setRestartJourneyOpen] = useState(false)
+  const [pendingSwitchProductId, setPendingSwitchProductId] = useState<string | null>(null)
   const [copyJourneyOpen, setCopyJourneyOpen] = useState(false)
   const [initialNavigation] = useState(() => parseNavigationState(typeof window === 'undefined' ? '' : window.location.search))
   const [initialSwitchSession] = useState(() => {
@@ -795,6 +796,28 @@ export default function App() {
     commitSwitchSession(createInitialSwitchSession('', crypto.randomUUID()), 'replace', null)
     if (screen === 'home' || mode !== 'switch') changeMode('switch')
   }
+  function startSwitchFromProduct(product: CatalogProduct, confirmed = false) {
+    const current = switchSessionRef.current
+    if (current.currentProductId === product.product_id) {
+      setPendingSwitchProductId(null)
+      changeMode('switch')
+      return
+    }
+    if (!confirmed && (current.currentProductId || hasJourneyWork())) {
+      setPendingSwitchProductId(product.product_id)
+      return
+    }
+    clearJourneyRecords()
+    pendingSwitchPopPatch.current = null
+    switchHistoryEntryRef.current = null
+    const next = createInitialSwitchSession('', crypto.randomUUID())
+    next.currentProductId = product.product_id
+    next.query = `${product.brand} ${product.canonical_name}`
+    next.step = 'sku'
+    restoreSwitchSession(next)
+    setPendingSwitchProductId(null)
+    changeMode('switch')
+  }
   function changeMode(nextMode: Mode) {
     if (mode === 'switch' && nextMode !== 'switch') {
       resetExploreRun(nextMode)
@@ -989,8 +1012,10 @@ export default function App() {
   }
 
   const restartJourneyDialog = restartJourneyOpen ? <JourneyDialog title="새로 찾아볼까요?" onClose={() => setRestartJourneyOpen(false)}><p>탐색 메모와 남긴 후보가 지워집니다. 필요하면 먼저 복사해 두세요.</p><button className="secondary-action" type="button" onClick={() => setCopyJourneyOpen(true)}>기록 복사</button><button className="primary-action" type="button" onClick={() => restartSwitch(true)}>새로 찾기</button></JourneyDialog> : null
-  const journeyOverlays = <>{restartJourneyDialog}{copyJourneyOpen ? <JourneyCopy records={readJourneyRecords()} onClose={() => setCopyJourneyOpen(false)} /> : null}</>
-  if (detailProduct) return <ProductDetail product={detailProduct} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} />
+  const pendingSwitchProduct = products.find((product) => product.product_id === pendingSwitchProductId)
+  const replaceSwitchDialog = pendingSwitchProduct ? <JourneyDialog title="이 사료에서 새로 찾아볼까요?" onClose={() => setPendingSwitchProductId(null)}><p>진행하던 탐색과 남긴 후보가 지워집니다. 필요하면 먼저 복사해 두세요.</p><button className="secondary-action" type="button" onClick={() => setCopyJourneyOpen(true)}>기록 복사</button><button className="primary-action" type="button" onClick={() => startSwitchFromProduct(pendingSwitchProduct, true)}>이 사료에서 새로 찾기</button></JourneyDialog> : null
+  const journeyOverlays = <>{restartJourneyDialog}{replaceSwitchDialog}{copyJourneyOpen ? <JourneyCopy records={readJourneyRecords()} onClose={() => setCopyJourneyOpen(false)} /> : null}</>
+  if (detailProduct) return <>{journeyOverlays}<ProductDetail product={detailProduct} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onFindAlternatives={() => startSwitchFromProduct(detailProduct)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} /></>
   const resumableCurrent = products.find((product) => product.product_id === switchSession.currentProductId)
   const switchProgress = switchSession.currentProductId
     ? resumableCurrent ? resumableCurrent.brand + ' · ' + resumableCurrent.canonical_name : '이전 작업'

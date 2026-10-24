@@ -223,7 +223,7 @@ function installFetch() {
 
 const all = (selector) => [...document.querySelectorAll(selector)]
 const exactButton = (text) => all('button').find((node) => node.textContent.trim() === text)
-const variantButton = (text) => all('button').find((node) => node.textContent.includes(text) && node.textContent.includes('단일 판매'))
+const variantButton = (text) => all('.switch-sku-option').find((node) => node.textContent.includes(text))
 const button = (text) => all('button').find((node) => node.textContent.includes(text))
 
 async function click(target) {
@@ -286,7 +286,6 @@ async function chooseCurrent(productName = current.canonical_name) {
   await inputValue(input, productName)
   await waitForUi(() => all('.switch-find-result').some((node) => node.textContent.includes(productName)), 'current product search result')
   await click(all('.switch-find-result').find((node) => node.textContent.includes(productName)))
-  await click('이 제품을 현재 사료로 선택')
   await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'SKU step')
 }
 
@@ -303,8 +302,7 @@ async function reachResultsWithConditions({ variantMode = 'variant', avoidIngred
   await click(exactButton('습식'))
   const ingredient = document.querySelector('.switch-current-ingredients button')
   if (ingredient && avoidIngredient) await click(ingredient)
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP step')
   if (exactButton('실내묘')) await click(exactButton('실내묘'))
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'results step')
@@ -683,8 +681,7 @@ test('SWITCH empty candidates use an edit action and KEEP unset wording without 
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'CHANGE step for empty candidate fixture')
   await click('특별히 바꾸고 싶은 점 없음')
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step for empty candidate fixture')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP step for empty candidate fixture')
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'empty results step')
 
@@ -776,7 +773,7 @@ test('explicit SWITCH previous-step buttons honor their displayed destinations a
 
   await click('조건 수정')
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'restored results to CHANGE')
-  await click('← 사용 규격')
+  await click('← 현재 사료와 포장')
   await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'explicit previous button reaches SKU')
   assert.equal(session().step, 'sku')
   assert.equal(session().variantSelection.variantId, before.variantSelection.variantId)
@@ -787,9 +784,7 @@ test('explicit SWITCH previous-step buttons honor their displayed destinations a
 
   await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'SKU to CHANGE again')
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'CHANGE to KEEP again')
-  await click('← 바꿀 것 수정')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP is available with CHANGE')
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'explicit previous button reaches CHANGE')
   assert.equal(session().step, 'change')
   assert.equal(session().variantSelection.variantId, before.variantSelection.variantId)
@@ -931,8 +926,7 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
   const ingredientButtons = all('.switch-current-ingredients button')
   assert.ok(ingredientButtons.length >= 4)
   for (const ingredientButton of ingredientButtons) await click(ingredientButton)
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'fixture KEEP')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'fixture KEEP')
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'fixture results')
 
@@ -1059,14 +1053,12 @@ test('unchanged SWITCH reapply keeps candidates and query; changed criteria clea
   await inputValue(document.querySelector('.switch-candidate-search input'), '전환')
   const before = session()
   await click('조건 수정')
-  await click(exactButton('다음 →'))
   await click('후보 제품 보기')
   assert.deepEqual(session().compareIds, before.compareIds)
   assert.equal(session().candidateQuery, '전환')
   await click('조건 수정')
   await click(exactButton('습식'))
   await click('특별히 바꾸고 싶은 점 없음')
-  await click(exactButton('다음 →'))
   await click('후보 제품 보기')
   assert.deepEqual(session().compareIds, [])
   assert.equal(session().candidateQuery, '')
@@ -1340,7 +1332,7 @@ test('changed applied criteria mark retained snapshots as previous context witho
   const original = structuredClone(journey().retained[0].context)
   await click('돌아가기')
   await waitForUi(() => document.querySelector('.switch-results-stage') && !document.querySelector('.detail-stage'), 'return to results before criteria edit')
-  await click('조건 수정'); await click('다른 브랜드로 보기'); await click(exactButton('다음 →')); await click('후보 제품 보기')
+  await click('조건 수정'); await click('다른 브랜드로 보기'); await click('후보 제품 보기')
   assert.notEqual(session().appliedCriteriaKey, original.selectionKey)
   assert.deepEqual(journey().retained[0].context, original)
   assert.match(document.querySelector('.journey-old-context').textContent, /이전 기준/)

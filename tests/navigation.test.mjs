@@ -1143,16 +1143,81 @@ test('detail comparison cap allows removal but prevents a sixth product', async 
   const compared = products.slice(0, 5)
   const sixth = products[5]
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&q=Product&compare=${compared.map(p => p.product_id).join(',')}&detail=${sixth.product_id}`)
-  const disabled = document.querySelector('.detail-identity-actions button')
+  const disabled = [...document.querySelectorAll('.detail-identity-actions button')].find(node => /비교/.test(node.textContent))
   assert.equal(disabled.disabled, true)
   await click('돌아가기')
   await act(async () => document.querySelector(`[data-product-id="${compared[0].product_id}"]`).click())
   await click('상세 보기')
-  assert.equal(document.querySelector('.detail-identity-actions button').disabled, false)
+  assert.equal([...document.querySelectorAll('.detail-identity-actions button')].find(node => /비교/.test(node.textContent)).disabled, false)
   await click('비교에서 제거')
   await click('돌아가기')
   await waitForUi(() => !document.querySelector('.detail-stage'), 'cap removal return')
   assert.equal(new URL(window.location.href).searchParams.get('compare').split(',').length, 4)
+})
+
+test('direct product detail starts an exact current-food search without a second product search', async () => {
+  sessionStorage.clear()
+  const chosen = products[7]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&detail=${chosen.product_id}`)
+  await click('이 사료에서 후보 찾기')
+  await waitForUi(() => document.querySelector('.switch-sku-list'), 'inline package selection')
+  const state = app.readSwitchSession(sessionStorage)
+  assert.equal(state.currentProductId, chosen.product_id)
+  assert.equal(state.variantSelection.kind, 'unselected', 'representative package is not a usage selection')
+  assert.equal(state.step, 'sku')
+  assert.equal(document.querySelector('.detail-stage'), null)
+  await act(async () => window.history.back())
+  await waitForUi(() => document.querySelector('.detail-stage h1')?.textContent === chosen.canonical_name, 'back returns to original exact detail')
+  sessionStorage.clear()
+})
+
+test('starting from another detail protects an existing search until explicit replacement', async () => {
+  sessionStorage.clear()
+  const original = app.createInitialSwitchSession('old', 'original-journey')
+  original.currentProductId = products[0].product_id
+  original.variantSelection = { kind: 'unknown', variantId: null }
+  original.changeBrand = true
+  original.step = 'results'
+  original.appliedCriteriaKey = app.switchSelectionKey(original)
+  app.writeSwitchSession(original, sessionStorage)
+  const chosen = products[8]
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&detail=${chosen.product_id}`)
+  await click('이 사료에서 후보 찾기')
+  assert.ok(document.querySelector('dialog[open]'))
+  assert.equal(app.readSwitchSession(sessionStorage).currentProductId, original.currentProductId)
+  await act(async () => document.querySelector('dialog button[aria-label="닫기"]').click())
+  assert.equal(document.querySelector('dialog'), null)
+  assert.equal(app.readSwitchSession(sessionStorage).changeBrand, true)
+  await click('이 사료에서 후보 찾기')
+  await click('이 사료에서 새로 찾기')
+  await waitForUi(() => document.querySelector('.switch-sku-list'), 'new exact product package choice')
+  const next = app.readSwitchSession(sessionStorage)
+  assert.equal(next.currentProductId, chosen.product_id)
+  assert.equal(next.changeBrand, false)
+  assert.equal(next.variantSelection.kind, 'unselected')
+  assert.notEqual(next.restartId, original.restartId)
+  sessionStorage.clear()
+})
+
+test('the same product detail resumes an existing current-food search without replacing criteria', async () => {
+  sessionStorage.clear()
+  const state = app.createInitialSwitchSession('', 'resume-existing')
+  state.currentProductId = products[9].product_id
+  state.variantSelection = { kind: 'unknown', variantId: null }
+  state.keep.feedType = '건식'
+  state.noChangeIntent = true
+  state.step = 'results'
+  state.appliedCriteriaKey = app.switchSelectionKey(state)
+  app.writeSwitchSession(state, sessionStorage)
+  await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&detail=${state.currentProductId}`)
+  await click('이 사료에서 후보 찾기')
+  await waitForUi(() => document.querySelector('.switch-results-stage'), 'same search resumes')
+  const resumed = app.readSwitchSession(sessionStorage)
+  assert.equal(resumed.restartId, state.restartId)
+  assert.deepEqual(resumed.keep, state.keep)
+  assert.deepEqual(resumed.variantSelection, state.variantSelection)
+  assert.equal(document.querySelector('dialog'), null)
+  sessionStorage.clear()
 })
 
 async function renderEnergyFixture(rows) {

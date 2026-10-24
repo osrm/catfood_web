@@ -1,5 +1,6 @@
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
+import { setProductMetadata } from './product-metadata'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
   fetchCompareIngredients,
@@ -220,6 +221,9 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   onTabChange?: (tab: DetailTab) => void
 }) {
   const [tab, setTab] = useState<DetailTab>(initialTab)
+  useEffect(() => {
+    if (!embedded) return setProductMetadata(product)
+  }, [embedded, product.product_id, product.brand, product.canonical_name])
   const [ingredientFacts, setIngredientFacts] = useState<CatalogIngredientFacts | null>(null)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [nutrition, setNutrition] = useState<CompareNutrition | null>(null)

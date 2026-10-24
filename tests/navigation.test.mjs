@@ -1159,6 +1159,8 @@ test('direct product detail starts an exact current-food search without a second
   sessionStorage.clear()
   const chosen = products[7]
   await renderApp(`https://catfood.test/catfood_web/?view=workspace&mode=lookup&detail=${chosen.product_id}`)
+  assert.ok(document.title.includes(chosen.canonical_name))
+  assert.equal(new URL(document.head.querySelector('link[rel="canonical"]').href).searchParams.get('detail'), chosen.product_id)
   await click('이 사료에서 후보 찾기')
   await waitForUi(() => document.querySelector('.switch-sku-list'), 'inline package selection')
   const state = app.readSwitchSession(sessionStorage)
@@ -1166,6 +1168,7 @@ test('direct product detail starts an exact current-food search without a second
   assert.equal(state.variantSelection.kind, 'unselected', 'representative package is not a usage selection')
   assert.equal(state.step, 'sku')
   assert.equal(document.querySelector('.detail-stage'), null)
+  assert.equal(document.head.querySelector('link[rel="canonical"]'), null, 'product canonical must not remain on the current-food workspace')
   await act(async () => window.history.back())
   await waitForUi(() => document.querySelector('.detail-stage h1')?.textContent === chosen.canonical_name, 'back returns to original exact detail')
   sessionStorage.clear()

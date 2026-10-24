@@ -39,7 +39,6 @@ export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, o
   const active = records.retained.filter((row) => row.active)
   return <section className="journey-records" id="journey-records" tabIndex={-1} aria-label="남긴 후보와 이번 정리">
     <div className="journey-panel-heading"><h2>남긴 후보 <span>{active.length}/5</span></h2><button className="secondary-action" type="button" onClick={() => setCopy(true)}>기록 복사</button></div>
-    <p>비교에 담은 제품과 별개입니다. 검토한 뒤 기억해 둘 후보만 남겨 주세요.</p>
     <p className="journey-note">{storageAvailable ? '이 탭에서만 보관합니다. 탭을 닫기 전 필요하면 복사해 두세요.' : '브라우저 저장을 사용할 수 없어 새로고침하면 기록을 잃을 수 있습니다. 필요한 기록은 복사해 두세요.'}</p>
     {active.length ? <ul>{active.map((row) => <li key={row.id}>
       <div className="journey-panel-heading"><strong>{row.candidate.brand} · {row.candidate.name}</strong><button className="journey-inline-action" type="button" onClick={() => onRemove(row.id)}>남긴 후보에서 제거</button></div>

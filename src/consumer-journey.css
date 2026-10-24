@@ -1,0 +1,163 @@
+/* Shared presentation only. Existing search, resource loading and navigation own state. */
+:root {
+  --cf-bg:#fff; --cf-surface:#fff; --cf-ink:#302d2b; --cf-muted:#655e57;
+  --cf-line:#e5e1db; --cf-soft:#f7f6f2; --cf-accent:#345c4e;
+  --atlas-bg:#fff; --atlas-surface:#fff; --atlas-ink:#302d2b;
+  --atlas-muted:#655e57; --atlas-line:#e5e1db; --atlas-soft:#f7f6f2;
+  --atlas-soft-2:#f7f6f2; --atlas-row-tint:#faf9f7;
+  --atlas-primary:#345c4e; --atlas-primary-hover:#254538;
+  --atlas-selection:#345c4e; --atlas-selection-bg:#f2f5f2;
+  --journey-action:#edb453; --journey-action-ink:#30281d;
+}
+body,.research-shell,.detail-stage,.compare-stage {background:var(--cf-bg);color:var(--cf-ink)}
+.site-header.site-header {background:#fff;border-color:var(--cf-line);box-shadow:none}
+.site-header.site-header .site-wordmark {font-family:var(--cf-font);font-size:25px;font-weight:850;letter-spacing:-.065em;color:var(--cf-ink)}
+.site-header.site-header .mode-button {font-family:var(--cf-font);color:var(--cf-muted)}
+.site-header.site-header .mode-button.is-active {color:var(--cf-ink)}
+.site-header.site-header .mode-button.is-active::after {background:var(--cf-accent)}
+.site-header-actions button {font-family:var(--cf-font)}
+:is(.research-shell,.detail-stage,.compare-stage) :is(.primary-action,.switch-primary-action):not(:disabled),
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-step-actions .switch-primary-action:not(:disabled),
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-compare-dock>button {
+  background:var(--journey-action);border-color:var(--journey-action);color:var(--journey-action-ink);
+  border-radius:28px;min-height:48px;padding:12px 23px;font-weight:650;box-shadow:none;
+}
+:is(.research-shell,.detail-stage,.compare-stage) :is(.primary-action,.switch-primary-action):not(:disabled):hover,
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-step-actions .switch-primary-action:not(:disabled):hover {background:#e7aa40;border-color:#e7aa40;color:var(--journey-action-ink)}
+:is(.research-shell,.detail-stage,.compare-stage) :is(.secondary-action,.switch-secondary-action) {background:#fff;border-color:#bdb6ac;color:var(--cf-ink);border-radius:26px;min-height:44px}
+/* A pointer click does not need the keyboard's focus ring. */
+:is(.research-shell,.detail-stage,.compare-stage) button:focus:not(:focus-visible) {outline:none;box-shadow:none}
+:is(.research-shell,.detail-stage,.compare-stage) button:focus-visible {outline:2px solid var(--cf-accent);outline-offset:3px;box-shadow:none}
+.home-flow-shell.discovery-home .home-start-copy h1 {text-wrap:balance;word-break:keep-all}
+.switch-workflow-shell .switch-find-stage,.switch-workflow-shell .switch-step-layout,.switch-workflow-shell .switch-results-stage {background:#fff}
+.switch-workflow-shell .switch-step-header h1,.switch-workflow-shell .switch-find-heading h1 {font-family:var(--cf-font);color:var(--cf-ink);font-weight:750;letter-spacing:-.035em}
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-reference-rail {background:transparent}
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-step-header>p {color:var(--cf-muted)}
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-choice {border-color:#c8c0b5;color:var(--cf-ink);border-radius:7px;background:#fff}
+.switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-choice.is-active {border-color:#345c4e;background:#f2f5f2;color:var(--cf-ink)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype {width:min(1080px,calc(100% - 64px));margin:24px auto 0;padding-bottom:100px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-title h1 {font-size:30px;line-height:1.4;font-weight:750;letter-spacing:-.035em}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current {background:var(--cf-soft);border:0;border-radius:8px;padding:14px 18px;color:var(--cf-ink)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-prototype-criteria {border-color:var(--cf-line)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-search {border:1px solid #b5ada2;border-radius:8px;background:#fff;box-shadow:none;padding:0 14px;min-height:54px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-search:focus-within {background:#fff;border-color:var(--cf-accent);box-shadow:none}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-search input {font-size:16px;background:transparent;color:var(--cf-ink);min-height:52px;outline:none;box-shadow:none}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-search button {color:var(--cf-ink);text-decoration:underline;text-underline-offset:4px;min-height:44px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-list {display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item {border:0;border-bottom:1px solid var(--cf-line);border-radius:0;background:#fff;padding:0;box-shadow:none}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row {
+  display:grid;grid-template-columns:128px minmax(0,1fr);grid-template-rows:auto auto;
+  align-items:start;column-gap:28px;row-gap:8px;padding:20px 0 64px;background:#fff;
+  border:0;border-radius:0;min-height:0;color:var(--cf-ink);width:100%;
+}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:hover,
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row.is-selected {background:#fff;box-shadow:none}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-image {grid-column:1;grid-row:1/3;width:128px;height:140px;object-fit:contain;background:#fff;border:0}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity {grid-column:2;grid-row:1;min-width:0}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>span {font-size:13px;color:var(--cf-muted)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>strong {font-size:19px;line-height:1.5;font-weight:650;letter-spacing:-.025em;word-break:keep-all;overflow-wrap:anywhere}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>small {font-size:13px;line-height:1.7;color:var(--cf-muted)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row>.switch-candidate-relations {grid-column:2;grid-row:2;width:auto;gap:6px;margin:0;padding:0}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row .switch-relation-line {min-width:0;max-width:100%;align-items:stretch;flex-wrap:wrap}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row .switch-relation-line>:is(strong,small) {display:block;min-width:0;max-width:100%;white-space:normal;overflow:visible;overflow-wrap:anywhere;-webkit-line-clamp:unset}
+.switch-candidate-relations .switch-relation-line.is-ingredient-reviewed,
+.switch-candidate-relations .switch-relation-line.is-ingredient-unknown {display:flex;flex-direction:column;gap:3px;color:var(--cf-ink);background:none;border:0}
+.switch-candidate-relations .switch-relation-line.is-ingredient-reviewed>span,
+.switch-candidate-relations .switch-relation-line.is-ingredient-unknown>span {font-size:12px;color:var(--cf-muted)}
+.switch-candidate-relations .switch-relation-line>small {display:block;font-size:12px;line-height:1.7;color:var(--cf-muted);font-weight:400}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-relation-line>strong {font-size:14px;font-weight:400;line-height:1.75;color:var(--cf-ink)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-relation-line:is(.is-keep,.is-change,.is-unknown) {font-size:12px;color:var(--cf-muted)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-relation-line:is(.is-keep,.is-change,.is-unknown)>strong {font-size:14px;color:var(--cf-muted)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-open {left:156px;bottom:17px;width:auto;min-height:44px;padding:6px 0;border:0;border-radius:0;background:transparent;color:var(--cf-ink);text-decoration:underline;text-underline-offset:5px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare {left:270px;right:auto;bottom:17px;width:auto;min-height:44px;padding:6px 0;border:0;border-radius:0;background:transparent;color:var(--cf-accent)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare.is-added {background:transparent;color:var(--cf-accent)}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare:disabled {background:transparent;color:#777}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-inspector {background:#fff;border-color:var(--cf-line);box-shadow:none}
+.switch-candidate-inspector .switch-inspector-decision .switch-candidate-relations {padding:12px 0;border-bottom:1px solid var(--cf-line);margin-bottom:12px}
+/* Show the selected facts before any optional detail tab. */
+.detail-selection-context {margin:0 0 24px;padding:0 0 20px;border-bottom:1px solid var(--cf-line);color:var(--cf-ink)}
+.detail-selection-baseline {font-size:13px;line-height:1.8;margin:0 0 15px;color:var(--cf-muted)}
+.detail-selection-baseline strong {font-weight:600;color:var(--cf-ink)}
+.detail-selection-terms {font-size:13px;color:var(--cf-muted);margin:0 0 10px}
+.detail-selection-context .switch-candidate-relations {display:grid;gap:8px}
+.detail-selection-context .switch-relation-line {font-size:14px;line-height:1.8;display:flex;flex-wrap:wrap;min-width:0;gap:10px;color:var(--cf-muted)}
+.detail-selection-context .switch-relation-line>span {font-size:12px;flex-shrink:0;color:var(--cf-muted)}
+.detail-selection-context .switch-relation-line>:is(strong,small) {display:block;min-width:0;max-width:100%;white-space:normal;overflow:visible;overflow-wrap:anywhere;-webkit-line-clamp:unset}
+.detail-selection-context .switch-relation-line>strong {font-weight:400;color:var(--cf-ink)}
+.detail-selection-context .switch-relation-line:is(.is-ingredient-reviewed,.is-ingredient-unknown)>strong {font-size:16px}
+.detail-criterion-actions {display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;margin-top:16px}
+.detail-criterion-action {margin-top:0}
+.compare-stage .compare-energy-difference {display:block;margin-top:6px;color:var(--cf-muted);font-size:13px;line-height:1.55;font-weight:400}
+.detail-context-actions {display:flex;align-items:center;gap:16px;margin:-16px 0 18px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-list>.switch-candidate-group {grid-column:1/-1;min-width:0}
+.switch-candidate-group-heading {padding:20px 0 8px}
+.switch-candidate-group-heading h2 {margin:0;font-size:18px;line-height:1.5;font-weight:650;letter-spacing:-.025em}
+.switch-candidate-group-heading p {margin:7px 0 0;font-size:13px;line-height:1.8;color:var(--cf-muted)}
+.switch-candidate-group.is-unresolved {margin-top:24px;border-top:1px solid var(--cf-line)}
+.switch-candidate-group:first-child {margin-top:0;border-top:0}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>.switch-candidate-ingredients {font-size:14px;color:var(--cf-ink);margin-top:6px;white-space:normal}
+.detail-stage .detail-layout {max-width:1080px;background:#fff;gap:60px}
+.detail-stage .detail-identity-copy h1 {font-family:var(--cf-font);font-weight:750;letter-spacing:-.035em;word-break:keep-all;overflow-wrap:anywhere}
+.detail-stage .detail-tabs {border-color:var(--cf-line);background:#fff}
+.detail-stage .detail-tabs button {font-family:var(--cf-font);color:var(--cf-muted)}
+.detail-stage .detail-tabs button.is-active {color:var(--cf-ink);border-color:var(--cf-accent)}
+.detail-stage .detail-section h2 {font-family:var(--cf-font);font-weight:650}
+.detail-stage .detail-fact-lines,.detail-stage .detail-section {border-color:var(--cf-line)}
+.detail-stage .detail-identity-actions button {min-height:48px}
+.journey-retain .switch-candidate-relations {margin:12px 0;font-size:14px;line-height:1.75}
+.journey-retain .switch-relation-line>strong {font-weight:400}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-pane {border:0;background:#fff;box-shadow:none}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-search input {border:0;border-radius:0;box-shadow:none}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-relation-line>span,
+.detail-selection-context .switch-relation-line>span,
+.journey-retain .switch-relation-line>span {padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;max-width:none;width:auto;font-weight:400}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-relation-line:is(.is-ingredient-reviewed,.is-ingredient-unknown) {display:flex;flex-direction:column;gap:3px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-relation-line:is(.is-ingredient-reviewed,.is-ingredient-unknown)>span {display:block;margin:0}
+@media(min-width:761px){
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-workspace:not(.is-inspecting) .switch-candidate-list {grid-template-columns:minmax(0,1fr)}
+ .switch-workflow-shell .switch-results-workspace.is-inspecting .switch-candidate-row {grid-template-columns:72px minmax(0,1fr);column-gap:18px}
+ .switch-workflow-shell .switch-results-workspace.is-inspecting .switch-candidate-image {width:72px;height:100px}
+ .switch-workflow-shell .switch-results-workspace.is-inspecting .switch-candidate-open {left:90px}
+ .switch-workflow-shell .switch-results-workspace.is-inspecting .switch-candidate-compare {left:205px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-workspace.is-inspecting .switch-candidate-row {grid-template-columns:72px minmax(0,1fr);column-gap:18px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-workspace.is-inspecting .switch-candidate-image {width:72px;height:100px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-workspace.is-inspecting .switch-candidate-open {left:90px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-workspace.is-inspecting .switch-candidate-compare {left:205px}
+}
+@media(max-width:760px){
+ .site-header.site-header .site-wordmark {font-size:23px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype {width:calc(100% - 40px);margin:16px auto 0}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-title h1 {font-size:27px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current {padding:12px 14px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row {grid-template-columns:86px minmax(0,1fr);column-gap:18px;row-gap:8px;padding:18px 0 62px;min-height:0}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-image {width:86px;height:126px;grid-row:1/3}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>strong {font-size:19px;line-height:1.5}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>span,
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-identity>small {font-size:12px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row>.switch-candidate-relations {grid-column:2;grid-row:2;gap:5px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-open {left:104px;bottom:10px;width:auto;min-height:44px;font-size:14px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare {left:222px;right:auto;bottom:10px;width:auto;min-height:44px}
+ .detail-stage .detail-layout {gap:24px}
+ .detail-selection-context {margin-bottom:20px;padding-bottom:18px}
+ .detail-selection-baseline {font-size:12px;margin-bottom:12px}
+ .detail-selection-context .switch-relation-line:is(.is-ingredient-reviewed,.is-ingredient-unknown)>strong {font-size:15px}
+ .detail-stage .detail-identity-copy h1 {font-size:25px;line-height:1.45}
+ .detail-stage .detail-topbar .site-header-actions {gap:12px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-bar {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 12px;padding:0;margin:0 0 12px;border:0}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-results-title {grid-column:1/-1;grid-row:1;margin:0}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current {grid-column:1;grid-row:2;padding:9px 12px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current>span {font-size:11px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current-image {width:30px;height:40px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current-product strong {font-size:14px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-current-product small {font-size:12px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-session-bar>button:last-child {grid-column:2;grid-row:2;align-self:center;min-height:44px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-prototype-criteria {grid-column:1/-1;grid-row:3;padding:4px 0;border:0}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-prototype-criteria>summary {min-height:44px;gap:4px;align-items:flex-start;font-size:12px}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-criteria-summary-line {font-size:13px;line-height:1.65;font-weight:400;display:inline}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-criteria-summary-line+.switch-criteria-summary-line:before {content:' · '}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-heading {padding:0 0 10px;gap:10px;border:0}
+ .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-heading>div>strong {font-size:17px}
+ .switch-candidate-group-heading {padding-top:12px}
+ .switch-candidate-group-heading h2 {font-size:17px}
+ .switch-candidate-group-heading p {font-size:12px;line-height:1.7}
+}

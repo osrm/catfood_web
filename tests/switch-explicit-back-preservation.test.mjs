@@ -229,7 +229,6 @@ async function chooseCurrentAndReachChange() {
   await inputValue(input, current.canonical_name)
   await waitForUi(() => all('.switch-find-result').some((node) => node.textContent.includes(current.canonical_name)), 'current search result')
   await click(all('.switch-find-result').find((node) => node.textContent.includes(current.canonical_name)))
-  await click('이 제품을 현재 사료로 선택')
   await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'SKU step')
   await waitForUi(() => skuButton('1 kg'), '1 kg SKU')
   await click(skuButton('1 kg'))
@@ -243,21 +242,19 @@ function session() {
   return value
 }
 
-test('explicit KEEP to CHANGE back preserves the latest KEEP selection when history goes to its parent entry', async () => {
+test('combined editor preserves KEEP selections across explicit product/package back and re-entry', async () => {
   await renderApp()
   await chooseCurrentAndReachChange()
   await click(exactButton('습식'))
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP step')
   await click(exactButton('현재브랜드 유지'))
   assert.equal(session().keepBrand, true)
 
-  await click('← 바꿀 것 수정')
+  await click('← 현재 사료와 포장'); await waitForUi(() => document.querySelector('.switch-sku-list'), 'product/package back'); await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'explicit back to CHANGE')
   assert.equal(session().keepBrand, true, 'latest KEEP must survive explicit history back')
 
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP re-entry')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP re-entry')
   assert.equal(exactButton('현재브랜드 유지')?.getAttribute('aria-pressed'), 'true')
 })
 
@@ -272,10 +269,10 @@ test('explicit CHANGE to SKU back preserves edited CHANGE, ingredient avoidance,
   assert.equal(session().change.feedType, '습식')
   assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])
 
-  await click('← 사용 규격')
+  await click('← 현재 사료와 포장')
   await waitForUi(() => document.querySelector('.switch-sku-list') !== null, 'explicit back to SKU')
   assert.equal(session().variantSelection.variantId, 'variant_current_back_1')
-  assert.equal(skuButton('1 kg')?.getAttribute('aria-pressed'), null)
+  assert.equal(skuButton('1 kg')?.getAttribute('aria-pressed'), 'true')
   assert.match(skuButton('1 kg')?.textContent ?? '', /선택됨/)
 
   await click(exactButton('다음 →'))
@@ -290,14 +287,13 @@ test('preserved KEEP still obeys PR21 conflict clearing only on the matching CHA
   await renderApp()
   await chooseCurrentAndReachChange()
   await click('특별히 바꾸고 싶은 점 없음')
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP step')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP step')
   await click(exactButton('현재브랜드 유지'))
   await click(exactButton('실내묘'))
   assert.equal(session().keepBrand, true)
   assert.deepEqual(session().keep.officialTargets, ['indoor'])
 
-  await click('← 바꿀 것 수정')
+  await click('← 현재 사료와 포장'); await waitForUi(() => document.querySelector('.switch-sku-list'), 'product/package back'); await click(exactButton('다음 →'))
   await waitForUi(() => document.body.textContent.includes('무엇을 바꾸고 싶나요?'), 'back to CHANGE with KEEP')
   assert.equal(session().keepBrand, true)
   assert.deepEqual(session().keep.officialTargets, ['indoor'])
@@ -307,8 +303,7 @@ test('preserved KEEP still obeys PR21 conflict clearing only on the matching CHA
   assert.deepEqual(session().keep.officialTargets, ['indoor'], 'unrelated KEEP must remain')
   assert.match(document.body.textContent, /브랜드 유지 조건을 해제했습니다/)
 
-  await click(exactButton('다음 →'))
-  await waitForUi(() => document.body.textContent.includes('무엇을 그대로 유지할까요?'), 'KEEP after conflict resolution')
+  await waitForUi(() => document.querySelector('.switch-inline-keep'), 'KEEP after conflict resolution')
   assert.equal(exactButton('현재브랜드 유지'), undefined)
   assert.equal(exactButton('실내묘')?.getAttribute('aria-pressed'), 'true')
 })

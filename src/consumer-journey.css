@@ -1,4 +1,32 @@
 /* Shared presentation only. Existing search, resource loading and navigation own state. */
+.switch-workflow-shell .switch-current-package {align-self:start;min-width:0;padding:0 24px 24px;border-left:1px solid var(--cf-line)}
+.switch-workflow-shell .switch-current-package .switch-inline-packages {display:block;width:auto;margin:0;padding:0}
+.switch-inline-packages h2 {font-size:18px;line-height:1.6;margin:20px 0 12px}
+.switch-workflow-shell .switch-current-package .switch-sku-list {padding:0;display:grid;gap:8px}
+.switch-workflow-shell .switch-current-package .switch-sku-option {min-height:52px;padding:10px 14px}
+.switch-workflow-shell .switch-current-package .switch-step-actions {display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 0;padding:0;border:0}
+.switch-current-package .switch-step-actions>button {min-height:44px;flex:1 1 auto}
+.switch-inline-keep {margin-top:28px;padding-top:24px;border-top:1px solid var(--cf-line)}
+.switch-inline-keep h2 {font-size:20px;line-height:1.5;margin:0 0 6px;letter-spacing:-.03em}
+.switch-inline-keep>p {color:var(--cf-muted);font-size:14px;margin:0 0 16px}
+.switch-keep-options {display:flex;flex-wrap:wrap;gap:8px}
+.switch-keep-extra {margin-top:12px}
+.switch-keep-extra>summary {min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:14px;text-decoration:underline;text-underline-offset:4px}
+.switch-workflow-shell .switch-inline-keep .switch-criteria-columns {margin:0}
+.journey-records>summary {min-height:44px;cursor:pointer;font-size:16px;font-weight:650;padding:8px 0}
+.journey-records>summary>span {font-size:14px;font-weight:400;margin-left:8px;color:var(--cf-muted)}
+.journey-records:not([open]) {padding-top:12px;padding-bottom:12px}
+.detail-stage .detail-identity-actions {display:flex;flex-wrap:wrap;gap:10px}
+@media(max-width:760px) {
+ .switch-workflow-shell .switch-current-package {padding:0 0 20px;border:0}
+ .switch-workflow-shell .switch-current-package .switch-preview-identity {padding:8px 0;grid-template-columns:72px minmax(0,1fr)}
+ .switch-workflow-shell .switch-current-package .switch-preview-image {width:72px;height:94px}
+ .switch-workflow-shell .switch-current-package .switch-preview-identity h2 {font-size:20px}
+ .switch-workflow-shell .switch-current-package .switch-preview-topline {padding:0}
+ .switch-inline-keep {margin-top:24px;padding-top:20px}
+ .switch-inline-keep h2 {font-size:18px}
+ .switch-workflow-shell .switch-decision-step-layout.switch-decision-refinement .switch-change-mobile-basic .switch-criterion-section {padding-top:12px;padding-bottom:16px}
+}
 :root {
   --cf-bg:#fff; --cf-surface:#fff; --cf-ink:#302d2b; --cf-muted:#655e57;
   --cf-line:#e5e1db; --cf-soft:#f7f6f2; --cf-accent:#345c4e;

@@ -202,7 +202,7 @@ function ProductImage({ product }: { product: CatalogProduct }) {
 function Fact({ label, value }: { label: string; value: string }) { return <div className="detail-fact"><span>{label}</span><strong>{value}</strong></div> }
 function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) { return <div className="detail-state is-error" role="alert"><p>{message}</p><button type="button" onClick={onRetry}>다시 시도</button></div> }
 
-export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, compared = false, compareFull = false, embedded = false, selectionContext, reviewActions, reviewSummary }: {
+export default function ProductDetail({ product, onClose, backLabel = '← 돌아가기 · 제품 목록', initialTab = 'overview', onTabChange, onHome, switchNavigation, onToggleCompare, onFindAlternatives, compared = false, compareFull = false, embedded = false, selectionContext, reviewActions, reviewSummary }: {
   selectionContext?: (selectTab: (tab: DetailTab) => void) => ReactNode
   reviewActions?: ReactNode
   reviewSummary?: ReactNode
@@ -212,6 +212,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   onHome?: () => void
   switchNavigation?: SwitchDetailNavigation
   onToggleCompare?: () => void
+  onFindAlternatives?: () => void
   compared?: boolean
   compareFull?: boolean
   backLabel?: string
@@ -437,7 +438,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
           <p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p>
         </div>
         <ProductImage product={product} />
-        {onToggleCompare && !selectionContext ? <div className="detail-identity-actions"><button className={compared ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button></div> : null}
+        {!selectionContext && (onToggleCompare || onFindAlternatives) ? <div className="detail-identity-actions">{onFindAlternatives ? <button className="primary-action" type="button" onClick={onFindAlternatives}>이 사료에서 후보 찾기 →</button> : null}{onToggleCompare ? <button className={compared || onFindAlternatives ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button> : null}</div> : null}
       </aside>
       <section className="detail-document">
         {selectionContext?.((next) => selectTab(next, true))}

@@ -2451,23 +2451,13 @@
   color: var(--consumer-primary-2)
 }
 
-.switch-workflow-shell .switch-sku-list + .switch-step-actions .switch-primary-action {
-  font-size: 0
-}
 
-.switch-workflow-shell .switch-no-change ~ .switch-criteria-columns ~ .switch-step-actions .switch-primary-action {
-  font-size: 0
-}
 
-.switch-workflow-shell .switch-sku-list + .switch-step-actions .switch-primary-action::after {
-  content: "다음 · 바꿀 것 정하기 →";
-  font-size: 12px
-}
 
-.switch-workflow-shell .switch-no-change ~ .switch-criteria-columns ~ .switch-step-actions .switch-primary-action::after {
-  content: "다음 · 유지할 것 정하기 →";
-  font-size: 12px
-}
+
+
+
+
 
 .switch-workflow-shell .switch-results-stage {
   padding: 18px max(32px, calc((100vw - 1200px) / 2 + 32px)) 22px;

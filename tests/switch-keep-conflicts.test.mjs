@@ -193,20 +193,17 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   })))
 
   await click(all('.switch-find-result').find((node) => node.textContent.includes('현재 건식 사료')))
-  await click('이 제품을 현재 사료로 선택')
   await waitForUi(() => document.body.textContent.includes('선택할 수 있는 판매 규격을 확인하지 못했습니다'), 'empty variants')
   await click('사용 규격을 모르겠어요')
   await click('특별히 바꾸고 싶은 점 없음')
-  await click(exactButton('다음 →'))
 
   await click(exactButton('현재브랜드 유지'))
   await click(exactButton('건식 유지'))
   await click(exactButton('성묘 유지'))
   await click(exactButton('가금류 레시피 유지'))
-  await click(exactButton('실내묘'))
-  assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true')
+  await click(all('.switch-inline-keep button').find(node => node.textContent.trim() === '실내묘'))
+  assert.equal(all('.switch-inline-keep button').find(node => node.textContent.trim() === '실내묘').getAttribute('aria-pressed'), 'true')
 
-  await click('← 바꿀 것 수정')
   await click(all('.switch-current-ingredients button')[0])
   assert.match(document.body.textContent, /닭 ×/)
 
@@ -219,12 +216,11 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click(exactButton('생선 레시피'))
   assert.match(document.querySelector('[role="status"]').textContent, /다른 레시피를 골라 이전의 레시피 유지 선택을 해제했습니다/)
 
-  await click(exactButton('다음 →'))
   assert.equal(exactButton('현재브랜드 유지'), undefined)
   assert.equal(exactButton('건식 유지'), undefined)
   assert.equal(exactButton('성묘 유지'), undefined)
   assert.equal(exactButton('가금류 레시피 유지'), undefined)
-  assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must survive')
+  assert.equal(all('.switch-inline-keep button').find(node => node.textContent.trim() === '실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must survive')
 
   await click('후보 제품 보기')
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'switch results')
@@ -288,11 +284,10 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
   await click(exactButton('습식'))
   await click(exactButton('시니어'))
   await click(exactButton('생선 레시피'))
-  await click(exactButton('다음 →'))
 
   assert.equal(exactButton('현재브랜드 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('건식 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('성묘 유지').getAttribute('aria-pressed'), 'false')
   assert.equal(exactButton('가금류 레시피 유지').getAttribute('aria-pressed'), 'false')
-  assert.equal(exactButton('실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must remain selected')
+  assert.equal(all('.switch-inline-keep button').find(node => node.textContent.trim() === '실내묘').getAttribute('aria-pressed'), 'true', 'unrelated KEEP must remain selected')
 })

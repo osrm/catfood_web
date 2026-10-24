@@ -176,7 +176,6 @@ test('explicit navigation remains owned by SwitchFlow and never installs global 
   ])
 
   assert.match(flow, /useLayoutEffect/)
-  assert.match(flow, /requestExplicitScroll\('keep'\)/)
   assert.match(flow, /requestExplicitScroll\('results'\)/)
   assert.match(flow, /requestExplicitScroll\('compare'\)/)
   assert.match(flow, /requestExplicitScroll\(nextStep, Boolean\(onHistoryBack\)\)/)
@@ -361,11 +360,11 @@ test('SwitchFlow unmount cancels its scheduled settle handle before a stale call
 
   root = createRoot(document.getElementById('root'))
   await act(async () => root.render(createElement(Harness)))
-  const next = [...document.querySelectorAll('.switch-step-actions .switch-primary-action')]
-    .find((node) => node.textContent.trim() === '다음 →')
+  const next = [...document.querySelectorAll('.switch-step-actions button')]
+    .find((node) => node.textContent.trim() === '← 현재 사료와 포장')
   assert.ok(next)
   await act(async () => next.click())
-  assert.ok(document.querySelector('.switch-current-facts-summary'), 'KEEP destination rendered')
+  assert.ok(document.querySelector('.switch-sku-list'), 'product/package destination rendered')
   const [staleFrame] = activeFrameIds()
   assert.ok(staleFrame, 'SwitchFlow keeps one settle frame pending after the synchronous reset')
 

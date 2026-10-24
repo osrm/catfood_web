@@ -550,7 +550,8 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, reviewActions, reviewSummary, onDisplayedCandidates }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, detailContext, reviewActions, reviewSummary, onDisplayedCandidates }: {
+  detailContext?: (product: CatalogProduct) => ReactNode
   items: CompareItem[]
   reviewActions?: (product: CatalogProduct) => ReactNode
   reviewSummary?: ReactNode
@@ -1088,7 +1089,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const activeIngredientsError = ingredientsErrorKeyRef.current === productKey ? ingredientsError : null
   const activeCurrentNutritionError = currentProduct && currentNutritionErrorProductRef.current === currentProduct.product_id ? currentNutritionError : null
 
-  if (detailItem) return <ProductDetail embedded={!switchDetailNavigation} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} reviewActions={reviewActions?.(detailItem.product)} reviewSummary={reviewSummary} />
+  if (detailItem) return <ProductDetail embedded={!switchDetailNavigation} product={detailItem.product} onClose={() => onDetailClose ? onDetailClose() : setLocalDetailProductId(null)} backLabel="← 비교로 돌아가기" initialTab={detailTab} onTabChange={onDetailTabChange} switchNavigation={switchDetailNavigation} selectionContext={detailContext?.(detailItem.product)} reviewActions={reviewActions?.(detailItem.product)} reviewSummary={reviewSummary} />
 
   const panelId = `compare-panel-${tab}`
   const tabId = `compare-tab-${tab}`

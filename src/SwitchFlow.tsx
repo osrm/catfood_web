@@ -601,17 +601,17 @@ function RelationBlock({ evaluation }: { evaluation: SwitchEvaluation }) {
 
   return (
     <div className="switch-candidate-relations">
+      {evaluation.ingredientReviewedNotFound.length > 0 ? (
+        <div className="switch-relation-line is-ingredient-reviewed" data-evidence-state="reviewed-not-found"><span>피할 원료 확인</span><strong>검토한 자료에서 {evaluation.ingredientReviewedNotFound.join(' · ')} 원료를 찾지 못했어요.</strong><small>원료가 없다고 확정한 결과는 아니에요.</small></div>
+      ) : null}
+      {evaluation.ingredientInsufficient.length > 0 ? (
+        <div className="switch-relation-line is-ingredient-unknown" data-evidence-state="unknown"><span>원료 확인이 더 필요해요</span><strong>{evaluation.ingredientInsufficient.join(' · ')} 원료가 있는지 아직 확인하지 못했어요.</strong>{evaluation.ingredientInsufficient.includes('닭') && /닭|chicken/i.test(evaluation.product.canonical_name) ? <small>제품 이름에는 닭고기 표기가 있어요. 원재료를 더 확인해야 해요.</small> : null}</div>
+      ) : null}
       {evaluation.keepMatches.length > 0 ? (
         <div className="switch-relation-line is-keep"><span>유지할 점</span><strong>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</strong></div>
       ) : null}
       {evaluation.changeMatches.length > 0 ? (
         <div className="switch-relation-line is-change"><span>바꿀 점</span><strong>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</strong></div>
-      ) : null}
-      {evaluation.ingredientReviewedNotFound.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-reviewed"><span>원료 확인</span><strong>{evaluation.ingredientReviewedNotFound.join(' · ')} · 검토한 자료에서 찾지 못함</strong></div>
-      ) : null}
-      {evaluation.ingredientInsufficient.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.join(' · ')} · 판단 근거 부족</strong></div>
       ) : null}
       {evaluation.unknowns.length > 0 ? (
         <div className="switch-relation-line is-unknown"><span>미확인</span><strong>{evaluation.unknowns.map(candidateRelationLabel).join(' · ')}</strong></div>
@@ -1214,6 +1214,7 @@ export default function SwitchFlow({
     const full = journey.retained.filter((row) => row.active).length >= 5
     return <div className="journey-retain"><strong>{product.brand} · {product.canonical_name}</strong>
       {currentProduct ? <p>지금 사료: {currentProduct.brand} · {currentProduct.canonical_name} · {currentVariantText}</p> : null}
+      {evaluation ? <RelationBlock evaluation={{ ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] }} /> : null}
       {evaluation ? <dl className="journey-related-facts">
         {evaluation.changeMatches.length ? <div><dt>바꾸고 싶은 점에서 확인</dt><dd>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
         {evaluation.keepMatches.length ? <div><dt>유지할 점에서 확인</dt><dd>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
@@ -1221,6 +1222,15 @@ export default function SwitchFlow({
       </dl> : null}
       <button className="primary-action" type="button" aria-pressed={retained} disabled={retained} onClick={() => retainCandidate(product)}>{retained ? '남긴 후보' : '검토 후보로 남기기'}</button>
       {full && !retained ? <p>5개를 남겼습니다. <button className="journey-inline-action" type="button" onClick={() => document.getElementById('journey-records')?.focus()}>남긴 후보 정리</button></p> : null}</div>
+  }
+  function renderCandidateContext(product: CatalogProduct) {
+    const evaluation = candidates.find((item) => item.product.product_id === product.product_id)
+    if (!evaluation || !currentProduct) return null
+    return <section className="detail-selection-context" aria-label="현재 사료와 선택한 조건의 확인 결과">
+      <p className="detail-selection-baseline">지금 먹이는 사료 · <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong> · {currentVariantText}</p>
+      {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
+      <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} />
+    </section>
   }
   function renderJourneyOverlays() {
     return <>{memoOpen ? <JourneyMemo value={journey.memo} onSave={(memo) => updateJourney((value) => ({ ...value, memo, context: journeyContext() }))} onClose={() => setMemoOpen(false)} /> : null}
@@ -1754,6 +1764,7 @@ export default function SwitchFlow({
     if (compareOpen && compareItems.length > 0) {
       return (
         <CompareView
+          detailContext={renderCandidateContext}
           reviewActions={renderRetainAction}
           reviewSummary={renderJourneyRecords()}
           onDisplayedCandidates={(ids) => ids.forEach((id) => recordSwitchConsideration(id, 'compare_view', ids))}
@@ -1922,6 +1933,7 @@ export default function SwitchFlow({
                 <section className="switch-inspector-section switch-inspector-decision">
                   <h2>선택한 조건과 비교</h2>
                   <div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
+                  <RelationBlock evaluation={{ ...selectedCandidate, keepMatches: [], changeMatches: [], unknowns: [] }} />
                   <dl>
                     <div><dt>유지할 점</dt><dd>{selectedCandidate.keepMatches.map(candidateRelationLabel).join(' · ') || '확인된 항목 없음'}</dd></div>
                     <div><dt>바꿀 점</dt><dd>{selectedCandidate.changeMatches.map(candidateRelationLabel).join(' · ') || '확인된 항목 없음'}</dd></div>
@@ -1986,7 +1998,7 @@ export default function SwitchFlow({
   }
 
   if (detailProduct && !compareOpen) {
-    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} reviewActions={detailProduct.product_id !== currentProduct?.product_id ? renderRetainAction(detailProduct) : undefined} reviewSummary={renderJourneyRecords()} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
+    return <ProductDetail product={detailProduct} switchNavigation={{ onHome, onModeChange, onRestart: restartTask }} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={detailProduct.product_id !== currentProduct?.product_id ? () => toggleCompare(detailProduct.product_id) : undefined} selectionContext={renderCandidateContext(detailProduct)} reviewActions={detailProduct.product_id !== currentProduct?.product_id ? renderRetainAction(detailProduct) : undefined} reviewSummary={renderJourneyRecords()} onClose={closeSwitchDetail} initialTab={detailTab} onTabChange={changeSwitchDetailTab} />
   }
 
   if (currentProductId && !currentProduct) {

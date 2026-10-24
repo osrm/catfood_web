@@ -842,13 +842,57 @@ test('candidate inspector keeps full relationships and closing restores selected
   assert.match(inspector.textContent, /선택한 조건과 비교/)
   assert.match(inspector.textContent, /비교 기준.*현재브랜드.*현재 건식 사료.*1 kg/s)
   assert.match(inspector.textContent, /제품 정보 요약/)
-  assert.match(selectedRow.textContent, /원료 확인.*닭.*검토한 자료에서 찾지 못함/s)
+  assert.match(selectedRow.textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
+  assert.match(inspector.textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
 
   await click(inspector.querySelector('.switch-preview-topline button'))
   assert.equal(document.querySelector('.switch-candidate-inspector'), null)
   assert.equal(document.activeElement, selectedRow)
   assert.ok(selectedRow.classList.contains('is-selected') === false)
   assert.equal(session().selectedCandidateId, null)
+})
+
+test('selected ingredient evidence precedes detail tabs and survives comparison-detail navigation', async () => {
+  await renderApp()
+  await reachResultsWithConditions()
+  await selectCandidate()
+  await click('상세 보기')
+  const context = document.querySelector('.detail-selection-context')
+  assert.ok(context)
+  assert.match(context.textContent, /현재브랜드.*현재 건식 사료.*1 kg/s)
+  assert.match(context.textContent, /피하고 싶은 원료.*닭/s)
+  assert.match(context.textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
+  assert.match(context.textContent, /없다고 확정한 결과는 아니에요/)
+  assert.ok(context.compareDocumentPosition(document.querySelector('.detail-tabs')) & window.Node.DOCUMENT_POSITION_FOLLOWING)
+  await click(exactButton('원재료'))
+  assert.match(document.querySelector('.detail-selection-context').textContent, /검토한 자료에서 닭 원료를 찾지 못했어요/)
+  await click(exactButton('개요'))
+  await click(exactButton('비교에 추가'))
+  await click('돌아가기')
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'candidate after detail return')
+  await click('현재 사료와 비교')
+  await click(all('.compare-detail-link')[0])
+  assert.match(document.querySelector('.detail-selection-context').textContent, /피하고 싶은 원료.*닭.*검토한 자료에서 닭 원료를 찾지 못했어요/s)
+})
+
+test('unknown ingredient and chicken in the name stay distinct from reviewed-not-found evidence', async () => {
+  const uncertain = { ...candidateB, canonical_name: '닭고기 표기 예시', reviewed_not_found_ingredient_terms: [], insufficient_evidence_ingredient_terms: ['chicken'] }
+  catalogProducts = [current, candidateA, uncertain, singleSku]
+  await renderApp()
+  await reachResultsWithConditions()
+  const rows = all('.switch-candidate-row')
+  assert.equal(rows.some(row => row.textContent.includes(singleSku.canonical_name)), false)
+  const unknown = rows.find(row => row.textContent.includes(uncertain.canonical_name))
+  assert.ok(unknown)
+  assert.match(unknown.textContent, /닭 원료가 있는지 아직 확인하지 못했어요/)
+  assert.match(unknown.textContent, /제품 이름에는 닭고기 표기가 있어요/)
+  assert.equal(unknown.querySelector('[data-evidence-state="reviewed-not-found"]'), null)
+  await selectCandidate(uncertain.canonical_name)
+  await click('상세 보기')
+  const context = document.querySelector('.detail-selection-context')
+  assert.match(context.textContent, /닭 원료가 있는지 아직 확인하지 못했어요/)
+  assert.doesNotMatch(context.textContent, /찾지 못했어요|알레르기 안전|잘 맞아요/)
+  assert.deepEqual(session().ingredientAvoidTerms, ['chicken'])
 })
 
 
@@ -891,7 +935,7 @@ test('fixture: candidate relationship renders 3+ long ingredient evidence items 
   for (const term of terms) assert.match(rendered, new RegExp(term))
   const ingredientLine = relationLines.find((line) => line.textContent.includes('원료 확인'))
   assert.ok(ingredientLine)
-  assert.equal(ingredientLine.querySelector('strong').textContent.split(' · ').filter(Boolean).length >= 5, true)
+  for (const term of terms) assert.ok(ingredientLine.querySelector('strong').textContent.includes(term))
 })
 
 test('SWITCH candidate detail comparison changes survive browser and explicit return without changing current SKU or criteria', async () => {

@@ -4,6 +4,14 @@ import { pathToFileURL } from 'node:url'
 
 export const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 const ages = { kitten: '키튼', adult: '성묘', senior: '시니어', all_life_stages: '전연령', gestation_lactation_and_kitten: '임신·수유·키튼' }
+export function entryApplicationUrls(pageHref, application, productId) {
+  const root = new URL('../../', pageHref)
+  return {
+    script: new URL(application.script.slice(2), root).href,
+    stylesheet: new URL(application.stylesheet.slice(2), root).href,
+    location: new URL(`?view=workspace&mode=lookup&detail=${encodeURIComponent(productId)}`, root).href,
+  }
+}
 export function renderEntryPages(snapshot, siteUrl = 'https://osrm.github.io/catfood_web/', application = null) {
   const site = new URL(siteUrl)
   if (site.protocol !== 'https:' || site.username || site.password || site.search || site.hash || !site.pathname.endsWith('/')) throw new Error('Expected a public HTTPS site base ending in /')
@@ -17,7 +25,14 @@ export function renderEntryPages(snapshot, siteUrl = 'https://osrm.github.io/cat
   if (application && (!/^\.\/assets\/[A-Za-z0-9_.-]+\.js$/.test(application.script) || !/^\.\/assets\/[A-Za-z0-9_.-]+\.css$/.test(application.stylesheet))) throw new Error('Expected built application assets')
   const html = (title, description, canonical, body, depth, productId = null) => `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}"><link rel="canonical" href="${escapeHtml(canonical)}"><meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:url" content="${escapeHtml(canonical)}"><link rel="stylesheet" href="${depth}entry-pages.css"></head>
-<body><div id="root"><div class="public-entry"><header><a class="wordmark" href="${depth}../">CATFOOD</a><nav aria-label="제품 탐색"><a href="${depth}./">제품별 정보</a><a href="${depth}../?view=workspace&amp;mode=lookup">제품 검색</a></nav></header><main>${body}</main></div></div>${productId && application ? `<link rel="stylesheet" href="../.${application.stylesheet}"><script>history.replaceState(history.state,'',new URL('../../?view=workspace&mode=lookup&detail=${productId}',location.href));</script><script type="module" src="../.${application.script}"></script>` : ''}</body></html>\n`
+<body><div id="root"><div class="public-entry"><header><a class="wordmark" href="${depth}../">CATFOOD</a><nav aria-label="제품 탐색"><a href="${depth}./">제품별 정보</a><a href="${depth}../?view=workspace&amp;mode=lookup">제품 검색</a></nav></header><main>${body}</main></div></div>${productId && application ? `<script type="module">
+const urls=(${entryApplicationUrls.toString()})(location.href,${JSON.stringify(application)},${JSON.stringify(productId)});
+for(const link of document.querySelectorAll('a[href],link[href]'))link.setAttribute('href',link.href);
+const style=document.createElement('link');style.rel='stylesheet';style.href=urls.stylesheet;
+await new Promise((resolve,reject)=>{style.onload=resolve;style.onerror=reject;document.head.append(style)});
+history.replaceState(history.state,'',urls.location);
+await import(urls.script);
+</script>` : ''}</body></html>\n`
   const result = new Map()
   const rows = snapshot.products.map(p => `<li><a class="product-row" href="${p.slug}/">${p.image ? `<img src="${escapeHtml(p.image)}" alt="" width="80" height="100">` : ''}<span><small>${escapeHtml(p.brand)}</small><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.feedType ?? '형태 미확인')} · ${escapeHtml(ages[p.lifeStage] ?? '연령 미확인')}</span></span><span aria-hidden="true">→</span></a></li>`).join('')
   result.set('foods/index.html', html('고양이 사료 제품 정보 — CATFOOD', '고양이 사료의 제품 정보를 확인하고 현재 사료에서 다음 후보를 찾아보세요.', new URL('foods/', site), `<h1>제품 정보</h1><p>제품을 고르면 원재료와 영양 정보를 이어서 볼 수 있습니다.</p><ul class="product-list">${rows}</ul><a class="text-link" href="../?view=workspace&amp;mode=lookup">다른 제품 검색하기 →</a>`, ''))

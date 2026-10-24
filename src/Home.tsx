@@ -145,7 +145,7 @@ export default function Home({
               <label className="home-entry-search-field"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="브랜드 또는 제품명" aria-label="브랜드 또는 제품명 검색" /></label>
               <button className="home-entry-search-submit" type="submit" disabled={!trimmedQuery}>검색 →</button>
             </form>
-            <div className="home-explore-route"><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button></div>
+            <div className="home-explore-route"><button type="button" onClick={() => onStart('explore')} aria-label="조건 고르기 →">조건 고르기 →</button><a href="./foods/">제품별 정보 보기 →</a></div>
           </section>
         </section>
 

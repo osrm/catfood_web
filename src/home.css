@@ -30,6 +30,7 @@
 .home-entry-route p {font-size:13px;color:var(--cf-muted);margin:0;line-height:1.7}
 .home-entry-route > button {grid-column:2;border:0;background:transparent;color:var(--cf-ink);text-align:left;justify-self:start;font-size:13px;font-weight:600;min-height:44px;padding:6px 0}
 .home-entry-route > button:hover,.home-brand-shortcut:hover {color:var(--cf-accent)}
+.home-explore-route>a {display:inline-flex;align-items:center;min-height:44px;color:var(--cf-muted);font-size:13px;text-underline-offset:4px;margin-left:20px}
 .home-reading-note {grid-column:1/-1;margin-top:-20px;padding:20px 0 8px;border-top:1px solid var(--cf-line)}
 .home-reading-note button,.home-info-close {border:0;background:transparent;color:var(--cf-muted);padding:6px 0;min-height:44px;font-size:12px}
 .home-info-panel {padding:28px 0;border-top:1px solid var(--cf-line)}

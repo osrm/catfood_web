@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "retrievedAt": "2026-10-24T11:01:25.301Z",
+  "products": [
+    {
+      "slug": "aatu-salmon",
+      "productId": "product_d99406c26240b263",
+      "brand": "AATU",
+      "name": "연어",
+      "feedType": "건식",
+      "lifeStage": "all_life_stages",
+      "image": "https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/aatu/product_d99406c26240b263.webp"
+    },
+    {
+      "slug": "go-lid-duck",
+      "productId": "product_a0e685be674c6617",
+      "brand": "GO! SOLUTIONS",
+      "name": "LID 오리",
+      "feedType": "건식",
+      "lifeStage": "all_life_stages",
+      "image": "https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/go-solutions/product_a0e685be674c6617.webp"
+    },
+    {
+      "slug": "natural-balance-indoor",
+      "productId": "product_b47d3ae674773585",
+      "brand": "내추럴발란스",
+      "name": "오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피",
+      "feedType": "건식",
+      "lifeStage": "adult",
+      "image": "https://gnosbstdatkytsyxuapt.supabase.co/storage/v1/object/public/product-images/products/product_b47d3ae674773585.webp"
+    }
+  ]
+}

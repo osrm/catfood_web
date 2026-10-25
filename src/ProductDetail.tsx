@@ -526,7 +526,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                   {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong>{nutritionInterpretationNote(nutrition, 'additional_nutrients') ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'additional_nutrients')}</small> : null}</div>)}
                 </div>
                 <details className="detail-disclosure detail-nutrition-source-disclosure">
-                  <summary>원래 표기 보기</summary>
+                  <summary>{isPublicSourceLinksEnabled() ? '표기와 출처 보기' : '원래 표기 보기'}</summary>
                   <div className="detail-fact-lines detail-fact-lines-compact">
                     <Fact label="자료 범위" value={evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)} />
                     <Fact label="원래 열량 표기" value={energyValue(nutrition)} />
@@ -554,7 +554,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
               {isPublicSourceLinksEnabled() ? <>
                 {ingredients.observation_scope === 'formula' && !ingredients.is_current_resolved_formula ? <p className="detail-evidence-context">한국 판매 제품과 같은 배합인지 확인되지 않은 원재료 자료입니다.</p> : null}
                 <details className="detail-disclosure detail-ingredient-evidence-disclosure">
-                  <summary>자료 보기</summary>
+                  <summary>출처 확인</summary>
                   <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
                   <SourceLinks productId={product.product_id} resource="ingredients" />
                 </details>

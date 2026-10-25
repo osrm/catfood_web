@@ -7,6 +7,7 @@ import {
   fetchCompareIngredients,
   fetchCompareNutrition,
   fetchProductVariants,
+  isPublicSourceLinksEnabled,
   type AdditionalNutrient,
   type CatalogProduct,
   type CompareIngredients,
@@ -223,7 +224,7 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
   const fieldLabels = fields.map((field) => SUPPLEMENTAL_NUTRITION_LABELS[field] ?? field.replaceAll('_', ' ')).join(' · ')
   const providedEnergy = selectedEnergy(detail)?.provided ?? null
   return <div className="compare-scope-summary">
-    <CompareDisclosure label="원래 표기 보기" className="compare-evidence-disclosure">
+    <CompareDisclosure label={isPublicSourceLinksEnabled() ? '표기와 출처 보기' : '원래 표기 보기'} className="compare-evidence-disclosure">
       <div className="compare-evidence-details">
         <p><span>자료 범위</span><strong>{nutritionScopeSummary(detail, variants, failed, loading)}</strong></p>
         {providedEnergy ? <p><span>원래 열량 표기</span><strong>{providedEnergy}</strong></p> : null}
@@ -241,7 +242,7 @@ function IngredientSourceDisclosure({ row }: { row: CompareIngredients | undefin
   const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', ')
   const supplementalText = row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.join(', ')
   if (!primaryText && !supplementalText) return <span className="compare-muted">확인된 목록 없음</span>
-  return <CompareDisclosure label="출처 원문 보기" className="compare-evidence-disclosure">
+  return <CompareDisclosure label={isPublicSourceLinksEnabled() ? '원문과 출처 보기' : '출처 원문 보기'} className="compare-evidence-disclosure">
     <div className="compare-source-layers">
       {primaryText ? <div><span className="compare-muted">대표 확인 자료 · 출처 원문</span><p className="compare-ingredient-text">{primaryText}</p></div> : null}
       {supplementalText ? <div><span className="compare-muted">{row.supplemental_is_current_resolved_formula ? '현재 확인 배합 전체 목록 · 출처 원문' : '보조 전체 목록 · 출처 원문'}</span><p className="compare-ingredient-text">{supplementalText}</p></div> : null}

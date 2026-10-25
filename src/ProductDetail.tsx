@@ -392,6 +392,10 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
     && displayedPrimaryIngredientNames.some((ingredient, index) => ingredient !== primaryIngredientNames[index])
   const supplementalIngredientNames = ingredients?.supplemental_full_ingredient_names ?? []
   const hasSupplementalFullIngredients = Boolean(ingredients?.supplemental_full_raw_text?.trim()) || supplementalIngredientNames.length > 0
+  const ingredientIdentityUncertain = Boolean(ingredients && !ingredients.is_current_resolved_formula
+    && (ingredients.observation_scope === 'formula' || (ingredients.market_code && ingredients.market_code !== 'KR')))
+  const supplementalIngredientIdentityUncertain = Boolean(hasSupplementalFullIngredients && ingredients && !ingredients.supplemental_is_current_resolved_formula
+    && (ingredients.supplemental_observation_scope === 'formula' || (ingredients.supplemental_market_code && ingredients.supplemental_market_code !== 'KR')))
   const summaryFacts = product.ingredient_term_result_count != null ? product : ingredientFacts?.product_id === product.product_id ? ingredientFacts : null
   const ingredientLoad: CatalogIngredientLoad = {
     status: summaryFacts ? 'loaded' : errors.facts ? 'error' : 'loading',
@@ -552,7 +556,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
               {isPublicSourceLinksEnabled() ? <>
-                {ingredients.observation_scope === 'formula' && !ingredients.is_current_resolved_formula ? <p className="detail-evidence-context">한국 판매 제품과 같은 배합인지 확인되지 않은 원재료 자료입니다.</p> : null}
+                {ingredientIdentityUncertain || supplementalIngredientIdentityUncertain ? <p className="detail-evidence-context">한국 판매 제품과 같은 배합인지 확인되지 않은 원재료 자료가 포함돼 있습니다.</p> : null}
                 <details className="detail-disclosure detail-ingredient-evidence-disclosure">
                   <summary>출처 확인</summary>
                   <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>

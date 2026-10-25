@@ -117,6 +117,22 @@ test('real ProductDetail exposes source context for raw-only ingredient data wit
   assert.equal(sourceCalls().length, 1); assert.match(sourceCalls()[0].url.pathname, /ingredients_sources_scoped$/)
   assert.equal(document.querySelector('.source-links a').hostname, 'example.com')
 })
+test('unresolved foreign primary or supplemental ingredient identity stays outside the closed source disclosure', async () => {
+  const cases = [{ market_code: 'JP', observation_scope: 'product', is_current_resolved_formula: false }, { supplemental_full_raw_text: 'Duck, rice', supplemental_full_ingredient_names: ['Duck', 'rice'], supplemental_full_ingredient_count: 2, supplemental_market_code: 'JP', supplemental_observation_scope: 'product', supplemental_is_current_resolved_formula: false }]
+  for (let index = 0; index < cases.length; index++) {
+    installProductReads(); const fallback = handler
+    handler = async (url, init) => {
+      const response = await fallback(url, init)
+      if (!url.pathname.endsWith('/compare_product_ingredients_scoped')) return response
+      return Response.json((await response.json()).map((r) => ({ ...r, ...cases[index] })))
+    }
+    await act(async () => root.render(createElement(app.ProductDetail, { key: index, product: product(id), initialTab: 'ingredients', onClose() {} }))); await settle()
+    const warning = [...document.querySelectorAll('.detail-evidence-context')].find((node) => node.textContent.includes('同じ') || node.textContent.includes('같은 배합인지 확인되지 않은'))
+    assert.ok(warning); assert.equal(warning.closest('details'), null)
+    assert.equal(document.querySelector('.detail-ingredient-evidence-disclosure').open, false)
+  }
+  assert.equal(sourceCalls().length, 0)
+})
 test('general nutrition comparison waits for one chosen product disclosure', async () => {
   installProductReads(); const items = [product(id), product('product_0000000000000002')].map((product) => ({ product }))
   await act(async () => root.render(createElement(app.CompareView, { items, initialTab: 'nutrition', onClose() {}, onRemove() {} }))); await settle()

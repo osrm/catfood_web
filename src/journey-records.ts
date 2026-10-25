@@ -69,6 +69,15 @@ export function writeJourneyRecords(value: JourneyRecords): boolean {
   try { sessionStorage.setItem(KEY, JSON.stringify(value)); return true } catch { return false }
 }
 export function clearJourneyRecords(): void { writeJourneyRecords(emptyJourneyRecords()) }
+// Consent boundaries remove remote delivery links, never the person's local work.
+export function clearJourneyCollectionLinks(): void {
+  const records = readJourneyRecords()
+  const unlink = <T extends { searchRunId: string | null; pendingIntake?: JourneyPendingIntake; intakeRevision?: number }>(row: T): T => {
+    const { pendingIntake: _pending, intakeRevision: _revision, ...local } = row
+    return { ...local, searchRunId: null } as T
+  }
+  writeJourneyRecords({ ...records, retained: records.retained.map(unlink), outcome: records.outcome ? unlink(records.outcome) : null })
+}
 export function hasJourneyWork(value = readJourneyRecords()): boolean {
   return Boolean(value.memo || value.retained.some((row) => row.active) || value.outcome)
 }

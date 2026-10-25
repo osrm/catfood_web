@@ -1,3 +1,4 @@
+import { collectionFixtureFetch, activateCollectionFixture } from './collection-fixture.mjs'
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, afterEach, test } from 'node:test'
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
@@ -66,7 +67,7 @@ before(async () => {
 })
 after(async () => { globalThis.fetch = nativeFetch; dom.window.close(); await rm(temp, { recursive: true }) })
 
-beforeEach(() => {
+beforeEach(async () => {
   dom.reconfigure({ url: 'https://catfood.test/' })
   sessionStorage.clear()
   products = catalog(85)
@@ -75,7 +76,7 @@ beforeEach(() => {
   catalogFailure = false
   energyData = []; energyFailure = false; energyDeferred = null
   requests = []
-  globalThis.fetch = async (input, init = {}) => {
+  globalThis.fetch = collectionFixtureFetch(app, async (input, init = {}) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     assert.equal(url.origin, 'https://api.test', 'tests must never contact production')
     requests.push({ path: url.pathname, query: url.search, body: init.body ? JSON.parse(init.body) : null })
@@ -100,8 +101,9 @@ beforeEach(() => {
       return Response.json(energyData.slice(offset,offset+1000))
     }
     return Response.json([])
-  }
+  })
   window.fetch = globalThis.fetch
+  await activateCollectionFixture(app)
   root = createRoot(document.getElementById('root'))
 })
 afterEach(async () => { await act(async () => root.unmount()) })

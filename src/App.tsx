@@ -1,7 +1,8 @@
 import { JourneyDialog, JourneyCopy } from './JourneyReview'
 import { clearJourneyRecords, hasJourneyWork, readJourneyRecords } from './journey-records'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { collectionGeneration, subscribeCollectionBoundary } from './collection-permission'
 import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
 import SiteHeader from './SiteHeader'
@@ -210,6 +211,8 @@ function RelationSummary({ evaluation }: { evaluation: CandidateEvaluation }) {
 }
 
 export default function App() {
+  const collectionEpoch = useSyncExternalStore(subscribeCollectionBoundary, collectionGeneration, () => 0)
+  const previousCollectionEpoch = useRef(collectionEpoch)
   const [restartJourneyOpen, setRestartJourneyOpen] = useState(false)
   const [pendingSwitchProductId, setPendingSwitchProductId] = useState<string | null>(null)
   const [copyJourneyOpen, setCopyJourneyOpen] = useState(false)
@@ -518,11 +521,16 @@ export default function App() {
     if (cleanSwitch !== switchSessionRef.current) commitSwitchSession(cleanSwitch)
   }, [products, loading, error])
   useEffect(() => {
+    if (previousCollectionEpoch.current === collectionEpoch) return
+    previousCollectionEpoch.current = collectionEpoch
+    resetExploreRun('lookup')
+  }, [collectionEpoch])
+  useEffect(() => {
     if (ingredientConditionsPending || !products.length || mode !== 'explore' || editingConditions || detailProductId || compareOpen) return
     const key = exploreRunKey(search, refine)
     if (exploreRunStateKey.current === key) return
     beginExploreRun(search, refine, 'restored')
-  }, [products.length, mode, editingConditions, search, refine, detailProductId, compareOpen, ingredientConditionsPending])
+  }, [products.length, mode, editingConditions, search, refine, detailProductId, compareOpen, ingredientConditionsPending, collectionEpoch])
 
   const energyMax = energyBound(search, refine)
   const energyEligible = screen === 'workspace' && mode !== 'switch' && comparisonCriteriaApplied && canRefineEnergy(search) && (mode === 'lookup' || !editingConditions || compareOpen || Boolean(detailProductId))

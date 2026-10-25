@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react'
+import CollectionPreferences from './CollectionPreferences'
 
 export type BrowseMode = 'explore' | 'lookup' | 'switch'
 
@@ -16,7 +17,8 @@ export default function SiteHeader({ onHome, onModeChange, active, status, child
     {onModeChange ? <nav className="site-nav mode-nav" aria-label="탐색 모드">
       {([['lookup', '제품 찾기'], ['explore', '조건으로 찾기'], ['switch', '현재 사료']] as const).map(([mode, label]) => <button className={active === mode ? 'mode-button is-active' : 'mode-button'} type="button" key={mode} aria-current={active === mode ? 'page' : undefined} onClick={() => onModeChange(mode)}>{label}</button>)}
     </nav> : null}
-    {children ? <div className="site-header-actions">{children}</div> : null}
-    {status ? <div className="site-status research-status">{status}</div> : null}
+    {children ? <div className="site-header-actions">{children}{!status ? <CollectionPreferences /> : null}</div> : null}
+    {status ? <div className="site-status research-status">{status}<CollectionPreferences /></div> : null}
+    {!children && !status ? <div className="site-header-actions"><CollectionPreferences /></div> : null}
   </header>
 }

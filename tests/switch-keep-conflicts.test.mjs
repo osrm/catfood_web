@@ -1,3 +1,4 @@
+import { collectionFixtureFetch, activateCollectionFixture } from './collection-fixture.mjs'
 import assert from 'node:assert/strict'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -90,7 +91,7 @@ after(async () => {
   await rm(temp, { recursive: true })
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   dom.reconfigure({ url: 'https://catfood.test/' })
   sessionStorage.clear()
   document.getElementById('root').replaceChildren()
@@ -100,11 +101,12 @@ beforeEach(() => {
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
     return Response.json([])
   }
-  globalThis.fetch = window.fetch = async (input, init = {}) => {
+  globalThis.fetch = window.fetch = collectionFixtureFetch(app, async (input, init = {}) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     assert.equal(url.origin, 'https://api.test')
     return requestHandler(url, init)
-  }
+  })
+  await activateCollectionFixture(app)
   root = createRoot(document.getElementById('root'))
 })
 

@@ -127,7 +127,7 @@ test('unresolved foreign primary or supplemental ingredient identity stays outsi
       return Response.json((await response.json()).map((r) => ({ ...r, ...cases[index] })))
     }
     await act(async () => root.render(createElement(app.ProductDetail, { key: index, product: product(id), initialTab: 'ingredients', onClose() {} }))); await settle()
-    const warning = [...document.querySelectorAll('.detail-evidence-context')].find((node) => node.textContent.includes('同じ') || node.textContent.includes('같은 배합인지 확인되지 않은'))
+    const warning = [...document.querySelectorAll('.detail-evidence-context')].find((node) => node.textContent.includes('같은 배합인지 확인되지 않은'))
     assert.ok(warning); assert.equal(warning.closest('details'), null)
     assert.equal(document.querySelector('.detail-ingredient-evidence-disclosure').open, false)
   }

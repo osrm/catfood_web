@@ -9,14 +9,14 @@
 .collection-settings legend{font-weight:700;margin-bottom:10px}
 .collection-settings legend span{font-weight:400;font-size:13px}
 .collection-settings label{display:flex;gap:12px;align-items:flex-start;min-height:44px;padding:10px 0;cursor:pointer}
-.collection-settings input{flex:none;width:18px;height:18px;margin-top:4px}
+.collection-settings input{flex:none;width:18px;height:18px;margin-top:4px;accent-color:var(--cf-ink,#171c22)}
 .collection-settings label small{display:block;font-size:14px;font-weight:400;margin-top:4px}
 .collection-notice summary{min-height:44px;display:list-item;cursor:pointer}
 .collection-notice p{font-size:14px}
 .collection-state{font-weight:650}
 .collection-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
 .collection-actions button{min-height:44px;white-space:normal}
-.journey-dialog .collection-actions button{min-height:44px;padding:10px 14px;border:1px solid var(--cf-line,#c5cdcf);border-radius:4px;background:var(--cf-surface,#fff);color:var(--cf-ink,#171c22);font:inherit;text-align:center}
-.journey-dialog .collection-actions button.primary-action:not(:disabled){background:var(--cf-ink,#171c22);border-color:var(--cf-ink,#171c22);color:var(--cf-surface,#fff)}
+.journey-dialog .collection-settings .collection-actions button:is(.primary-action,.secondary-action){min-height:44px;padding:10px 14px;border:1px solid var(--cf-line,#c5cdcf);border-radius:4px;background:var(--cf-surface,#fff);color:var(--cf-ink,#171c22);font:inherit;text-align:center}
+.journey-dialog .collection-settings .collection-actions button.primary-action:not(:disabled){background:var(--cf-ink,#171c22);border-color:var(--cf-ink,#171c22);border-radius:4px;color:var(--cf-surface,#fff)}
 @media(max-width:760px){.site-header.site-header:has(.collection-entry){height:auto;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(64px,auto) 48px}.site-header:has(.collection-entry) .site-header-actions{width:100%;gap:0 8px}.detail-stage .site-header:has(.collection-entry){grid-template-rows:minmax(64px,auto)}.collection-settings{font-size:14px}.collection-actions{flex-direction:column}.collection-actions button{width:100%}}
 @media(max-width:1000px){.detail-stage.is-switch-detail .site-header.site-header:has(.collection-entry){height:152px;min-height:152px;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:60px 48px 44px}.detail-stage.is-switch-detail .site-header:has(.collection-entry) .site-header-actions{display:contents}.detail-stage.is-switch-detail .site-header .collection-entry{grid-column:2;grid-row:3;justify-self:end}}

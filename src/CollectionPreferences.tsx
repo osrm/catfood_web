@@ -37,9 +37,9 @@ export default function CollectionPreferences() {
             <label><input type="checkbox" checked={choices.includes('service_improvement')} onChange={() => toggle('service_improvement')} /><span><strong>서비스 개선</strong><small>선택한 조건과 후보를 살펴본 기록으로 불편한 흐름을 찾습니다.</small></span></label>
             <label><input type="checkbox" checked={choices.includes('data_product_research')} onChange={() => toggle('data_product_research')} /><span><strong>데이터 상품의 내부 연구</strong><small>어떤 기준으로 사료를 살피는지 집계해 활용 가능성을 검토합니다. 외부 제공·판매는 포함하지 않습니다.</small></span></label>
           </fieldset>
+          <p className="collection-scope">적용 조건·후보 검토·직접 남긴 선택을 공유 시작 후 최대 {duration(value.policy.retentionSeconds)} 보관합니다. 메모·검색어는 보내지 않습니다.</p>
           <details className="collection-notice"><summary>보내는 내용과 보관·삭제 안내</summary>
-            <p>적용한 조건, 살펴본 후보, 직접 남긴 선택을 보냅니다. 메모와 직접 입력한 검색어는 보내지 않습니다.</p>
-            <p>등록 후 최대 {duration(value.policy.retentionSeconds)} 보관합니다. 전송이 중지돼도 보관 기한까지 남을 수 있습니다.</p>
+            <p>전송을 중지한 기록도 삭제를 확인하기 전에는 보관 기한까지 남을 수 있습니다.</p>
             <p>아래에서 중지·삭제할 수 있습니다. 삭제 확인 뒤에도 늦은 재전송을 막는 최소 정보는 최대 24시간 남으며 정기 삭제됩니다.</p>
             <p>삭제에 필요한 정보는 이 탭에 보관합니다. 탭을 닫으면 직접 삭제할 수 없을 수 있으므로, 그 전에 삭제하거나 <a href={value.policy.contact} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">운영자에게 문의</a>해 주세요.</p>
             <p>처리 주체: {value.policy.operator}</p>

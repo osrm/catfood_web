@@ -197,6 +197,8 @@ test('settings start unchecked, separate the two purposes, and keep rejection us
     const entry = [...document.querySelectorAll('button')].find(x => x.textContent === '기록 공유 설정')
     await act(async () => entry.click())
     assert.equal(document.querySelectorAll('input[type="checkbox"]:checked').length, 0)
+    assert.match(document.querySelector('.collection-scope').textContent, /공유 시작 후 최대 2일/)
+    assert.match(document.querySelector('.collection-scope').textContent, /메모·검색어는 보내지 않습니다/)
     assert.match(document.querySelector('dialog').textContent, /외부 제공·판매는 포함하지 않습니다/)
     const close = [...document.querySelectorAll('button')].find(x => x.textContent === '공유하지 않고 닫기')
     const start = [...document.querySelectorAll('button')].find(x => x.textContent === '선택한 용도로 공유 시작')

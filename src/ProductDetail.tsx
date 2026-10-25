@@ -1,11 +1,13 @@
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import { setProductMetadata } from './product-metadata'
+import SourceLinks from './SourceLinks'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import {
   fetchCompareIngredients,
   fetchProductIngredientFacts,
   fetchCompareNutrition,
+  isPublicSourceLinksEnabled,
   fetchProductManufacturing,
   fetchProductManufacturingScope,
   fetchProductMarkets,
@@ -530,6 +532,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                     <Fact label="원래 열량 표기" value={energyValue(nutrition)} />
                     {nutritionSupplementContext ? <><Fact label="보완 항목" value={nutritionSupplementContext} /><Fact label="보완 자료 범위" value={nutrition.supplemental_observation_scope === 'product' ? '제품' : nutrition.supplemental_observation_scope === 'formula' ? '배합' : nutrition.supplemental_observation_scope === 'variant' ? '포장' : '미확인'} /></> : null}
                   </div>
+                  <SourceLinks productId={product.product_id} resource="nutrition" />
                 </details>
                 {alternateNutritionValues.length ? <div className="detail-basis-block">
                   <h3>{basisLabel(nutrition)} 자료</h3>
@@ -548,7 +551,14 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
-              <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
+              {isPublicSourceLinksEnabled() ? <>
+                {ingredients.observation_scope === 'formula' && !ingredients.is_current_resolved_formula ? <p className="detail-evidence-context">한국 판매 제품과 같은 배합인지 확인되지 않은 원재료 자료입니다.</p> : null}
+                <details className="detail-disclosure detail-ingredient-evidence-disclosure">
+                  <summary>자료 보기</summary>
+                  <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
+                  <SourceLinks productId={product.product_id} resource="ingredients" />
+                </details>
+              </> : <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>}
               {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
               {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure detail-source-disclosure">
                 <summary>원문 보기</summary>

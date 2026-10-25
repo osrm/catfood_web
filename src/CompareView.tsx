@@ -1,6 +1,7 @@
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail, { type SwitchDetailNavigation } from './ProductDetail'
+import SourceLinks from './SourceLinks'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import {
   fetchCompareIngredients,
@@ -230,6 +231,7 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
           <p><span>보완 항목</span><strong>{fieldLabels}</strong></p>
           <p><span>보완 자료 범위</span><strong>{detail.supplemental_observation_scope === 'product' ? '제품' : detail.supplemental_observation_scope === 'formula' ? '배합' : detail.supplemental_observation_scope === 'variant' ? '포장' : '미확인'}{detail.supplemental_observation_scope === 'formula' ? detail.supplemental_is_current_resolved_formula ? ' · 현재 판매 배합으로 확인' : ' · 현재 판매 배합과 동일 여부 미확인' : ''}</strong></p>
         </> : null}
+        <SourceLinks productId={detail.product_id} resource="nutrition" />
       </div>
     </CompareDisclosure>
   </div>
@@ -243,6 +245,7 @@ function IngredientSourceDisclosure({ row }: { row: CompareIngredients | undefin
     <div className="compare-source-layers">
       {primaryText ? <div><span className="compare-muted">대표 확인 자료 · 출처 원문</span><p className="compare-ingredient-text">{primaryText}</p></div> : null}
       {supplementalText ? <div><span className="compare-muted">{row.supplemental_is_current_resolved_formula ? '현재 확인 배합 전체 목록 · 출처 원문' : '보조 전체 목록 · 출처 원문'}</span><p className="compare-ingredient-text">{supplementalText}</p></div> : null}
+      <SourceLinks productId={row.product_id} resource="ingredients" />
     </div>
   </CompareDisclosure>
 }

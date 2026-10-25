@@ -1,0 +1,9 @@
+.source-links:empty { display: none; }
+.source-links { margin-top: 16px; overflow-wrap: anywhere; }
+.source-links ul { margin: 0; padding: 0; list-style: none; }
+.source-links li { padding: 10px 0; border-top: 1px solid var(--cf-line, #dedbd5); }
+.source-links li > span, .source-links time { display: block; font-size: 12px; line-height: 1.7; }
+.source-links a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 4px; }
+.source-links a:focus-visible, .source-links button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.source-links-error p { margin: 0; }
+.source-links-error button { min-height: 44px; padding: 8px 12px; margin-top: 4px; color: inherit; font: inherit; border: 1px solid var(--cf-line, #dedbd5); background: transparent; cursor: pointer; }

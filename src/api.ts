@@ -1,3 +1,5 @@
+import { isPreviewDataEnabled } from './preview-mode'
+
 export interface CatalogProduct {
   product_id: string
   brand: string
@@ -664,6 +666,47 @@ export async function fetchCompareIngredients(
     'compare_product_ingredients_scoped', COMPARE_INGREDIENT_FIELDS, productIds, signal,
   )
   return data.map(normalizeCompareIngredients)
+}
+
+export type SourceResource = 'nutrition' | 'ingredients'
+export interface PublicSourceReference {
+  product_id: string
+  field: string
+  source_url: string
+  publisher: string | null
+  checked_at: string
+}
+export function isPublicSourceLinksEnabled(): boolean {
+  return !isPreviewDataEnabled() && import.meta.env.VITE_PUBLIC_SOURCE_LINKS_ENABLED?.trim().toLowerCase() === 'true'
+}
+export async function fetchPublicSources(productId: string, resource: SourceResource, signal?: AbortSignal): Promise<PublicSourceReference[]> {
+  if (!isPublicSourceLinksEnabled()) return []
+  const { baseUrl, publishableKey } = apiConfig()
+  const url = new URL(`${baseUrl}/rest/v1/rpc/compare_product_${resource}_sources_scoped`)
+  url.searchParams.set('select', 'product_id,field,source_url,publisher,checked_at')
+  url.searchParams.set('p_product_ids', `{${JSON.stringify(productId)}}`)
+  url.searchParams.set('limit', '20')
+  const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
+  if (!response.ok) throw new Error('Public source read failed')
+  const data: unknown = await response.json()
+  if (!Array.isArray(data)) throw new Error('Invalid source response')
+  const allowed = resource === 'nutrition'
+    ? new Set(['energy', 'protein', 'fat', 'fiber', 'moisture', 'ash', 'additional_nutrients', 'basis_specific_nutrition'])
+    : new Set(['ingredients', 'supplemental_ingredients'])
+  const seen = new Set<string>()
+  if (data.length > allowed.size) throw new Error('Invalid source response')
+  return data.map((row) => {
+    if (!row || row.product_id !== productId || typeof row.field !== 'string' || !allowed.has(row.field) || seen.has(row.field)
+      || typeof row.source_url !== 'string' || /[\s@\\]/.test(row.source_url) || typeof row.checked_at !== 'string' || !Number.isFinite(Date.parse(row.checked_at))) throw new Error('Invalid source response')
+    const source = new URL(row.source_url)
+    if (source.protocol !== 'https:' || source.username || source.password || source.port || source.hash
+      || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/i.test(source.hostname)
+      || /(?:^|\.)(?:localhost|local|internal|test|invalid)$/i.test(source.hostname)
+      || /%(?:00|0a|0d)/i.test(row.source_url)) throw new Error('Unsafe source URL')
+    for (const [name, value] of source.searchParams) if (!['product_no', 'productCode', 'pid', 'idno', 'page_6'].includes(name) || !/^[a-z0-9_-]+$/i.test(value)) throw new Error('Unsafe source URL')
+    seen.add(row.field)
+    return { product_id: row.product_id, field: row.field, source_url: row.source_url, publisher: typeof row.publisher === 'string' ? row.publisher : null, checked_at: row.checked_at }
+  })
 }
 
 export async function fetchProductManufacturing(

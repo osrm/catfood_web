@@ -18,3 +18,5 @@ export { fetchExploreEnergy } from '../src/api'
 
 export * from '../src/journey-records'
 export { JourneyMemo, JourneyRecordsPanel } from '../src/JourneyReview'
+export { default as SourceLinks } from '../src/SourceLinks'
+export { fetchPublicSources, isPublicSourceLinksEnabled } from '../src/api'

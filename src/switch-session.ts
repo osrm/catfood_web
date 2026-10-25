@@ -23,6 +23,8 @@ export type SwitchSessionState = {
   ingredientAvoidTerms: string[]
   noChangeIntent: boolean
   criteriaUndecided: boolean
+  candidateFeedTypes: string[]
+  candidateRecipeFamilies: string[]
   step: SwitchStep
   visibleCandidateCount: number
   selectedCandidateId: string | null
@@ -113,6 +115,8 @@ export function createInitialSwitchSession(query = '', restartId = ''): SwitchSe
     ingredientAvoidTerms: [],
     noChangeIntent: false,
     criteriaUndecided: false,
+    candidateFeedTypes: [],
+    candidateRecipeFamilies: [],
     step: 'current',
     visibleCandidateCount: 40,
     selectedCandidateId: null,
@@ -169,6 +173,8 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     ingredientAvoidTerms: currentProductId ? uniqueStrings(source.ingredientAvoidTerms) : [],
     noChangeIntent: Boolean(currentProductId && source.noChangeIntent === true),
     criteriaUndecided: Boolean(currentProductId && source.criteriaUndecided === true && source.noChangeIntent !== true),
+    candidateFeedTypes: currentProductId && source.criteriaUndecided === true && source.noChangeIntent !== true ? allowedStrings(source.candidateFeedTypes, FEED_TYPES) : [],
+    candidateRecipeFamilies: currentProductId && source.criteriaUndecided === true && source.noChangeIntent !== true ? allowedStrings(source.candidateRecipeFamilies, RECIPE_FAMILIES) : [],
     step,
     visibleCandidateCount,
     selectedCandidateId: currentProductId ? nullableString(source.selectedCandidateId) : null,

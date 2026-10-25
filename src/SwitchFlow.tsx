@@ -713,6 +713,8 @@ export default function SwitchFlow({
   const [keepConflictNotice, setKeepConflictNotice] = useState<string | null>(null)
   const [ingredientSearch, setIngredientSearch] = useState('')
   const candidateSearch = activeSession.candidateQuery
+  const { candidateFeedTypes, candidateRecipeFamilies } = activeSession
+  const candidateBrowseActive = criteriaUndecided && (candidateFeedTypes.length > 0 || candidateRecipeFamilies.length > 0)
   const setCandidateSearch = (value: string) => setSessionField('candidateQuery', value)
   const [changeAdditionalOpen, setChangeAdditionalOpen] = useState(() => step === 'change' && additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
   const previousChangeDisclosureStep = useRef(step)
@@ -940,15 +942,35 @@ export default function SwitchFlow({
     ? [...candidates.filter((item) => item.ingredientInsufficient.length === 0), ...candidates.filter((item) => item.ingredientInsufficient.length > 0)]
     : candidates, [candidates, ingredientAvoidTerms.length])
   const trackedCandidates = presentedCandidates.slice(0, 40)
+  function candidateBrowseUnknowns(product: CatalogProduct): string[] | null {
+    const unknowns: string[] = []
+    if (candidateFeedTypes.length) {
+      if (!FEED_TYPES.some(([value]) => value === product.feed_type)) unknowns.push('사료 형태')
+      else if (!candidateFeedTypes.includes(product.feed_type!)) return null
+    }
+    if (candidateRecipeFamilies.length) {
+      const known = product.recipe_families.filter((value) => Object.hasOwn(RECIPE_FAMILY_LABELS, value))
+      if (!known.length) unknowns.push('레시피 종류')
+      else if (!known.some((value) => candidateRecipeFamilies.includes(value))) return null
+    }
+    return unknowns
+  }
+  const browsedCandidates = useMemo(() => candidateBrowseActive
+    ? presentedCandidates.filter((item) => candidateBrowseUnknowns(item.product) !== null)
+    : presentedCandidates, [presentedCandidates, candidateBrowseActive, candidateFeedTypes, candidateRecipeFamilies])
   const candidateSearchActive = candidateSearch.trim().length > 0
   const searchedCandidates = useMemo(() => {
-    if (!candidateSearchActive) return presentedCandidates
+    const values = !candidateBrowseActive ? browsedCandidates : [
+      ...browsedCandidates.filter((item) => candidateBrowseUnknowns(item.product)?.length === 0),
+      ...browsedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)),
+    ]
+    if (!candidateSearchActive) return values
     const matchedIds = new Set(
-      lookupCatalog(presentedCandidates.map((item) => item.product), candidateSearch)
+      lookupCatalog(values.map((item) => item.product), candidateSearch)
         .map((product) => product.product_id),
     )
-    return presentedCandidates.filter((item) => matchedIds.has(item.product.product_id))
-  }, [presentedCandidates, candidateSearch, candidateSearchActive])
+    return values.filter((item) => matchedIds.has(item.product.product_id))
+  }, [browsedCandidates, candidateSearch, candidateSearchActive, candidateBrowseActive, candidateFeedTypes, candidateRecipeFamilies])
   const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
@@ -1115,6 +1137,7 @@ export default function SwitchFlow({
     if (changeBrand) labels.push('다른 브랜드')
     if (keepBrand) labels.push(`브랜드 유지 · ${currentProduct.brand}`)
     if (criteriaUndecided) labels.push('바꿀 조건은 후보를 보며 정하기')
+    if (candidateBrowseActive) labels.push(`목록 좁히기 · ${[...candidateFeedTypes, ...candidateRecipeFamilies.map((value) => `${optionLabel(value, RECIPE_FAMILY_LABELS)} 레시피`)].join(' · ')}`)
     labels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
     return { ...(criteriaUndecided ? { criteriaUndecided: true } : {}), selectionKey: activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession),
       current: { productId: currentProduct.product_id, brand: currentProduct.brand, name: currentProduct.canonical_name },
@@ -1678,6 +1701,8 @@ export default function SwitchFlow({
                   visibleCandidateCount: 40,
                   compareIds: current.appliedCriteriaKey === selectionKey ? current.compareIds : [],
                   candidateQuery: current.appliedCriteriaKey === selectionKey ? current.candidateQuery : '',
+                  candidateFeedTypes: selectionState.criteriaUndecided && current.appliedCriteriaKey === selectionKey ? current.candidateFeedTypes : [],
+                  candidateRecipeFamilies: selectionState.criteriaUndecided && current.appliedCriteriaKey === selectionKey ? current.candidateRecipeFamilies : [],
                   appliedCriteriaKey: selectionKey,
                   compareOpen: false,
                   compareTab: 'overview',
@@ -1727,15 +1752,21 @@ export default function SwitchFlow({
       ? visibleCandidates.length < searchedCandidates.length
         ? `${searchedCandidates.length}개 중 ${visibleCandidates.length}개 표시`
         : `검색 결과 ${searchedCandidates.length}개`
-      : visibleCandidates.length < candidates.length
-        ? `${candidates.length}개 중 ${visibleCandidates.length}개 표시`
-        : `${candidates.length}개의 제품`
+      : visibleCandidates.length < searchedCandidates.length
+        ? `${searchedCandidates.length}개 중 ${visibleCandidates.length}개 표시`
+        : `${searchedCandidates.length}개의 제품`
     const candidateSummaryText = candidateCountText
     const comparedNames = compareItems.map((item) => `${item.product.brand} · ${item.product.canonical_name}`)
     const sharedKeep = candidates[0]?.keepMatches.filter((label) => candidates.every((item) => item.keepMatches.includes(label))) ?? []
     const sharedChange = candidates[0]?.changeMatches.filter((label) => candidates.every((item) => item.changeMatches.includes(label))) ?? []
     const reviewedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length === 0)
     const unresolvedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length > 0)
+    const browseUnknownCount = candidateBrowseActive ? searchedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)).length : 0
+    const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
+    const browseConfirmedCandidates = visibleCandidates.filter((item) => !candidateBrowseUnknowns(item.product)?.length)
+    const changeCandidateBrowse = (field: 'candidateFeedTypes' | 'candidateRecipeFamilies', value: string) => {
+      updateSession((current) => ({ ...current, [field]: toggleValue(current[field], value), visibleCandidateCount: 40 }))
+    }
     const renderCandidateRow = (evaluation: SwitchEvaluation) => {
       const product = evaluation.product
       const isCompared = compareIds.includes(product.product_id)
@@ -1803,6 +1834,13 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
+            {criteriaUndecided ? <section className="switch-candidate-refinement" aria-label="후보 목록 좁히기">
+              <div className="switch-browse-heading"><strong>어떤 후보부터 볼까요?</strong><button type="button" onClick={() => updateSession((current) => ({ ...current, candidateFeedTypes: [], candidateRecipeFamilies: [], visibleCandidateCount: 40 }))}>좁히기 해제</button></div>
+              <fieldset><legend>사료 형태 {currentProduct.feed_type ? <small>지금은 {currentProduct.feed_type}</small> : null}</legend><ChoiceButtons options={FEED_TYPES} selected={candidateFeedTypes} onToggle={(value) => changeCandidateBrowse('candidateFeedTypes', value)} /></fieldset>
+              <fieldset><legend>레시피 종류 {currentRecipeFamilies.length ? <small>지금은 {currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)).join(' · ')}</small> : null}</legend><ChoiceButtons options={RECIPE_FAMILIES} selected={candidateRecipeFamilies} onToggle={(value) => changeCandidateBrowse('candidateRecipeFamilies', value)} /></fieldset>
+              <p className="switch-browse-count" role="status">{candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : '고르지 않으면 모든 후보를 봅니다.'}</p>
+              <details><summary>레시피 종류는 원료 제외 조건과 달라요</summary><p>예를 들어 생선 레시피라도 닭이 함께 들어갈 수 있습니다. 피하려는 원료는 ‘조건 수정’에서 골라주세요. 선택한 표기를 확인할 자료가 없는 제품도 아래에 따로 남겨둡니다.</p></details>
+            </section> : null}
             <div className="switch-candidate-heading">
               <div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div>
               <div className="switch-candidate-search">
@@ -1824,7 +1862,8 @@ export default function SwitchFlow({
             </div>
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 점이나 유지할 점을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
-              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이름 검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 지워서 후보를 다시 살펴보세요.</span></div> : null}
+              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>{candidateBrowseActive ? '좁힌 범위에서 이름 검색 결과가 없습니다.' : '이름 검색 결과가 없습니다.'}</strong><span>검색어를 지우거나 좁힌 항목을 해제해 후보를 다시 살펴보세요.</span></div> : null}
+              {candidates.length > 0 && !candidateSearchActive && candidateBrowseActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 표기의 후보가 없습니다.</strong><span>위에서 좁힌 항목을 해제해 다른 후보를 살펴보세요.</span></div> : null}
               {ingredientAvoidTerms.length ? <>
                 {reviewedCandidates.length ? <section className="switch-candidate-group is-reviewed" aria-labelledby="switch-reviewed-heading">
                   <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">선택한 원료를 찾지 못한 후보</h2><p id="switch-reviewed-note">검토한 자료 기준이에요. 원료가 없다고 확정한 결과는 아니에요.</p></div>
@@ -1834,6 +1873,9 @@ export default function SwitchFlow({
                   <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">원료 확인이 더 필요한 제품</h2><p id="switch-unresolved-note">피하려는 원료가 있는지 아직 확인하지 못했어요. 원재료를 먼저 살펴보세요.</p></div>
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
+              </> : candidateBrowseActive ? <>
+                {browseConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보">{browseConfirmedCandidates.map(renderCandidateRow)}</section> : null}
+                {browseUnknownCandidates.length ? <section className="switch-candidate-group switch-browse-unknown" aria-label="선택한 표기를 아직 확인하지 못한 제품"><div className="switch-candidate-group-heading"><h2>선택한 표기를 아직 확인하지 못했어요</h2><p>형태나 레시피 종류를 확인할 자료가 부족해 남겨둔 제품입니다.</p></div>{browseUnknownCandidates.map(renderCandidateRow)}</section> : null}
               </> : visibleCandidates.map(renderCandidateRow)}
               {visibleCandidateCount < searchedCandidates.length ? (
                 <button className="load-more" type="button" onClick={() => setVisibleCandidateCount((count) => count + 40)}>

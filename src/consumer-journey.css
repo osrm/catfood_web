@@ -113,6 +113,20 @@ body,.research-shell,.detail-stage,.compare-stage {background:var(--cf-bg);color
 .switch-exploratory-actions>details {margin-top:8px;color:var(--cf-muted);font-size:13px;line-height:1.7}
 .switch-exploratory-actions>details>summary {min-height:44px;display:flex;align-items:center;cursor:pointer;text-decoration:underline;text-underline-offset:4px}
 .switch-exploratory-actions>details>p {margin:0 0 12px}
+.switch-candidate-refinement {padding:0 0 16px;margin-bottom:12px;border-bottom:1px solid var(--cf-line)}
+.switch-browse-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:16px}
+.switch-browse-heading>button {min-height:44px;padding:6px 0;background:none;border:0;font-size:13px;color:var(--cf-muted);text-decoration:underline;text-underline-offset:4px}
+.switch-candidate-refinement fieldset {min-width:0;border:0;padding:0;margin:10px 0 0}
+.switch-candidate-refinement legend {font-size:14px;font-weight:650;padding:0;margin-bottom:6px}
+.switch-candidate-refinement legend small {font-size:12px;font-weight:400;color:var(--cf-muted);margin-left:8px}
+.switch-candidate-refinement .switch-choice-grid {display:flex;flex-wrap:wrap;gap:6px}
+.switch-candidate-refinement .switch-choice {min-height:44px;padding:8px 12px;border:1px solid var(--cf-line);border-radius:6px;background:#fff;font-size:14px;color:var(--cf-ink)}
+.switch-candidate-refinement .switch-choice.is-active {border-color:var(--cf-accent);background:var(--atlas-selection-bg)}
+.switch-candidate-refinement .switch-browse-count {min-height:38px;display:flex;align-items:center;margin:6px 0 0;font-size:13px;color:var(--cf-muted)}
+.switch-candidate-refinement details {font-size:12px;color:var(--cf-muted);line-height:1.7}
+.switch-candidate-refinement summary {display:flex;align-items:center;min-height:44px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.switch-candidate-refinement details p {margin:0 0 8px}
+@media(max-width:760px) {.switch-results-workspace.is-inspecting .switch-candidate-refinement {display:none}}
 /* Show the selected facts before any optional detail tab. */
 .detail-selection-context {margin:0 0 24px;padding:0 0 20px;border-bottom:1px solid var(--cf-line);color:var(--cf-ink)}
 .detail-selection-baseline {font-size:13px;line-height:1.8;margin:0 0 15px;color:var(--cf-muted)}

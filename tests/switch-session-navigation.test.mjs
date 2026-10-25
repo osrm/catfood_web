@@ -12,6 +12,7 @@ const dom = new JSDOM('<div id="root"></div>', { url: BASE })
 globalThis.window = dom.window
 globalThis.document = dom.window.document
 globalThis.sessionStorage = dom.window.sessionStorage
+globalThis.requestAnimationFrame = callback => dom.window.setTimeout(() => callback(dom.window.performance.now()), 0)
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const { createRoot } = await import('react-dom/client')
 const nativeFetch = globalThis.fetch
@@ -23,6 +24,7 @@ let failVariantCount = 0
 let searchRuns = []
 let considerations = []
 let decisions = []
+let resourceRequests = []
 let holdDecision = null
 let failDecisionCount = 0
 
@@ -157,6 +159,7 @@ beforeEach(() => {
   searchRuns = []
   considerations = []
   decisions = []
+  resourceRequests = []
   holdDecision = null
   failDecisionCount = 0
   sessionStorage.clear()
@@ -176,6 +179,7 @@ function installFetch() {
   globalThis.fetch = window.fetch = async (input, init = {}) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     assert.equal(url.origin, 'https://api.test')
+    resourceRequests.push(url.pathname)
     if (url.pathname.endsWith('/effective_product_catalog_summary')) {
       if (failCatalogCount > 0) {
         failCatalogCount -= 1
@@ -824,6 +828,135 @@ test('restored actual SKU reports variant API failure and retries without becomi
   assert.deepEqual(session().compareIds, [candidateA.product_id])
 })
 
+
+async function reachUndecidedResults() {
+  await renderApp()
+  await chooseCurrent()
+  await click(variantButton('1 kg'))
+  await click(exactButton('다음 →'))
+  assert.equal(exactButton('후보부터 보기 →').disabled, false)
+  await click(exactButton('후보부터 보기 →'))
+  await waitForUi(() => document.querySelector('.switch-results-stage'), 'undecided candidates')
+}
+
+test('undecided criteria are distinct from no change and legacy selection keys remain stable', () => {
+  const legacy = app.createInitialSwitchSession('현재')
+  legacy.currentProductId = current.product_id
+  legacy.step = 'results'
+  legacy.noChangeIntent = true
+  delete legacy.criteriaUndecided
+  const oldKey = app.switchSelectionKey(legacy)
+  const parsed = app.parseSwitchSessionSnapshot({ version: 1, state: legacy })
+  assert.equal(parsed.criteriaUndecided, false)
+  assert.equal(parsed.noChangeIntent, true)
+  assert.equal(app.switchSelectionKey(parsed), oldKey)
+  const undecided = { ...parsed, noChangeIntent: false, criteriaUndecided: true }
+  assert.notEqual(app.switchSelectionKey(undecided), oldKey)
+  assert.equal(app.parseSwitchSessionState({ ...undecided, noChangeIntent: true }).criteriaUndecided, false)
+})
+
+test('a personal concern can proceed without inventing a change or sending undecided exploration', async () => {
+  await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  await click('메모하기')
+  await textareaValue(document.querySelector('dialog textarea'), 'PRIVATE_PRICE 가격이 부담되고 잘 먹는 것은 유지하고 싶음')
+  await click('메모 남기기')
+  await click('후보부터 보기')
+  assert.equal(session().criteriaUndecided, true)
+  assert.equal(session().noChangeIntent, false)
+  assert.equal(session().changeBrand, false)
+  assert.deepEqual(session().change, app.emptySwitchCriteria())
+  assert.match(document.querySelector('.switch-prototype-criteria').textContent, /후보를 보며 정하기.*아직 정하지 않음/s)
+  assert.equal(searchRuns.length, 0)
+  await retainAFromDetail()
+  assert.equal(journey().retained[0].context.criteriaUndecided, true)
+  assert.match(app.journeyCopyText(journey()), /바꿀 조건은 후보를 보며 정하기/)
+  assert.equal(journey().retained[0].pendingIntake, undefined)
+  await click(document.querySelector('.detail-return-action'))
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'detail back to undecided inspector')
+  await click(document.querySelector('.switch-candidate-inspector .switch-preview-topline button'))
+  await remountApp()
+  assert.equal(session().criteriaUndecided, true)
+  assert.match(journey().memo, /PRIVATE_PRICE/)
+  assert.equal(searchRuns.length, 0)
+  assert.equal(considerations.length, 0)
+  assert.equal(decisions.length, 0)
+})
+
+test('undecided inspector offers explicit lazy nutrition and ingredient comparisons with the current food fixed', async () => {
+  await reachUndecidedResults()
+  await selectCandidate()
+  assert.equal(resourceRequests.some(path => /compare_product_(nutrition|ingredients)/.test(path)), false)
+  await click('열량·영양 비교')
+  assert.equal(session().compareTab, 'nutrition')
+  assert.equal(session().currentProductId, current.product_id)
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+  assert.ok(resourceRequests.some(path => path.includes('compare_product_nutrition')))
+  assert.equal(resourceRequests.some(path => path.includes('compare_product_ingredients')), false)
+  await click('후보 목록으로')
+  await waitForUi(() => document.querySelector('.switch-candidate-list'), 'comparison back to undecided list')
+  await selectCandidate()
+  await click('원재료 비교')
+  assert.equal(session().compareTab, 'ingredients')
+  assert.deepEqual(session().compareIds, [candidateA.product_id])
+  assert.ok(resourceRequests.some(path => path.includes('compare_product_ingredients')))
+  assert.equal(searchRuns.length, 0)
+  assert.equal(considerations.length, 0)
+})
+
+test('choosing concrete criteria starts a fresh run without backfilling local undecided decisions', async () => {
+  await reachUndecidedResults(); await retainAFromDetail()
+  await click(document.querySelector('.detail-return-action'))
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'retained detail back to inspector')
+  await click(document.querySelector('.switch-candidate-inspector .switch-preview-topline button'))
+  await click('조건 수정')
+  await click(exactButton('습식'))
+  await click('후보 제품 보기')
+  await waitForUi(() => searchRuns.length === 1, 'new concrete run')
+  assert.equal(session().criteriaUndecided, false)
+  assert.equal(decisions.length, 0)
+  assert.equal(journey().retained[0].context.criteriaUndecided, true)
+  await click('남긴 후보에서 제거')
+  assert.equal(decisions.length, 0, 'removing an old local-only row must not bind it to the new run')
+  await retainAFromDetail()
+  await waitForUi(() => decisions.length === 1, 'new explicit retention')
+  assert.equal(decisions[0].kind, 'candidate_retained')
+  assert.equal(journey().retained.filter(row => row.active).length, 1)
+  assert.equal(journey().retained.find(row => row.active).context.criteriaUndecided, undefined)
+})
+
+test('undecided comparison respects five slots and never adds a sixth silently', async () => {
+  catalogProducts = [current, ...Array.from({ length: 6 }, (_, index) => product(`product_browse_${index}`, `둘러볼 후보 ${index}`))]
+  await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →')); await click('후보부터 보기')
+  for (const action of all('.switch-candidate-compare').slice(0, 5)) await click(action)
+  await selectCandidate('둘러볼 후보 5')
+  assert.equal(exactButton('열량·영양 비교 →').disabled, true)
+  assert.equal(exactButton('원재료 비교 →').disabled, true)
+  assert.equal(session().compareIds.length, 5)
+  await click(document.querySelector('.switch-candidate-inspector .switch-preview-topline button'))
+  await click(all('.switch-candidate-compare')[0])
+  await selectCandidate('둘러볼 후보 5'); await click('원재료 비교')
+  assert.equal(session().compareIds.length, 5)
+  assert.equal(session().compareIds.at(-1), 'product_browse_5')
+  assert.equal(session().currentProductId, current.product_id)
+})
+
+test('a delayed concrete run cannot attach considerations to a later undecided exploration', async () => {
+  const originalFetch = globalThis.fetch
+  let release
+  globalThis.fetch = window.fetch = async (input, init) => {
+    if (String(input).endsWith('/search-runs') && !release) return new Promise(resolve => { release = () => resolve(originalFetch(input, init)) })
+    return originalFetch(input, init)
+  }
+  await renderApp(); await reachResultsWithConditions({ avoidIngredient: false })
+  await waitForUi(() => release, 'held concrete run')
+  await click('조건 수정'); await click(exactButton('습식')); await click('후보부터 보기')
+  await selectCandidate()
+  await act(async () => { release(); await new Promise(resolve => setTimeout(resolve, 0)) })
+  assert.equal(session().criteriaUndecided, true)
+  assert.equal(searchRuns.length, 1)
+  assert.equal(considerations.length, 0)
+  assert.equal(decisions.length, 0)
+})
 
 test('candidate list explains common matches once without losing inspector facts or closing focus', async () => {
   await renderApp()

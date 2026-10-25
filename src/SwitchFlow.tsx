@@ -670,7 +670,7 @@ export default function SwitchFlow({
     }), action, entry)
   }
   const {
-    step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent,
+    step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent, criteriaUndecided,
     selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
   } = activeSession
   const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
@@ -1033,9 +1033,9 @@ export default function SwitchFlow({
     candidateSearchInputRef.current?.focus({ preventScroll: true })
   }
 
-  function beginSwitchRun(runOrigin: 'submitted' | 'restored' = 'submitted') {
+  function beginSwitchRun(runOrigin: 'submitted' | 'restored' = 'submitted', selectionState = activeSession) {
     if (!currentProduct) return
-    const selection = switchSelectionKey(activeSession)
+    const selection = switchSelectionKey(selectionState)
     if (switchRunSelection.current !== selection) {
       switchRunSelection.current = selection
       switchRunGeneration.current += 1
@@ -1043,6 +1043,9 @@ export default function SwitchFlow({
       switchRunId.current = null
       considerationPromises.current.clear()
     }
+    // The current intake contract has no undecided-criteria meaning. Keep this
+    // exploration local rather than turning it into an empty preference record.
+    if (selectionState.criteriaUndecided) return
     const generation = switchRunGeneration.current
     const previous = switchRunTail.current
     const next = previous.then((previousRunId) => {
@@ -1111,8 +1114,9 @@ export default function SwitchFlow({
     const labels = [...criteriaLabels(change).map((value) => `바꿀 점 · ${value}`), ...criteriaLabels(keep).map((value) => `유지할 점 · ${value}`)]
     if (changeBrand) labels.push('다른 브랜드')
     if (keepBrand) labels.push(`브랜드 유지 · ${currentProduct.brand}`)
+    if (criteriaUndecided) labels.push('바꿀 조건은 후보를 보며 정하기')
     labels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
-    return { selectionKey: activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession),
+    return { ...(criteriaUndecided ? { criteriaUndecided: true } : {}), selectionKey: activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession),
       current: { productId: currentProduct.product_id, brand: currentProduct.brand, name: currentProduct.canonical_name },
       variantId: currentVariantId, variantLabel: currentVariantText, labels,
       criteria: switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }) }
@@ -1120,6 +1124,7 @@ export default function SwitchFlow({
   function queueJourneyDecision(id: string, kind: ExplicitDecisionKind | null, productId: string | null, resolveRun: () => Promise<string | null>) {
     if (!isDecisionCollectionEnabled()) return
     const local = journeyRef.current.retained.find((row) => row.id === id) ?? (journeyRef.current.outcome?.id === id ? journeyRef.current.outcome : null)
+    if (local?.context.criteriaUndecided) return
     const initial = { ack: local?.searchRunId && local.intakeRevision ? { runId: local.searchRunId, revision: local.intakeRevision } : null,
       pending: local?.pendingIntake ?? { pending: null, following: [] } }
     const previous = decisionOperations.current.get(id) ?? Promise.resolve(initial)
@@ -1235,18 +1240,18 @@ export default function SwitchFlow({
       {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
       <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} />
       <div className="detail-criterion-actions">
-        {ingredientAvoidTerms.length ? <button className="primary-action detail-criterion-action" type="button" onClick={() => selectTab('ingredients')}>{evaluation.ingredientInsufficient.length ? '원재료부터 확인 →' : '원재료 확인 →'}</button> : <button className="primary-action detail-criterion-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateNutrition(product.product_id)}>현재 사료와 영양 비교 →</button>}
-        {ingredientAvoidTerms.length && !evaluation.ingredientInsufficient.length ? <button className="detail-inline-link" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateNutrition(product.product_id)}>영양도 비교하기 →</button> : null}
+        {ingredientAvoidTerms.length ? <button className="primary-action detail-criterion-action" type="button" onClick={() => selectTab('ingredients')}>{evaluation.ingredientInsufficient.length ? '원재료부터 확인 →' : '원재료 확인 →'}</button> : <button className="primary-action detail-criterion-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateFacts(product.product_id)}>현재 사료와 영양 비교 →</button>}
+        {ingredientAvoidTerms.length && !evaluation.ingredientInsufficient.length ? <button className="detail-inline-link" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateFacts(product.product_id)}>영양도 비교하기 →</button> : null}
       </div>
       {evaluation.ingredientInsufficient.length === 0 && compareIds.length >= 5 && !compareIds.includes(product.product_id) ? <p className="detail-selection-terms">비교는 최대 5개까지 담을 수 있어요. 기존 후보를 정리한 뒤 비교해 주세요.</p> : null}
     </section>
   }
-  function compareCandidateNutrition(productId: string) {
+  function compareCandidateFacts(productId: string, tab: 'nutrition' | 'ingredients' = 'nutrition') {
     if (compareIds.length >= 5 && !compareIds.includes(productId)) return
     if (!compareIds.includes(productId)) recordSwitchConsideration(productId, 'compare_add')
     pendingCompareReturnFocus.current = true
     requestExplicitScroll('compare')
-    updateSession((current) => ({ ...current, selectedCandidateId: productId, compareIds: current.compareIds.includes(productId) ? current.compareIds : [...current.compareIds, productId], compareOpen: true, compareTab: 'nutrition', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
+    updateSession((current) => ({ ...current, selectedCandidateId: productId, compareIds: current.compareIds.includes(productId) ? current.compareIds : [...current.compareIds, productId], compareOpen: true, compareTab: tab, detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
   }
   function renderJourneyOverlays() {
     return <>{memoOpen ? <JourneyMemo value={journey.memo} onSave={(memo) => updateJourney((value) => ({ ...value, memo, context: journeyContext() }))} onClose={() => setMemoOpen(false)} /> : null}
@@ -1551,7 +1556,7 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>바꿀 점</span>
             <h1>무엇을 바꾸고 싶나요?</h1>
-            <p>지금 사료에서 달라졌으면 하는 점을 골라주세요.</p>
+            <p>달라졌으면 하는 점을 골라주세요. 후보를 먼저 보고 정해도 됩니다.</p>
           </div>
 
           <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div>
@@ -1633,7 +1638,7 @@ export default function SwitchFlow({
           {renderKeepChoices()}
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => backToStep('sku')}>← 현재 사료와 포장</button>
-            <button className="switch-primary-action" type="button" disabled={!hasChange && !noChangeIntent} onClick={applySwitchCriteria}>후보 제품 보기 →</button>
+            <button className="switch-primary-action" type="button" onClick={applySwitchCriteria}>{hasChange || noChangeIntent ? '후보 제품 보기 →' : '후보부터 보기 →'}</button>
           </div>
         </main>
       </div>
@@ -1662,16 +1667,18 @@ export default function SwitchFlow({
   }
 
   function applySwitchCriteria() {
-    if (!hasChange && !noChangeIntent) return
+    const selectionState = { ...activeSession, criteriaUndecided: !hasChange && !noChangeIntent }
+    const selectionKey = switchSelectionKey(selectionState)
                 requestExplicitScroll('results')
-                beginSwitchRun()
+                beginSwitchRun('submitted', selectionState)
                 updateSession((current) => ({
                   ...current,
+                  criteriaUndecided: selectionState.criteriaUndecided,
                   selectedCandidateId: null,
                   visibleCandidateCount: 40,
-                  compareIds: current.appliedCriteriaKey === switchSelectionKey(current) ? current.compareIds : [],
-                  candidateQuery: current.appliedCriteriaKey === switchSelectionKey(current) ? current.candidateQuery : '',
-                  appliedCriteriaKey: switchSelectionKey(current),
+                  compareIds: current.appliedCriteriaKey === selectionKey ? current.compareIds : [],
+                  candidateQuery: current.appliedCriteriaKey === selectionKey ? current.candidateQuery : '',
+                  appliedCriteriaKey: selectionKey,
                   compareOpen: false,
                   compareTab: 'overview',
                   detailProductId: null,
@@ -1786,8 +1793,8 @@ export default function SwitchFlow({
           <details className="switch-prototype-criteria">
             <summary>찾는 조건 <span>{hasChosenCandidateCriteria
               ? <>{changeLabels.length ? <span className="switch-criteria-summary-line">바꿀 점 · {changeLabels.join(' · ')}</span> : null}{keepLabels.length ? <span className="switch-criteria-summary-line">유지할 점 · {keepLabels.join(' · ')}</span> : null}</>
-              : '다른 사료 둘러보기'}</span></summary>
-          <div><span>바꿀 점</span><strong>{changeLabels.join(' · ') || '없음'}</strong></div>
+              : criteriaUndecided ? '후보를 보며 정하기' : '다른 사료 둘러보기'}</span></summary>
+          <div><span>바꿀 점</span><strong>{changeLabels.join(' · ') || (criteriaUndecided ? '아직 정하지 않음' : '없음')}</strong></div>
           <div><span>유지할 점</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
           </details>
           <button type="button" onClick={() => setMemoOpen(true)}>내 메모</button>
@@ -1845,7 +1852,16 @@ export default function SwitchFlow({
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div>
                 </section>
 
-                <div className="quick-view-actions switch-inspector-actions">
+                {criteriaUndecided ? <section className="switch-exploratory-actions" aria-label="현재 사료와 비교할 정보 선택">
+                  <p>지금 사료와 무엇을 비교해 볼까요?</p>
+                  <div className="quick-view-actions switch-inspector-actions">
+                    <button className="switch-compare-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => compareCandidateFacts(selectedCandidate.product.product_id)}>열량·영양 비교 →</button>
+                    <button className="switch-compare-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => compareCandidateFacts(selectedCandidate.product.product_id, 'ingredients')}>원재료 비교 →</button>
+                  </div>
+                  {compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id) ? <p className="switch-option-empty">비교에 담은 후보를 먼저 정리해 주세요.</p> : null}
+                  <button className="journey-inline-action" type="button" onClick={() => openSwitchDetail(selectedCandidate.product.product_id)}>제품 상세 보기 →</button>
+                  <details><summary>가격이나 잘 먹는지가 고민이라면</summary><p>가격과 실제 먹는 반응은 현재 자료로 비교할 수 없습니다. 여기서는 원재료와 표시된 영양 정보의 차이를 살펴볼 수 있습니다.</p></details>
+                </section> : <div className="quick-view-actions switch-inspector-actions">
                   <button
                     className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'}
                     aria-pressed={compareIds.includes(selectedCandidate.product.product_id)}
@@ -1868,7 +1884,7 @@ export default function SwitchFlow({
                   >
                     {selectedCandidate.ingredientInsufficient.length ? '원재료부터 확인 →' : '상세 보기 →'}
                   </button>
-                </div>
+                </div>}
 
                 {hasChosenCandidateCriteria ? <section className="switch-inspector-section switch-inspector-decision">
                   <h2>선택한 조건과 비교</h2>

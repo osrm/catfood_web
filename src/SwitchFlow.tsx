@@ -1733,7 +1733,7 @@ export default function SwitchFlow({
       const product = evaluation.product
       const isCompared = compareIds.includes(product.product_id)
       const unresolved = evaluation.ingredientInsufficient.length > 0
-      const rowEvaluation = ingredientAvoidTerms.length ? { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) } : evaluation
+      const rowEvaluation = { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) }
       const compareDisabled = compareIds.length >= 5 && !isCompared
       return (
         <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}>
@@ -1752,7 +1752,6 @@ export default function SwitchFlow({
             <span className="switch-candidate-identity">
               <span>{product.brand}</span><strong>{product.canonical_name}</strong>
               <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
-              {product.direct_evidence_ingredient_terms?.length ? <small className="switch-candidate-ingredients">확인한 원료 · {product.direct_evidence_ingredient_terms.map(ingredientLabel).join(' · ')}</small> : null}
             </span>
             <RelationBlock evaluation={rowEvaluation} showReviewed={!ingredientAvoidTerms.length || unresolved} />
             <span className="switch-candidate-open">{unresolved ? '원료 확인 →' : '빠른 보기 →'}</span>
@@ -1871,16 +1870,16 @@ export default function SwitchFlow({
                   </button>
                 </div>
 
-                <section className="switch-inspector-section switch-inspector-decision">
+                {hasChosenCandidateCriteria ? <section className="switch-inspector-section switch-inspector-decision">
                   <h2>선택한 조건과 비교</h2>
                   <div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
                   <RelationBlock evaluation={{ ...selectedCandidate, keepMatches: [], changeMatches: [], unknowns: [] }} />
                   <dl>
-                    <div><dt>유지할 점</dt><dd>{selectedCandidate.keepMatches.map(candidateRelationLabel).join(' · ') || '확인된 항목 없음'}</dd></div>
-                    <div><dt>바꿀 점</dt><dd>{selectedCandidate.changeMatches.map(candidateRelationLabel).join(' · ') || '확인된 항목 없음'}</dd></div>
-                    <div><dt>미확인</dt><dd>{selectedCandidate.unknowns.map(candidateRelationLabel).join(' · ') || '—'}</dd></div>
+                    {selectedCandidate.keepMatches.length ? <div><dt>유지할 점</dt><dd>{selectedCandidate.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
+                    {selectedCandidate.changeMatches.length ? <div><dt>바꿀 점</dt><dd>{selectedCandidate.changeMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
+                    {selectedCandidate.unknowns.length ? <div><dt>미확인</dt><dd>{selectedCandidate.unknowns.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
                   </dl>
-                </section>
+                </section> : null}
 
                 {ingredientAvoidTerms.length > 0 ? (
                   <section className="switch-inspector-section switch-ingredient-inspector">
@@ -1894,14 +1893,10 @@ export default function SwitchFlow({
                   <h2>제품 정보 요약</h2>
                   <dl>
                     <div><dt>판매 규격</dt><dd>{representativePackageLabel(selectedCandidate.product)}</dd></div>
-                    <div><dt>규격 수</dt><dd>{selectedCandidate.product.variant_count ? `${selectedCandidate.product.variant_count}개` : '미확인'}</dd></div>
-                    <div><dt>대상 표기</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div>
-                    <div><dt>제품 특징</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div>
-                    <div><dt>레시피</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div>
-                    <div><dt>세부 레시피</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div>
+                    {selectedCandidate.product.official_targets.length ? <div><dt>대상 표기</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div> : null}
+                    {selectedCandidate.product.features.length ? <div><dt>제품 특징</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div> : null}
+                    {selectedCandidate.product.recipe_details.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div> : selectedCandidate.product.recipe_families.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div> : null}
                     <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div>
-                    <div><dt>확인된 유통 시장</dt><dd>{countryListLabel(selectedCandidate.product.current_market_country_codes)}</dd></div>
-                    <div><dt>동일 배합 확인 시장</dt><dd>{countryListLabel(selectedCandidate.product.formula_match_market_country_codes)}</dd></div>
                   </dl>
                 </section>
               </div>

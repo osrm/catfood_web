@@ -4,6 +4,8 @@ export { default as CompareView } from '../src/CompareView'
 export { default as SwitchFlow } from '../src/SwitchFlow'
 export { fetchCatalog, fetchCatalogIngredientFacts, fetchProductIngredientFacts } from '../src/api'
 export * from '../src/analytics'
+export * from '../src/collection-permission'
+export { default as CollectionPreferences } from '../src/CollectionPreferences'
 export * from '../src/navigation-state'
 // SWITCH session regressions exercise App-level persistence and history helpers through this test entry.
 export * from '../src/switch-session'

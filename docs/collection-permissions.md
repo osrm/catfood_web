@@ -1,0 +1,17 @@
+# Optional exploration-record sharing (unactivated preparation)
+
+The default build keeps `VITE_DECISION_INTAKE_ENABLED=false`. A flag alone cannot collect: the new gateway must return the exact notice version, retention period, operator/contact and enabled policy, and the person must select one or both purposes explicitly. No-purpose/decline leaves browsing, local notes, retained candidates and copying usable.
+
+The independent choices are service improvement and internal data-product research. Internal research does not authorize external provision/sale or model training. Search text and personal notes are never event fields. Displaying a record or reading a disclosure is not a purchase, feeding result or explicit decision.
+
+The optional settings entry appears in the common header only when a policy is ready or this tab retains an existing deletion capability. Both choices begin unchecked. Purpose changes explicitly delete former shared records and start with subsequent activity; they never rewrite past purposes or backfill past clicks/decisions. Joining an existing result creates only its current criteria run with `run_origin=restored`.
+
+The client uses `/functions/v1/decision-collection/policy`, `/permissions`, `/events` and `/delete`. The server issues the permission/session IDs. A browser-generated 256-bit deletion capability is stored only in tab storage, sent in JSON bodies, never URLs/analytics/logs. A pending registration stores it before the request so a lost acknowledgement remains manageable with a null permission ID. No opt-in request is made if this tab cannot save that authority. Registration acknowledgement is not activated until it can also be saved.
+
+Stopping immediately aborts requests, clears delivery caches and remote links in local records, and ignores late acknowledgements/retries. Local notes/candidates remain. Deletion failure preserves the capability and reports unconfirmed deletion, while future events stay stopped. An off build can still manage an existing receipt. Expired permissions do not silently renew. Changing purposes requires deletion confirmation first.
+
+The server's collection permission owns every run and snapshots purposes/notice; client-supplied session IDs or legacy version markers are not consent proof. New event envelopes contain only permission ID, capability, kind and exact typed event. Service/secret keys are not browser configuration.
+
+Before real activation, separately approve actual notice text, purpose uses, retention, operator/contact, request budgets/log scope, the scheduled expiry purge and failure handling, legacy-endpoint shutdown, exact gateway/DB/grant baseline, limited live verification and rollback. Provider/gateway deployment and real consent understanding have not been proved by fixture tests. Turning off the UI must not remove an existing capability's management route.
+
+Tests in `collection-permission.test.mjs` verify the real transport shape and privacy boundaries. Existing interaction fixtures explicitly opt into the two purposes through `collection-fixture.mjs`; that test-only adapter checks the actual envelope, then gives the inner event to existing context assertions. Virtual fixture routing is not the runtime protocol or proof of production collection. Browser candidate checks must label any intercepted policy/POST responses synthetic and block real writes before first navigation.

@@ -3,7 +3,8 @@ import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientL
 import SiteHeader from './SiteHeader'
 import { JourneyMemo, JourneyRecordsPanel, JourneyDialog, JourneyCopy } from './JourneyReview'
 import { readJourneyRecords, writeJourneyRecords, clearJourneyRecords, hasJourneyWork, type JourneyRecords, type JourneyContext, type RetainedCandidate, type JourneyPendingIntake } from './journey-records'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { collectionGeneration, subscribeCollectionBoundary } from './collection-permission'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
 import {
@@ -691,6 +692,8 @@ export default function SwitchFlow({
   const setCompareIds = (value: string[] | ((current: string[]) => string[])) => setSessionField('compareIds', value)
   const setCompareOpen = (value: boolean) => setSessionField('compareOpen', value)
   const setDetailProductId = (value: string | null) => setSessionField('detailProductId', value)
+  const collectionEpoch = useSyncExternalStore(subscribeCollectionBoundary, collectionGeneration, () => 0)
+  const previousCollectionEpoch = useRef(collectionEpoch)
   const [journey, setJourney] = useState<JourneyRecords>(readJourneyRecords)
   const journeyRef = useRef(journey)
   const journeyMounted = useRef(true)
@@ -722,6 +725,14 @@ export default function SwitchFlow({
   const considerationPromises = useRef(new Map<string, Promise<boolean>>())
   const decisionOperations = useRef(new Map<string, Promise<{ ack: { runId: string; revision: number } | null; pending: JourneyPendingIntake }>>())
   const switchRunTail = useRef<Promise<string | null>>(Promise.resolve(null))
+  useEffect(() => {
+    if (previousCollectionEpoch.current === collectionEpoch) return
+    previousCollectionEpoch.current = collectionEpoch
+    switchRunGeneration.current += 1
+    switchRunTail.current = Promise.resolve(null); switchRunId.current = null; switchRunSelection.current = null
+    considerationPromises.current.clear(); decisionOperations.current.clear()
+    const local = readJourneyRecords(); journeyRef.current = local; setJourney(local)
+  }, [collectionEpoch])
   const variantRequestId = useRef(0)
   const variantRequest = useRef<{ id: number; productId: string; controller: AbortController } | null>(null)
   const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -1034,6 +1045,7 @@ export default function SwitchFlow({
   }
 
   function beginSwitchRun(runOrigin: 'submitted' | 'restored' = 'submitted') {
+    if (!isDecisionCollectionEnabled()) return
     if (!currentProduct) return
     const selection = switchSelectionKey(activeSession)
     if (switchRunSelection.current !== selection) {
@@ -1076,7 +1088,7 @@ export default function SwitchFlow({
   useEffect(() => {
     if (step !== 'results' || !currentProduct || loading || error || ingredientFactsPending || switchRunId.current) return
     beginSwitchRun('restored')
-  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, loading, error, ingredientFactsPending])
+  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, loading, error, ingredientFactsPending, collectionEpoch])
 
   function openCandidate(productId: string) {
     setSelectedCandidateId(productId)
@@ -1119,20 +1131,23 @@ export default function SwitchFlow({
   }
   function queueJourneyDecision(id: string, kind: ExplicitDecisionKind | null, productId: string | null, resolveRun: () => Promise<string | null>) {
     if (!isDecisionCollectionEnabled()) return
+    const epoch = collectionGeneration()
     const local = journeyRef.current.retained.find((row) => row.id === id) ?? (journeyRef.current.outcome?.id === id ? journeyRef.current.outcome : null)
     const initial = { ack: local?.searchRunId && local.intakeRevision ? { runId: local.searchRunId, revision: local.intakeRevision } : null,
       pending: local?.pendingIntake ?? { pending: null, following: [] } }
     const previous = decisionOperations.current.get(id) ?? Promise.resolve(initial)
     const next = previous.then(async (state) => {
+      if (epoch !== collectionGeneration()) return { ack: null, pending: { pending: null, following: [] } }
       let ack = state.ack
       const following = [...state.pending.following]
       if (kind) following.push({ kind, productId, runId: ack?.runId ?? await resolveRun() })
       let pending: ExplicitDecisionInput | null = state.pending.pending
-      const persist = () => updateJourney((value) => ({ ...value,
+      const persist = () => { if (epoch !== collectionGeneration()) return; updateJourney((value) => ({ ...value,
         retained: value.retained.map((row) => row.id === id ? { ...row, searchRunId: ack?.runId ?? row.searchRunId, intakeRevision: ack?.revision ?? row.intakeRevision, pendingIntake: { pending, following: [...following] } } : row),
         outcome: value.outcome?.id === id ? { ...value.outcome, searchRunId: ack?.runId ?? value.outcome.searchRunId, intakeRevision: ack?.revision ?? value.outcome.intakeRevision, pendingIntake: { pending, following: [...following] } } : value.outcome,
-      }))
+      })) }
       while (pending || following.length) {
+        if (epoch !== collectionGeneration()) return { ack: null, pending: { pending: null, following: [] } }
         if (!pending) {
           const action = following.shift()!
           const runId = ack?.runId ?? action.runId
@@ -1142,6 +1157,7 @@ export default function SwitchFlow({
         }
         persist()
         if (!await recordExplicitDecision(pending)) { persist(); return { ack, pending: { pending, following } } }
+        if (epoch !== collectionGeneration()) return { ack: null, pending: { pending: null, following: [] } }
         ack = { runId: pending.searchRunId!, revision: pending.revision }
         pending = null
         persist()

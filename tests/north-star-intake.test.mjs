@@ -1,3 +1,4 @@
+import { collectionFixtureFetch, activateCollectionFixture } from './collection-fixture.mjs'
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, test } from 'node:test'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -24,41 +25,45 @@ before(async () => {
   await writeFile(path, result.output.find((row) => row.type === 'chunk' && row.isEntry).code)
   api = await import(pathToFileURL(path).href)
 })
-beforeEach(() => {
+beforeEach(async () => {
   sessionStorage.clear(); calls = []; Date.now = originalNow
-  globalThis.fetch = async (url, init) => {
+  globalThis.fetch = collectionFixtureFetch(api, async (url, init) => {
     const body = JSON.parse(init.body); calls.push({ url, body })
     if (url.endsWith('/search-runs')) return Response.json({ search_run_id: body.client_run_id, status: 'created' })
     return Response.json({ status: 'recorded' })
-  }
+  })
+  await activateCollectionFixture(api)
+  calls = []
 })
 after(async () => { globalThis.fetch = originalFetch; Date.now = originalNow; dom.window.close(); await rm(temp, { recursive: true }) })
 
 test('V2 exact typed payload excludes free text and reconnects the original valid run', async () => {
   const run = await api.createDecisionSearchRun({ ...input(), memo: 'PRIVATE NOTE', query: 'PRIVATE QUERY' })
-  assert.match(calls[0].url, /\/v2\/search-runs$/)
-  assert.deepEqual(Object.keys(calls[0].body).sort(), ['client_run_id','session_id','parent_search_run_id','mode','current_product_id','current_variant_id','criteria_snapshot','candidate_count','initial_presented_product_ids','contract_version','notice_version','evaluation_version','run_origin'].sort())
+  assert.match(calls[0].url, /\/decision-collection\/search-runs$/)
+  assert.deepEqual(Object.keys(calls[0].body).sort(), ['client_run_id','parent_search_run_id','mode','current_product_id','current_variant_id','criteria_snapshot','candidate_count','initial_presented_product_ids','run_origin'].sort())
   assert.equal(calls[0].body.run_origin, 'submitted')
-  assert.equal(calls[0].body.contract_version, 'decision-v2')
+  assert.equal(calls[0].body.contract_version, undefined)
   assert.equal(await api.createDecisionSearchRun({ ...input(), runOrigin: 'restored' }), run)
   assert.equal(calls.length, 1)
   assert.doesNotMatch(JSON.stringify(calls), /PRIVATE/)
   await api.recordProductConsideration(run, 'product_84', 'quick_view_open', { kind: 'named_search', presentedProductIds: ['product_84'] })
-  assert.deepEqual(calls[1].body, { search_run_id: run, session_id: calls[0].body.session_id, product_id: 'product_84', signal_type: 'quick_view_open', context_kind: 'named_search', presented_product_ids: ['product_84'], position: 0, displayed_product_ids: [] })
+  assert.deepEqual(calls[1].body, { search_run_id: run, product_id: 'product_84', signal_type: 'quick_view_open', context_kind: 'named_search', presented_product_ids: ['product_84'], position: 0, displayed_product_ids: [] })
   await api.recordProductConsideration(run, 'product_84', 'compare_view', { kind: 'named_search', presentedProductIds: ['product_84'], displayedProductIds: ['product_84'] })
   assert.deepEqual(calls[2].body.displayed_product_ids, ['product_84'])
   await api.recordExplicitDecision({ recordId: '946cb414-72ea-4c3a-8fa0-898a0c750965', revision: 1, previousRevision: 0, searchRunId: run, kind: 'candidate_retained', productId: 'product_84', note: 'PRIVATE NOTE' })
-  assert.deepEqual(Object.keys(calls[3].body).sort(), ['operation_id','record_id','revision','expected_previous_revision','search_run_id','session_id','kind','product_id'].sort())
+  assert.deepEqual(Object.keys(calls[3].body).sort(), ['operation_id','record_id','revision','expected_previous_revision','search_run_id','kind','product_id'].sort())
   assert.doesNotMatch(JSON.stringify(calls), /PRIVATE/)
 })
 
 test('expiry creates a distinct restored run/session and never attaches old actions to it', async () => {
   const old = await api.createDecisionSearchRun(input())
-  const firstSession = calls[0].body.session_id
+  const firstSession = api.activeCollectionPermission().sessionId
   Date.now = () => originalNow() + 25 * 60 * 60 * 1000
+  assert.equal(await api.createDecisionSearchRun({ ...input(), runOrigin: 'restored' }), null)
+  await api.setCollectionPurposes(['service_improvement', 'data_product_research'])
   const restored = await api.createDecisionSearchRun({ ...input(), runOrigin: 'restored' })
   assert.notEqual(restored, old)
-  assert.notEqual(calls[1].body.session_id, firstSession)
+  assert.notEqual(api.activeCollectionPermission().sessionId, firstSession)
   assert.equal(calls[1].body.run_origin, 'restored')
   const count = calls.length
   assert.equal(await api.recordProductConsideration(old, 'product_1', 'detail_open'), false)
@@ -69,7 +74,7 @@ test('expiry creates a distinct restored run/session and never attaches old acti
 test('transient retry uses the same operation UUID and exact body', async () => {
   const run = await api.createDecisionSearchRun(input())
   let attempts = 0
-  globalThis.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return ++attempts === 1 ? new Response('', { status: 503 }) : Response.json({ status: 'recorded' }) }
+  globalThis.fetch = collectionFixtureFetch(api, async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return ++attempts === 1 ? new Response('', { status: 503 }) : Response.json({ status: 'recorded' }) })
   assert.equal(await api.recordExplicitDecision({ recordId: '946cb414-72ea-4c3a-8fa0-898a0c750965', revision: 1, previousRevision: 0, searchRunId: run, kind: 'candidate_retained', productId: 'product_1' }), true)
   assert.deepEqual(calls[1].body, calls[2].body)
 })
@@ -93,10 +98,10 @@ test('tab record context survives independent navigation and rejects malformed l
 test('lost acknowledgement and a later function retry reuse the persisted operation identity', async () => {
   const run = await api.createDecisionSearchRun(input())
   const decision = { recordId: '74a5e9be-503c-4dcd-9a4f-c2d99ea35fc2', revision: 1, previousRevision: 0, searchRunId: run, kind: 'candidate_retained', productId: 'product_1' }
-  globalThis.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); throw new Error('response lost') }
+  globalThis.fetch = collectionFixtureFetch(api, async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); throw new Error('response lost') })
   assert.equal(await api.recordExplicitDecision(decision), false)
   const original = calls[1].body
-  globalThis.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return Response.json({ status: 'existing' }) }
+  globalThis.fetch = collectionFixtureFetch(api, async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return Response.json({ status: 'existing' }) })
   assert.equal(await api.recordExplicitDecision(decision), true)
   assert.deepEqual(calls.at(-1).body, original)
 })
@@ -111,8 +116,8 @@ test('blocked tab storage keeps local work usable without claiming durable persi
 })
 
 test('malformed stored analytics shape fails closed without blocking local search', async () => {
-  sessionStorage.setItem('catfood.decision-runs.v2', 'null')
+  sessionStorage.setItem('catfood.decision-runs.v3', 'null')
   assert.ok(await api.createDecisionSearchRun(input()))
-  sessionStorage.setItem('catfood.decision-runs.v2', '{}')
+  sessionStorage.setItem('catfood.decision-runs.v3', '{}')
   assert.ok(await api.createDecisionSearchRun({ ...input(), runOrigin: 'restored' }))
 })

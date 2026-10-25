@@ -1,3 +1,4 @@
+import { collectionFixtureFetch, activateCollectionFixture } from './collection-fixture.mjs'
 import assert from 'node:assert/strict'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -144,7 +145,7 @@ after(async () => {
   await rm(temp, { recursive: true })
 })
 
-beforeEach(() => {
+beforeEach(async () => {
   catalogProducts = [current, candidateA, candidateB, singleSku]
   variantsByProduct = new Map([
     [current.product_id, [variant(current.product_id, 'variant_current_1', '1 kg', 1), variant(current.product_id, 'variant_current_2', '2 kg', 2)]],
@@ -163,6 +164,7 @@ beforeEach(() => {
   window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
   document.body.innerHTML = '<div id="root"></div>'
   installFetch()
+  await activateCollectionFixture(app)
 })
 
 afterEach(async () => {
@@ -173,7 +175,7 @@ afterEach(async () => {
 })
 
 function installFetch() {
-  globalThis.fetch = window.fetch = async (input, init = {}) => {
+  globalThis.fetch = window.fetch = collectionFixtureFetch(app, async (input, init = {}) => {
     const url = new URL(input instanceof Request ? input.url : String(input))
     assert.equal(url.origin, 'https://api.test')
     if (url.pathname.endsWith('/effective_product_catalog_summary')) {
@@ -218,7 +220,7 @@ function installFetch() {
     }
     if (url.pathname.includes('/compare_product_') || url.pathname.includes('/product_')) return Response.json([])
     return Response.json([])
-  }
+  })
 }
 
 const all = (selector) => [...document.querySelectorAll(selector)]
@@ -1349,4 +1351,41 @@ test('a delayed decision acknowledgement cannot resurrect records after explicit
   assert.equal(journey().retained.length, 0)
   assert.equal(journey().outcome, null)
   assert.equal(session().currentProductId, null)
+})
+
+test('stopping sharing during a pending decision preserves local candidate but cannot restore remote links or replay it', async () => {
+  let release
+  holdDecision = () => new Promise(resolve => { release = resolve })
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  await waitForUi(() => decisions.length === 1, 'retained decision pending before sharing stop')
+  const localContext = structuredClone(journey().retained[0].context)
+  await act(async () => { assert.equal(await app.stopAndDeleteCollection(), true) })
+  await act(async () => { release(Response.json({ status: 'recorded' })); await new Promise(resolve => setTimeout(resolve, 20)) })
+  assert.equal(journey().retained[0].active, true)
+  assert.deepEqual(journey().retained[0].context, localContext)
+  assert.equal(journey().retained[0].searchRunId, null)
+  assert.equal(journey().retained[0].pendingIntake, undefined)
+  assert.equal(journey().retained[0].intakeRevision, undefined)
+  holdDecision = null
+  await act(async () => { assert.equal(await app.setCollectionPurposes(['service_improvement']), true) })
+  await click('돌아가기')
+  await waitForUi(() => document.querySelector('.switch-results-stage') && !document.querySelector('.detail-stage'), 'return to results before remount')
+  await remountApp()
+  assert.equal(decisions.length, 1, 'old retain is not backfilled under the new permission')
+  assert.equal(journey().retained[0].active, true)
+})
+
+test('joining from existing SWITCH results creates only a restored current run and does not backfill earlier decisions', async () => {
+  await app.stopAndDeleteCollection()
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  assert.equal(searchRuns.length, 0)
+  assert.equal(decisions.length, 0)
+  assert.equal(journey().retained[0].active, true)
+  await act(async () => { assert.equal(await app.setCollectionPurposes(['service_improvement']), true) })
+  await waitForUi(() => searchRuns.length === 1, 'fresh restored current run after explicit purpose choice')
+  assert.equal(searchRuns[0].run_origin, 'restored')
+  assert.equal(searchRuns[0].parent_search_run_id, null)
+  assert.equal(decisions.length, 0)
+  assert.equal(considerations.length, 0)
+  assert.equal(journey().retained[0].searchRunId, null)
 })

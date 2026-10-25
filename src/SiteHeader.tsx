@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react'
+import CollectionPreferences from './CollectionPreferences'
 
 export type BrowseMode = 'explore' | 'lookup' | 'switch'
 
@@ -18,5 +19,6 @@ export default function SiteHeader({ onHome, onModeChange, active, status, child
     </nav> : null}
     {children ? <div className="site-header-actions">{children}</div> : null}
     {status ? <div className="site-status research-status">{status}</div> : null}
+    <CollectionPreferences />
   </header>
 }

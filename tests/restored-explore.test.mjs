@@ -1,3 +1,4 @@
+import { collectionFixtureFetch, activateCollectionFixture } from './collection-fixture.mjs'
 import assert from 'node:assert/strict'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
 import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
@@ -52,7 +53,7 @@ async function bundle() {
 }
 
 function installFetch() {
-  globalThis.fetch = window.fetch = async (input, init = {}) => {
+  globalThis.fetch = window.fetch = collectionFixtureFetch(app, async (input, init = {}) => {
     const url = new URL(String(input))
     if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json(products)
     if (url.pathname.endsWith('/switch_current_variant_options')) return Response.json([])
@@ -68,7 +69,7 @@ function installFetch() {
       return Response.json({ ok: true })
     }
     return Response.json([])
-  }
+  })
 }
 
 async function waitForUi(predicate, message) {
@@ -116,10 +117,11 @@ before(async () => {
   temp = await mkdtemp(resolve('node_modules/.cache/catfood-restored-explore-'))
   app = await bundle()
 })
-beforeEach(() => {
+beforeEach(async () => {
   sessionStorage.clear()
   requests.length = 0
   installFetch()
+  await activateCollectionFixture(app)
   document.body.innerHTML = '<div id="root"></div>'
   root = createRoot(document.getElementById('root'))
 })
@@ -153,7 +155,7 @@ test('direct and popstate-restored applied explore results create analytics runs
     () => requests.filter((request) => request.kind === 'consideration').length === 1,
     'restored explore consideration recorded',
   )
-  assert.equal(requests.find((request) => request.kind === 'consideration').body.search_run_id, 'run-1')
+  assert.equal(requests.find((request) => request.kind === 'consideration').body.search_run_id, firstRun.body.client_run_id)
 
   const lookupMode = button('제품 찾기')
   assert.ok(lookupMode)

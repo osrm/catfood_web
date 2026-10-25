@@ -1,0 +1,14 @@
+.site-header .collection-entry{min-height:44px;padding:0 8px;border:0;background:transparent;color:inherit;font:inherit;font-size:12px;text-decoration:underline;text-underline-offset:4px;white-space:nowrap;cursor:pointer}
+.collection-settings{line-height:1.6}
+.collection-settings fieldset{margin:20px 0;padding:0;border:0}
+.collection-settings legend{font-weight:700;margin-bottom:10px}
+.collection-settings legend span{font-weight:400;font-size:13px}
+.collection-settings label{display:flex;gap:12px;align-items:flex-start;min-height:44px;padding:10px 0;cursor:pointer}
+.collection-settings input{flex:none;width:18px;height:18px;margin-top:4px}
+.collection-settings label small{display:block;font-size:14px;font-weight:400;margin-top:4px}
+.collection-notice summary{min-height:44px;display:list-item;cursor:pointer}
+.collection-notice p{font-size:14px}
+.collection-state{font-weight:650}
+.collection-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.collection-actions button{min-height:44px;white-space:normal}
+@media(max-width:760px){.collection-settings{font-size:14px}.collection-actions{flex-direction:column}.collection-actions button{width:100%}}

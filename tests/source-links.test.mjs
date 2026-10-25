@@ -113,6 +113,8 @@ async function openDetails(details) { assert.ok(details); await act(async () => 
 test('real ProductDetail exposes source context for raw-only ingredient data without prefetch', async () => {
   installProductReads(); await act(async () => root.render(createElement(app.ProductDetail, { product: product(id), initialTab: 'ingredients', onClose() {} }))); await settle()
   assert.equal(sourceCalls().length, 0); assert.match(document.body.textContent, /Chicken, rice/)
+  const raw = document.querySelector('.detail-ingredient-copy'), disclosure = document.querySelector('.detail-ingredient-evidence-disclosure')
+  assert.ok(raw.compareDocumentPosition(disclosure) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING, 'ingredient content precedes source controls')
   await openDetails(document.querySelector('.detail-ingredient-evidence-disclosure'))
   assert.equal(sourceCalls().length, 1); assert.match(sourceCalls()[0].url.pathname, /ingredients_sources_scoped$/)
   assert.equal(document.querySelector('.source-links a').hostname, 'example.com')

@@ -557,11 +557,6 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
               {isPublicSourceLinksEnabled() ? <>
                 {ingredientIdentityUncertain || supplementalIngredientIdentityUncertain ? <p className="detail-evidence-context">한국 판매 제품과 같은 배합인지 확인되지 않은 원재료 자료가 포함돼 있습니다.</p> : null}
-                <details className="detail-disclosure detail-ingredient-evidence-disclosure">
-                  <summary>출처 확인</summary>
-                  <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
-                  <SourceLinks productId={product.product_id} resource="ingredients" />
-                </details>
               </> : <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>}
               {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
               {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure detail-source-disclosure">
@@ -585,6 +580,11 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 <summary>다른 자료의 전체 원재료</summary>
                 <p className="detail-evidence-context">{ingredientSupplementContext}</p>
                 <div className="detail-ingredient-copy">{ingredients.supplemental_full_raw_text?.trim() || supplementalIngredientNames.join(', ')}</div>
+              </details> : null}
+              {isPublicSourceLinksEnabled() ? <details className="detail-disclosure detail-ingredient-evidence-disclosure">
+                <summary>출처 확인</summary>
+                <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
+                <SourceLinks productId={product.product_id} resource="ingredients" />
               </details> : null}
             </> : null}
             {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}

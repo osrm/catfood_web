@@ -11,7 +11,7 @@ export interface CollectionPermission {
 export interface CollectionState {
   policy: CollectionPolicy | null; permission: CollectionPermission | null
   status: 'off' | 'registering' | 'active' | 'stopped' | 'deleting'
-  message: string; storageAvailable: boolean
+  message: string; storageAvailable: boolean; deletionPending: boolean
 }
 const uuid = (x: unknown): x is string => typeof x === 'string' && /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(x)
 const object = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)
@@ -20,7 +20,7 @@ const purposes = (x: unknown): x is CollectionPurpose[] => Array.isArray(x) && x
 const timestamp = (x: unknown): x is string => typeof x === 'string' && Number.isFinite(Date.parse(x))
 const listeners = new Set<() => void>(), boundaries = new Set<() => void>(), controllers = new Set<AbortController>()
 let generation = 0, operation = 0, policyTask: Promise<void> | null = null
-let state: CollectionState = { policy: null, permission: null, status: 'off', message: '', storageAvailable: true }
+let state: CollectionState = { policy: null, permission: null, status: 'off', message: '', storageAvailable: true, deletionPending: false }
 try {
   const value: unknown = JSON.parse(sessionStorage.getItem(KEY) ?? 'null')
   if (object(value) && object(value.permission)) {
@@ -30,7 +30,9 @@ try {
       && (p.sessionId === null || uuid(p.sessionId)) && (p.acceptUntil === null || timestamp(p.acceptUntil))
       && (p.rawUntil === null || timestamp(p.rawUntil))) {
       state.permission = p as unknown as CollectionPermission
-      state.status = value.status === 'active' ? 'active' : 'stopped'
+      state.deletionPending = value.deletionPending === true
+      state.status = value.status === 'active' && !state.deletionPending ? 'active' : 'stopped'
+      if (state.deletionPending) state.message = '전송은 중지했지만 삭제를 확인하지 못했습니다. 다시 시도해 주세요.'
     }
   }
 } catch { state.storageAvailable = false }
@@ -56,7 +58,7 @@ function update(next: Partial<CollectionState>, boundary = false) {
 }
 function persist(value = state) {
   try {
-    if (value.permission) sessionStorage.setItem(KEY, JSON.stringify({ permission: value.permission, status: value.status }))
+    if (value.permission) sessionStorage.setItem(KEY, JSON.stringify({ permission: value.permission, status: value.status, deletionPending: value.deletionPending }))
     else sessionStorage.removeItem(KEY)
     if (!state.storageAvailable) update({ storageAvailable: true })
     return true
@@ -68,7 +70,7 @@ export function subscribeCollectionState(listener: () => void) { listeners.add(l
 export function subscribeCollectionBoundary(listener: () => void) { boundaries.add(listener); return () => { boundaries.delete(listener) } }
 export function activeCollectionPermission(): CollectionPermission | null {
   const p = state.permission
-  return collectionConfigured() && state.policy && state.status === 'active' && p && p.permissionId && p.sessionId
+  return collectionConfigured() && state.policy && !state.deletionPending && state.status === 'active' && p && p.permissionId && p.sessionId
     && p.noticeVersion === state.policy.noticeVersion && p.acceptUntil && Date.parse(p.acceptUntil) > Date.now() ? p : null
 }
 function stopLocally(message: string) { update({ status: state.permission ? 'stopped' : 'off', message }, true); persist() }
@@ -119,12 +121,12 @@ export async function loadCollectionPolicy() {
 export async function stopAndDeleteCollection(): Promise<boolean> {
   const p = state.permission, myOperation = ++operation
   stopLocally('전송을 중지했습니다.')
-  if (!p) return true
-  update({ status: 'deleting' }); persist()
+  if (!p) { update({ deletionPending: false }); return true }
+  update({ status: 'deleting', deletionPending: true }); persist()
   const result = await request('delete', { permission_id: p.permissionId, capability: p.capability })
   if (myOperation !== operation) return false
   if (result?.status === 'deleted' && Number.isInteger(result.search_runs_deleted) && Number(result.search_runs_deleted) >= 0) {
-    update({ permission: null, status: 'off', message: '보낸 탐색 기록을 삭제했습니다.' }, true); persist(); return true
+    update({ permission: null, status: 'off', deletionPending: false, message: '보낸 탐색 기록을 삭제했습니다.' }, true); persist(); return true
   }
   update({ status: 'stopped', message: '전송은 중지했지만 삭제를 확인하지 못했습니다. 다시 시도해 주세요.' }); persist(); return false
 }
@@ -134,7 +136,7 @@ export async function setCollectionPurposes(next: CollectionPurpose[]): Promise<
   const sorted = [...next].sort() as CollectionPurpose[]
   const same = state.permission && JSON.stringify([...state.permission.purposes].sort()) === JSON.stringify(sorted)
   if (same && activeCollectionPermission()) return true
-  if (state.permission && (!same || state.status === 'active' || state.permission.permissionId)) {
+  if (state.permission && (state.deletionPending || !same || state.status === 'active' || state.permission.permissionId)) {
     if (!await stopAndDeleteCollection()) return false
   }
   const policy = state.policy
@@ -144,7 +146,7 @@ export async function setCollectionPurposes(next: CollectionPurpose[]): Promise<
     purposes: sorted, noticeVersion: policy.noticeVersion, permissionId: null, sessionId: null, acceptUntil: null, rawUntil: null,
   }
   const myOperation = ++operation
-  update({ permission: p, status: 'registering', message: '' }, true)
+  update({ permission: p, status: 'registering', deletionPending: false, message: '' }, true)
   if (!persist()) { update({ permission: null, status: 'off', message: '설정을 보관할 수 없어 공유를 시작하지 않았습니다. 검색은 계속 이용할 수 있습니다.' }); return false }
   const result = await request('permissions', { capability: p.capability, purposes: p.purposes, notice_version: p.noticeVersion })
   if (myOperation !== operation) return false

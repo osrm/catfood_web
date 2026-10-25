@@ -26,6 +26,7 @@ export default function CollectionPreferences() {
   const active = activeCollectionPermission() !== null
   const toggle = (purpose: CollectionPurpose) => setChoices(current => current.includes(purpose) ? current.filter(x => x !== purpose) : [...current, purpose])
   const change = value.permission && JSON.stringify([...value.permission.purposes].sort()) !== JSON.stringify([...choices].sort())
+  const replacing = change || value.permission?.permissionId && !active && !value.deletionPending
   return <>
     <button type="button" className="collection-entry" onClick={() => { setChoices(value.permission?.purposes ?? []); setOpen(true) }}>기록 공유 설정</button>
     {open ? <JourneyDialog title="탐색 기록 공유" onClose={() => setOpen(false)}>
@@ -47,11 +48,11 @@ export default function CollectionPreferences() {
         </> : <p>현재 새 공유는 중지되어 있습니다. 이전에 보낸 기록은 아래에서 삭제할 수 있습니다.</p>}
         <p className="collection-state">{active ? '선택한 용도로 공유 중입니다.' : '새 탐색 기록을 보내지 않습니다.'}</p>
         {value.message ? <p role="status">{value.message}</p> : null}
-        {change ? <p>용도를 바꾸면 이전에 보낸 탐색 기록을 삭제하고 이후 기록부터 새로 공유합니다. 이 탭의 메모와 남긴 후보는 유지됩니다.</p> : null}
+        {replacing ? <p>이전에 보낸 탐색 기록을 삭제하고 이후 기록부터 새로 공유합니다. 이 탭의 메모와 남긴 후보는 유지됩니다.</p> : null}
         <div className="collection-actions">
-          {canStart && (!active || change) ? <button type="button" className="primary-action" disabled={busy || !choices.length}
-            onClick={() => { void setCollectionPurposes(choices) }}>{busy ? '처리 중…' : change ? '보낸 기록을 지우고 용도 변경' : active ? '이 용도로 계속 공유' : '선택한 용도로 공유 시작'}</button> : null}
-          {value.permission ? <button type="button" className="secondary-action" disabled={value.status === 'deleting'} onClick={() => { void stopAndDeleteCollection() }}>{value.status === 'deleting' ? '삭제 확인 중…' : '공유 중지·보낸 기록 삭제'}</button>
+          {canStart && !value.deletionPending && (!active || change) ? <button type="button" className="primary-action" disabled={busy || !choices.length}
+            onClick={() => { void setCollectionPurposes(choices) }}>{busy ? '처리 중…' : change ? '보낸 기록을 지우고 용도 변경' : replacing ? '보낸 기록을 지우고 다시 공유' : '선택한 용도로 공유 시작'}</button> : null}
+          {value.permission ? <button type="button" className={value.deletionPending ? 'primary-action' : 'secondary-action'} disabled={value.status === 'deleting'} onClick={() => { void stopAndDeleteCollection() }}>{value.status === 'deleting' ? '삭제 확인 중…' : value.deletionPending ? '보낸 기록 삭제 다시 시도' : '공유 중지·보낸 기록 삭제'}</button>
             : <button type="button" className="secondary-action" disabled={busy} onClick={() => setOpen(false)}>공유하지 않고 닫기</button>}
         </div>
       </div>

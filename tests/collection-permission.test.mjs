@@ -136,11 +136,34 @@ test('failed deletion stops future events, retains capability for manual retry, 
   globalThis.fetch = async (url, init) => url.endsWith('/delete') ? new Response('', { status: 503 }) : defaultFetch(url, init)
   assert.equal(await api.stopAndDeleteCollection(), false)
   assert.equal(api.readCollectionState().status, 'stopped')
+  assert.equal(api.readCollectionState().deletionPending, true)
   assert.equal(api.readCollectionState().permission.capability, token)
   assert.match(api.readCollectionState().message, /삭제를 확인하지 못/)
   assert.equal(await api.createDecisionSearchRun(input()), null)
   globalThis.fetch = defaultFetch
   assert.equal(await api.stopAndDeleteCollection(), true)
+})
+test('unconfirmed deletion survives reload and offers deletion retry, not a sharing restart', async () => {
+  await api.setCollectionPurposes(['service_improvement'])
+  globalThis.fetch = async (url, init) => url.endsWith('/delete') ? new Response('', { status: 503 }) : defaultFetch(url, init)
+  assert.equal(await api.stopAndDeleteCollection(), false)
+  const reloaded = await bundle(true)
+  await reloaded.loadCollectionPolicy()
+  assert.equal(reloaded.readCollectionState().deletionPending, true)
+  assert.equal(reloaded.isDecisionCollectionEnabled(), false)
+  const root = createRoot(document.getElementById('root'))
+  try {
+    await act(async () => root.render(createElement(reloaded.CollectionPreferences)))
+    const button = text => [...document.querySelectorAll('button')].find(x => x.textContent === text)
+    await act(async () => button('기록 공유 설정').click())
+    assert.ok(button('보낸 기록 삭제 다시 시도'))
+    assert.equal(button('선택한 용도로 공유 시작'), undefined)
+    const before = calls.filter(x => x.url.endsWith('/permissions')).length
+    globalThis.fetch = defaultFetch
+    await act(async () => button('보낸 기록 삭제 다시 시도').click())
+    assert.equal(reloaded.readCollectionState().permission, null)
+    assert.equal(calls.filter(x => x.url.endsWith('/permissions')).length, before, 'delete retry never registers new consent')
+  } finally { await act(async () => root.unmount()) }
 })
 test('storage refusal before signup emits zero registration; refusal after ack never starts collection', async () => {
   const storage = globalThis.sessionStorage

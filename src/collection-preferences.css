@@ -2,7 +2,9 @@
 .site-header:has(.collection-entry){height:auto}
 .site-header:has(.collection-entry) .site-header-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:0 12px;min-width:0}
 .site-header-actions:empty{display:none}
-.collection-settings{line-height:1.6}
+.collection-settings{line-height:1.6;text-align:left}
+.journey-dialog .collection-settings p{font-size:14px}
+.collection-settings strong{color:var(--cf-ink,#171c22)}
 .collection-settings fieldset{margin:20px 0;padding:0;border:0}
 .collection-settings legend{font-weight:700;margin-bottom:10px}
 .collection-settings legend span{font-weight:400;font-size:13px}

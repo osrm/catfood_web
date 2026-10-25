@@ -49,7 +49,7 @@ export default function CollectionPreferences() {
         {value.message ? <p role="status">{value.message}</p> : null}
         {change ? <p>용도를 바꾸면 이전에 보낸 탐색 기록을 삭제하고 이후 기록부터 새로 공유합니다. 이 탭의 메모와 남긴 후보는 유지됩니다.</p> : null}
         <div className="collection-actions">
-          {canStart ? <button type="button" className="primary-action" disabled={busy || !choices.length}
+          {canStart && (!active || change) ? <button type="button" className="primary-action" disabled={busy || !choices.length}
             onClick={() => { void setCollectionPurposes(choices) }}>{busy ? '처리 중…' : change ? '보낸 기록을 지우고 용도 변경' : active ? '이 용도로 계속 공유' : '선택한 용도로 공유 시작'}</button> : null}
           {value.permission ? <button type="button" className="secondary-action" disabled={value.status === 'deleting'} onClick={() => { void stopAndDeleteCollection() }}>{value.status === 'deleting' ? '삭제 확인 중…' : '공유 중지·보낸 기록 삭제'}</button>
             : <button type="button" className="secondary-action" disabled={busy} onClick={() => setOpen(false)}>공유하지 않고 닫기</button>}

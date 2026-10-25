@@ -1755,13 +1755,13 @@ export default function SwitchFlow({
       : visibleCandidates.length < searchedCandidates.length
         ? `${searchedCandidates.length}개 중 ${visibleCandidates.length}개 표시`
         : `${searchedCandidates.length}개의 제품`
-    const candidateSummaryText = candidateCountText
     const comparedNames = compareItems.map((item) => `${item.product.brand} · ${item.product.canonical_name}`)
     const sharedKeep = candidates[0]?.keepMatches.filter((label) => candidates.every((item) => item.keepMatches.includes(label))) ?? []
     const sharedChange = candidates[0]?.changeMatches.filter((label) => candidates.every((item) => item.changeMatches.includes(label))) ?? []
     const reviewedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length === 0)
     const unresolvedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length > 0)
     const browseUnknownCount = candidateBrowseActive ? searchedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)).length : 0
+    const candidateSummaryText = candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
     const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
     const browseConfirmedCandidates = visibleCandidates.filter((item) => !candidateBrowseUnknowns(item.product)?.length)
     const changeCandidateBrowse = (field: 'candidateFeedTypes' | 'candidateRecipeFamilies', value: string) => {
@@ -1835,14 +1835,12 @@ export default function SwitchFlow({
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
             {criteriaUndecided ? <section className="switch-candidate-refinement" aria-label="후보 목록 좁히기">
-              <div className="switch-browse-heading"><strong>어떤 후보부터 볼까요?</strong><button type="button" onClick={() => updateSession((current) => ({ ...current, candidateFeedTypes: [], candidateRecipeFamilies: [], visibleCandidateCount: 40 }))}>좁히기 해제</button></div>
               <fieldset><legend>사료 형태 {currentProduct.feed_type ? <small>지금은 {currentProduct.feed_type}</small> : null}</legend><ChoiceButtons options={FEED_TYPES} selected={candidateFeedTypes} onToggle={(value) => changeCandidateBrowse('candidateFeedTypes', value)} /></fieldset>
               <fieldset><legend>레시피 종류 {currentRecipeFamilies.length ? <small>지금은 {currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)).join(' · ')}</small> : null}</legend><ChoiceButtons options={RECIPE_FAMILIES} selected={candidateRecipeFamilies} onToggle={(value) => changeCandidateBrowse('candidateRecipeFamilies', value)} /></fieldset>
-              <p className="switch-browse-count" role="status">{candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : '고르지 않으면 모든 후보를 봅니다.'}</p>
-              <details><summary>레시피 종류는 원료 제외 조건과 달라요</summary><p>예를 들어 생선 레시피라도 닭이 함께 들어갈 수 있습니다. 피하려는 원료는 ‘조건 수정’에서 골라주세요. 선택한 표기를 확인할 자료가 없는 제품도 아래에 따로 남겨둡니다.</p></details>
+              <div className="switch-browse-footer"><details><summary>레시피 종류 안내</summary><p>생선 레시피라도 닭이 함께 들어갈 수 있습니다. 피하려는 원료는 ‘조건 수정’에서 골라주세요. 선택한 표기를 확인할 자료가 없는 제품도 아래에 따로 남겨둡니다.</p></details><button type="button" onClick={() => updateSession((current) => ({ ...current, candidateFeedTypes: [], candidateRecipeFamilies: [], visibleCandidateCount: 40 }))}>좁히기 해제</button></div>
             </section> : null}
             <div className="switch-candidate-heading">
-              <div><strong>후보 제품</strong><span>{candidateSummaryText}</span></div>
+              <div><strong>후보 제품</strong><span className="switch-browse-count" role="status">{candidateSummaryText}</span></div>
               <div className="switch-candidate-search">
                 <input
                   ref={candidateSearchInputRef}

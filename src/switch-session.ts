@@ -22,6 +22,7 @@ export type SwitchSessionState = {
   keepBrand: boolean
   ingredientAvoidTerms: string[]
   noChangeIntent: boolean
+  criteriaUndecided: boolean
   step: SwitchStep
   visibleCandidateCount: number
   selectedCandidateId: string | null
@@ -111,6 +112,7 @@ export function createInitialSwitchSession(query = '', restartId = ''): SwitchSe
     keepBrand: false,
     ingredientAvoidTerms: [],
     noChangeIntent: false,
+    criteriaUndecided: false,
     step: 'current',
     visibleCandidateCount: 40,
     selectedCandidateId: null,
@@ -138,6 +140,7 @@ export function switchSelectionKey(state: SwitchSessionState): string {
     keepBrand: state.keepBrand,
     ingredientAvoidTerms: [...state.ingredientAvoidTerms].sort(),
     noChangeIntent: state.noChangeIntent,
+    ...(state.criteriaUndecided ? { criteriaUndecided: true } : {}),
   })
 }
 
@@ -165,6 +168,7 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     keepBrand: Boolean(currentProductId && source.keepBrand === true),
     ingredientAvoidTerms: currentProductId ? uniqueStrings(source.ingredientAvoidTerms) : [],
     noChangeIntent: Boolean(currentProductId && source.noChangeIntent === true),
+    criteriaUndecided: Boolean(currentProductId && source.criteriaUndecided === true && source.noChangeIntent !== true),
     step,
     visibleCandidateCount,
     selectedCandidateId: currentProductId ? nullableString(source.selectedCandidateId) : null,

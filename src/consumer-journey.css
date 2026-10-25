@@ -105,6 +105,14 @@ body,.research-shell,.detail-stage,.compare-stage {background:var(--cf-bg);color
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item:has(> .switch-candidate-row:not(:has(> .switch-candidate-relations))) > .switch-candidate-compare {bottom:20px}
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-inspector {background:#fff;border-color:var(--cf-line);box-shadow:none}
 .switch-candidate-inspector .switch-inspector-decision .switch-candidate-relations {padding:12px 0;border-bottom:1px solid var(--cf-line);margin-bottom:12px}
+.switch-exploratory-actions {margin:20px 0}
+.switch-exploratory-actions>p {font-size:14px;line-height:1.7;margin:0 0 10px}
+.switch-exploratory-actions .switch-inspector-actions {margin-top:0}
+.switch-exploratory-actions .switch-compare-action {min-height:44px;font-size:14px;line-height:1.5;white-space:normal}
+.switch-exploratory-actions>.journey-inline-action {min-height:44px;font-size:14px;margin-top:8px;text-align:left}
+.switch-exploratory-actions>details {margin-top:8px;color:var(--cf-muted);font-size:13px;line-height:1.7}
+.switch-exploratory-actions>details>summary {min-height:44px;display:flex;align-items:center;cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+.switch-exploratory-actions>details>p {margin:0 0 12px}
 /* Show the selected facts before any optional detail tab. */
 .detail-selection-context {margin:0 0 24px;padding:0 0 20px;border-bottom:1px solid var(--cf-line);color:var(--cf-ink)}
 .detail-selection-baseline {font-size:13px;line-height:1.8;margin:0 0 15px;color:var(--cf-muted)}

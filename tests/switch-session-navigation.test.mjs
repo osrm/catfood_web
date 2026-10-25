@@ -825,6 +825,60 @@ test('restored actual SKU reports variant API failure and retries without becomi
 })
 
 
+test('candidate list explains common matches once without losing inspector facts or closing focus', async () => {
+  await renderApp()
+  await reachResultsWithConditions({ avoidIngredient: false })
+  const rows = all('.switch-candidate-row')
+  assert.equal(rows.length, 2)
+  for (const row of rows) {
+    assert.equal(row.querySelector('.is-keep'), null)
+    assert.equal(row.querySelector('.is-change'), null)
+    assert.equal(row.querySelector('.switch-candidate-ingredients'), null)
+  }
+  assert.match(document.querySelector('.switch-prototype-criteria').textContent, /습식/)
+  assert.match(document.querySelector('.switch-prototype-criteria').textContent, /실내묘/)
+  await selectCandidate(candidateA.canonical_name)
+  const inspector = document.querySelector('.switch-candidate-inspector')
+  assert.match(inspector.textContent, /유지할 점.*실내묘/s)
+  assert.match(inspector.textContent, /바꿀 점.*습식/s)
+  assert.doesNotMatch(inspector.textContent, /규격 수|동일 배합 확인 시장|확인된 유통 시장/)
+  assert.equal(all('.switch-inspector-decision dt').some(node => node.textContent === '미확인'), false)
+  assert.match(inspector.textContent, /제조국.*확인된 포장 기준/s)
+  await click(inspector.querySelector('.switch-preview-topline button'))
+  assert.equal(document.activeElement, rows[0])
+})
+
+test('candidate-specific matches and requested unknowns stay visible while empty unrequested facts disappear', async () => {
+  catalogProducts = [current, candidateA, { ...candidateB, official_targets: [], features: [] }, singleSku]
+  await renderApp()
+  await reachResultsWithConditions({ avoidIngredient: false })
+  const known = all('.switch-candidate-row').find(node => node.textContent.includes(candidateA.canonical_name))
+  const unknown = all('.switch-candidate-row').find(node => node.textContent.includes(candidateB.canonical_name))
+  assert.match(known.querySelector('.is-keep').textContent, /실내묘/)
+  assert.match(unknown.querySelector('.is-unknown').textContent, /실내묘/)
+  assert.equal(unknown.querySelector('.is-change'), null, 'shared wet-food match is still shown in the common criteria')
+  await selectCandidate(candidateB.canonical_name)
+  const inspector = document.querySelector('.switch-candidate-inspector')
+  assert.match(inspector.querySelector('.switch-inspector-decision').textContent, /미확인.*실내묘/s)
+  const info = [...inspector.querySelectorAll('.switch-inspector-section')].find(node => node.textContent.includes('제품 정보 요약'))
+  assert.doesNotMatch(info.textContent, /대상 표기|제품 특징|확인된 값 없음/)
+  assert.match(info.textContent, /레시피 표기/)
+})
+
+test('browsing without chosen criteria does not invent an empty condition comparison', async () => {
+  await renderApp()
+  await chooseCurrent()
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'variant option')
+  await click(variantButton('1 kg'))
+  await click(exactButton('다음 →'))
+  await click('특별히 바꾸고 싶은 점 없음')
+  await click('후보 제품 보기')
+  await selectCandidate(candidateA.canonical_name)
+  assert.equal(document.querySelector('.switch-inspector-decision'), null)
+  assert.match(document.querySelector('.switch-candidate-inspector').textContent, /제품 정보 요약/)
+  assert.deepEqual(session().ingredientAvoidTerms, [])
+})
+
 test('candidate inspector keeps full relationships and closing restores selected-row focus', async () => {
   await renderApp()
   await reachResultsWithConditions()

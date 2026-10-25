@@ -100,6 +100,9 @@ body,.research-shell,.detail-stage,.compare-stage {background:var(--cf-bg);color
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare {left:270px;right:auto;bottom:17px;width:auto;min-height:44px;padding:6px 0;border:0;border-radius:0;background:transparent;color:var(--cf-accent)}
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare.is-added {background:transparent;color:var(--cf-accent)}
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-compare:disabled {background:transparent;color:#777}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:not(:has(> .switch-candidate-relations)) {padding-top:20px;padding-bottom:20px}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:not(:has(> .switch-candidate-relations)) .switch-candidate-open {position:static;grid-column:2;grid-row:2;justify-self:start;align-self:end}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item:has(> .switch-candidate-row:not(:has(> .switch-candidate-relations))) > .switch-candidate-compare {bottom:20px}
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-inspector {background:#fff;border-color:var(--cf-line);box-shadow:none}
 .switch-candidate-inspector .switch-inspector-decision .switch-candidate-relations {padding:12px 0;border-bottom:1px solid var(--cf-line);margin-bottom:12px}
 /* Show the selected facts before any optional detail tab. */

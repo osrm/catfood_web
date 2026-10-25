@@ -153,7 +153,7 @@ export async function setCollectionPurposes(next: CollectionPurpose[]): Promise<
     && timestamp(result.accept_until) && timestamp(result.raw_until) && Date.parse(result.accept_until) > Date.now()
     && Date.parse(result.raw_until) >= Date.parse(result.accept_until)) {
     const complete: CollectionState = { ...state, permission: { ...p, permissionId: result.permission_id, sessionId: result.session_id, acceptUntil: result.accept_until, rawUntil: result.raw_until },
-      status: 'active', message: '선택한 목적에만 이후 탐색 기록을 보냅니다.' }
+      status: 'active', message: '' }
     if (!persist(complete)) {
       update({ permission: complete.permission, status: 'stopped', message: '설정을 보관하지 못해 전송을 중지했습니다. 이 창에서 보낸 기록 삭제를 다시 시도할 수 있습니다.' }, true)
       return false

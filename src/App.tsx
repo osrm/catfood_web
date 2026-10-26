@@ -70,6 +70,7 @@ const TARGET_LABELS = Object.fromEntries(TARGETS)
 const FEATURE_LABELS = Object.fromEntries(FEATURES)
 const RECIPE_FAMILY_LABELS = Object.fromEntries(RECIPE_FAMILIES)
 const RECIPE_DETAIL_LABELS: Record<string, string> = {
+  carp: '잉어', crab: '게', duck_liver: '오리 간', pollock: '폴락', rockfish: '볼락류', sole: '가자미류(Sole)', squid: '오징어',
   eel: '장어', possum: '주머니쥐', veal: '송아지', beef_heart: '소 심장', lamb_heart: '양 심장', scallop: '가리비',
   chicken: '닭', duck: '오리', turkey: '칠면조', beef: '소', lamb: '양', rabbit: '토끼', salmon: '연어',
   tuna: '참치', herring: '청어', mackerel: '고등어', trout: '송어', cod: '대구', pork: '돼지', venison: '사슴',

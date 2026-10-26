@@ -234,14 +234,23 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
     </CompareDisclosure>
   </div>
 }
-function IngredientPairSummary({ products }: { products: CatalogProduct[] }) {
-  if (!products.some((product) => product.direct_evidence_ingredient_terms?.length || product.flavor_associated_ingredient_terms?.length)) return null
-  return <section className="compare-ingredient-pair-summary" aria-label="두 제품 원료 요약">
+function IngredientPairSummary({ products, currentProductId, currentVariantText, onDetail, onRemove, source }: {
+  products: CatalogProduct[]
+  currentProductId?: string
+  currentVariantText?: string
+  onDetail: (productId: string) => void
+  onRemove: (productId: string) => void
+  source: (product: CatalogProduct) => ReactNode
+}) {
+  return <section className="compare-ingredient-pair-summary" aria-label="두 제품 원재료 비교">
     <div className="compare-ingredient-pair">
       {products.map((product) => <div key={product.product_id}>
-        <small>{product.brand}</small><strong>{product.canonical_name}</strong>
-        {product.direct_evidence_ingredient_terms?.length ? <p>{labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)}</p> : null}
-        {product.flavor_associated_ingredient_terms?.length ? <p><small>향미 관련</small>{labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)}</p> : null}
+        <MobileProductHead role={product.product_id === currentProductId ? '현재 사료 · 기준' : currentProductId ? '후보' : '비교 제품'} product={product} variantText={product.product_id === currentProductId ? currentVariantText : undefined} onDetail={() => onDetail(product.product_id)} onRemove={product.product_id === currentProductId ? undefined : () => onRemove(product.product_id)} />
+        <div className="compare-ingredient-summary-values">
+          {product.direct_evidence_ingredient_terms?.length ? <p>{labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)}</p> : null}
+          {product.flavor_associated_ingredient_terms?.length ? <p><small>향미 관련</small>{labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)}</p> : null}
+        </div>
+        {source(product)}
       </div>)}
     </div>
   </section>
@@ -1149,7 +1158,16 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
 
     {tab === 'ingredients' ? <div className="compare-ingredient-mobile-summary">
       {currentProduct ? renderMobileCandidatePicker() : renderMobileGeneralPairPicker()}
-      <IngredientPairSummary products={currentProduct && mobileCandidate ? [currentProduct, mobileCandidate.product] : mobilePairItems.map((item) => item.product)} />
+      <IngredientPairSummary products={currentProduct && mobileCandidate ? [currentProduct, mobileCandidate.product] : mobilePairItems.map((item) => item.product)} currentProductId={currentProduct?.product_id} currentVariantText={currentVariantText} onDetail={openDetail} onRemove={removeComparedProduct} source={(product) => {
+        const isCurrent = product.product_id === currentProduct?.product_id
+        const loading = isCurrent ? currentIngredientsLoading : ingredientsLoading
+        const error = isCurrent ? currentIngredientsError : activeIngredientsError
+        const row = isCurrent ? currentIngredients ?? undefined : ingredientsByProduct.get(product.product_id)
+        return loading ? <p role="status">원재료를 불러오는 중입니다.</p> : error ? <p role="alert">원재료를 불러오지 못했습니다.</p> : <>
+          <IngredientSourceDisclosure row={row} />
+          {row ? <details className="compare-ingredient-context"><summary>자료 보기</summary>{ingredientDetailContext(row, isCurrent ? currentVariants : variantsByProduct[product.product_id], isCurrent ? currentVariantLookupFailed : variantLookupFailures.includes(product.product_id), isCurrent ? currentVariantsLoading : variantsLoading)}</details> : null}
+        </>
+      }} />
     </div> : null}
     <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition || switchNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
       {tab === 'nutrition' ? <>
@@ -1264,7 +1282,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         </div>
       </> : currentProduct && tab === 'ingredients' ? <>
         {currentIngredientsError && currentIngredientsFailed.current === currentProduct.product_id ? <div className="compare-state is-error" role="alert"><p>{currentIngredientsError} 후보 자료는 그대로 표시합니다.</p><button type="button" onClick={() => { currentIngredientsFailed.current = null; setCurrentIngredientsError(null); setCurrentIngredientsReload((value) => value + 1) }}>현재 사료 다시 시도</button></div> : null}
-        <div className="compare-table" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
+        <div className="compare-table compare-ingredient-wide" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row"><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
           <CompareSection title="원재료" note="원문을 확인하며 현재 사료와 같은 점·다른 점을 살펴보세요." />
           <SwitchOverviewRow label="목록 상태" currentProduct={currentProduct} items={items}
@@ -1279,7 +1297,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         {items.length > 2 && tab !== 'ingredients' ? renderMobileGeneralPairPicker() : null}
         {twoProductOverview ? <MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
         {twoProductNutrition ? <MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} showEnergyGraph={showEnergyGraph} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
-        <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
+        <div className={`compare-table${tab === 'ingredients' ? ' compare-ingredient-wide' : ''}${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
         <div className="compare-head-row"><div className="compare-corner">비교 항목</div>{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel={currentProduct ? '후보' : undefined} onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
         {tab === 'overview' ? <>
           {items.some(hasRelationData) ? <>

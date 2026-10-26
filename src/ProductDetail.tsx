@@ -49,6 +49,7 @@ const LIFE_STAGE_LABELS: Record<string, string> = { kitten: '키튼', adult: '�
 const TARGET_LABELS: Record<string, string> = { indoor: '실내묘', sterilized: '중성화묘' }
 const FEATURE_LABELS: Record<string, string> = { weight_management: '체중 관리', stool: '변 상태', hairball: '헤어볼', digestive: '소화', urinary: '요로', skin_coat: '피부·피모', dental: '덴탈' }
 const RECIPE_LABELS: Record<string, string> = {
+  eel: '장어', possum: '주머니쥐', veal: '송아지', beef_heart: '소 심장', lamb_heart: '양 심장', scallop: '가리비',
   poultry: '가금류', poultry_unspecified: '가금류(종류 미상)', meat: '육류', fish: '생선', chicken: '닭',
   duck: '오리', turkey: '칠면조', goose: '거위', quail: '메추리', beef: '소', lamb: '양', goat: '염소',
   boar: '멧돼지', rabbit: '토끼', salmon: '연어', tuna: '참치', herring: '청어', mackerel: '고등어',

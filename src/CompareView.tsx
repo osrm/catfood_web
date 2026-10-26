@@ -758,7 +758,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     update(); query.addEventListener?.('change', update)
     return () => query.removeEventListener?.('change', update)
   }, [])
-  const displayedIds = mobileViewport && tab !== 'ingredients'
+  const displayedIds = mobileViewport
     ? currentProduct ? [mobileCandidate?.product.product_id].filter((id): id is string => Boolean(id)) : mobilePairItems.map((item) => item.product.product_id)
     : items.map((item) => item.product.product_id)
   const displayedKey = displayedIds.join('|')
@@ -770,7 +770,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     pendingSwitchRemovalFocusRef.current = null
     if (document.activeElement !== pending.trigger && document.activeElement !== document.body) return
     const mobile = window.matchMedia?.('(max-width: 760px)').matches ?? true
-    const target = mobile && (tab === 'overview' || tab === 'nutrition') && items.length > 1
+    const target = mobile && items.length > 1
       ? mobileCandidateToggleRef.current
       : tabRefs.current[TABS.findIndex(([key]) => key === tab)]
     target?.focus({ preventScroll: true })
@@ -814,13 +814,13 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
       return
     }
     const panel = document.querySelector<HTMLElement>('.compare-table-wrap')
-    const useMobilePairSelect = (window.matchMedia?.('(max-width: 760px)').matches ?? true)
+    const mobile = window.matchMedia?.('(max-width: 760px)').matches ?? true
+    const useMobilePairSelect = mobile
       && pending.slot != null
       && pending.remainingCount > 2
-      && (tab === 'overview' || tab === 'nutrition')
     const target = useMobilePairSelect && pending.slot != null
       ? mobilePairSelectRefs.current[pending.slot] ?? panel
-      : panel
+      : mobile && tab === 'ingredients' ? tabRefs.current[TABS.findIndex(([key]) => key === tab)] : panel
     target?.focus({ preventScroll: true })
     pendingRemovalFocusRef.current = null
   }, [currentProduct, productIds.join('|'), mobilePairProductIds.join('|'), tab])

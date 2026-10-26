@@ -332,9 +332,13 @@ test('SWITCH overview keeps globally non-empty rows visible even when the select
 })
 
 test('ingredient pair summary follows the selected candidate and retains the fixed current food', async () => {
+  const previousMedia = window.matchMedia
+  window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} })
+  const displayed = []
   const first = { product: { ...candidateA, direct_evidence_ingredient_terms: ['salmon'] } }
   const second = { product: { ...candidateB, direct_evidence_ingredient_terms: ['tuna'] } }
-  await renderCompare({ initialTab: 'ingredients', currentProduct: { ...current, direct_evidence_ingredient_terms: ['chicken'] }, items: [first, second] })
+  await renderCompare({ initialTab: 'ingredients', currentProduct: { ...current, direct_evidence_ingredient_terms: ['chicken'] }, items: [first, second], onDisplayedCandidates: ids => displayed.push(ids) })
+  assert.deepEqual(displayed.at(-1), [candidateA.product_id], 'only the displayed candidate is observed')
   let summary = document.querySelector('.compare-ingredient-pair-summary')
   assert.match(summary.textContent, /현재브랜드현재 사료 이름 전체/)
   assert.deepEqual([...summary.querySelectorAll('.compare-ingredient-summary-values')].map(node => node.textContent), ['닭', '연어'])
@@ -348,6 +352,8 @@ test('ingredient pair summary follows the selected candidate and retains the fix
   assert.match(summary.textContent, /두 번째 후보 제품 이름이 조금 더 깁니다/)
   assert.deepEqual([...summary.querySelectorAll('.compare-ingredient-summary-values')].map(node => node.textContent), ['닭', '참치'])
   assert.doesNotMatch(summary.textContent, /첫 번째 후보 제품|연어|확인된 값 없음/)
+  assert.deepEqual(displayed.at(-1), [candidateB.product_id])
+  window.matchMedia = previousMedia
 })
 
 

@@ -1,0 +1,37 @@
+name: One-off zero-result dock evidence recapture
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/switch-candidate-search-review.yml'
+      - 'qa/switch-candidate-search-review.mjs'
+permissions:
+  contents: read
+jobs:
+  evidence-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/zero-dock-evidence
+          cp qa/switch-candidate-search-review.mjs /tmp/zero-dock-evidence/
+          cd /tmp/zero-dock-evidence
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Capture stable zero-result compare dock
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/zero-dock-evidence-output" node /tmp/zero-dock-evidence/switch-candidate-search-review.mjs
+          cp /tmp/zero-dock-evidence/switch-candidate-search-review.mjs "$GITHUB_WORKSPACE/zero-dock-evidence-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zero-result-dock-evidence
+          path: zero-dock-evidence-output
+          retention-days: 7

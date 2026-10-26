@@ -110,6 +110,7 @@ body,.research-shell,.detail-stage,.compare-stage {background:var(--cf-bg);color
 .switch-exploratory-actions .switch-inspector-actions {margin-top:0}
 .switch-exploratory-actions .switch-compare-action {min-height:44px;font-size:14px;line-height:1.5;white-space:normal}
 .switch-exploratory-actions>.journey-inline-action {min-height:44px;font-size:14px;margin-top:8px;text-align:left}
+.switch-exploratory-actions>.journey-inline-action+.journey-inline-action {margin-left:16px}
 .switch-exploratory-actions>details {margin-top:8px;color:var(--cf-muted);font-size:13px;line-height:1.7}
 .switch-exploratory-actions>details>summary {min-height:44px;display:flex;align-items:center;cursor:pointer;text-decoration:underline;text-underline-offset:4px}
 .switch-exploratory-actions>details>p {margin:0 0 12px}

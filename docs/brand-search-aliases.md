@@ -6,6 +6,8 @@ Purina/퓨리나 is a parent search across the existing 퓨리나, Purina Cat Ch
 
 ## Accepted search labels
 
+Existing contiguous substring, spacing and standalone and/& matching still run first. Whitespace-separated input can use a complete recognized brand label at the start or end plus partial product words; all remaining words must match the same canonical product name. For example, `로얄캐닌 에이징` and `Royal Canin 에이징 15` can skip the intervening `캣`. Product-only words also match within one canonical name. A brand's letters cannot satisfy a missing product term, and terms from different products or alternate brand labels are not combined. No new fuzzy spelling, translated product name, alias or ranking is inferred. Catalog input order is preserved.
+
 | Catalog brand | Search labels |
 |---|---|
 | 내추럴발란스 | natural balance |

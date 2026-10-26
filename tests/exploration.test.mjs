@@ -518,6 +518,24 @@ test('lookup search ignores spacing, preserves and/& behavior, and supports conf
   )
 })
 
+test('brand and separated product words match one identity without borrowing missing name terms from its brand', () => {
+  const fixture = catalog(5)
+  Object.assign(fixture[0],{brand:'로얄캐닌',canonical_name:'캣 에이징 15+'})
+  Object.assign(fixture[1],{brand:'로얄캐닌',canonical_name:'캣 에이징 11+'})
+  Object.assign(fixture[2],{brand:'AATU',canonical_name:'캣 에이징 15+'})
+  Object.assign(fixture[3],{brand:'로얄캐닌',canonical_name:'Recipe B'})
+  Object.assign(fixture[4],{brand:'Other',canonical_name:'Recipe A'})
+  const ids=q=>app.lookupCatalog(fixture,q).map(p=>p.product_id)
+  for(const q of ['로얄캐닌 에이징','Royal Canin 에이징','ROYAL CANIN  에이징','에이징 로얄캐닌'])assert.deepEqual(ids(q),fixture.slice(0,2).map(p=>p.product_id),q)
+  assert.deepEqual(ids('로얄캐닌 에이징 15'),[fixture[0].product_id])
+  assert.deepEqual(ids('에이징 15'),[fixture[0].product_id,fixture[2].product_id])
+  assert.deepEqual(ids('royal canin Recipe A'),[],'the a in canin is not product-name A')
+  assert.deepEqual(ids('로얄캐닌 AATU'),[],'separate products do not satisfy each other')
+  assert.deepEqual(ids('royel canin 에이징'),[],'no new fuzzy spelling')
+  assert.deepEqual(ids('에이징로얄캐닌'),[],'unseparated reversed fragments are not guessed')
+  assert.equal(fixture[0].brand,'로얄캐닌')
+})
+
 test('EXPLORE direct list compare records compare_add without opening quick view or creating a new search run', async () => {
   await explore()
   const direct = rows('.research-result-compare')[0]

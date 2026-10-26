@@ -4,6 +4,7 @@ import type { DecisionCriterion, ExplicitDecisionInput, ExplicitDecisionKind } f
 export type JourneyIdentity = { productId: string; brand: string; name: string }
 export type JourneyContext = {
   criteriaUndecided?: boolean
+  candidateRefined?: boolean
   selectionKey: string
   current: JourneyIdentity
   variantId: string | null
@@ -40,6 +41,7 @@ export function readJourneyRecords(): JourneyRecords {
     const roles = new Set(['hard_constraint', 'desired', 'desired_change', 'keep', 'ingredient_avoid', 'evidence_required'])
     const validContext = (context: JourneyContext) => context && text(context.selectionKey, 12000)
       && (context.criteriaUndecided === undefined || typeof context.criteriaUndecided === 'boolean')
+      && (context.candidateRefined === undefined || typeof context.candidateRefined === 'boolean')
       && identity(context.current) && (context.variantId === null || text(context.variantId, 100)) && text(context.variantLabel)
       && Array.isArray(context.labels) && context.labels.length <= 64 && context.labels.every((item) => text(item))
       && Array.isArray(context.criteria) && context.criteria.length <= 64 && context.criteria.every((item) => item && axes.has(item.axis)

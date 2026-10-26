@@ -714,7 +714,8 @@ export default function SwitchFlow({
   const [ingredientSearch, setIngredientSearch] = useState('')
   const candidateSearch = activeSession.candidateQuery
   const { candidateFeedTypes, candidateRecipeFamilies } = activeSession
-  const candidateBrowseActive = criteriaUndecided && (candidateFeedTypes.length > 0 || candidateRecipeFamilies.length > 0)
+  const canBrowseCandidates = criteriaUndecided || noChangeIntent
+  const candidateBrowseActive = canBrowseCandidates && (candidateFeedTypes.length > 0 || candidateRecipeFamilies.length > 0)
   const setCandidateSearch = (value: string) => setSessionField('candidateQuery', value)
   const [changeAdditionalOpen, setChangeAdditionalOpen] = useState(() => step === 'change' && additionalChangeLabels(change, ingredientAvoidTerms).length > 0)
   const previousChangeDisclosureStep = useRef(step)
@@ -1055,9 +1056,16 @@ export default function SwitchFlow({
     candidateSearchInputRef.current?.focus({ preventScroll: true })
   }
 
+  function runSelectionKey(state: SwitchSessionState) {
+    return JSON.stringify([switchSelectionKey(state), [...state.candidateFeedTypes].sort(), [...state.candidateRecipeFamilies].sort()])
+  }
+  function journeySelectionKey() {
+    const key = activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession)
+    return candidateBrowseActive ? JSON.stringify([key, [...candidateFeedTypes].sort(), [...candidateRecipeFamilies].sort()]) : key
+  }
   function beginSwitchRun(runOrigin: 'submitted' | 'restored' = 'submitted', selectionState = activeSession) {
     if (!currentProduct) return
-    const selection = switchSelectionKey(selectionState)
+    const selection = runSelectionKey(selectionState)
     if (switchRunSelection.current !== selection) {
       switchRunSelection.current = selection
       switchRunGeneration.current += 1
@@ -1065,9 +1073,8 @@ export default function SwitchFlow({
       switchRunId.current = null
       considerationPromises.current.clear()
     }
-    // The current intake contract has no undecided-criteria meaning. Keep this
-    // exploration local rather than turning it into an empty preference record.
-    if (selectionState.criteriaUndecided) return
+    // The intake contract cannot express undecided intent or list refinement.
+    if (selectionState.criteriaUndecided || selectionState.candidateFeedTypes.length || selectionState.candidateRecipeFamilies.length) return
     const generation = switchRunGeneration.current
     const previous = switchRunTail.current
     const next = previous.then((previousRunId) => {
@@ -1099,9 +1106,10 @@ export default function SwitchFlow({
   }
 
   useEffect(() => {
-    if (step !== 'results' || !currentProduct || loading || error || ingredientFactsPending || switchRunId.current) return
+    if (step !== 'results' || !currentProduct || loading || error || ingredientFactsPending) return
+    if (switchRunId.current && switchRunSelection.current === runSelectionKey(activeSession)) return
     beginSwitchRun('restored')
-  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, loading, error, ingredientFactsPending])
+  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, candidateFeedTypes, candidateRecipeFamilies, loading, error, ingredientFactsPending])
 
   function openCandidate(productId: string) {
     setSelectedCandidateId(productId)
@@ -1122,6 +1130,7 @@ export default function SwitchFlow({
     return { kind: candidateSearchActive ? 'named_search' as const : 'load_more' as const, presentedProductIds: batch }
   }
   function recordSwitchConsideration(productId: string, signal: ConsiderationSignal, displayedProductIds?: string[]) {
+    if (criteriaUndecided || candidateBrowseActive) return Promise.resolve(false)
     const generation = switchRunGeneration.current
     const context = { ...considerationContext(productId), displayedProductIds }
     const request = switchRunTail.current.then((searchRunId) => {
@@ -1139,7 +1148,7 @@ export default function SwitchFlow({
     if (criteriaUndecided) labels.push('바꿀 조건은 후보를 보며 정하기')
     if (candidateBrowseActive) labels.push(`목록 좁히기 · ${[...candidateFeedTypes, ...candidateRecipeFamilies.map((value) => `${optionLabel(value, RECIPE_FAMILY_LABELS)} 레시피`)].join(' · ')}`)
     labels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
-    return { ...(criteriaUndecided ? { criteriaUndecided: true } : {}), selectionKey: activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession),
+    return { ...(criteriaUndecided ? { criteriaUndecided: true } : {}), ...(candidateBrowseActive ? { candidateRefined: true } : {}), selectionKey: journeySelectionKey(),
       current: { productId: currentProduct.product_id, brand: currentProduct.brand, name: currentProduct.canonical_name },
       variantId: currentVariantId, variantLabel: currentVariantText, labels,
       criteria: switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }) }
@@ -1147,7 +1156,7 @@ export default function SwitchFlow({
   function queueJourneyDecision(id: string, kind: ExplicitDecisionKind | null, productId: string | null, resolveRun: () => Promise<string | null>) {
     if (!isDecisionCollectionEnabled()) return
     const local = journeyRef.current.retained.find((row) => row.id === id) ?? (journeyRef.current.outcome?.id === id ? journeyRef.current.outcome : null)
-    if (local?.context.criteriaUndecided) return
+    if (local?.context.criteriaUndecided || local?.context.candidateRefined) return
     const initial = { ack: local?.searchRunId && local.intakeRevision ? { runId: local.searchRunId, revision: local.intakeRevision } : null,
       pending: local?.pendingIntake ?? { pending: null, following: [] } }
     const previous = decisionOperations.current.get(id) ?? Promise.resolve(initial)
@@ -1230,7 +1239,7 @@ export default function SwitchFlow({
 
   function renderJourneyRecords() {
     return <>{retainNotice ? <p role="status">{retainNotice}</p> : null}<JourneyRecordsPanel records={journey}
-      selectionKey={activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession)} storageAvailable={journeyStorageAvailable}
+      selectionKey={journeySelectionKey()} storageAvailable={journeyStorageAvailable}
       onNote={(id, note) => updateJourney((value) => ({ ...value, retained: value.retained.map((row) => row.id === id ? { ...row, note } : row) }))}
       onRemove={removeRetained} onOutcome={setJourneyOutcome} /></>
   }
@@ -1238,11 +1247,11 @@ export default function SwitchFlow({
     if (step !== 'results') return
     const context = journeyContext()
     if (context) updateJourney((value) => ({ ...value, context }))
-  }, [step, activeSession.appliedCriteriaKey, currentVariantText])
+  }, [step, activeSession.appliedCriteriaKey, currentVariantText, candidateFeedTypes, candidateRecipeFamilies])
 
   function renderRetainAction(product: CatalogProduct) {
     const evaluation = candidates.find((item) => item.product.product_id === product.product_id)
-    const retained = journey.retained.some((row) => row.active && row.candidate.productId === product.product_id && row.context.selectionKey === activeSession.appliedCriteriaKey)
+    const retained = journey.retained.some((row) => row.active && row.candidate.productId === product.product_id && row.context.selectionKey === journeySelectionKey())
     const full = journey.retained.filter((row) => row.active).length >= 5
     return <div className="journey-retain"><strong>{product.brand} · {product.canonical_name}</strong>
       {currentProduct ? <p>지금 사료: {currentProduct.brand} · {currentProduct.canonical_name} · {currentVariantText}</p> : null}
@@ -1692,6 +1701,9 @@ export default function SwitchFlow({
   function applySwitchCriteria() {
     const selectionState = { ...activeSession, criteriaUndecided: !hasChange && !noChangeIntent }
     const selectionKey = switchSelectionKey(selectionState)
+    const preserveBrowse = (selectionState.criteriaUndecided || selectionState.noChangeIntent) && activeSession.appliedCriteriaKey === selectionKey
+    selectionState.candidateFeedTypes = preserveBrowse ? candidateFeedTypes : []
+    selectionState.candidateRecipeFamilies = preserveBrowse ? candidateRecipeFamilies : []
                 requestExplicitScroll('results')
                 beginSwitchRun('submitted', selectionState)
                 updateSession((current) => ({
@@ -1701,8 +1713,8 @@ export default function SwitchFlow({
                   visibleCandidateCount: 40,
                   compareIds: current.appliedCriteriaKey === selectionKey ? current.compareIds : [],
                   candidateQuery: current.appliedCriteriaKey === selectionKey ? current.candidateQuery : '',
-                  candidateFeedTypes: selectionState.criteriaUndecided && current.appliedCriteriaKey === selectionKey ? current.candidateFeedTypes : [],
-                  candidateRecipeFamilies: selectionState.criteriaUndecided && current.appliedCriteriaKey === selectionKey ? current.candidateRecipeFamilies : [],
+                  candidateFeedTypes: selectionState.candidateFeedTypes,
+                  candidateRecipeFamilies: selectionState.candidateRecipeFamilies,
                   appliedCriteriaKey: selectionKey,
                   compareOpen: false,
                   compareTab: 'overview',
@@ -1834,7 +1846,7 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            {criteriaUndecided ? <section className="switch-candidate-refinement" aria-label="후보 목록 좁히기">
+            {canBrowseCandidates ? <section className="switch-candidate-refinement" aria-label="후보 목록 좁히기">
               <fieldset><legend>사료 형태 {currentProduct.feed_type ? <small>지금은 {currentProduct.feed_type}</small> : null}</legend><ChoiceButtons options={FEED_TYPES} selected={candidateFeedTypes} onToggle={(value) => changeCandidateBrowse('candidateFeedTypes', value)} /></fieldset>
               <fieldset><legend>레시피 종류 {currentRecipeFamilies.length ? <small>지금은 {currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)).join(' · ')}</small> : null}</legend><ChoiceButtons options={RECIPE_FAMILIES} selected={candidateRecipeFamilies} onToggle={(value) => changeCandidateBrowse('candidateRecipeFamilies', value)} /></fieldset>
               <div className="switch-browse-footer"><details><summary>레시피 종류 안내</summary><p>생선 레시피라도 닭이 함께 들어갈 수 있습니다. 피하려는 원료는 ‘조건 수정’에서 골라주세요. 선택한 표기를 확인할 자료가 없는 제품도 아래에 따로 남겨둡니다.</p></details><button type="button" onClick={() => updateSession((current) => ({ ...current, candidateFeedTypes: [], candidateRecipeFamilies: [], visibleCandidateCount: 40 }))}>좁히기 해제</button></div>
@@ -1892,7 +1904,7 @@ export default function SwitchFlow({
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div>
                 </section>
 
-                {criteriaUndecided ? <section className="switch-exploratory-actions" aria-label="현재 사료와 비교할 정보 선택">
+                {canBrowseCandidates ? <section className="switch-exploratory-actions" aria-label="현재 사료와 비교할 정보 선택">
                   <p>지금 사료와 무엇을 비교해 볼까요?</p>
                   <div className="quick-view-actions switch-inspector-actions">
                     <button className="switch-compare-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => compareCandidateFacts(selectedCandidate.product.product_id)}>열량·영양 비교 →</button>
@@ -1900,6 +1912,7 @@ export default function SwitchFlow({
                   </div>
                   {compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id) ? <p className="switch-option-empty">비교에 담은 후보를 먼저 정리해 주세요.</p> : null}
                   <button className="journey-inline-action" type="button" onClick={() => openSwitchDetail(selectedCandidate.product.product_id)}>제품 상세 보기 →</button>
+                  {noChangeIntent ? <button className="journey-inline-action" type="button" aria-pressed={compareIds.includes(selectedCandidate.product.product_id)} disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => toggleCompare(selectedCandidate.product.product_id)}>{compareIds.includes(selectedCandidate.product.product_id) ? '비교에서 제거' : '비교에 추가'}</button> : null}
                   <details><summary>가격이나 잘 먹는지가 고민이라면</summary><p>가격과 실제 먹는 반응은 현재 자료로 비교할 수 없습니다. 여기서는 원재료와 표시된 영양 정보의 차이를 살펴볼 수 있습니다.</p></details>
                 </section> : <div className="quick-view-actions switch-inspector-actions">
                   <button

@@ -1,4 +1,5 @@
 import './switch-consumer-flow.css'
+import IngredientComposition from './IngredientComposition'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import SiteHeader from './SiteHeader'
 import { JourneyMemo, JourneyRecordsPanel, JourneyDialog, JourneyCopy } from './JourneyReview'
@@ -1969,6 +1970,7 @@ export default function SwitchFlow({
                     {selectedCandidate.product.official_targets.length ? <div><dt>대상 표기</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div> : null}
                     {selectedCandidate.product.features.length ? <div><dt>제품 특징</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div> : null}
                     {selectedCandidate.product.recipe_details.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div> : selectedCandidate.product.recipe_families.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div> : null}
+                    {!selectedCandidate.product.recipe_details.length ? <div><dt>원료 구성</dt><dd><IngredientComposition productId={selectedCandidate.product.product_id} /></dd></div> : null}
                     <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div>
                   </dl>
                 </section>

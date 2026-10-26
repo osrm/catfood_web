@@ -515,7 +515,7 @@ function productFilter(url) {
   return ids ? `in.(${JSON.parse(`[${ids.slice(1, -1)}]`).join(',')})` : url.searchParams.get('product_id')
 }
 
-test('SWITCH ingredients keeps five candidate reads plus one separate current read and isolates failure/retry', async () => {
+test('SWITCH unknown recipes read a five-product composition batch plus current separately and reuse them on ingredients', async () => {
   const five = Array.from({ length: 5 }, (_, i) => ({ product: product(`product_candidate_${i}`, '후보', `다섯 후보 ${i}`) }))
   let failCurrent = true
   globalThis.fetch = window.fetch = async (input) => {
@@ -528,7 +528,7 @@ test('SWITCH ingredients keeps five candidate reads plus one separate current re
     return Response.json([])
   }
   await renderCompare({ items: five })
-  assert.equal(requests.length, 0)
+  assert.equal(requests.length, 2, 'overview reads only the displayed source groups, without nutrition or variant prefetch')
   await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '원재료'))
   const reads = requests.filter((url) => url.pathname.endsWith('/compare_product_ingredients_scoped'))
   assert.equal(reads.length, 2)

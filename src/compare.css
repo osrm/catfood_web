@@ -1592,6 +1592,10 @@
   .compare-ingredient-pair .compare-ingredient-text { font-size: 13px; line-height: 1.65; }
   .compare-ingredient-pair .compare-disclosure { margin-top: 12px; }
   .compare-ingredient-pair .compare-mobile-product-head { height: auto; }
+  .compare-ingredient-pair .compare-mobile-product-head > span { font-size: 11px; }
+  .compare-ingredient-pair .compare-mobile-product-head > strong { font-size: 15px; }
+  .compare-ingredient-pair .compare-mobile-product-head > small { font-size: 11.5px; }
+  .compare-ingredient-pair .compare-mobile-product-brand { font-size: 12px; }
   .compare-ingredient-context { margin-top: 12px; font-size: 12px; line-height: 1.6; }
   .compare-ingredient-pair summary { min-height: 44px; display: flex; align-items: center; }
   .compare-ingredient-pair .compare-mobile-head-actions button { min-height: 44px; min-width: 44px; }

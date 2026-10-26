@@ -293,7 +293,7 @@ test('SWITCH nutrition adds the fixed current baseline while non-SWITCH comparis
 })
 
 
-test('SWITCH overview collapses target and feature rows only when current food and every candidate are empty', async () => {
+test('SWITCH overview omits target and feature rows when current food and every candidate are empty', async () => {
   const emptyCurrent = product('product_current_empty', '현재브랜드', '빈 현재 사료')
   const emptyItems = [
     { product: product('product_empty_a', '후보A', '빈 후보 A') },
@@ -303,14 +303,9 @@ test('SWITCH overview collapses target and feature rows only when current food a
 
   const desktopDisclosure = document.querySelector('.compare-switch-overview-desktop > .compare-overview-extra')
   const mobileDisclosure = document.querySelector('.compare-switch-mobile-overview > .compare-overview-extra')
-  assert.ok(desktopDisclosure)
-  assert.ok(mobileDisclosure)
-  assert.equal(desktopDisclosure.open, false)
-  assert.equal(mobileDisclosure.open, false)
-  assert.equal(desktopDisclosure.querySelector('summary').textContent.trim(), '추가 정보 보기')
-  assert.match(desktopDisclosure.textContent, /제품 표기 대상/)
-  assert.match(desktopDisclosure.textContent, /제품 특징/)
-  assert.match(desktopDisclosure.textContent, /확인된 값 없음/)
+  assert.equal(desktopDisclosure, null)
+  assert.equal(mobileDisclosure, null)
+  assert.doesNotMatch(document.body.textContent, /확인된 값 없음/)
   const visibleDesktopLabels = [...document.querySelectorAll('.compare-switch-overview-desktop > .compare-switch-overview-row > .compare-row-label')].map((node) => node.textContent.trim())
   assert.equal(visibleDesktopLabels.includes('제품 표기 대상'), false)
   assert.equal(visibleDesktopLabels.includes('제품 특징'), false)
@@ -333,7 +328,24 @@ test('SWITCH overview keeps globally non-empty rows visible even when the select
   assert.ok(mobileLabels.includes('제품 특징'))
   const targetMobileRow = [...document.querySelectorAll('.compare-switch-mobile-overview > .compare-mobile-overview-row')].find((row) => row.querySelector('.compare-mobile-row-label')?.textContent.trim() === '제품 표기 대상')
   assert.match(targetMobileRow.textContent, /실내묘/)
-  assert.match(targetMobileRow.textContent, /확인된 값 없음/)
+  assert.match(targetMobileRow.textContent, /후보—/)
+})
+
+test('ingredient pair summary follows the selected candidate and retains the fixed current food', async () => {
+  const first = { product: { ...candidateA, direct_evidence_ingredient_terms: ['salmon'] } }
+  const second = { product: { ...candidateB, direct_evidence_ingredient_terms: ['tuna'] } }
+  await renderCompare({ initialTab: 'ingredients', currentProduct: { ...current, direct_evidence_ingredient_terms: ['chicken'] }, items: [first, second] })
+  let summary = document.querySelector('.compare-ingredient-pair-summary')
+  assert.match(summary.textContent, /현재브랜드현재 사료 이름 전체닭/)
+  assert.match(summary.textContent, /첫 번째 후보 제품연어/)
+  const picker = document.querySelector('.compare-ingredient-mobile-summary .compare-mobile-candidate-picker')
+  assert.ok(picker)
+  await click(picker.querySelector('button'))
+  await click([...picker.querySelectorAll('button')].find(node => node.dataset.productId === candidateB.product_id))
+  summary = document.querySelector('.compare-ingredient-pair-summary')
+  assert.match(summary.textContent, /현재브랜드현재 사료 이름 전체닭/)
+  assert.match(summary.textContent, /두 번째 후보 제품 이름이 조금 더 깁니다참치/)
+  assert.doesNotMatch(summary.textContent, /첫 번째 후보 제품|연어|확인된 값 없음/)
 })
 
 

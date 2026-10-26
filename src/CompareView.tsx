@@ -60,7 +60,7 @@ const ADDITIONAL_NUTRIENT_ORDER = ['calcium', 'phosphorus', 'magnesium', 'taurin
 const countryNames = new Intl.DisplayNames(['ko'], { type: 'region' })
 
 function labels(values: string[], map: Record<string, string>) {
-  if (!values.length) return '확인된 값 없음'
+  if (!values.length) return '—'
   return values.map((value) => map[value] ?? value.replaceAll('_', ' ')).join(' · ')
 }
 function formatNumber(value: number | null | undefined, suffix: string, qualifier?: string | null) {
@@ -234,6 +234,19 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
     </CompareDisclosure>
   </div>
 }
+function IngredientPairSummary({ products }: { products: CatalogProduct[] }) {
+  if (!products.some((product) => product.direct_evidence_ingredient_terms?.length || product.flavor_associated_ingredient_terms?.length)) return null
+  return <section className="compare-ingredient-pair-summary" aria-label="두 제품 원료 요약">
+    <div className="compare-ingredient-pair">
+      {products.map((product) => <div key={product.product_id}>
+        <small>{product.brand}</small><strong>{product.canonical_name}</strong>
+        {product.direct_evidence_ingredient_terms?.length ? <p>{labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)}</p> : null}
+        {product.flavor_associated_ingredient_terms?.length ? <p><small>향미 관련</small>{labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)}</p> : null}
+      </div>)}
+    </div>
+  </section>
+}
+
 function IngredientSourceDisclosure({ row }: { row: CompareIngredients | undefined }) {
   if (!row) return <span className="compare-muted">확인된 목록 없음</span>
   const primaryText = row.raw_text?.trim() || row.ingredient_names.join(', ')
@@ -293,15 +306,19 @@ function BaselineSummary() {
   return <div className="compare-baseline-summary"><strong>기준 제품</strong></div>
 }
 function CompareRow({ label, items, render, tone }: { label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
+  if (items.every((item) => render(item) === '—')) return null
   return <div className={`compare-row${tone ? ` is-${tone}` : ''}`} style={{ '--compare-count': items.length } as CSSProperties}><div className="compare-row-label">{label}</div>{items.map((item) => <div className="compare-cell" key={item.product.product_id}>{render(item)}</div>)}</div>
 }
 function SwitchOverviewRow({ label, currentProduct, items, currentValue, candidateValue, tone }: { label: string; currentProduct: CatalogProduct; items: CompareItem[]; currentValue: (product: CatalogProduct) => ReactNode; candidateValue: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
+  if (currentValue(currentProduct) === '—' && items.every((item) => candidateValue(item) === '—')) return null
   return <div className={`compare-row compare-switch-overview-row${tone ? ` is-${tone}` : ''}`} style={{ '--compare-count': items.length + 1 } as CSSProperties}><div className="compare-row-label">{label}</div><div className="compare-cell is-current">{currentValue(currentProduct)}</div>{items.map((item) => <div className="compare-cell" key={item.product.product_id}>{candidateValue(item)}</div>)}</div>
 }
 function MobileOverviewRow({ label, current, candidate }: { label: string; current: ReactNode; candidate: ReactNode }) {
+  if (current === '—' && candidate === '—') return null
   return <div className="compare-mobile-overview-row"><strong className="compare-mobile-row-label">{label}</strong><div className="compare-mobile-pair"><div><span>현재 사료</span><div>{current}</div></div><div><span>후보</span><div>{candidate}</div></div></div></div>
 }
 function MobileTwoProductOverviewField({ fieldKey, label, items, render, tone }: { fieldKey: string; label: string; items: CompareItem[]; render: (item: CompareItem) => ReactNode; tone?: CompareRowTone }) {
+  if (items.every((item) => render(item) === '—')) return null
   const labelId = `compare-mobile-two-row-${fieldKey}`
   return <tbody className={`compare-mobile-two-product-field${tone ? ` is-${tone}` : ''}`}>
     <tr className="compare-mobile-two-product-label-row">
@@ -330,17 +347,6 @@ function MobileSwitchNutritionField({ fieldKey, label, current, candidate, tone 
       <td className="compare-mobile-two-product-value is-candidate" headers={`${labelId} compare-mobile-switch-candidate`}>{candidate}</td>
     </tr>
   </tbody>
-}
-function MobileTwoProductExtraDisclosure({ items, showTargets, showFeatures }: { items: CompareItem[]; showTargets: boolean; showFeatures: boolean }) {
-  if (!showTargets && !showFeatures) return null
-  return <tbody className="compare-mobile-two-product-extra"><tr><td colSpan={2}>
-    <CompareDisclosure>
-      <table className="compare-mobile-two-product-extra-table">
-        {showTargets ? <MobileTwoProductOverviewField fieldKey="targets-extra" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
-        {showFeatures ? <MobileTwoProductOverviewField fieldKey="features-extra" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
-      </table>
-    </CompareDisclosure>
-  </td></tr></tbody>
 }
 
 function MobileTwoProductHeads({ items, onDetail, onRemove }: { items: CompareItem[]; onDetail: (productId: string) => void; onRemove: (productId: string) => void }) {
@@ -396,7 +402,6 @@ function MobileTwoProductOverview({ items, onDetail, onRemove }: { items: Compar
       <MobileTwoProductOverviewField fieldKey="life-stage" label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
       {!collapseTargets ? <MobileTwoProductOverviewField fieldKey="targets" label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
       {!collapseFeatures ? <MobileTwoProductOverviewField fieldKey="features" label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
-      <MobileTwoProductExtraDisclosure items={items} showTargets={collapseTargets} showFeatures={collapseFeatures} />
 
       <MobileTwoProductSection title="레시피 · 판매 정보" />
       <MobileTwoProductOverviewField fieldKey="recipe-families" label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
@@ -1142,6 +1147,10 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     {tab === 'nutrition' && nutritionLoading && !switchNutrition ? <div className="compare-state">영양 정보를 불러오는 중입니다.</div> : null}
     {tab === 'ingredients' && ingredientsLoading ? <div className="compare-state">원재료 정보를 불러오는 중입니다.</div> : null}
 
+    {tab === 'ingredients' ? <div className="compare-ingredient-mobile-summary">
+      {currentProduct ? renderMobileCandidatePicker() : renderMobileGeneralPairPicker()}
+      <IngredientPairSummary products={currentProduct && mobileCandidate ? [currentProduct, mobileCandidate.product] : mobilePairItems.map((item) => item.product)} />
+    </div> : null}
     <section className={`compare-table-wrap${twoProductOverview ? ' is-mobile-two-product-overview' : ''}${twoProductNutrition || switchNutrition ? ' is-mobile-two-product-nutrition' : ''}`} id={panelId} role="tabpanel" aria-labelledby={tabId} tabIndex={0}>
       {tab === 'nutrition' ? <>
         <div className="compare-nutrition-tools-desktop"><NutritionReadingTools showEnergyGraph={showEnergyGraph} onToggleEnergyGraph={() => setShowEnergyGraph((value) => !value)} details={currentProduct ? [currentNutrition, ...nutrition] : nutrition} /></div>
@@ -1157,10 +1166,6 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
           <SwitchOverviewRow label="대상 연령" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'lifeStage')} candidateValue={(item) => overviewValue(item.product, 'lifeStage')} />
           {!collapseTargets ? <SwitchOverviewRow label="제품 표기 대상" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'targets')} candidateValue={(item) => overviewValue(item.product, 'targets')} /> : null}
           {!collapseFeatures ? <SwitchOverviewRow label="제품 특징" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'features')} candidateValue={(item) => overviewValue(item.product, 'features')} /> : null}
-          {collapseTargets || collapseFeatures ? <CompareDisclosure className="compare-overview-extra">
-            {collapseTargets ? <SwitchOverviewRow label="제품 표기 대상" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'targets')} candidateValue={(item) => overviewValue(item.product, 'targets')} /> : null}
-            {collapseFeatures ? <SwitchOverviewRow label="제품 특징" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'features')} candidateValue={(item) => overviewValue(item.product, 'features')} /> : null}
-          </CompareDisclosure> : null}
           <CompareSection title="레시피 · 판매 정보" note="사용 규격과 제품의 판매 규격을 구분해 표시합니다." />
           <SwitchOverviewRow label="레시피 종류" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'recipeFamilies')} candidateValue={(item) => overviewValue(item.product, 'recipeFamilies')} />
           <SwitchOverviewRow label="주요 레시피" currentProduct={currentProduct} items={items} currentValue={(product) => overviewValue(product, 'recipeDetails')} candidateValue={(item) => overviewValue(item.product, 'recipeDetails')} />
@@ -1182,10 +1187,6 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
           <MobileOverviewRow label="대상 연령" current={overviewValue(currentProduct, 'lifeStage')} candidate={overviewValue(mobileCandidate.product, 'lifeStage')} />
           {!collapseTargets ? <MobileOverviewRow label="제품 표기 대상" current={overviewValue(currentProduct, 'targets')} candidate={overviewValue(mobileCandidate.product, 'targets')} /> : null}
           {!collapseFeatures ? <MobileOverviewRow label="제품 특징" current={overviewValue(currentProduct, 'features')} candidate={overviewValue(mobileCandidate.product, 'features')} /> : null}
-          {collapseTargets || collapseFeatures ? <CompareDisclosure className="compare-overview-extra">
-            {collapseTargets ? <MobileOverviewRow label="제품 표기 대상" current={overviewValue(currentProduct, 'targets')} candidate={overviewValue(mobileCandidate.product, 'targets')} /> : null}
-            {collapseFeatures ? <MobileOverviewRow label="제품 특징" current={overviewValue(currentProduct, 'features')} candidate={overviewValue(mobileCandidate.product, 'features')} /> : null}
-          </CompareDisclosure> : null}
           <CompareSection title="레시피 · 판매 정보" note="사용 규격은 머리의 현재 사료 정보에 별도로 표시합니다." />
           <MobileOverviewRow label="레시피 종류" current={overviewValue(currentProduct, 'recipeFamilies')} candidate={overviewValue(mobileCandidate.product, 'recipeFamilies')} />
           <MobileOverviewRow label="주요 레시피" current={overviewValue(currentProduct, 'recipeDetails')} candidate={overviewValue(mobileCandidate.product, 'recipeDetails')} />
@@ -1275,7 +1276,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
           <SwitchOverviewRow label="자료 기준" currentProduct={currentProduct} items={items} tone="context" currentValue={() => <details><summary>자료 보기</summary>{ingredientDetailContext(currentIngredients ?? undefined, currentVariants, currentVariantLookupFailed, currentVariantsLoading)}</details>} candidateValue={(item) => <details><summary>자료 보기</summary>{ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)}</details>} />
         </div>
       </> : <>
-        {items.length > 2 && (tab === 'overview' || tab === 'nutrition') ? renderMobileGeneralPairPicker() : null}
+        {items.length > 2 && tab !== 'ingredients' ? renderMobileGeneralPairPicker() : null}
         {twoProductOverview ? <MobileTwoProductOverview items={mobilePairItems} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
         {twoProductNutrition ? <MobileTwoProductNutrition items={mobilePairItems} nutrition={mobilePairNutrition} nutritionByProduct={nutritionByProduct} additionalNutrientKeys={mobilePairAdditionalNutrientKeys} variantsByProduct={variantsByProduct} variantLookupFailures={variantLookupFailures} variantsLoading={variantsLoading} hasBasisSpecificNutrition={mobilePairHasBasisSpecificNutrition} showEnergyGraph={showEnergyGraph} onDetail={openDetail} onRemove={removeComparedProduct} /> : null}
         <div className={`compare-table${twoProductOverview ? ' compare-two-product-overview-desktop' : ''}${twoProductNutrition ? ' compare-two-product-nutrition-desktop' : ''}`} style={{ '--compare-count': items.length } as CSSProperties}>
@@ -1289,10 +1290,6 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
           <CompareRow label="대상 연령" items={items} render={(item) => overviewValue(item.product, 'lifeStage')} />
           {!collapseTargets ? <CompareRow label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
           {!collapseFeatures ? <CompareRow label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
-          {collapseTargets || collapseFeatures ? <CompareDisclosure className="compare-overview-extra">
-            {collapseTargets ? <CompareRow label="제품 표기 대상" items={items} render={(item) => overviewValue(item.product, 'targets')} /> : null}
-            {collapseFeatures ? <CompareRow label="제품 특징" items={items} render={(item) => overviewValue(item.product, 'features')} /> : null}
-          </CompareDisclosure> : null}
           <CompareSection title="레시피 · 판매 정보" />
           <CompareRow label="레시피 종류" items={items} render={(item) => overviewValue(item.product, 'recipeFamilies')} />
           <CompareRow label="주요 레시피" items={items} render={(item) => overviewValue(item.product, 'recipeDetails')} />

@@ -6,7 +6,7 @@ const ANIMALS: Array<[string, RegExp]> = [
   ['칠면조', /칠면조|\bturkey\b/i], ['소', /소고기|쇠고기|牛肉|\bbeef\b/i],
   ['돼지', /(?<!멧)돼지|\bpork\b/i], ['멧돼지', /멧돼지|\bwild boar\b/i],
   ['양', /양고기|\blamb\b(?!['’]s?\s*quarter)|\bmutton\b/i], ['토끼', /토끼|\brabbit\b/i],
-  ['연어', /연어|\bsalmon\b/i], ['참치', /참치|マグロ|\btuna\b/i], ['가다랑어', /가다랑어|カツオ|\bskipjack\b|\bbonito\b/i],
+  ['연어', /연어|サーモン|鮭|\bsalmon\b/i], ['참치', /참치|マグロ|\btuna\b/i], ['가다랑어', /가다랑어|カツオ|\bskipjack\b|\bbonito\b/i],
   ['청어', /청어|\bherring\b/i], ['고등어', /고등어|\bmackerel\b/i], ['정어리', /정어리|\bsardines?\b|\bpilchards?\b/i],
   ['대구', /대구|\bcod\b/i], ['폴락', /명태|\bpollock\b/i], ['송어', /송어|\btrout\b/i],
   ['흰살생선', /흰살생선|白身魚|\bwhitefish\b|\bwhite fish\b/i], ['호키', /호키|\bhoki\b/i],

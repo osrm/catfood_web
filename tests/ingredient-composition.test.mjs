@@ -47,6 +47,13 @@ test('Korean compound oil names, eggshell and a plant named milk thistle retain 
 test('literal Japanese and Chinese source words never narrow generic birds or fish',()=>{
  const result=app.ingredientComposition(source(['魚介類（カツオ、マグロ）','鶏肉','油脂類（鶏脂、大豆油）','乾燥全卵','禽肉及禽肉副產品','海洋魚類','蛋胺酸']))
  assert.deepEqual(result.protein,['참치','가다랑어','생선','닭','가금류']);assert.deepEqual(result.fats,['닭']);assert.deepEqual(result.eggsDairy,['계란'])
+ assert.deepEqual(app.ingredientComposition(source(['85% サーモン（サーモン生肉 73%、脱水サーモン 12%）'])).protein,['연어'])
+})
+test('an untranslated or plant-only declaration remains a visible source excerpt, not an empty or absent claim',async()=>{
+ root=createRoot(document.getElementById('root'))
+ await act(async()=>root.render(createElement(app.IngredientCompositionValue,{row:source(['Peas','Potatoes','Rosemary','Minerals'])})))
+ assert.match(document.body.textContent,/원문 표기Peas · Potatoes · Rosemary …/)
+ assert.doesNotMatch(document.body.textContent,/미확인|원료 없음|육류·어류/)
 })
 test('an inspector ignores an old product response after switching to another product',async()=>{
  let oldResolve;const calls=[]

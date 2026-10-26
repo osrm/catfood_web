@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchCompareIngredients, type CompareIngredients } from './api'
-import { ingredientComposition } from './ingredient-composition'
+import { ingredientComposition, splitIngredientText } from './ingredient-composition'
 import './ingredient-composition.css'
 
 export function IngredientCompositionValue({ row, loading, error, onRetry }: {
@@ -10,7 +10,11 @@ export function IngredientCompositionValue({ row, loading, error, onRetry }: {
   if (loading) return <span>원재료 불러오는 중</span>
   const data = ingredientComposition(row)
   const groups: Array<[string, string[]]> = [['육류·어류',data.protein],['지방·오일',data.fats],['계란·유제품',data.eggsDairy],['향미',data.flavor]]
-  if (!groups.some(([,values]) => values.length)) return null
+  if (!groups.some(([,values]) => values.length)) {
+    const names = row?.ingredient_names?.length ? row.ingredient_names : splitIngredientText(row?.raw_text ?? '')
+    if (!names.length) return null
+    return <span className="ingredient-composition"><span className="ingredient-composition-line"><small>원문 표기</small><span>{names.slice(0,3).join(' · ')}{names.length > 3 ? ' …' : ''}</span></span></span>
+  }
   return <span className="ingredient-composition">{groups.filter(([,values]) => values.length).map(([label,values]) => <span className="ingredient-composition-line" key={label}><small>{label}</small><span>{values.join(' · ')}</span></span>)}</span>
 }
 

@@ -27,6 +27,7 @@ test('oil-only and flavor-only animals do not become meat sources',()=>{
 })
 test('generic poultry/fish and unspecified animal fat are not narrowed to species',()=>{
  assert.deepEqual(app.ingredientComposition(source(['Poultry meal','Fish meal','Animal Fat'])),{protein:['가금류','생선'],fats:['동물성 지방'],eggsDairy:[],flavor:[]})
+ assert.deepEqual(app.ingredientComposition(source(['고등어 (Mackerel Meat) 71%'])).protein,['고등어'])
 })
 test('reads a Korean summary without splitting the species inside parentheses',()=>{
  assert.deepEqual(app.splitIngredientText('육분(닭, 오리), 닭지방; 천연향(닭간/생선) 등'),['육분(닭, 오리)','닭지방','천연향(닭간/생선) 등'])
@@ -39,6 +40,13 @@ test('does not merge a supplemental formula, trace warning or plant name into th
 test('absent rows and plant-only rows do not create absent-animal claims',()=>{
  assert.deepEqual(app.ingredientComposition(null),{protein:[],fats:[],eggsDairy:[],flavor:[]})
  assert.deepEqual(app.ingredientComposition(source(['Peas','Potatoes','Rosemary'])),{protein:[],fats:[],eggsDairy:[],flavor:[]})
+})
+test('Korean compound oil names, eggshell and a plant named milk thistle retain their actual forms',()=>{
+ assert.deepEqual(app.ingredientComposition(source(['생 통우럭(5%)','농어','명태유(5%)','가금 지방','계란껍질','Milk Thistle'])),{protein:['우럭','농어'],fats:['폴락','가금류'],eggsDairy:['계란 껍데기'],flavor:[]})
+})
+test('literal Japanese and Chinese source words never narrow generic birds or fish',()=>{
+ const result=app.ingredientComposition(source(['魚介類（カツオ、マグロ）','鶏肉','油脂類（鶏脂、大豆油）','乾燥全卵','禽肉及禽肉副產品','海洋魚類','蛋胺酸']))
+ assert.deepEqual(result.protein,['참치','가다랑어','생선','닭','가금류']);assert.deepEqual(result.fats,['닭']);assert.deepEqual(result.eggsDairy,['계란'])
 })
 test('an inspector ignores an old product response after switching to another product',async()=>{
  let oldResolve;const calls=[]

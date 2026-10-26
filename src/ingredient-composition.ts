@@ -11,8 +11,10 @@ const ANIMALS: Array<[string, RegExp]> = [
   ['대구', /대구|\bcod\b/i], ['폴락', /명태|\bpollock\b/i], ['송어', /송어|\btrout\b/i],
   ['흰살생선', /흰살생선|白身魚|\bwhitefish\b|\bwhite fish\b/i], ['호키', /호키|\bhoki\b/i],
   ['가자미류', /\bsole\b|가자미/i], ['볼락류', /\brockfish\b/i], ['새우', /새우|\bshrimp\b/i],
+  ['농어', /농어|\bsea bass\b/i], ['우럭', /우럭/i], ['멘헤이든', /\bmenhaden\b/i],
+  ['녹줄매가리', /녹줄매가리/i], ['남방대구', /남방대구/i], ['청대구', /청대구/i], ['청보리멸', /청보리멸/i],
   ['가리비', /가리비|\bscallop/i], ['홍합', /홍합|\bmussel/i], ['오징어', /오징어|\bsquid\b/i],
-  ['가금류', /가금류|가금육|禽肉|\bpoultry\b/i], ['육류', /육류|肉類|\bmeat(?:s)?\b/i],
+  ['가금류', /가금(?:류|육)?|禽肉|\bpoultry\b/i], ['육류', /육류|肉類|\bmeat(?:s)?\b/i],
   ['생선', /생선|어류|어육|어분|어유|피쉬|魚介類|魚類|\bfish\b/i],
 ]
 export type IngredientComposition = { protein: string[]; fats: string[]; eggsDairy: string[]; flavor: string[] }
@@ -34,17 +36,15 @@ export function ingredientComposition(row: CompareIngredients | null | undefined
   for (const raw of names) {
     let animals = ANIMALS.filter(([,pattern]) => pattern.test(raw)).map(([name]) => name)
     const birds = ['닭','오리','칠면조']
-    const land = [...birds,'소','돼지','멧돼지','양','토끼']
-    const specificFish = ['연어','참치','가다랑어','청어','고등어','정어리','대구','폴락','송어','흰살생선','호키','가자미류','볼락류','새우','가리비','홍합','오징어']
-    animals = animals.filter(name => !(name==='육류' && animals.some(x=>land.includes(x))) && !(name==='가금류' && animals.some(x=>birds.includes(x))) && !(name==='생선' && animals.some(x=>specificFish.includes(x))))
+    animals = animals.filter(name => !(name==='육류' && animals.some(x=>x!=='육류')) && !(name==='가금류' && /(가금(?:류|육)?|poultry)\s*[（(]/i.test(raw) && animals.some(x=>birds.includes(x))) && !(name==='생선' && /white\s*fish|흰살\s*생선/i.test(raw)) && !(name==='대구' && /남방대구|청대구/.test(raw)))
     // An animal word in an ingredient's origin note does not establish animal flesh.
     if (/グルテン|gluten|글루텐|lamb['’]s?\s*quarter|may contain|혼입될 수/i.test(raw)) continue
-    const flavor = /flavou?r|aroma|향미|천연향|인공향|향료/i.test(raw)
-    const fat = /\bfat\b|\boils?\b|지방|오일|어유|기름|鶏脂|油脂|魚油|동물성유|유지(?:류)?\s*\(/i.test(raw)
-    const egg = /\beggs?\b|전란|난백|난황|계란|달걀|난각|全卵|卵黄|卵白|卵殻/i.test(raw)
-    const dairy = /\bmilk\b|\bcheese\b|\bwhey\b|우유|치즈|유청/i.test(raw)
+    const flavor = /flavou?r|aroma|향미|천연향|인공향|향료|香料/i.test(raw)
+    const fat = /\bfat\b|\boils?\b|지방|오일|어유|기름|鶏脂|油脂|魚油|동물성유|명태유|연어유|치킨유|유지(?:류)?\s*\(/i.test(raw)
+    const egg = /\b(?:eggs?|eggshells?)\b|전란|난백|난황|계란|달걀|난각|全卵|卵黄|卵白|卵殻/i.test(raw)
+    const dairy = /\bmilk\b(?!\s*thistle)|\bcheese\b|\bwhey\b|우유|치즈|유청/i.test(raw)
     if (flavor) { result.flavor.push(...animals); continue }
-    if (egg) { result.eggsDairy.push(/shell|난각/i.test(raw) ? '계란 껍데기' : '계란'); continue }
+    if (egg) { result.eggsDairy.push(/shell|난각|껍질|껍데기|卵殻/i.test(raw) ? '계란 껍데기' : '계란'); continue }
     if (dairy) { result.eggsDairy.push(/cheese|치즈/i.test(raw) ? '치즈' : /whey|유청/i.test(raw) ? '유청' : '우유'); continue }
     if (fat) {
       if (animals.length) result.fats.push(...animals)

@@ -207,13 +207,27 @@ export function lookupCatalog(products: CatalogProduct[], query: string): Catalo
   const originalNeedle = normalizedText(query)
   const lookupNeedle = normalizedLookupText(query)
   if (!lookupNeedle) return []
+  const terms = [...new Set(query.trim().split(/\s+/u).map(normalizedLookupText).filter(Boolean))]
 
   return products.filter((product) => {
+    const brandLabels = [product.brand, ...confirmedBrandAliases(product.brand)]
     const values = [
       `${product.brand} ${product.canonical_name}`,
       ...confirmedBrandAliases(product.brand).map((alias) => `${alias} ${product.canonical_name}`),
     ]
-    return values.some((value) => normalizedText(value).includes(originalNeedle) || normalizedLookupText(value).includes(lookupNeedle))
+    if (values.some((value) => normalizedText(value).includes(originalNeedle) || normalizedLookupText(value).includes(lookupNeedle))) return true
+    if (terms.length < 2) return false
+    const name = normalizedLookupText(product.canonical_name)
+    if (terms.every((term) => name.includes(term))) return true
+    // A recognized brand label must not satisfy a missing product-name term.
+    return brandLabels.some((label) => {
+      const brand = normalizedLookupText(label)
+      for (let count = 1; count < terms.length; count += 1) {
+        if (terms.slice(0, count).join('') === brand && terms.slice(count).every((term) => name.includes(term))) return true
+        if (terms.slice(-count).join('') === brand && terms.slice(0, -count).every((term) => name.includes(term))) return true
+      }
+      return false
+    })
   })
 }
 

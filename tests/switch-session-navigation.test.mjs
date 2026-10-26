@@ -863,7 +863,7 @@ test('browse refinements restore safely without becoming change or keep criteria
   assert.deepEqual(parsed.candidateRecipeFamilies, ['fish'])
   assert.equal(app.switchSelectionKey(parsed), key, 'list inspection is not a new switching preference')
   assert.deepEqual(app.parseSwitchSessionState({ ...parsed, criteriaUndecided: false }).candidateFeedTypes, [])
-  assert.deepEqual(app.parseSwitchSessionState({ ...parsed, noChangeIntent: true }).candidateRecipeFamilies, [])
+  assert.deepEqual(app.parseSwitchSessionState({ ...parsed, noChangeIntent: true }).candidateRecipeFamilies, ['fish'])
   delete state.candidateFeedTypes; delete state.candidateRecipeFamilies
   assert.deepEqual(app.parseSwitchSessionState(state).candidateFeedTypes, [])
 })
@@ -962,6 +962,58 @@ test('an empty refined list is recoverable without losing current food or creati
   await click('처음부터 시작')
   assert.deepEqual(session().candidateFeedTypes,[])
   assert.equal(session().currentProductId,null)
+})
+
+async function reachNoChangeResults() {
+  await renderApp();await chooseCurrent();await click(variantButton('1 kg'));await click(exactButton('다음 →'))
+  await click('특별히 바꾸고 싶은 점 없음');await click('후보 제품 보기')
+  await waitForUi(()=>document.querySelector('.switch-candidate-list'),'explicit no-change browse')
+}
+
+test('explicit no change offers the same refinement and direct comparison help without becoming undecided intent', async () => {
+  await reachNoChangeResults()
+  assert.equal(session().noChangeIntent,true);assert.equal(session().criteriaUndecided,false)
+  assert.ok(document.querySelector('.switch-candidate-refinement'))
+  await click(exactButton('습식'));await click(exactButton('생선'))
+  await selectCandidate();assert.ok(exactButton('열량·영양 비교 →'));assert.ok(exactButton('원재료 비교 →'))
+  await click('열량·영양 비교');assert.equal(session().compareTab,'nutrition')
+  await click('후보 목록으로');await waitForUi(()=>document.querySelector('.switch-candidate-inspector'),'no-change compare return')
+  await click(document.querySelector('.switch-preview-topline>button'));await remountApp()
+  assert.equal(session().noChangeIntent,true);assert.equal(session().criteriaUndecided,false)
+  assert.deepEqual(session().candidateFeedTypes,['습식']);assert.deepEqual(session().candidateRecipeFamilies,['fish'])
+  await click('조건 수정');await click('후보 제품 보기')
+  assert.deepEqual(session().candidateFeedTypes,['습식'])
+})
+
+test('no-change refinement detaches a delayed old run and never backfills refined local decisions after clearing', async () => {
+  let resolveRun
+  const fetchImpl=globalThis.fetch
+  globalThis.fetch=window.fetch=async(input,init={})=>{
+    if(String(input).endsWith('/search-runs')&&!resolveRun){searchRuns.push(JSON.parse(init.body));return new Promise(resolve=>{resolveRun=()=>resolve(Response.json({search_run_id:'delayed-no-change'}))})}
+    return fetchImpl(input,init)
+  }
+  await reachNoChangeResults();await waitForUi(()=>Boolean(resolveRun),'delayed no-change request')
+  await click(exactButton('습식'));await selectCandidate();await click(exactButton('제품 상세 보기 →'));await click('후보로 남기기')
+  const local=journey().retained[0];assert.equal(local.context.candidateRefined,true);assert.equal(local.context.criteriaUndecided,undefined)
+  assert.equal(local.searchRunId,null);assert.equal(local.pendingIntake,undefined)
+  await act(async()=>resolveRun());assert.equal(considerations.length,0);assert.equal(decisions.length,0)
+  await click(document.querySelector('.detail-return-action'));await waitForUi(()=>document.querySelector('.switch-candidate-inspector'),'refined local return')
+  await click(document.querySelector('.switch-preview-topline>button'));await click('좁히기 해제')
+  assert.equal(searchRuns.length,1,'identical complete criteria may reconnect the acknowledged run')
+  assert.equal(decisions.length,0);await click('남긴 후보에서 제거');assert.equal(decisions.length,0)
+  await retainAFromDetail();await waitForUi(()=>decisions.length===1,'new complete retention')
+  const normal=journey().retained.find(row=>row.active);assert.equal(normal.context.candidateRefined,undefined)
+  assert.notEqual(normal.id,local.id);assert.equal(decisions[0].search_run_id,'delayed-no-change')
+})
+
+test('removing a previously acknowledged record during refinement keeps its original context', async () => {
+  await reachNoChangeResults();await retainAFromDetail();await waitForUi(()=>decisions.length===1,'original no-change retention')
+  const original=journey().retained[0];assert.equal(original.context.candidateRefined,undefined)
+  await click(document.querySelector('.detail-return-action'));await waitForUi(()=>document.querySelector('.switch-candidate-inspector'),'normal retention return')
+  await click(document.querySelector('.switch-preview-topline>button'));await click(exactButton('습식'))
+  await click('남긴 후보에서 제거');await waitForUi(()=>decisions.length===2,'old record removal')
+  assert.equal(decisions[1].search_run_id,original.searchRunId)
+  assert.equal(decisions[1].kind,'retained_candidate_removed')
 })
 
 test('a personal concern can proceed without inventing a change or sending undecided exploration', async () => {

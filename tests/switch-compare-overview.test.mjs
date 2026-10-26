@@ -548,7 +548,7 @@ test('SWITCH ingredients keeps five candidate reads plus one separate current re
   assert.equal(requests.length, after, 'successful current/candidate source data are reused')
 })
 
-test('displayed consideration candidates follow the 760px layout and distinguish the ingredient multi-column table', async () => {
+test('displayed consideration candidates follow the mobile pair and desktop columns on every comparison tab', async () => {
   const original = window.matchMedia
   const listeners = new Set()
   const media = { matches: true, addEventListener(_type, fn) { listeners.add(fn) }, removeEventListener(_type, fn) { listeners.delete(fn) } }
@@ -558,10 +558,12 @@ test('displayed consideration candidates follow the 760px layout and distinguish
     await renderCompare({ onDisplayedCandidates: (ids) => displayed.push(ids) })
     assert.deepEqual(displayed.at(-1), [candidateA.product_id])
     await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '원재료'))
-    assert.deepEqual(displayed.at(-1), [candidateA.product_id, candidateB.product_id])
+    assert.deepEqual(displayed.at(-1), [candidateA.product_id])
     await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '개요'))
     assert.deepEqual(displayed.at(-1), [candidateA.product_id])
     await act(async () => { media.matches = false; listeners.forEach((listener) => listener()) })
+    assert.deepEqual(displayed.at(-1), [candidateA.product_id, candidateB.product_id])
+    await click([...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent === '원재료'))
     assert.deepEqual(displayed.at(-1), [candidateA.product_id, candidateB.product_id])
   } finally { window.matchMedia = original }
 })

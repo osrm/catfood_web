@@ -1,3 +1,5 @@
+import { IngredientCompositionValue } from './IngredientComposition'
+import { ingredientComposition } from './ingredient-composition'
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import { setProductMetadata } from './product-metadata'
@@ -401,6 +403,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
   const directIngredientLabel = summaryFacts?.direct_evidence_ingredient_terms?.length ? listLabel(summaryFacts.direct_evidence_ingredient_terms, RECIPE_LABELS) : null
   const flavorIngredientLabel = summaryFacts?.flavor_associated_ingredient_terms?.length ? listLabel(summaryFacts.flavor_associated_ingredient_terms, RECIPE_LABELS) : null
   const hasIngredientSummaryFacts = Boolean(directIngredientLabel || flavorIngredientLabel || hasSupplementalFullIngredients)
+  const showComposition = !product.recipe_details.length && Object.values(ingredientComposition(ingredients)).some(values => values.length > 0)
   const fullIngredientSummaryFallback = ingredients?.completeness_status === 'full' && !hasIngredientSummaryFacts
     ? fullIngredientSummaryLabel(ingredients)
     : null
@@ -499,9 +502,10 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
                 {ingredientLoad.status === 'loaded' && !loading.ingredients && !errors.ingredients && ingredients ? <>
                   {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : fullIngredientSummaryFallback ? <p className="detail-summary-meta">{fullIngredientSummaryFallback}</p> : null}
-                  {hasIngredientSummaryFacts ? <div className="detail-fact-lines detail-fact-lines-compact">
-                    {directIngredientLabel ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
-                    {flavorIngredientLabel ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
+                  {showComposition ? <IngredientCompositionValue row={ingredients} /> : null}
+                  {hasIngredientSummaryFacts && (!showComposition || hasSupplementalFullIngredients) ? <div className="detail-fact-lines detail-fact-lines-compact">
+                    {directIngredientLabel && !showComposition ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
+                    {flavorIngredientLabel && !showComposition ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
                     {hasSupplementalFullIngredients ? <Fact label="전체 목록 보완" value={supplementalIngredientNames.length ? `${ingredients.supplemental_full_ingredient_count ?? supplementalIngredientNames.length}개 확인` : '출처 원문 확인'} /> : null}
                   </div> : null}
                   <button className="detail-inline-link" type="button" onClick={() => selectTab('ingredients')}>원재료 보기 →</button>

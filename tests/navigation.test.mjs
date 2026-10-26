@@ -1017,13 +1017,11 @@ test('non-SWITCH overview keeps a partly populated row visible and collapses onl
   const visibleRows = [...document.querySelectorAll('.compare-table > .compare-row')]
   const targetRow = visibleRows.find((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '제품 표기 대상')
   assert.ok(targetRow)
-  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim()), ['실내묘', '확인된 값 없음'])
+  assert.deepEqual([...targetRow.querySelectorAll('.compare-cell')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim()), ['실내묘', '—'])
 
   const disclosure = document.querySelector('.compare-table > .compare-overview-extra')
-  assert.ok(disclosure)
-  assert.equal(disclosure.open, false)
-  assert.match(disclosure.textContent, /제품 특징/)
-  assert.doesNotMatch(disclosure.textContent, /제품 표기 대상/)
+  assert.equal(disclosure, null, 'empty optional facts should not create a disclosure')
+  assert.equal(visibleRows.some((row) => row.querySelector('.compare-row-label')?.textContent.trim() === '제품 특징'), false)
 })
 
 for (const mode of ['lookup', 'explore']) {

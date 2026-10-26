@@ -839,6 +839,21 @@ async function reachUndecidedResults() {
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'undecided candidates')
 }
 
+test('missing baseline recipe is explained only after a recipe is selected and does not manufacture a classification', async () => {
+  catalogProducts = catalogProducts.map(row => row.product_id === current.product_id ? { ...row, recipe_families: [], recipe_details: [] } : row)
+  await reachUndecidedResults()
+  const note = '지금 사료의 레시피 정보가 없어, 다른 레시피인지 비교하기 어려워요.'
+  assert.equal(document.body.textContent.includes(note), false)
+  const panel = document.querySelector('.switch-candidate-refinement')
+  const fish = [...panel.querySelectorAll('button')].find(node => node.textContent === '생선')
+  await click(fish)
+  assert.equal([...document.querySelectorAll('[role="note"]')].filter(node => node.textContent === note).length, 1)
+  assert.deepEqual(session().candidateRecipeFamilies, ['fish'])
+  await click(fish)
+  assert.equal(document.body.textContent.includes(note), false)
+  assert.deepEqual(catalogProducts.find(row => row.product_id === current.product_id).recipe_families, [])
+})
+
 test('undecided criteria are distinct from no change and legacy selection keys remain stable', () => {
   const legacy = app.createInitialSwitchSession('현재')
   legacy.currentProductId = current.product_id

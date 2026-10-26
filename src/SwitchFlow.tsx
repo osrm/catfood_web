@@ -177,7 +177,7 @@ function ingredientLabel(value: string): string {
 }
 
 function compactList(values: string[], labels: Record<string, string>, max = 3): string {
-  if (values.length === 0) return '확인된 값 없음'
+  if (values.length === 0) return ''
   const shown = values.slice(0, max).map((value) => optionLabel(value, labels))
   return values.length > max ? `${shown.join(' · ')} +${values.length - max}` : shown.join(' · ')
 }
@@ -1552,7 +1552,7 @@ export default function SwitchFlow({
       : RECIPE_FAMILIES
     const recipeHint = currentRecipeFamilies.length > 0
       ? `현재 · ${compactList(currentRecipeFamilies, RECIPE_FAMILY_LABELS)}`
-      : '지금 사료의 레시피는 미확인'
+      : change.recipeFamilies.length ? '지금 사료의 레시피 정보가 없어, 다른 레시피인지 비교하기 어려워요.' : undefined
     const additionalControlsId = 'switch-change-additional-controls'
 
     const renderLifeStage = () => (
@@ -1641,11 +1641,11 @@ export default function SwitchFlow({
               </button>
               {!changeAdditionalOpen && changeAdditionalLabels.length > 0 ? <p className="switch-change-additional-summary">{changeAdditionalLabels.join(' · ')}</p> : null}
               <div id={additionalControlsId} className="switch-change-additional-content" hidden={!changeAdditionalOpen}>
+                {renderRecipeFamilies()}
                 {renderLifeStage()}
                 {renderIngredientAvoidance()}
                 {renderOfficialTargets()}
                 {renderFeatures()}
-                {renderRecipeFamilies()}
                 {renderRecipeTraits()}
               </div>
             </section>
@@ -1843,6 +1843,8 @@ export default function SwitchFlow({
           <button type="button" onClick={() => setMemoOpen(true)}>내 메모</button>
           <button type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button>
         </div>
+
+        {!currentRecipeFamilies.length && (change.recipeFamilies.length > 0 || candidateRecipeFamilies.length > 0) ? <p className="switch-option-empty" role="note">지금 사료의 레시피 정보가 없어, 다른 레시피인지 비교하기 어려워요.</p> : null}
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">

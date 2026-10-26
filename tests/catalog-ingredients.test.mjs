@@ -138,6 +138,44 @@ test('comparison overview and nutrition skip facts; ingredients and detail reuse
  await click('상세 보기');await click('비교로 돌아가기');assert.equal(facts().length,1)
  assert.match(window.location.search,/compare=/)
 })
+
+test('empty ingredient summaries disappear while the actual declaration remains readable', async()=>{
+ rows=rows.map(row=>({...row,direct_evidence_ingredient_terms:[],confirmed_present_ingredient_terms:[],flavor_associated_ingredient_terms:[]}))
+ await mount('?view=workspace&mode=lookup&q=Alpha&compare='+rows.map(r=>r.product_id).join(',')+'&compareOpen=1&compareTab=ingredients')
+ assert.doesNotMatch(text(),/확인된 값 없음/)
+ assert.equal(document.querySelectorAll('.compare-ingredient-summary-values p').length,0)
+ assert.equal([...document.querySelectorAll('.compare-row-label')].some(n=>/직접 확인 원료|향미 연관 원료/.test(n.textContent)),false)
+ assert.match(text(),/chicken, peas/)
+ const source=document.querySelector('.compare-source-layers')?.closest('details')
+ assert.ok(source,'raw declaration is still available')
+ source.open=true
+ assert.match(source.textContent,/chicken, peas/)
+})
+
+test('mobile ingredient summary keeps full identities and only populated facts, without inferring an absence', async()=>{
+ await mount('?view=workspace&mode=lookup&q=Alpha&compare='+rows.map(r=>r.product_id).join(',')+'&compareOpen=1&compareTab=ingredients')
+ const summary=document.querySelector('.compare-ingredient-pair-summary')
+ assert.ok(summary)
+ assert.match(summary.textContent,/Test BrandAlpha/)
+ assert.match(summary.querySelector('.compare-ingredient-summary-values').textContent,/닭/)
+ assert.match(summary.textContent,/Test BrandBeta/)
+ assert.equal(summary.querySelectorAll('.compare-ingredient-summary-values')[1].querySelector('p'),null)
+ assert.doesNotMatch(summary.querySelector('.compare-ingredient-summary-values').textContent,/없음|미확인|미포함|제외|원료 없음/)
+ assert.equal(summary.closest('.compare-table-wrap'),null,'summary stays outside horizontal panning')
+ assert.match(text(),/chicken, peas/)
+})
+
+test('quick view hides empty optional facts without hiding facts that are available', async()=>{
+ await mount('?view=workspace&mode=lookup&q=Alpha')
+ const first=document.querySelector('button[data-product-id]')
+ assert.ok(first)
+ await act(async()=>first.click())
+ const quick=document.querySelector('.research-quick-view')
+ assert.ok(quick)
+ assert.doesNotMatch(quick.textContent,/확인된 값 없음/)
+ assert.equal([...quick.querySelectorAll('dt')].some(node=>/제품 표기 대상|제품 특징|레시피 종류|주요 레시피|레시피 특성/.test(node.textContent)),false)
+ assert.match(quick.textContent,/판매 규격/)
+})
 test('restored SWITCH current and SKU skip facts; results failure and retry preserve current, variant and comparison',async()=>{
  const session=app.createInitialSwitchSession('Alpha');session.currentProductId=rows[0].product_id;session.variantSelection={kind:'unknown',variantId:null};session.step='sku';session.compareIds=[rows[1].product_id]
  app.writeSwitchSession(session,window.sessionStorage)

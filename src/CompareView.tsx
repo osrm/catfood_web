@@ -101,7 +101,7 @@ function additionalNutrientLabel(key: string, rows: CompareNutrition[]) {
   return ADDITIONAL_NUTRIENT_LABELS[key] ?? raw ?? key.replaceAll('_', ' ')
 }
 function formatAdditionalNutrient(value: AdditionalNutrient | undefined) {
-  if (!value || value.amount == null) return '미확인'
+  if (!value || value.amount == null) return '—'
   const unit = value.unit ?? ''
   return formatNumber(value.amount, unit === '%' ? '%' : unit ? ` ${unit}` : '', value.qualifier)
 }

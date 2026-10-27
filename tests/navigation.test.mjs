@@ -813,7 +813,7 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
   assert.doesNotMatch(mobile.textContent, /Product 001/)
   assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'))
   const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
-  assert.deepEqual(taurineValues, ['미확인', '0.12% 이상'])
+  assert.deepEqual(taurineValues, ['—', '0.12% 이상'])
   assert.match(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-dry_matter-protein').closest('tbody').textContent, /단백질.*34%/)
 
   installFetch()
@@ -893,7 +893,7 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-ash'), ['—', '8%'])
 
   const calciumValues = valuesFor('#compare-mobile-two-row-nutrition-additional-calcium')
-  assert.deepEqual(calciumValues, ['1.2% 이상', '미확인'])
+  assert.deepEqual(calciumValues, ['1.2% 이상', '—'])
 
   const scopeValues = valuesFor('#compare-mobile-two-row-nutrition-scope')
   assert.match(scopeValues[0], /한국 판매 제품 자료.*3 kg 제품에서 확인.*보완 자료 포함/)

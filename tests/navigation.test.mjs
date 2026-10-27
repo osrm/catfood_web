@@ -798,7 +798,7 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
   assert.doesNotMatch(mobile.textContent, /Product 002/)
   assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-calcium'))
   assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'), null, 'hidden product does not create an empty additional-nutrient row')
-  assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-specific'), null, 'hidden product does not create basis evidence')
+  assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-dry_matter-protein'), null, 'hidden product does not create basis evidence')
 
   let selects = [...picker.querySelectorAll('select')]
   await selectValue(selects[1], third.product_id)
@@ -813,8 +813,8 @@ test('mobile nutrition derives rows and basis evidence only from the displayed p
   assert.doesNotMatch(mobile.textContent, /Product 001/)
   assert.ok(mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine'))
   const taurineValues = [...mobile.querySelector('#compare-mobile-two-row-nutrition-additional-taurine').closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
-  assert.deepEqual(taurineValues, ['미확인', '0.12% 이상'])
-  assert.match(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-specific').closest('tbody').textContent, /건물 기준\(Dry Matter\).*단백질 34%/)
+  assert.deepEqual(taurineValues, ['—', '0.12% 이상'])
+  assert.match(mobile.querySelector('#compare-mobile-two-row-nutrition-basis-dry_matter-protein').closest('tbody').textContent, /단백질.*34%/)
 
   installFetch()
 })
@@ -889,11 +889,11 @@ test('two-product mobile nutrition preserves values, qualifiers, unknowns, and p
   const valuesFor = (id) => [...mobile.querySelector(id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map((cell) => (cell.querySelector(".compare-energy-number") ?? cell).textContent.trim())
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-energy'), ['410 kcal/100g', '380 kcal/100g'])
   assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-protein'), ['32% 이상', '30% 이하'])
-  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-fat'), ['15% 이상', '미확인'])
-  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-ash'), ['미확인', '8%'])
+  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-fat'), ['15% 이상', '—'])
+  assert.deepEqual(valuesFor('#compare-mobile-two-row-nutrition-ash'), ['—', '8%'])
 
   const calciumValues = valuesFor('#compare-mobile-two-row-nutrition-additional-calcium')
-  assert.deepEqual(calciumValues, ['1.2% 이상', '미확인'])
+  assert.deepEqual(calciumValues, ['1.2% 이상', '—'])
 
   const scopeValues = valuesFor('#compare-mobile-two-row-nutrition-scope')
   assert.match(scopeValues[0], /한국 판매 제품 자료.*3 kg 제품에서 확인.*보완 자료 포함/)
@@ -1509,4 +1509,34 @@ test('multiple form and age URLs sanitize and round-trip into LOOKUP while retai
   const none=app.parseNavigationState('?view=workspace&feed=bad&age=bad')
   assert.deepEqual(none.search.feedType,[])
   assert.deepEqual(none.search.lifeStage,[])
+})
+
+
+test('nutrition comparison separates available dry-matter numbers from standard rows', async () => {
+  const [first, second] = products
+  const basis = [{ nutrient_key: 'protein', amount: 39.4, unit: '%', qualifier: 'reported' }]
+  const make = (product, standard = false) => ({
+    product_id: product.product_id, market_code: 'KR', observation_scope: 'product',
+    protein_pct: standard ? 30 : null, protein_qualifier: standard ? 'min' : null,
+    fat_pct: null, fiber_pct: null, moisture_pct: null, ash_pct: null,
+    kcal_per_kg: 3400, additional_nutrients: [], supplemental_nutrition_fields: [],
+    basis_specific_nutrition_basis: standard ? null : 'dry_matter',
+    basis_specific_nutrition_values: standard ? [] : basis,
+  })
+  root = createRoot(document.getElementById('root'))
+  for (const mixed of [false, true]) {
+    const rows = [make(first, mixed), make(second)]
+    globalThis.fetch = window.fetch = async input => new URL(String(input)).pathname.endsWith('/compare_product_nutrition_scoped') ? Response.json(rows) : Response.json([])
+    await act(async () => root.render(createElement(app.CompareView, { key: String(mixed), items: [{ product: first }, { product: second }], initialTab: 'nutrition', onClose() {}, onRemove() {} })))
+    await waitForUi(() => document.querySelector('#compare-mobile-two-row-nutrition-basis-dry_matter-protein'), 'basis values rendered')
+    const mobile = document.querySelector('.compare-mobile-two-product-nutrition')
+    const cells = id => [...mobile.querySelector('#compare-mobile-two-row-' + id).closest('tbody').querySelectorAll('.compare-mobile-two-product-value')].map(node => node.textContent)
+    assert.deepEqual(cells('nutrition-basis-dry_matter-protein'), mixed ? ['—', '39.4%'] : ['39.4%', '39.4%'])
+    if (mixed) assert.deepEqual(cells('nutrition-protein'), ['30% 이상', '—'])
+    else assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-protein'), null)
+    for (const key of ['fat', 'fiber', 'moisture', 'ash']) assert.equal(mobile.querySelector('#compare-mobile-two-row-nutrition-' + key), null)
+    assert.match(mobile.textContent, /수분을 제외한 영양성분/)
+    assert.equal(rows[1].protein_pct, null)
+  }
+  installFetch()
 })

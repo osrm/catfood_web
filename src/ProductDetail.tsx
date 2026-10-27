@@ -142,13 +142,7 @@ function additionalNutrientValue(value: AdditionalNutrient) {
   return nutrientValue(value.amount, value.qualifier, unit === '%' ? '%' : unit ? ` ${unit}` : '')
 }
 function basisValues(row: CompareNutrition | null) { return row?.basis_specific_nutrition_values ?? [] }
-function basisValue(row: CompareNutrition | null, key: string) { return basisValues(row).find((item) => item.nutrient_key === key && item.amount != null) }
 function basisLabel(row: CompareNutrition | null) { return row?.basis_specific_nutrition_basis === 'dry_matter' ? '건물 기준(Dry Matter)' : row?.basis_specific_nutrition_basis?.replaceAll('_', ' ') ?? '다른 기준' }
-function standardStatus(row: CompareNutrition | null, key: string, value: number | null) {
-  if (value != null) return null
-  if (basisValue(row, key)) return row?.basis_specific_nutrition_basis === 'dry_matter' ? '건물 기준 자료만 확인' : '다른 기준 자료만 확인'
-  return '미확인'
-}
 function energyValue(row: CompareNutrition | null) {
   if (!row) return '미확인'
   if (row.kcal_per_kg != null) return `${Number(row.kcal_per_kg).toLocaleString('ko-KR')} kcal/kg`
@@ -191,8 +185,17 @@ function supplementalNutritionContext(detail: CompareNutrition | null) {
   return `${labels} · ${detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 기준' : '다른 영양 자료 기준'}으로 보완`
 }
 function basisContext(detail: CompareNutrition | null) {
-  if (detail?.basis_specific_nutrition_basis === 'dry_matter') return '수분을 제거한 건물 기준 자료입니다. 일반 표시값과 기준이 달라 합치거나 환산하지 않습니다.'
+  if (detail?.basis_specific_nutrition_basis === 'dry_matter') return '수분을 뺀 비율입니다. 포장 표시값과 기준이 다릅니다.'
   return '일반 표시값과 다른 기준의 자료입니다. 기준이 달라 합치거나 환산하지 않습니다.'
+}
+function BasisNutrition({ row }: { row: CompareNutrition }) {
+  return <div className="detail-basis-block">
+    <h3>{row.basis_specific_nutrition_basis === 'dry_matter' ? '수분을 제외한 영양성분' : `${basisLabel(row)} 자료`}</h3>
+    <p>{basisContext(row)}</p>
+    <div className="detail-nutrition-list">
+      {basisValues(row).filter(value => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`basis-${value.nutrient_key}-${index}`}><span>{BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong></div>)}
+    </div>
+  </div>
 }
 function supplementalIngredientContext(detail: CompareIngredients | null) {
   if (!detail?.supplemental_full_raw_text?.trim() && !detail?.supplemental_full_ingredient_names?.length) return null
@@ -383,6 +386,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
 
   const nutritionStructured = hasStructuredNutrition(nutrition)
   const alternateNutritionValues = basisValues(nutrition).filter((value) => value.amount != null)
+  const additionalNutritionValues = (nutrition?.additional_nutrients ?? []).filter(value => value.amount != null)
   const nutritionSupplementContext = supplementalNutritionContext(nutrition)
   const ingredientSupplementContext = supplementalIngredientContext(ingredients)
   const primaryIngredientNames = ingredients?.ingredient_names ?? []
@@ -428,7 +432,10 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
     ['조회분', 'ash', nutrition?.ash_pct ?? null, nutrition?.ash_qualifier ?? null],
   ] as const
   const confirmedStandardRows = standardRows.filter(([, , value]) => value != null)
-  const unavailableStandardRows = standardRows.filter(([, , value]) => value == null)
+  const basisFirst = confirmedStandardRows.length === 0 && alternateNutritionValues.length > 0
+  const glanceRows = basisFirst
+    ? alternateNutritionValues.filter(value => ['protein', 'fat'].includes(value.nutrient_key)).map(value => [BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value), value.nutrient_key === 'protein' ? 'protein' : 'fat', value.amount, value.qualifier] as const)
+    : confirmedStandardRows.filter(([, key]) => key === 'protein' || key === 'fat')
   const panelId = `detail-panel-${tab}`
   const tabId = `detail-tab-${tab}`
 
@@ -469,8 +476,9 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 {loading.nutrition ? <div className="detail-state">영양 정보를 불러오는 중입니다.</div> : errors.nutrition ? <LoadError message={errors.nutrition} onRetry={() => loadResource('nutrition')} /> : nutrition && nutritionStructured ? <>
                   <dl className="detail-nutrition-glance">
                     <div className="detail-nutrition-glance-energy"><dt>열량</dt><dd>{energyValue(nutrition)}{nutritionInterpretationNote(nutrition, 'energy') ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'energy')}</small> : null}</dd></div>
-                    {standardRows.slice(0, 2).map(([label, key, value, qualifier]) => <div key={key}><dt>{label}</dt><dd>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}{nutritionInterpretationNote(nutrition, key) ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, key)}</small> : null}</dd></div>)}
+                    {glanceRows.map(([label, key, value, qualifier]) => <div key={key}><dt>{label}</dt><dd>{nutrientValue(value, qualifier)}{!basisFirst && nutritionInterpretationNote(nutrition, key) ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, key)}</small> : null}</dd></div>)}
                   </dl>
+                  {basisFirst && glanceRows.length ? <p className="detail-evidence-context">{nutrition?.basis_specific_nutrition_basis === 'dry_matter' ? '영양 비율은 수분을 제외한 값입니다.' : basisContext(nutrition)}</p> : null}
                   <button className="detail-inline-link" type="button" onClick={() => selectTab('nutrition')}>영양 보기 →</button>
                 </> : <div className="detail-empty">확인된 영양 정보가 없습니다.</div>}
               </div>
@@ -525,10 +533,11 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                   <strong>{energyValue(nutrition)}</strong>
                 </div>
                 {nutritionInterpretationNote(nutrition, 'energy') ? <p className="detail-evidence-context detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'energy')}</p> : null}
-                <div className="detail-nutrition-list">
-                  {standardRows.map(([label, key, value, qualifier]) => <div className="detail-nutrition-row" key={key}><span>{label}</span><strong>{value != null ? nutrientValue(value, qualifier) : standardStatus(nutrition, key, value)}</strong>{nutritionInterpretationNote(nutrition, key) ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, key)}</small> : null}</div>)}
-                  {(nutrition.additional_nutrients ?? []).filter((value) => value.amount != null).map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong>{nutritionInterpretationNote(nutrition, 'additional_nutrients') ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'additional_nutrients')}</small> : null}</div>)}
-                </div>
+                {basisFirst ? <BasisNutrition row={nutrition} /> : null}
+                {confirmedStandardRows.length || additionalNutritionValues.length ? <div className="detail-nutrition-list">
+                  {confirmedStandardRows.map(([label, key, value, qualifier]) => <div className="detail-nutrition-row" key={key}><span>{label}</span><strong>{nutrientValue(value, qualifier)}</strong>{nutritionInterpretationNote(nutrition, key) ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, key)}</small> : null}</div>)}
+                  {additionalNutritionValues.map((value, index) => <div className="detail-nutrition-row" key={`${value.nutrient_key}-${index}`}><span>{additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong>{nutritionInterpretationNote(nutrition, 'additional_nutrients') ? <small className="detail-nutrition-exception">{nutritionInterpretationNote(nutrition, 'additional_nutrients')}</small> : null}</div>)}
+                </div> : null}
                 <details className="detail-disclosure detail-nutrition-source-disclosure">
                   <summary>원래 표기 보기</summary>
                   <div className="detail-fact-lines detail-fact-lines-compact">
@@ -537,13 +546,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                     {nutritionSupplementContext ? <><Fact label="보완 항목" value={nutritionSupplementContext} /><Fact label="보완 자료 범위" value={nutrition.supplemental_observation_scope === 'product' ? '제품' : nutrition.supplemental_observation_scope === 'formula' ? '배합' : nutrition.supplemental_observation_scope === 'variant' ? '포장' : '미확인'} /></> : null}
                   </div>
                 </details>
-                {alternateNutritionValues.length ? <div className="detail-basis-block">
-                  <h3>{basisLabel(nutrition)} 자료</h3>
-                  <p>{basisContext(nutrition)}</p>
-                  <div className="detail-nutrition-list">
-                    {alternateNutritionValues.map((value, index) => <div className="detail-nutrition-row" key={`basis-${value.nutrient_key}-${index}`}><span>{BASIS_NUTRIENT_LABELS[value.nutrient_key] ?? additionalNutrientLabel(value)}</span><strong>{additionalNutrientValue(value)}</strong></div>)}
-                  </div>
-                </div> : null}
+                {!basisFirst && alternateNutritionValues.length ? <BasisNutrition row={nutrition} /> : null}
               </> : <div className="detail-empty">확인된 영양 정보가 없습니다.</div>}
             </> : null}
             {!loading.nutrition && !errors.nutrition && !nutrition ? <div className="detail-empty">확인된 영양 정보가 없습니다.</div> : null}

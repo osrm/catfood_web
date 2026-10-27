@@ -332,7 +332,8 @@ test('SWITCH nutrition keeps current separate and shows only interpretation-chan
   assert.match(mobile.textContent, /422 kcal\/100g/)
   assert.match(mobile.textContent, /33% 이상/)
   assert.match(mobile.textContent, /31% 이상/)
-  assert.match(mobile.textContent, /미확인/)
+  assert.equal(mobileCandidateMetric('조회분').textContent, '—')
+  assert.equal(mobileCandidateMetric('칼슘').textContent, '—')
   assert.match(mobile.querySelector('.compare-mobile-switch-use-package').textContent, /사용 규격 · 1 kg/)
   assert.equal(mobile.querySelector('.compare-current-nutrition-evidence'), null)
   assert.match(mobile.textContent, /원래 표기 보기/)
@@ -554,3 +555,29 @@ function productFilter(url) {
   const ids = url.searchParams.get('p_product_ids')
   return ids ? `in.(${JSON.parse(`[${ids.slice(1, -1)}]`).join(',')})` : url.searchParams.get('product_id')
 }
+
+
+test('SWITCH keeps current-food standard values separate from candidate dry-matter values', async () => {
+  const normal = globalThis.fetch
+  globalThis.fetch = window.fetch = async input => {
+    const response = await normal(input)
+    const url = new URL(String(input))
+    if (!url.pathname.endsWith('/compare_product_nutrition_scoped')) return response
+    const rows = await response.json()
+    return Response.json(rows.map(row => row.product_id === candidates[0].product_id ? {
+      ...row, protein_pct: null, fat_pct: null, fiber_pct: null, moisture_pct: null, ash_pct: null,
+      additional_nutrients: [], supplemental_nutrition_fields: [],
+      basis_specific_nutrition_basis: 'dry_matter',
+      basis_specific_nutrition_values: [{ nutrient_key: 'protein', amount: 39.4, unit: '%', qualifier: 'reported' }],
+    } : row))
+  }
+  await renderSwitch()
+  assert.match(mobileCurrentMetric('조단백질').textContent, /33% 이상/)
+  assert.equal(mobileCandidateMetric('조단백질').textContent, '—')
+  assert.equal(mobileCurrentMetric('단백질').textContent, '—')
+  assert.equal(mobileCandidateMetric('단백질').textContent, '39.4%')
+  assert.equal(desktopCurrentMetric('단백질').textContent, '—')
+  const basisRow = [...document.querySelectorAll('.compare-switch-nutrition-desktop .compare-row')].find(row => row.querySelector('.compare-row-label')?.textContent === '단백질')
+  assert.match(document.querySelector('.compare-switch-mobile-nutrition').textContent, /수분을 제외한 영양성분/)
+  assert.equal(basisRow.querySelectorAll('.compare-cell')[1].textContent, '39.4%')
+})

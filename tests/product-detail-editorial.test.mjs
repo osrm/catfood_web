@@ -406,7 +406,7 @@ test('overview nutrition reuses the existing read, preserves qualifiers and miss
   await render()
   const glance = document.querySelector('.detail-nutrition-glance')
   assert.ok(glance)
-  assert.deepEqual([...glance.querySelectorAll('dd')].map((node) => node.textContent), ['97 kcal/100g', '10% 이상', '미확인'])
+  assert.deepEqual([...glance.querySelectorAll('dd')].map((node) => node.textContent), ['97 kcal/100g', '10% 이상'])
   assert.equal(nutritionReads, 1)
   await click('영양 보기 →')
   assert.equal(document.querySelector('[role="tab"][aria-selected="true"]').textContent, '영양')
@@ -543,7 +543,7 @@ test('nutrition keeps kcal per 100g, qualifiers, units and true unknowns', async
   assert.match(text, /조지방4\.5% 이상/)
   assert.match(text, /조섬유1% 이하/)
   assert.match(text, /수분80% 이하/)
-  assert.match(text, /조회분미확인/)
+  assert.equal([...document.querySelectorAll('.detail-nutrition-row')].some(row => row.querySelector('span')?.textContent === '조회분'), false)
   assert.match(text, /타우린800 mg\/kg 평균값/)
   assert.equal((text.match(/한국 확인 · 85 g × 6 제품에서 확인/g) ?? []).length, 1)
   assert.equal((text.match(/조회분 · 현재 확인 배합 기준으로 보완/g) ?? []).length, 1)
@@ -560,14 +560,14 @@ test('nutrition describes dry matter only for the dry-matter basis', async () =>
     {
       key: 'dry',
       basis: 'dry_matter',
-      expected: /수분을 제거한 건물 기준 자료입니다/,
+      expected: /수분을 뺀 비율입니다/,
       absent: /일반 표시값과 다른 기준의 자료입니다/,
     },
     {
       key: 'other',
       basis: 'as_fed_reference',
       expected: /일반 표시값과 다른 기준의 자료입니다/,
-      absent: /수분을 제거한 건물 기준 자료입니다/,
+      absent: /수분을 뺀 비율입니다/,
     },
   ]
 
@@ -592,6 +592,32 @@ test('nutrition describes dry matter only for the dry-matter basis', async () =>
     assert.doesNotMatch(text, item.absent)
     assert.match(text, /단백질42%/)
   }
+})
+
+test('detail leads with available dry-matter numbers without inventing standard values or missing rows', async () => {
+  const official = {
+    ...nutrition, protein_pct: null, protein_qualifier: null, fat_pct: null, fat_qualifier: null,
+    fiber_pct: null, fiber_qualifier: null, moisture_pct: null, moisture_qualifier: null,
+    ash_pct: null, ash_qualifier: null, additional_nutrients: [], supplemental_nutrition_fields: [],
+    basis_specific_nutrition_basis: 'dry_matter',
+    basis_specific_nutrition_values: [
+      { nutrient_key: 'protein', amount: 39.4, unit: '%', qualifier: 'reported' },
+      { nutrient_key: 'fat', amount: 11.9, unit: '%', qualifier: 'reported' },
+      { nutrient_key: 'fiber', amount: 6, unit: '%', qualifier: 'reported' },
+    ],
+  }
+  const normal = handler
+  handler = async url => url.pathname.endsWith('/compare_product_nutrition_scoped') ? Response.json([official]) : normal(url)
+  await render()
+  assert.deepEqual([...document.querySelectorAll('.detail-nutrition-glance dd')].map(node => node.textContent), ['97 kcal/100g', '39.4%', '11.9%'])
+  assert.match(document.querySelector('.detail-overview-nutrition').textContent, /수분을 제외한 값/)
+  await click('영양 보기 →')
+  const panel = document.querySelector('#detail-panel-nutrition')
+  assert.deepEqual([...panel.querySelectorAll('.detail-nutrition-row strong')].map(node => node.textContent), ['39.4%', '11.9%', '6%'])
+  assert.equal(panel.querySelectorAll('.detail-nutrition-list').length, 1, 'no empty standard-value list')
+  assert.match(panel.querySelector('h3').textContent, /수분을 제외한 영양성분/)
+  assert.doesNotMatch(panel.textContent, /건물 기준 자료만 확인|조회분미확인|수분미확인/)
+  assert.equal(official.protein_pct, null, 'presentation never copies DM into the source row')
 })
 
 test('detail distinguishes request failure from an empty 200 response and retries only the failed resource', async () => {
@@ -727,7 +753,7 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
   nutritionDisclosure.open = true
   assert.match(nutritionDisclosure.textContent, /보완 항목조회분/)
   assert.match(nutritionDisclosure.textContent, /보완 자료 범위/)
-  assert.match(document.body.textContent, /건물 기준\(Dry Matter\) · 단백질 42% 이상/)
+  assert.match(document.body.textContent, /수분을 제외한 영양성분단백질42% 이상/)
 
   const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
   await act(async () => {

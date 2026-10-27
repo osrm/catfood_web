@@ -182,8 +182,8 @@ test('detail separates dry-matter evidence from standard nutrition and leaves tr
   await click('영양')
   const text = document.body.textContent
   assert.match(text, /3,772 kcal\/kg/)
-  assert.match(text, /건물 기준 자료만 확인/)
-  assert.match(text, /수분을 제거한 건물 기준 자료입니다/)
+  assert.doesNotMatch(text, /건물 기준 자료만 확인/)
+  assert.match(text, /수분을 뺀 비율입니다/)
   const basisRows = [...document.querySelectorAll('.detail-basis-block .detail-nutrition-row')].map((row) => [
     row.querySelector('span')?.textContent?.trim(),
     row.querySelector('strong')?.textContent?.trim(),
@@ -193,8 +193,8 @@ test('detail separates dry-matter evidence from standard nutrition and leaves tr
     ['지방', '20.4%'],
     ['조섬유', '8.6%'],
   ])
-  assert.match(text, /수분미확인/)
-  assert.match(text, /조회분미확인/)
+  assert.doesNotMatch(text, /수분미확인|수분0%/)
+  assert.doesNotMatch(text, /조회분미확인|조회분0%/)
   const nutritionRequest = requests.find((url) => url.pathname.endsWith('/compare_product_nutrition_scoped'))
   assert.match(nutritionRequest.searchParams.get('select'), /basis_specific_nutrition_basis/)
   assert.match(nutritionRequest.searchParams.get('select'), /basis_specific_nutrition_values/)
@@ -208,11 +208,12 @@ test('comparison keeps unrelated missing nutrition as unknown while explaining b
   })))
   await click('영양')
   const text = document.body.textContent
-  assert.match(text, /건물 기준 자료만 확인/)
-  assert.match(text, /건물 기준\(Dry Matter\) · 단백질 34\.3% · 지방 20\.4% · 조섬유 8\.6%/)
+  assert.doesNotMatch(text, /건물 기준 자료만 확인/)
+  assert.match(text, /수분을 제외한 영양성분단백질34\.3%—지방20\.4%—조섬유8\.6%/)
   assert.match(text, /Other Missing/)
-  const proteinRow = [...document.querySelectorAll('.compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent === '조단백질')
+  assert.equal([...document.querySelectorAll('.compare-row')].some(row => row.querySelector('.compare-row-label')?.textContent === '조단백질'), false)
+  const proteinRow = [...document.querySelectorAll('.compare-row')].find((row) => row.querySelector('.compare-row-label')?.textContent === '단백질')
   assert.ok(proteinRow)
   const cells = [...proteinRow.querySelectorAll('.compare-cell')].map((cell) => cell.textContent.trim())
-  assert.deepEqual(cells, ['건물 기준 자료만 확인', '미확인'])
+  assert.deepEqual(cells, ['34.3%', '—'])
 })

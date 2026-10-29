@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { before, after, beforeEach, afterEach, test } from 'node:test'
-import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'vite'
@@ -12,6 +12,7 @@ window.HTMLElement.prototype.scrollIntoView=function(){}
 globalThis.IS_REACT_ACT_ENVIRONMENT=true
 const {createRoot}=await import('react-dom/client')
 const nativeFetch=globalThis.fetch
+const hiddenIds=JSON.parse(await readFile(resolve('data/temporarily-hidden-products.json'),'utf8'))
 let app,root,temp,rows,requests,factsHandler
 function product(id, name, overrides = {}) {
   return {
@@ -266,4 +267,68 @@ test('restored SWITCH detail skips global facts and retains current product and 
  assert.equal(saved.currentProductId,rows[0].product_id)
  assert.deepEqual(saved.compareIds,[rows[1].product_id])
  assert.equal(saved.variantSelection.kind,'unknown')
+})
+
+function includeHiddenProducts() {
+ rows.push(...hiddenIds.map((id,index)=>product(id,`Hidden product ${index}`)))
+}
+
+test('the temporary exclusion covers exactly 18 identities without excluding products merely missing facts',async()=>{
+ assert.equal(hiddenIds.length,18);assert.equal(new Set(hiddenIds).size,18)
+ assert.ok(hiddenIds.every(id=>/^product_[a-f0-9]{16}$/.test(id)))
+ assert.ok(!hiddenIds.includes('product_0d4af19a80b521c1'),'the now-filled Thrive product remains available')
+ includeHiddenProducts()
+ const catalog=await app.fetchCatalog()
+ assert.deepEqual(catalog.map(p=>p.product_id),rows.slice(0,2).map(p=>p.product_id))
+ assert.equal(catalog[1].has_nutrition_details,false,'missing facts alone are not a visibility rule')
+})
+
+test('global ingredient reads skip the hidden cohort and still validate every visible product',async()=>{
+ includeHiddenProducts();const visible=(await app.fetchCatalog()).map(p=>p.product_id)
+ assert.deepEqual((await app.fetchCatalogIngredientFacts(visible)).map(p=>p.product_id),visible)
+ factsHandler=async()=>Response.json(rows.filter(p=>p.product_id!==visible[1]))
+ await assert.rejects(app.fetchCatalogIngredientFacts(visible),/incomplete/)
+})
+
+test('name lookup and ingredient exclusion do not reintroduce hidden catalog rows',async()=>{
+ includeHiddenProducts()
+ await mount('?view=workspace&mode=lookup&q=Test%20Brand')
+ assert.match(text(),/Alpha/);assert.match(text(),/Beta/);assert.doesNotMatch(text(),/Hidden product/)
+ assert.equal(document.querySelectorAll('[data-product-id]').length,2)
+ await act(async()=>root.unmount());root=createRoot(document.getElementById('root'))
+ await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=chicken')
+ assert.match(text(),/Beta/);assert.doesNotMatch(text(),/Hidden product|불러오지 못했습니다/)
+ assert.ok(![...document.querySelectorAll('[data-product-id]')].some(n=>hiddenIds.includes(n.dataset.productId)))
+})
+
+test('restored detail and comparison URLs remove hidden IDs while preserving an available comparison product',async()=>{
+ includeHiddenProducts();const visible=rows[0].product_id,hidden=hiddenIds[0]
+ await mount('?view=workspace&mode=lookup&q=Alpha&detail='+hidden+'&compare='+hidden+','+visible+'&compareOpen=1')
+ assert.doesNotMatch(text(),/Hidden product/)
+ assert.ok(!window.location.search.includes(hidden))
+ assert.equal(new URLSearchParams(window.location.search).get('compare'),visible)
+ assert.ok(requests.every(r=>!hiddenIds.some(id=>r.url.search.includes(id))))
+})
+
+test('restored SWITCH keeps its visible current product and candidates but removes a hidden detail and candidate',async()=>{
+ includeHiddenProducts();const session=app.createInitialSwitchSession('Alpha')
+ session.currentProductId=rows[0].product_id;session.variantSelection={kind:'unknown',variantId:null};session.step='results'
+ session.compareIds=[hiddenIds[0],rows[1].product_id];session.detailProductId=hiddenIds[0]
+ app.writeSwitchSession(session,window.sessionStorage)
+ await mount('?view=workspace&mode=switch')
+ const saved=app.readSwitchSession(window.sessionStorage)
+ assert.equal(saved.currentProductId,rows[0].product_id);assert.deepEqual(saved.compareIds,[rows[1].product_id])
+ assert.equal(saved.detailProductId,null);assert.equal(saved.variantSelection.kind,'unknown')
+ assert.doesNotMatch(text(),/Hidden product|불러오지 못했습니다/)
+})
+
+test('a hidden saved SWITCH current product returns to selection without requesting its details',async()=>{
+ includeHiddenProducts();const session=app.createInitialSwitchSession('Hidden')
+ session.currentProductId=hiddenIds[0];session.variantSelection={kind:'unknown',variantId:null};session.step='results';session.compareIds=[rows[1].product_id]
+ app.writeSwitchSession(session,window.sessionStorage)
+ await mount('?view=workspace&mode=switch')
+ const saved=app.readSwitchSession(window.sessionStorage)
+ assert.equal(saved.currentProductId,null);assert.equal(saved.step,'current')
+ assert.doesNotMatch(text(),/Hidden product/)
+ assert.ok(requests.every(r=>!hiddenIds.some(id=>r.url.search.includes(id))))
 })

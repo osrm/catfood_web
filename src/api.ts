@@ -1,3 +1,8 @@
+import temporarilyHiddenProducts from '../data/temporarily-hidden-products.json'
+
+// Explicit, reversible UI exclusions. Other products with missing facts remain visible.
+const hiddenProductIds = new Set(temporarilyHiddenProducts)
+
 export interface CatalogProduct {
   product_id: string
   brand: string
@@ -558,7 +563,7 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
   }
   const packages = packageLabelsByProduct(packageRows)
 
-  return rawProducts.map((value) => normalizeProduct({
+  return rawProducts.filter(value => !hiddenProductIds.has(value.product_id)).map((value) => normalizeProduct({
     ...value,
     ingredient_term_result_count: null,
     confirmed_present_ingredient_terms: null,
@@ -580,10 +585,13 @@ async function fetchIngredientFacts(productIds: string[], signal?: AbortSignal, 
   if (productId) url.searchParams.set('product_id', `eq.${productId}`)
   const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
   if (!response.ok) throw new Error(`Ingredient facts API ${response.status}`)
-  const rows: unknown = await response.json()
+  const payload: unknown = await response.json()
   const expected = new Set(productIds)
   const seen = new Set<string>()
-  if (!Array.isArray(rows)) throw new Error('Invalid ingredient facts response')
+  if (!Array.isArray(payload)) throw new Error('Invalid ingredient facts response')
+  // The shared API still contains hidden products. Ignore only those identities;
+  // missing, unexpected or malformed visible-product facts must still fail validation.
+  const rows = payload.filter(row => !hiddenProductIds.has(row?.product_id))
   for (const row of rows) {
     if (!row || typeof row !== 'object' || !expected.has(row.product_id) || seen.has(row.product_id)
       || !Number.isInteger(row.ingredient_term_result_count) || row.ingredient_term_result_count < 0
@@ -610,6 +618,8 @@ export async function fetchProductVariants(
   productId: string,
   signal?: AbortSignal,
 ): Promise<ProductVariant[]> {
+  // Restored SWITCH sessions can request variants before catalog sanitization.
+  if (hiddenProductIds.has(productId)) return []
   const data = await fetchRows<ProductVariant>(
     'switch_current_variant_options',
     VARIANT_FIELDS,

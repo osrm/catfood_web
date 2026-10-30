@@ -944,7 +944,7 @@ export default function SwitchFlow({
 
   const presentedCandidates = useMemo(() => ingredientAvoidTerms.length
     ? [...candidates.filter((item) => item.ingredientInsufficient.length === 0), ...candidates.filter((item) => item.ingredientInsufficient.length > 0)]
-    : candidates, [candidates, ingredientAvoidTerms.length])
+    : [...candidates.filter(item => item.unknowns.length === 0), ...candidates.filter(item => item.unknowns.length > 0)], [candidates, ingredientAvoidTerms.length])
   const trackedCandidates = presentedCandidates.slice(0, 40)
   function candidateBrowseUnknowns(product: CatalogProduct): string[] | null {
     const unknowns: string[] = []
@@ -968,12 +968,13 @@ export default function SwitchFlow({
       ...browsedCandidates.filter((item) => candidateBrowseUnknowns(item.product)?.length === 0),
       ...browsedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)),
     ]
-    if (!candidateSearchActive) return values
+    const ordered = values
+    if (!candidateSearchActive) return ordered
     const matchedIds = new Set(
-      lookupCatalog(values.map((item) => item.product), candidateSearch)
+      lookupCatalog(ordered.map((item) => item.product), candidateSearch)
         .map((product) => product.product_id),
     )
-    return values.filter((item) => matchedIds.has(item.product.product_id))
+    return ordered.filter((item) => matchedIds.has(item.product.product_id))
   }, [browsedCandidates, candidateSearch, candidateSearchActive, candidateBrowseActive, candidateFeedTypes, candidateRecipeFamilies])
   const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
@@ -1776,7 +1777,12 @@ export default function SwitchFlow({
     const reviewedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length === 0)
     const unresolvedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length > 0)
     const browseUnknownCount = candidateBrowseActive ? searchedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)).length : 0
-    const candidateSummaryText = candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
+    const conditionUnknownCandidates = visibleCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0)
+    const conditionConfirmedCandidates = visibleCandidates.filter(item => item.unknowns.length === 0 && item.ingredientInsufficient.length === 0)
+    const conditionUnknownCount = searchedCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0).length
+    const candidateSummaryText = hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
+      ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 추가 확인 ${conditionUnknownCount}개`
+      : candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
     const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
     const browseConfirmedCandidates = visibleCandidates.filter((item) => !candidateBrowseUnknowns(item.product)?.length)
     const changeCandidateBrowse = (field: 'candidateFeedTypes' | 'candidateRecipeFamilies', value: string) => {
@@ -1888,6 +1894,9 @@ export default function SwitchFlow({
                   <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">원료 확인이 더 필요한 제품</h2><p id="switch-unresolved-note">피하려는 원료가 있는지 아직 확인하지 못했어요. 원재료를 먼저 살펴보세요.</p></div>
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
+              </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
+                {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>선택한 표기를 확인한 후보</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="추가 확인이 필요한 후보"><div className="switch-candidate-group-heading"><h2>추가 확인이 필요한 후보</h2><p>고른 조건 중 아직 확인하지 못한 항목이 있습니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
               </> : candidateBrowseActive ? <>
                 {browseConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보">{browseConfirmedCandidates.map(renderCandidateRow)}</section> : null}
                 {browseUnknownCandidates.length ? <section className="switch-candidate-group switch-browse-unknown" aria-label="선택한 표기를 아직 확인하지 못한 제품"><div className="switch-candidate-group-heading"><h2>선택한 표기를 아직 확인하지 못했어요</h2><p>형태나 레시피 종류를 확인할 자료가 부족해 남겨둔 제품입니다.</p></div>{browseUnknownCandidates.map(renderCandidateRow)}</section> : null}
@@ -1920,6 +1929,7 @@ export default function SwitchFlow({
                   {noChangeIntent ? <button className="journey-inline-action" type="button" aria-pressed={compareIds.includes(selectedCandidate.product.product_id)} disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => toggleCompare(selectedCandidate.product.product_id)}>{compareIds.includes(selectedCandidate.product.product_id) ? '비교에서 제거' : '비교에 추가'}</button> : null}
                   <details><summary>가격이나 잘 먹는지가 고민이라면</summary><p>가격과 실제 먹는 반응은 현재 자료로 비교할 수 없습니다. 여기서는 원재료와 표시된 영양 정보의 차이를 살펴볼 수 있습니다.</p></details>
                 </section> : <div className="quick-view-actions switch-inspector-actions">
+                  <button className="switch-compare-action switch-current-nutrition-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(selectedCandidate.product.product_id)} onClick={() => compareCandidateFacts(selectedCandidate.product.product_id)}>현재 사료와 영양 비교 →</button>
                   <button
                     className={compareIds.includes(selectedCandidate.product.product_id) ? 'switch-compare-action is-added' : 'switch-compare-action'}
                     aria-pressed={compareIds.includes(selectedCandidate.product.product_id)}

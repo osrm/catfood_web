@@ -70,6 +70,11 @@ const LIFE_STAGE_LABELS = Object.fromEntries(LIFE_STAGES)
 const TARGET_LABELS = Object.fromEntries(TARGETS)
 const FEATURE_LABELS = Object.fromEntries(FEATURES)
 const RECIPE_FAMILY_LABELS = Object.fromEntries(RECIPE_FAMILIES)
+
+function orderReviewedCandidates(items: CandidateEvaluation[]) {
+  const needsReview = (item: CandidateEvaluation) => item.unknowns.length > 0 || Boolean(item.ingredientInsufficient?.length)
+  return [...items.filter(item => !needsReview(item)), ...items.filter(needsReview)]
+}
 const RECIPE_DETAIL_LABELS: Record<string, string> = {
   carp: '잉어', crab: '게', duck_liver: '오리 간', pollock: '폴락', rockfish: '볼락류', sole: '가자미류(Sole)', squid: '오징어',
   eel: '장어', possum: '주머니쥐', veal: '송아지', beef_heart: '소 심장', lamb_heart: '양 심장', scallop: '가리비',
@@ -573,7 +578,14 @@ export default function App() {
     return recipeDetails.filter((value) => !query || value.toLocaleLowerCase('en').includes(query) || optionLabel(value, RECIPE_DETAIL_LABELS).toLocaleLowerCase('ko-KR').includes(query))
   }, [recipeDetails, recipeSearch])
   const displayedRecipeDetails = recipeSearch.trim() || showAllRecipes ? visibleRecipeDetails : visibleRecipeDetails.slice(0, 8)
-  const resultProducts = useMemo(() => mode === 'lookup' ? lookupResults : editingConditions ? [] : evaluated.map((item) => item.product), [mode, lookupResults, editingConditions, evaluated])
+  const unverifiedResultIds = useMemo(() => new Set(evaluated.filter(item =>
+    item.unknowns.length > 0 || Boolean(item.ingredientInsufficient?.length)
+    || (energyMax != null && (item.product.feed_type !== search.feedType[0] || usableEnergy(energyByProduct.get(item.product.product_id)) == null))
+  ).map(item => item.product.product_id)), [evaluated, energyMax, energyByProduct, search.feedType])
+  const resultProducts = useMemo(() => mode === 'lookup' ? lookupResults : editingConditions ? [] : [
+    ...evaluated.filter(item => !unverifiedResultIds.has(item.product.product_id)),
+    ...evaluated.filter(item => unverifiedResultIds.has(item.product.product_id)),
+  ].map(item => item.product), [mode, lookupResults, editingConditions, evaluated, unverifiedResultIds])
   const selectedProduct = selectedId ? resultProducts.find((product) => product.product_id === selectedId) ?? null : null
   const selectedEvaluation = selectedProduct && mode === 'explore' ? evaluated.find((item) => item.product.product_id === selectedProduct.product_id) ?? null : null
   const activeConditions = countActiveConditions(search, refine)
@@ -655,18 +667,18 @@ export default function App() {
       return
     }
     exploreRunStateKey.current = exploreRunKey(nextSearch, nextRefine)
-    const candidates = evaluateCatalog(products, nextSearch, nextRefine), generation = exploreRunGeneration.current, previous = exploreRunTail.current
+    const candidates = orderReviewedCandidates(evaluateCatalog(products, nextSearch, nextRefine)), generation = exploreRunGeneration.current, previous = exploreRunTail.current
     const next = previous.then((previousRunId) => { if (exploreRunGeneration.current !== generation) return null; return createDecisionSearchRun({ parentSearchRunId: previousRunId ?? exploreRunId.current, runOrigin, mode: 'explore', currentProductId: null, currentVariantId: null, criteriaSnapshot: exploreCriteriaSnapshot(nextSearch, nextRefine), candidateCount: candidates.length, initialPresentedProductIds: candidates.slice(0, 40).map((item) => item.product.product_id) }) })
     exploreRunTail.current = next
     void next.then((id) => { if (id && exploreRunGeneration.current === generation) exploreRunId.current = id })
   }
   function recordExploreConsideration(productId: string, signal: ConsiderationSignal, displayedProductIds?: string[]) {
     if (mode !== 'explore' || energyMax != null) return
-    const initial = evaluated.slice(0, 40).map((item) => item.product.product_id)
-    const index = evaluated.findIndex((item) => item.product.product_id === productId)
+    const initial = resultProducts.slice(0, 40).map(product => product.product_id)
+    const index = resultProducts.findIndex(product => product.product_id === productId)
     if (index < 0) return
     const context = { kind: initial.includes(productId) ? 'initial' as const : 'load_more' as const,
-      presentedProductIds: initial.includes(productId) ? initial : evaluated.slice(Math.floor(index / 40) * 40, Math.floor(index / 40) * 40 + 40).map((item) => item.product.product_id), displayedProductIds }
+      presentedProductIds: initial.includes(productId) ? initial : resultProducts.slice(Math.floor(index / 40) * 40, Math.floor(index / 40) * 40 + 40).map(product => product.product_id), displayedProductIds }
     const generation = exploreRunGeneration.current
     void exploreRunTail.current.then((id) => { if (generation === exploreRunGeneration.current) return recordProductConsideration(id, productId, signal, context) })
   }
@@ -974,7 +986,7 @@ export default function App() {
     if (!resultProducts.length) return mode === 'lookup'
       ? <div className="state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><button className="state-retry" type="button" onClick={focusLookupInput}>검색어 수정</button></div>
       : <div className="state-message"><strong>조건에 맞는 제품이 없습니다.</strong><span>조건을 바꾸어 다시 찾아보세요.</span>{energyMax != null ? <button className="state-retry" type="button" onClick={() => changeEnergyMax()}>열량 조건 지우기</button> : null}{refine.brands?.length ? <button className="state-retry" type="button" onClick={() => changeBrandRefine([], true)}>브랜드 선택 지우기</button> : null}{refine.recipeDetails.length ? <button className="state-retry" type="button" onClick={() => changeRecipeRefine([], true)}>레시피 선택 지우기</button> : null}<button className="state-retry" type="button" onClick={editConditions}>조건 수정</button></div>
-    return <div className="research-results-list">{visibleProducts.map((product) => {
+    const renderProduct = (product: CatalogProduct) => {
       const evaluation = mode === 'explore' ? evaluated.find((item) => item.product.product_id === product.product_id) ?? null : null
       const hasExploreCriteria = mode === 'explore' && activeEvidenceConditions > 0
       const isCompared = compareIds.includes(product.product_id)
@@ -1006,7 +1018,20 @@ export default function App() {
         </button>
         {mode === 'explore' && energyEligible && needsEnergy && energyRows != null ? <EnergyResult row={energyByProduct.get(product.product_id)} sameFeed={product.feed_type === search.feedType[0]} /> : null}
       </div>
-    })}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
+    }
+    const grouped = mode === 'explore' && activeConditions > 0
+    const confirmed = visibleProducts.filter(product => !unverifiedResultIds.has(product.product_id))
+    const unverified = visibleProducts.filter(product => unverifiedResultIds.has(product.product_id))
+    return <div className="research-results-list">{grouped ? <>
+      {confirmed.length ? <section className="result-evidence-group" aria-label={search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}>
+        <div className="result-evidence-heading"><h2>{search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}</h2>{search.ingredientAvoidTerms?.length ? <p>피하려는 원료는 검토한 자료에서 찾지 못했습니다. 원료가 없다는 보장은 아닙니다.</p> : null}</div>
+        {confirmed.map(renderProduct)}
+      </section> : null}
+      {unverified.length ? <section className="result-evidence-group is-unverified" aria-label="추가 확인이 필요한 제품">
+        <div className="result-evidence-heading"><h2>추가 확인이 필요한 제품</h2><p>고른 조건 중 아직 확인하지 못한 항목이 있습니다.</p></div>
+        {unverified.map(renderProduct)}
+      </section> : null}
+    </> : visibleProducts.map(renderProduct)}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
   }
   function renderQuickView() {
     if (!selectedProduct) return null
@@ -1032,7 +1057,8 @@ export default function App() {
   const resultCountText = visibleProducts.length < resultProducts.length ? `${resultProducts.length}개 중 ${visibleProducts.length}개 표시` : `${resultProducts.length}개의 제품`
   const resultSummaryText = mode === 'explore' && ingredientConditionsPending && !loading && !error ? (ingredientStatus === 'error' ? '원료 정보 조회 실패' : '원료 정보 확인 중') : loading
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
-    : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중' : resultCountText
+    : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중'
+    : mode === 'explore' && activeConditions > 0 ? `${search.ingredientAvoidTerms?.length ? '원료 자료 검토' : '표기 확인'} ${resultProducts.length - unverifiedResultIds.size}개 · 추가 확인 ${unverifiedResultIds.size}개` : resultCountText
   const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
   const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType.length || search.lifeStage.length)
     ? (priorityLabels.length === 1

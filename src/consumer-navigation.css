@@ -375,3 +375,8 @@
     font-size: 10.5px;
   }
 }
+.result-evidence-heading { padding: 18px 0 10px; }
+.research-results .result-evidence-heading h2 { margin: 0; font-size: 15px; line-height: 1.5; }
+.result-evidence-heading p { margin: 6px 0 0; color: var(--text-muted, #595c5b); font-size: 13px; line-height: 1.7; }
+.result-evidence-group + .result-evidence-group { margin-top: 24px; border-top: 1px solid var(--border, #ddd); }
+.switch-inspector-actions > .switch-current-nutrition-action { grid-column: 1 / -1; font-size: 14px; }

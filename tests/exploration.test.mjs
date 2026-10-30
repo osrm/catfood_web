@@ -879,6 +879,7 @@ test('ingredient editor, results and analytics preserve evidence states with onl
   products[1].reviewed_not_found_ingredient_terms = ['chicken']
   products[2].insufficient_evidence_ingredient_terms = ['chicken']
   products[3].reviewed_not_found_ingredient_terms = ['chicken']
+  products[2].brand = 'AAA unknown before reviewed in catalog order'
   dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore' })
   await act(async () => root.render(createElement(app.App)))
   assert.equal(document.querySelector('#explore-additional-conditions').hidden, true)
@@ -898,6 +899,9 @@ test('ingredient editor, results and analytics preserve evidence states with onl
   assert.match(result.textContent, /원료 미확인/)
   assert.equal(rows('.research-result-card').length, 3)
   assert.equal(document.querySelector('.result-priority-note'), null, 'exclude-only search is not described as positive sorting')
+  assert.deepEqual(rows('.research-result-card').map(node => node.dataset.productId), [products[1], products[3], products[2]].map(product => product.product_id))
+  assert.deepEqual(searchRuns().at(-1).body.initial_presented_product_ids, rows('.research-result-card').map(node => node.dataset.productId), 'recorded presentation uses the same reviewed/unknown order as the screen')
+  assert.ok(document.querySelector('[aria-label="원료 자료를 검토한 제품"]'))
   assert.match(window.location.search, /avoidIngredients=chicken/)
   await click(document.querySelector('.research-result-card[data-product-id="' + products[1].product_id + '"]'))
   assert.match(document.querySelector('.research-quick-view').textContent, /검토 자료에서 못 찾음/)

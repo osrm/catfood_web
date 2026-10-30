@@ -1023,7 +1023,7 @@ export default function App() {
     const confirmed = visibleProducts.filter(product => !unverifiedResultIds.has(product.product_id))
     const unverified = visibleProducts.filter(product => unverifiedResultIds.has(product.product_id))
     return <div className="research-results-list">{grouped ? <>
-      {confirmed.length ? <section className="result-evidence-group" aria-label="선택한 표기를 확인한 제품">
+      {confirmed.length ? <section className="result-evidence-group" aria-label={search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}>
         <div className="result-evidence-heading"><h2>{search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}</h2>{search.ingredientAvoidTerms?.length ? <p>피하려는 원료는 검토한 자료에서 찾지 못했습니다. 원료가 없다는 보장은 아닙니다.</p> : null}</div>
         {confirmed.map(renderProduct)}
       </section> : null}

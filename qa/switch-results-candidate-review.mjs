@@ -48,7 +48,7 @@ async function exercise(page,key){
  // Pointer opened the inspector; from the selected row, reach controls only with real Tab traversal.
  const closeReach=await tabUntil(page,x=>x.text.includes('닫기 ×'))
  const addReach=await tabUntil(page,x=>/비교에 추가|비교에서 제거/.test(x.text));await page.keyboard.press('Enter')
- const add=page.locator('.switch-inspector-actions button').first();assert.match(norm(await add.textContent()),/비교에서 제거/)
+ const add=page.locator('.switch-inspector-actions button[aria-pressed]');assert.match(norm(await add.textContent()),/비교에서 제거/)
  const detailReach=await tabUntil(page,x=>x.text.includes('상세 보기'));await page.keyboard.press('Enter');await page.locator('.detail-stage').waitFor({state:'visible'})
  await page.goBack();await page.locator('.switch-candidate-inspector').waitFor({state:'visible'})
  // After history restoration, traverse from the selected row again; no .focus() shortcut.

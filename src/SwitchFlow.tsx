@@ -1429,7 +1429,7 @@ export default function SwitchFlow({
             <div className="switch-find-results-list">
               {error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
               {loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}
-              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span></div> : null}
+              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><span>정보 확인 중인 일부 제품은 현재 검색 결과에서 제외되어 있어, 제품명을 정확히 입력해도 보이지 않을 수 있습니다.</span></div> : null}
               {searchResults.map((product) => (
                 <button
                   className={currentProductId === product.product_id ? 'switch-find-result is-selected' : 'switch-find-result'}

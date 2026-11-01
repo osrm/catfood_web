@@ -355,9 +355,10 @@ test('EXPLORE keeps unknown candidates, orders confirmed conditions first, and e
   await waitForUi(() => rows('.research-result-card').length === 3, 'ranked explore candidates rendered')
   assert.deepEqual(rows('.research-result-card').map((card) => card.dataset.productId), products.map((product) => product.product_id))
   const summary = document.querySelector('.research-results-heading span')?.textContent ?? ''
-  assert.match(summary, /표기 확인 1개 · 추가 확인 2개/)
+  assert.match(summary, /표기 확인 1개 · 조건 미확인 2개/)
   assert.equal(document.querySelector('[aria-label="선택한 표기를 확인한 제품"]').querySelectorAll('.research-result-card').length, 1)
-  assert.equal(document.querySelector('[aria-label="추가 확인이 필요한 제품"]').querySelectorAll('.research-result-card').length, 2)
+  assert.equal(document.querySelector('[aria-label="선택한 조건을 확인하지 못한 제품"]').querySelectorAll('.research-result-card').length, 2)
+  assert.match(document.querySelector('.result-evidence-group.is-unverified .result-evidence-heading').textContent, /원료·영양 정보 전체가 부족하다는 뜻은 아닙니다/)
   assert.match(document.querySelector('.result-priority-note').textContent, /고른 조건이 더 많이 확인된 제품부터/)
   assert.match(document.querySelector('.result-priority-note').textContent, /표기가 없는 제품도 함께 봅니다/)
   assert.match(rows('.research-result-card')[2].textContent, /미확인 조건/)
@@ -1027,7 +1028,7 @@ test('energy is lazy, keeps unknowns and unofficial weight features, preserves b
  assert.match(document.body.textContent,/348.5 kcal\/100g/)
  assert.match(document.body.textContent,/열량 미확인/)
  assert.equal(document.querySelector('[aria-label="선택한 표기를 확인한 제품"]').querySelectorAll('.research-result-card').length,1)
- assert.equal(document.querySelector('[aria-label="추가 확인이 필요한 제품"]').querySelectorAll('.research-result-card').length,2,'unknown energy and missing weight label remain outside the verified group')
+ assert.equal(document.querySelector('[aria-label="선택한 조건을 확인하지 못한 제품"]').querySelectorAll('.research-result-card').length,2,'unknown energy and missing weight label remain outside the verified group')
  const runs=searchRuns().length, signals=considerations().length
  await click(rows('.research-result-compare')[0])
  assert.equal(searchRuns().length,runs);assert.equal(considerations().length,signals,'no energy action attached to prior intake run')

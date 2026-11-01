@@ -1724,3 +1724,37 @@ test('a delayed decision acknowledgement cannot resurrect records after explicit
   assert.equal(journey().outcome, null)
   assert.equal(session().currentProductId, null)
 })
+
+test('SWITCH inspector reads the full animal-source composition beside an advertised duck recipe', async () => {
+  catalogProducts = [
+    current,
+    { ...candidateA, recipe_details: ['duck'], has_ingredient_details: true },
+    candidateB,
+    singleSku,
+  ]
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = window.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+      resourceRequests.push(url.pathname)
+      return Response.json([{
+        product_id: candidateA.product_id,
+        ingredient_names: ['De-boned Duck', 'Duck Meal', 'Whole Dried Egg', 'Chicken Fat'],
+        raw_text: 'De-boned Duck, Duck Meal, Whole Dried Egg, Chicken Fat',
+        completeness_status: 'full',
+      }])
+    }
+    return originalFetch(input, init)
+  }
+  await renderApp()
+  await reachResultsWithConditions({ avoidIngredient: false })
+  assert.equal(resourceRequests.filter(path => path.endsWith('/compare_product_ingredients_scoped')).length, 0, 'candidate list has no ingredient prefetch')
+  await selectCandidate(candidateA.canonical_name)
+  await waitForUi(() => (document.querySelector('.switch-candidate-inspector')?.textContent ?? '').includes('계란·유제품'), 'candidate inspector animal composition')
+  const inspector = document.querySelector('.switch-candidate-inspector')
+  assert.match(inspector.textContent, /레시피 표기.*오리/s)
+  assert.match(inspector.textContent, /원료 구성/)
+  assert.match(inspector.textContent, /지방·오일.*닭/s)
+  assert.match(inspector.textContent, /계란·유제품.*계란/s)
+  assert.equal(resourceRequests.filter(path => path.endsWith('/compare_product_ingredients_scoped')).length, 1)
+})

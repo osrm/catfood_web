@@ -430,6 +430,8 @@ test('LOOKUP empty result points back to the existing search input without chang
   await waitForUi(() => document.body.textContent.includes('검색 결과가 없습니다.'), 'lookup empty state')
   const empty = document.querySelector('.state-message')
   assert.match(empty.textContent, /검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요\./)
+  assert.match(empty.textContent, /정보 확인 중인 일부 제품은 현재 검색 결과에서 제외/)
+  assert.doesNotMatch(empty.textContent, /해당 제품이 검토 중입니다/)
   assert.doesNotMatch(document.body.textContent, /데이터 연결됨/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('검색어 수정'))
   await click(edit)

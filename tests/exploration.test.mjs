@@ -1183,3 +1183,36 @@ test('multiple basic choices toggle independently, preserve unchanged sets and c
   await click('조건 수정');await click('초기화')
   assert.equal(rows('.condition-basics button[aria-pressed="true"]').length,0)
 })
+
+test('LOOKUP quick view shows actual animal sources even when an advertised recipe name exists', async () => {
+  products = catalog(1)
+  Object.assign(products[0], {
+    brand: 'GO! SOLUTIONS', canonical_name: 'LID 오리', recipe_details: ['duck'], has_ingredient_details: true,
+  })
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = window.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+      requests.push({ path: url.pathname, query: url.search, body: null })
+      return Response.json([{
+        product_id: products[0].product_id,
+        ingredient_names: ['De-boned Duck', 'Duck Meal', 'Whole Dried Egg', 'Chicken Fat'],
+        raw_text: 'De-boned Duck, Duck Meal, Whole Dried Egg, Chicken Fat',
+        completeness_status: 'full',
+      }])
+    }
+    return originalFetch(input, init)
+  }
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=lookup&q=LID' })
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => rows('.research-result-card').length === 1, 'named recipe shown in lookup')
+  assert.equal(requests.filter(r => r.path.endsWith('/compare_product_ingredients_scoped')).length, 0, 'list cards never prefetch ingredients')
+  await click(rows('.research-result-card')[0])
+  await waitForUi(() => (document.querySelector('.research-quick-view')?.textContent ?? '').includes('계란·유제품'), 'animal composition loaded in quick view')
+  const inspector = document.querySelector('.research-quick-view')
+  assert.match(inspector.textContent, /주요 레시피.*오리/s)
+  assert.match(inspector.textContent, /원료 구성/)
+  assert.match(inspector.textContent, /지방·오일.*닭/s)
+  assert.match(inspector.textContent, /계란·유제품.*계란/s)
+  assert.equal(requests.filter(r => r.path.endsWith('/compare_product_ingredients_scoped')).length, 1, 'only opened product loads ingredient source')
+})

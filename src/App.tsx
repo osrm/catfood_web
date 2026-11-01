@@ -1027,8 +1027,8 @@ export default function App() {
         <div className="result-evidence-heading"><h2>{search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}</h2>{search.ingredientAvoidTerms?.length ? <p>피하려는 원료는 검토한 자료에서 찾지 못했습니다. 원료가 없다는 보장은 아닙니다.</p> : null}</div>
         {confirmed.map(renderProduct)}
       </section> : null}
-      {unverified.length ? <section className="result-evidence-group is-unverified" aria-label="추가 확인이 필요한 제품">
-        <div className="result-evidence-heading"><h2>추가 확인이 필요한 제품</h2><p>고른 조건 중 아직 확인하지 못한 항목이 있습니다.</p></div>
+      {unverified.length ? <section className="result-evidence-group is-unverified" aria-label="선택한 조건을 확인하지 못한 제품">
+        <div className="result-evidence-heading"><h2>선택한 조건을 확인하지 못한 제품</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>
         {unverified.map(renderProduct)}
       </section> : null}
     </> : visibleProducts.map(renderProduct)}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
@@ -1058,7 +1058,7 @@ export default function App() {
   const resultSummaryText = mode === 'explore' && ingredientConditionsPending && !loading && !error ? (ingredientStatus === 'error' ? '원료 정보 조회 실패' : '원료 정보 확인 중') : loading
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
     : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중'
-    : mode === 'explore' && activeConditions > 0 ? `${search.ingredientAvoidTerms?.length ? '원료 자료 검토' : '표기 확인'} ${resultProducts.length - unverifiedResultIds.size}개 · 추가 확인 ${unverifiedResultIds.size}개` : resultCountText
+    : mode === 'explore' && activeConditions > 0 ? `${search.ingredientAvoidTerms?.length ? '원료 자료 검토' : '표기 확인'} ${resultProducts.length - unverifiedResultIds.size}개 · 조건 미확인 ${unverifiedResultIds.size}개` : resultCountText
   const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
   const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType.length || search.lifeStage.length)
     ? (priorityLabels.length === 1

@@ -877,7 +877,9 @@ test('ingredient editor, results and analytics preserve evidence states with onl
   products[0].confirmed_present_ingredient_terms = ['chicken']
   products[0].direct_evidence_ingredient_terms = ['chicken']
   products[1].reviewed_not_found_ingredient_terms = ['chicken']
+  products[1].has_ingredient_details = true
   products[2].insufficient_evidence_ingredient_terms = ['chicken']
+  products[2].has_ingredient_details = true
   products[3].reviewed_not_found_ingredient_terms = ['chicken']
   products[2].brand = 'AAA unknown before reviewed in catalog order'
   dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore' })

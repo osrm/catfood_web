@@ -9,7 +9,7 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.CH
 const norm=v=>String(v||'').replace(/\s+/g,' ').trim()
 async function pageAt(w,h){
  const context=await browser.newContext({viewport:{width:w,height:h},serviceWorkers:'block'}),page=await context.newPage()
- await page.route('**/*',async route=>{const req=route.request(),url=req.url(),method=req.method();const external=!url.startsWith(BASE);const allowedRead=['GET','HEAD','OPTIONS'].includes(method);const analytics=/search-runs|considerations|event_log|analytics|telemetry|functions\/v1/i.test(url);if(!allowedRead||analytics){report.blocked.push({method,url,analytics});await route.abort('blockedbyclient');return}if(external&&!/supabase\.co|googleapis\.com|gstatic\.com/i.test(url)){await route.abort('blockedbyclient');return}await route.continue()})
+ await page.route('**/*',async route=>{const req=route.request(),url=req.url(),method=req.method();const external=!url.startsWith(BASE);const allowedRead=['GET','HEAD','OPTIONS'].includes(method);const analytics=/search-runs|considerations|event_log|analytics|telemetry|functions\/v1/i.test(url);if(!allowedRead||analytics){report.blocked.push({method,url,analytics});await route.abort('blockedbyclient');return}if(external&&!/supabase\.co|googleapis\.com|gstatic\.com/i.test(url)&&!url.startsWith('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/')){await route.abort('blockedbyclient');return}await route.continue()})
  return{context,page}
 }
 async function visibleButton(page,name){const xs=page.getByRole('button',{name,exact:true});for(let i=0;i<await xs.count();i++)if(await xs.nth(i).isVisible())return xs.nth(i);throw new Error('button not found '+name)}

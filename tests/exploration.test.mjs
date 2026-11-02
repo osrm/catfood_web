@@ -1177,7 +1177,7 @@ test('adult-only EXPLORE can explicitly include all-life-stage labels without ch
   assert.ok(button('전연령도 함께 선택'))
   await click('이 조건으로 찾기')
   assert.deepEqual(rows('.research-result-card').map(x => x.dataset.productId), [products[0].product_id])
-  assert.match(document.querySelector('.research-results-heading').textContent, /전연령 제품도 보려면 조건 수정/)
+  assert.match(document.querySelector('.research-results-heading').textContent, /전연령 표기 제품은 현재 연령 조건에서 제외/)
   assert.deepEqual(app.parseNavigationState(window.location.search).search.lifeStage, ['adult'])
 
   await click('조건 수정')
@@ -1187,7 +1187,7 @@ test('adult-only EXPLORE can explicitly include all-life-stage labels without ch
   await click('이 조건으로 찾기')
   assert.deepEqual(rows('.research-result-card').map(x => x.dataset.productId), [products[0].product_id, products[1].product_id])
   assert.match(rows('.research-result-card')[1].textContent, /전연령/)
-  assert.doesNotMatch(document.querySelector('.research-results-heading').textContent, /전연령 제품도 보려면 조건 수정/)
+  assert.doesNotMatch(document.querySelector('.research-results-heading').textContent, /전연령 표기 제품은 현재 연령 조건에서 제외/)
   assert.deepEqual(app.parseNavigationState(window.location.search).search.lifeStage, ['adult', 'all_life_stages'])
   assert.equal(app.evaluateComparisonCriteria(products[1], {...app.INITIAL_SEARCH, lifeStage: ['adult']}).differences.length, 1, 'all-life-stage evidence is not mislabeled as adult-specific')
 })

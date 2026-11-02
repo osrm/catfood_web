@@ -355,9 +355,10 @@ test('EXPLORE keeps unknown candidates, orders confirmed conditions first, and e
   await waitForUi(() => rows('.research-result-card').length === 3, 'ranked explore candidates rendered')
   assert.deepEqual(rows('.research-result-card').map((card) => card.dataset.productId), products.map((product) => product.product_id))
   const summary = document.querySelector('.research-results-heading span')?.textContent ?? ''
-  assert.match(summary, /표기 확인 1개 · 추가 확인 2개/)
+  assert.match(summary, /표기 확인 1개 · 조건 미확인 2개/)
   assert.equal(document.querySelector('[aria-label="선택한 표기를 확인한 제품"]').querySelectorAll('.research-result-card').length, 1)
-  assert.equal(document.querySelector('[aria-label="추가 확인이 필요한 제품"]').querySelectorAll('.research-result-card').length, 2)
+  assert.equal(document.querySelector('[aria-label="선택한 조건을 확인하지 못한 제품"]').querySelectorAll('.research-result-card').length, 2)
+  assert.match(document.querySelector('.result-evidence-group.is-unverified .result-evidence-heading').textContent, /원료·영양 정보 전체가 부족하다는 뜻은 아닙니다/)
   assert.match(document.querySelector('.result-priority-note').textContent, /고른 조건이 더 많이 확인된 제품부터/)
   assert.match(document.querySelector('.result-priority-note').textContent, /표기가 없는 제품도 함께 봅니다/)
   assert.match(rows('.research-result-card')[2].textContent, /미확인 조건/)
@@ -430,6 +431,8 @@ test('LOOKUP empty result points back to the existing search input without chang
   await waitForUi(() => document.body.textContent.includes('검색 결과가 없습니다.'), 'lookup empty state')
   const empty = document.querySelector('.state-message')
   assert.match(empty.textContent, /검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요\./)
+  assert.match(empty.textContent, /정보 확인 중인 일부 제품은 현재 검색 결과에서 제외/)
+  assert.doesNotMatch(empty.textContent, /해당 제품이 검토 중입니다/)
   assert.doesNotMatch(document.body.textContent, /데이터 연결됨/)
   const edit = [...empty.querySelectorAll('button')].find((node) => node.textContent.includes('검색어 수정'))
   await click(edit)
@@ -877,7 +880,9 @@ test('ingredient editor, results and analytics preserve evidence states with onl
   products[0].confirmed_present_ingredient_terms = ['chicken']
   products[0].direct_evidence_ingredient_terms = ['chicken']
   products[1].reviewed_not_found_ingredient_terms = ['chicken']
+  products[1].has_ingredient_details = true
   products[2].insufficient_evidence_ingredient_terms = ['chicken']
+  products[2].has_ingredient_details = true
   products[3].reviewed_not_found_ingredient_terms = ['chicken']
   products[2].brand = 'AAA unknown before reviewed in catalog order'
   dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=explore' })
@@ -1027,7 +1032,7 @@ test('energy is lazy, keeps unknowns and unofficial weight features, preserves b
  assert.match(document.body.textContent,/348.5 kcal\/100g/)
  assert.match(document.body.textContent,/열량 미확인/)
  assert.equal(document.querySelector('[aria-label="선택한 표기를 확인한 제품"]').querySelectorAll('.research-result-card').length,1)
- assert.equal(document.querySelector('[aria-label="추가 확인이 필요한 제품"]').querySelectorAll('.research-result-card').length,2,'unknown energy and missing weight label remain outside the verified group')
+ assert.equal(document.querySelector('[aria-label="선택한 조건을 확인하지 못한 제품"]').querySelectorAll('.research-result-card').length,2,'unknown energy and missing weight label remain outside the verified group')
  const runs=searchRuns().length, signals=considerations().length
  await click(rows('.research-result-compare')[0])
  assert.equal(searchRuns().length,runs);assert.equal(considerations().length,signals,'no energy action attached to prior intake run')
@@ -1210,4 +1215,37 @@ test('multiple basic choices toggle independently, preserve unchanged sets and c
   assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,[])
   await click('조건 수정');await click('초기화')
   assert.equal(rows('.condition-basics button[aria-pressed="true"]').length,0)
+})
+
+test('LOOKUP quick view shows actual animal sources even when an advertised recipe name exists', async () => {
+  products = catalog(1)
+  Object.assign(products[0], {
+    brand: 'GO! SOLUTIONS', canonical_name: 'LID 오리', recipe_details: ['duck'], has_ingredient_details: true,
+  })
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = window.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input))
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+      requests.push({ path: url.pathname, query: url.search, body: null })
+      return Response.json([{
+        product_id: products[0].product_id,
+        ingredient_names: ['De-boned Duck', 'Duck Meal', 'Whole Dried Egg', 'Chicken Fat'],
+        raw_text: 'De-boned Duck, Duck Meal, Whole Dried Egg, Chicken Fat',
+        completeness_status: 'full',
+      }])
+    }
+    return originalFetch(input, init)
+  }
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace&mode=lookup&q=LID' })
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => rows('.research-result-card').length === 1, 'named recipe shown in lookup')
+  assert.equal(requests.filter(r => r.path.endsWith('/compare_product_ingredients_scoped')).length, 0, 'list cards never prefetch ingredients')
+  await click(rows('.research-result-card')[0])
+  await waitForUi(() => (document.querySelector('.research-quick-view')?.textContent ?? '').includes('계란·유제품'), 'animal composition loaded in quick view')
+  const inspector = document.querySelector('.research-quick-view')
+  assert.match(inspector.textContent, /주요 레시피.*오리/s)
+  assert.match(inspector.textContent, /원료 구성/)
+  assert.match(inspector.textContent, /지방·오일.*닭/s)
+  assert.match(inspector.textContent, /계란·유제품.*계란/s)
+  assert.equal(requests.filter(r => r.path.endsWith('/compare_product_ingredients_scoped')).length, 1, 'only opened product loads ingredient source')
 })

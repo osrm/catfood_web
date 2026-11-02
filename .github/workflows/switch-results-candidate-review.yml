@@ -44,7 +44,7 @@ jobs:
           cat /tmp/catfood-preview.log
           exit 1
       - name: Narrow real-data interaction QA
-        run: OUT_DIR="$GITHUB_WORKSPACE/switch-results-candidate-output" node /tmp/switch-candidate-review/switch-results-candidate-review.mjs
+        run: OUT_DIR="$GITHUB_WORKSPACE/switch-results-candidate-output" CANDIDATE_URL="https://osrm.github.io/catfood_web/" CANDIDATE_SHA="baca782f29084d8b67eeef8becb44243592abed4" node /tmp/switch-candidate-review/switch-results-candidate-review.mjs
       - name: Upload candidate evidence
         if: always()
         uses: actions/upload-artifact@v4

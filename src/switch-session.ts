@@ -21,6 +21,7 @@ export type SwitchSessionState = {
   changeBrand: boolean
   keepBrand: boolean
   ingredientAvoidTerms: string[]
+  includeAllLifeStages: boolean
   noChangeIntent: boolean
   criteriaUndecided: boolean
   candidateFeedTypes: string[]
@@ -113,6 +114,7 @@ export function createInitialSwitchSession(query = '', restartId = ''): SwitchSe
     changeBrand: false,
     keepBrand: false,
     ingredientAvoidTerms: [],
+    includeAllLifeStages: false,
     noChangeIntent: false,
     criteriaUndecided: false,
     candidateFeedTypes: [],
@@ -143,6 +145,7 @@ export function switchSelectionKey(state: SwitchSessionState): string {
     changeBrand: state.changeBrand,
     keepBrand: state.keepBrand,
     ingredientAvoidTerms: [...state.ingredientAvoidTerms].sort(),
+    ...(state.includeAllLifeStages ? { includeAllLifeStages: true } : {}),
     noChangeIntent: state.noChangeIntent,
     ...(state.criteriaUndecided ? { criteriaUndecided: true } : {}),
   })
@@ -171,6 +174,7 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     changeBrand: Boolean(currentProductId && source.changeBrand === true),
     keepBrand: Boolean(currentProductId && source.keepBrand === true),
     ingredientAvoidTerms: currentProductId ? uniqueStrings(source.ingredientAvoidTerms) : [],
+    includeAllLifeStages: Boolean(currentProductId && source.includeAllLifeStages === true && (record(source.change)?.lifeStage === 'adult' || record(source.keep)?.lifeStage === 'adult')),
     noChangeIntent: Boolean(currentProductId && source.noChangeIntent === true),
     criteriaUndecided: Boolean(currentProductId && source.criteriaUndecided === true && source.noChangeIntent !== true),
     candidateFeedTypes: currentProductId && (source.criteriaUndecided === true || source.noChangeIntent === true) ? allowedStrings(source.candidateFeedTypes, FEED_TYPES) : [],

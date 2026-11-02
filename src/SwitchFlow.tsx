@@ -526,7 +526,7 @@ function switchCriteriaSnapshot({
   return criteria
 }
 
-function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCondition[]): SwitchEvaluation | null {
+function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCondition[], includeAllLifeStages = false): SwitchEvaluation | null {
   const keepMatches: string[] = []
   const changeMatches: string[] = []
   const unknowns: string[] = []
@@ -553,7 +553,7 @@ function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCond
     } else if (condition.kind === 'feedType') {
       status = !product.feed_type ? 'unknown' : product.feed_type === condition.value ? 'match' : 'conflict'
     } else if (condition.kind === 'lifeStage') {
-      status = !product.life_stage ? 'unknown' : product.life_stage === condition.value ? 'match' : 'conflict'
+      status = !product.life_stage ? 'unknown' : product.life_stage === condition.value || (includeAllLifeStages && condition.value === 'adult' && product.life_stage === 'all_life_stages') ? 'match' : 'conflict'
     } else if (condition.kind === 'officialTarget') {
       status = product.official_targets.includes(condition.value) ? 'match' : 'unknown'
     } else if (condition.kind === 'feature') {
@@ -566,8 +566,11 @@ function evaluateSwitchCandidate(product: CatalogProduct, conditions: SwitchCond
 
     if (status === 'conflict' && condition.hard) return null
     if (status === 'match') {
-      if (condition.source === 'keep') keepMatches.push(condition.label)
-      else changeMatches.push(condition.label)
+      const label = condition.kind === 'lifeStage' && includeAllLifeStages && condition.value === 'adult' && product.life_stage === 'all_life_stages'
+        ? '연령 · 전연령'
+        : condition.label
+      if (condition.source === 'keep') keepMatches.push(label)
+      else changeMatches.push(label)
     } else if (status === 'unknown') {
       unknowns.push(condition.label)
     }
@@ -673,7 +676,7 @@ export default function SwitchFlow({
     }), action, entry)
   }
   const {
-    step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, noChangeIntent, criteriaUndecided,
+    step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, includeAllLifeStages, noChangeIntent, criteriaUndecided,
     selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
   } = activeSession
   const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
@@ -688,6 +691,7 @@ export default function SwitchFlow({
   const setChangeBrand = (value: boolean | ((current: boolean) => boolean)) => setSessionField('changeBrand', value)
   const setKeepBrand = (value: boolean | ((current: boolean) => boolean)) => setSessionField('keepBrand', value)
   const setIngredientAvoidTerms = (value: string[] | ((current: string[]) => string[])) => setSessionField('ingredientAvoidTerms', value)
+  const setIncludeAllLifeStages = (value: boolean) => setSessionField('includeAllLifeStages', value)
   const setNoChangeIntent = (value: boolean | ((current: boolean) => boolean)) => setSessionField('noChangeIntent', value)
   const setSelectedCandidateId = (value: string | null) => setSessionField('selectedCandidateId', value)
   const setVisibleCandidateCount = (value: number | ((current: number) => number)) => setSessionField('visibleCandidateCount', value)
@@ -929,7 +933,7 @@ export default function SwitchFlow({
     const values: SwitchEvaluation[] = []
     for (const product of products) {
       if (product.product_id === currentProduct.product_id) continue
-      const evaluation = evaluateSwitchCandidate(product, conditions)
+      const evaluation = evaluateSwitchCandidate(product, conditions, includeAllLifeStages)
       if (evaluation) values.push(evaluation)
     }
     return values.sort((a, b) => {
@@ -940,7 +944,7 @@ export default function SwitchFlow({
       if (brandOrder !== 0) return brandOrder
       return a.product.canonical_name.localeCompare(b.product.canonical_name, 'ko-KR')
     })
-  }, [products, currentProduct, conditions, ingredientFactsPending])
+  }, [products, currentProduct, conditions, includeAllLifeStages, ingredientFactsPending])
 
   const presentedCandidates = useMemo(() => ingredientAvoidTerms.length
     ? [...candidates.filter((item) => item.ingredientInsufficient.length === 0), ...candidates.filter((item) => item.ingredientInsufficient.length > 0)]
@@ -1078,7 +1082,7 @@ export default function SwitchFlow({
       considerationPromises.current.clear()
     }
     // The intake contract cannot express undecided intent or list refinement.
-    if (selectionState.criteriaUndecided || selectionState.candidateFeedTypes.length || selectionState.candidateRecipeFamilies.length) return
+    if (selectionState.criteriaUndecided || selectionState.includeAllLifeStages || selectionState.candidateFeedTypes.length || selectionState.candidateRecipeFamilies.length) return
     const generation = switchRunGeneration.current
     const previous = switchRunTail.current
     const next = previous.then((previousRunId) => {
@@ -1134,7 +1138,7 @@ export default function SwitchFlow({
     return { kind: candidateSearchActive ? 'named_search' as const : 'load_more' as const, presentedProductIds: batch }
   }
   function recordSwitchConsideration(productId: string, signal: ConsiderationSignal, displayedProductIds?: string[]) {
-    if (criteriaUndecided || candidateBrowseActive) return Promise.resolve(false)
+    if (criteriaUndecided || candidateBrowseActive || includeAllLifeStages) return Promise.resolve(false)
     const generation = switchRunGeneration.current
     const context = { ...considerationContext(productId), displayedProductIds }
     const request = switchRunTail.current.then((searchRunId) => {
@@ -1151,11 +1155,12 @@ export default function SwitchFlow({
     if (keepBrand) labels.push(`브랜드 유지 · ${currentProduct.brand}`)
     if (criteriaUndecided) labels.push('바꿀 조건은 후보를 보며 정하기')
     if (candidateBrowseActive) labels.push(`목록 좁히기 · ${[...candidateFeedTypes, ...candidateRecipeFamilies.map((value) => `${optionLabel(value, RECIPE_FAMILY_LABELS)} 레시피`)].join(' · ')}`)
+    if (includeAllLifeStages) labels.push('성묘·전연령 함께 보기')
     labels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
-    return { ...(criteriaUndecided ? { criteriaUndecided: true } : {}), ...(candidateBrowseActive ? { candidateRefined: true } : {}), selectionKey: journeySelectionKey(),
+    return { ...(criteriaUndecided ? { criteriaUndecided: true } : {}), ...(candidateBrowseActive || includeAllLifeStages ? { candidateRefined: true } : {}), selectionKey: journeySelectionKey(),
       current: { productId: currentProduct.product_id, brand: currentProduct.brand, name: currentProduct.canonical_name },
       variantId: currentVariantId, variantLabel: currentVariantText, labels,
-      criteria: switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }) }
+      criteria: [...switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }), ...(includeAllLifeStages ? [{ axis: 'life_stage' as const, value: 'all_life_stages', role: keep.lifeStage === 'adult' ? 'keep' as const : 'desired_change' as const, source: 'user_selected' as const }] : [])] }
   }
   function queueJourneyDecision(id: string, kind: ExplicitDecisionKind | null, productId: string | null, resolveRun: () => Promise<string | null>) {
     if (!isDecisionCollectionEnabled()) return
@@ -1368,6 +1373,7 @@ export default function SwitchFlow({
   function setChangeSingle(field: 'feedType' | 'lifeStage', value: string) {
     setNoChangeIntent(false)
     const nextValue = change[field] === value ? '' : value
+    if (field === 'lifeStage' && nextValue !== 'adult') setIncludeAllLifeStages(false)
     if (nextValue && keep[field]) {
       setKeep((current) => ({ ...current, [field]: '' }))
       setKeepConflictNotice(field === 'feedType'
@@ -1382,6 +1388,7 @@ export default function SwitchFlow({
   }
 
   function setKeepSingle(field: 'feedType' | 'lifeStage', value: string) {
+    if (field === 'lifeStage' && (keep[field] === value || value !== 'adult')) setIncludeAllLifeStages(false)
     setKeep((current) => ({ ...current, [field]: current[field] === value ? '' : value }))
   }
 
@@ -1429,7 +1436,7 @@ export default function SwitchFlow({
             <div className="switch-find-results-list">
               {error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
               {loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}
-              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span></div> : null}
+              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><span>정보 확인 중인 일부 제품은 현재 검색 결과에서 제외되어 있어, 제품명을 정확히 입력해도 보이지 않을 수 있습니다.</span></div> : null}
               {searchResults.map((product) => (
                 <button
                   className={currentProductId === product.product_id ? 'switch-find-result is-selected' : 'switch-find-result'}
@@ -1562,6 +1569,7 @@ export default function SwitchFlow({
     const renderLifeStage = () => (
       <CriterionSection title="대상 연령" selectionHint="하나 선택" hint={currentProduct.life_stage ? `현재 · ${optionLabel(currentProduct.life_stage, LIFE_STAGE_LABELS)}` : '지금 사료는 미확인'}>
         <ChoiceButtons selectionMode="single" options={lifeOptions} selected={change.lifeStage ? [change.lifeStage] : []} onToggle={(value) => setChangeSingle('lifeStage', value)} />
+        {change.lifeStage === 'adult' ? <><button className={includeAllLifeStages ? 'switch-choice is-active' : 'switch-choice'} type="button" aria-pressed={includeAllLifeStages} onClick={() => setIncludeAllLifeStages(!includeAllLifeStages)}>전연령도 함께 보기</button><p className="switch-option-empty">성묘와 전연령은 다른 제품 표기입니다. 함께 보면 두 표기를 구분해 보여줍니다.</p></> : null}
       </CriterionSection>
     )
     const renderOfficialTargets = () => (
@@ -1693,6 +1701,7 @@ export default function SwitchFlow({
         {!change.recipeFamilies.length ? currentRecipeFamilies.map(value => <button key={value} className={keep.recipeFamilies.includes(value) ? 'switch-choice is-active' : 'switch-choice'} type="button" aria-pressed={keep.recipeFamilies.includes(value)} onClick={() => toggleKeepArray('recipeFamilies', value)}>{optionLabel(value, RECIPE_FAMILY_LABELS)} 레시피 유지</button>) : null}
         {currentProduct.official_targets.map(value => <button key={value} className={keep.officialTargets.includes(value) ? 'switch-choice is-active' : 'switch-choice'} type="button" aria-pressed={keep.officialTargets.includes(value)} onClick={() => toggleKeepArray('officialTargets', value)}>{optionLabel(value, TARGET_LABELS)}</button>)}
       </div>
+      {keep.lifeStage === 'adult' ? <div><button className={includeAllLifeStages ? 'switch-choice is-active' : 'switch-choice'} type="button" aria-pressed={includeAllLifeStages} onClick={() => setIncludeAllLifeStages(!includeAllLifeStages)}>전연령도 함께 보기</button><p className="switch-option-empty">성묘와 전연령은 다른 제품 표기입니다. 함께 보면 두 표기를 구분해 보여줍니다.</p></div> : null}
       {currentProduct.features.length || (!change.grainFree && currentIsGrainFree) ? <details className="switch-keep-extra"><summary>제품 특징도 고르기</summary>
         <div className="switch-keep-options">
           {currentProduct.features.map(value => <button key={value} className={keep.features.includes(value) ? 'switch-choice is-active' : 'switch-choice'} type="button" aria-pressed={keep.features.includes(value)} onClick={() => toggleKeepArray('features', value)}>{optionLabel(value, FEATURE_LABELS)} 표기 유지</button>)}
@@ -1759,10 +1768,12 @@ export default function SwitchFlow({
 
     const hasChosenCandidateCriteria = criteriaLabels(change).length > 0 || criteriaLabels(keep).length > 0 || changeBrand || keepBrand || ingredientAvoidTerms.length > 0
     const changeLabels = criteriaLabels(change)
+    if (includeAllLifeStages && change.lifeStage === 'adult') changeLabels.push('전연령 표기도 함께 보기')
     if (changeBrand) changeLabels.unshift('다른 브랜드')
     changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
     if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
     const keepLabels = criteriaLabels(keep)
+    if (includeAllLifeStages && keep.lifeStage === 'adult') keepLabels.push('전연령 표기도 함께 보기')
     if (keepBrand) keepLabels.unshift(`브랜드 · ${currentProduct.brand}`)
     const candidateCountText = candidateSearchActive
       ? visibleCandidates.length < searchedCandidates.length
@@ -1781,7 +1792,7 @@ export default function SwitchFlow({
     const conditionConfirmedCandidates = visibleCandidates.filter(item => item.unknowns.length === 0 && item.ingredientInsufficient.length === 0)
     const conditionUnknownCount = searchedCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0).length
     const candidateSummaryText = hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
-      ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 추가 확인 ${conditionUnknownCount}개`
+      ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 조건 미확인 ${conditionUnknownCount}개`
       : candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
     const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
     const browseConfirmedCandidates = visibleCandidates.filter((item) => !candidateBrowseUnknowns(item.product)?.length)
@@ -1881,6 +1892,7 @@ export default function SwitchFlow({
                 {candidateSearch ? <button type="button" onClick={clearCandidateSearch}>검색 지우기</button> : null}
               </div>
             </div>
+            {includeAllLifeStages ? <p className="switch-option-empty" role="note">성묘 표기와 전연령 표기를 함께 살펴봅니다. 전연령을 성묘 전용으로 바꾸어 표시하지 않습니다.</p> : null}
             <div className="switch-candidate-list">
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 점이나 유지할 점을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>{candidateBrowseActive ? '좁힌 범위에서 이름 검색 결과가 없습니다.' : '이름 검색 결과가 없습니다.'}</strong><span>검색어를 지우거나 좁힌 항목을 해제해 후보를 다시 살펴보세요.</span></div> : null}
@@ -1896,7 +1908,7 @@ export default function SwitchFlow({
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
                 {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>선택한 표기를 확인한 후보</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
-                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="추가 확인이 필요한 후보"><div className="switch-candidate-group-heading"><h2>추가 확인이 필요한 후보</h2><p>고른 조건 중 아직 확인하지 못한 항목이 있습니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="선택한 조건을 확인하지 못한 후보"><div className="switch-candidate-group-heading"><h2>선택한 조건을 확인하지 못한 후보</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
               </> : candidateBrowseActive ? <>
                 {browseConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보">{browseConfirmedCandidates.map(renderCandidateRow)}</section> : null}
                 {browseUnknownCandidates.length ? <section className="switch-candidate-group switch-browse-unknown" aria-label="선택한 표기를 아직 확인하지 못한 제품"><div className="switch-candidate-group-heading"><h2>선택한 표기를 아직 확인하지 못했어요</h2><p>형태나 레시피 종류를 확인할 자료가 부족해 남겨둔 제품입니다.</p></div>{browseUnknownCandidates.map(renderCandidateRow)}</section> : null}
@@ -1980,7 +1992,7 @@ export default function SwitchFlow({
                     {selectedCandidate.product.official_targets.length ? <div><dt>대상 표기</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div> : null}
                     {selectedCandidate.product.features.length ? <div><dt>제품 특징</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div> : null}
                     {selectedCandidate.product.recipe_details.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div> : selectedCandidate.product.recipe_families.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div> : null}
-                    {!selectedCandidate.product.recipe_details.length ? <div><dt>원료 구성</dt><dd><IngredientComposition productId={selectedCandidate.product.product_id} /></dd></div> : null}
+                    {selectedCandidate.product.has_ingredient_details ? <div><dt>원료 구성</dt><dd><IngredientComposition productId={selectedCandidate.product.product_id} /></dd></div> : null}
                     <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div>
                   </dl>
                 </section>

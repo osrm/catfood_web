@@ -477,3 +477,22 @@ test('HOME starts from current food and exposes reading topics without inventing
   await waitForUi(() => document.querySelector('.switch-workflow-shell'), 'current-food entry')
   assert.match(document.querySelector('h1').textContent, /현재 먹이는 사료/)
 })
+
+test('SWITCH empty search explains temporarily unavailable products without inferring identity', async () => {
+  await act(async () => root.render(createElement(app.SwitchFlow, {
+    products: [product('product_000000000051', 'Visible Food')],
+    loading: false,
+    error: null,
+    initialQuery: 'Not In The Visible Catalog',
+    onHome() {},
+    onModeChange() {},
+    onRetryCatalog() {},
+  })))
+
+  const empty = document.querySelector('.switch-state-message')
+  assert.ok(empty)
+  assert.match(empty.textContent, /검색 결과가 없습니다/)
+  assert.match(empty.textContent, /정보 확인 중인 일부 제품은 현재 검색 결과에서 제외/)
+  assert.doesNotMatch(empty.textContent, /해당 제품이 검토 중입니다/)
+  assert.equal(document.querySelectorAll('.switch-find-result').length, 0)
+})

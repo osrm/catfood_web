@@ -1436,7 +1436,7 @@ export default function SwitchFlow({
             <div className="switch-find-results-list">
               {error ? <div className="switch-state-message is-error" role="alert"><span>{error}</span><button className="state-retry" type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
               {loading ? <div className="switch-state-message">제품 데이터를 불러오는 중입니다.</div> : null}
-              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span></div> : null}
+              {!loading && !error && query.trim() && searchResults.length === 0 ? <div className="switch-state-message"><strong>검색 결과가 없습니다.</strong><span>검색어를 바꾸거나 제품명을 더 짧게 입력해 보세요.</span><span>정보 확인 중인 일부 제품은 현재 검색 결과에서 제외되어 있어, 제품명을 정확히 입력해도 보이지 않을 수 있습니다.</span></div> : null}
               {searchResults.map((product) => (
                 <button
                   className={currentProductId === product.product_id ? 'switch-find-result is-selected' : 'switch-find-result'}
@@ -1792,7 +1792,7 @@ export default function SwitchFlow({
     const conditionConfirmedCandidates = visibleCandidates.filter(item => item.unknowns.length === 0 && item.ingredientInsufficient.length === 0)
     const conditionUnknownCount = searchedCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0).length
     const candidateSummaryText = hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
-      ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 추가 확인 ${conditionUnknownCount}개`
+      ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 조건 미확인 ${conditionUnknownCount}개`
       : candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
     const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
     const browseConfirmedCandidates = visibleCandidates.filter((item) => !candidateBrowseUnknowns(item.product)?.length)
@@ -1908,7 +1908,7 @@ export default function SwitchFlow({
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
                 {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>선택한 표기를 확인한 후보</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
-                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="추가 확인이 필요한 후보"><div className="switch-candidate-group-heading"><h2>추가 확인이 필요한 후보</h2><p>고른 조건 중 아직 확인하지 못한 항목이 있습니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="선택한 조건을 확인하지 못한 후보"><div className="switch-candidate-group-heading"><h2>선택한 조건을 확인하지 못한 후보</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
               </> : candidateBrowseActive ? <>
                 {browseConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보">{browseConfirmedCandidates.map(renderCandidateRow)}</section> : null}
                 {browseUnknownCandidates.length ? <section className="switch-candidate-group switch-browse-unknown" aria-label="선택한 표기를 아직 확인하지 못한 제품"><div className="switch-candidate-group-heading"><h2>선택한 표기를 아직 확인하지 못했어요</h2><p>형태나 레시피 종류를 확인할 자료가 부족해 남겨둔 제품입니다.</p></div>{browseUnknownCandidates.map(renderCandidateRow)}</section> : null}
@@ -1992,7 +1992,7 @@ export default function SwitchFlow({
                     {selectedCandidate.product.official_targets.length ? <div><dt>대상 표기</dt><dd>{compactList(selectedCandidate.product.official_targets, TARGET_LABELS)}</dd></div> : null}
                     {selectedCandidate.product.features.length ? <div><dt>제품 특징</dt><dd>{compactList(selectedCandidate.product.features, FEATURE_LABELS)}</dd></div> : null}
                     {selectedCandidate.product.recipe_details.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_details, RECIPE_DETAIL_LABELS)}</dd></div> : selectedCandidate.product.recipe_families.length ? <div><dt>레시피 표기</dt><dd>{compactList(selectedCandidate.product.recipe_families, RECIPE_FAMILY_LABELS)}</dd></div> : null}
-                    {!selectedCandidate.product.recipe_details.length ? <div><dt>원료 구성</dt><dd><IngredientComposition productId={selectedCandidate.product.product_id} /></dd></div> : null}
+                    {selectedCandidate.product.has_ingredient_details ? <div><dt>원료 구성</dt><dd><IngredientComposition productId={selectedCandidate.product.product_id} /></dd></div> : null}
                     <div><dt>제조국</dt><dd>{countryListLabel(selectedCandidate.product.manufacturing_country_codes)}{selectedCandidate.product.manufacturing_has_variant_scope && selectedCandidate.product.manufacturing_country_codes.length ? ' · 확인된 포장 기준' : ''}</dd></div>
                   </dl>
                 </section>

@@ -345,6 +345,82 @@ function session() {
   return value
 }
 
+test('SWITCH KEEP adult offers explicit all-life-stage candidates with original age labels and session persistence', async () => {
+  catalogProducts = [
+    current,
+    { ...candidateA, life_stage: 'all_life_stages' },
+    candidateB,
+    { ...singleSku, feed_type: '습식', life_stage: 'senior' },
+  ]
+  await renderApp()
+  await chooseCurrent()
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'current variant')
+  await click(variantButton('1 kg'))
+  await click(exactButton('다음 →'))
+  await click(exactButton('습식'))
+  await click(exactButton('성묘 유지'))
+  assert.ok(exactButton('전연령도 함께 보기'), 'only adult KEEP offers explicit extra age')
+  await click('후보 제품 보기')
+  assert.deepEqual(all('.switch-candidate-row').map(x => x.textContent.includes(candidateB.canonical_name)), [true])
+  await click('조건 수정')
+  await click(exactButton('전연령도 함께 보기'))
+  assert.equal(session().includeAllLifeStages, true)
+  await click('후보 제품 보기')
+  assert.equal(all('.switch-candidate-row').length, 2, 'adult and all-life-stages are visible; senior stays excluded')
+  assert.match(document.querySelector('.switch-session-bar').textContent, /성묘.*전연령/)
+  assert.match(document.querySelector('.switch-candidate-pane').textContent, /전연령을 성묘 전용으로 바꾸어 표시하지 않습니다/)
+  const allLifeRow = all('.switch-candidate-row').find(x => x.textContent.includes(candidateA.canonical_name))
+  assert.ok(allLifeRow)
+  assert.match(allLifeRow.textContent, /전연령/)
+  assert.doesNotMatch(allLifeRow.textContent, /성묘 표기/)
+  await selectCandidate(candidateA.canonical_name)
+  assert.match(document.querySelector('.switch-inspector-decision').textContent, /전연령 표기/)
+  await remountApp()
+  assert.equal(session().includeAllLifeStages, true)
+  assert.equal(all('.switch-candidate-row').length, 2, 'the explicit alternative survives reload')
+  await click('조건 수정')
+  await click(exactButton('전연령도 함께 보기'))
+  assert.equal(session().includeAllLifeStages, false)
+  await click('후보 제품 보기')
+  assert.equal(all('.switch-candidate-row').length, 1)
+  assert.ok(all('.switch-candidate-row')[0].textContent.includes(candidateB.canonical_name))
+})
+
+test('SWITCH CHANGE adult can include all-life-stage products but resets the alternative when age changes', async () => {
+  catalogProducts = [
+    { ...current, life_stage: 'senior' },
+    { ...candidateA, life_stage: 'all_life_stages' },
+    candidateB,
+  ]
+  await renderApp()
+  await chooseCurrent()
+  await waitForUi(() => variantButton('1 kg') !== undefined, 'current variant')
+  await click(variantButton('1 kg'))
+  await click(exactButton('다음 →'))
+  await click(exactButton('성묘'))
+  await click(exactButton('전연령도 함께 보기'))
+  assert.equal(session().includeAllLifeStages, true)
+  await click('후보 제품 보기')
+  assert.equal(all('.switch-candidate-row').length, 2)
+  await click('조건 수정')
+  await click(exactButton('성묘'))
+  assert.equal(session().includeAllLifeStages, false)
+  await click(exactButton('키튼'))
+  assert.equal(session().change.lifeStage, 'kitten')
+  await click('후보 제품 보기')
+  assert.equal(all('.switch-candidate-row').length, 0, 'neither adult nor all-life-stage is mislabeled kitten')
+})
+
+test('legacy SWITCH snapshots default to age-exact selection and reject stale all-life-stage options', () => {
+  const base = app.createInitialSwitchSession()
+  const adult = { ...base, currentProductId: current.product_id, keep: { ...base.keep, lifeStage: 'adult' }, includeAllLifeStages: true }
+  assert.equal(app.parseSwitchSessionState(adult).includeAllLifeStages, true)
+  assert.equal(app.parseSwitchSessionState({ ...adult, includeAllLifeStages: undefined }).includeAllLifeStages, false)
+  assert.equal(app.parseSwitchSessionState({ ...adult, keep: { ...base.keep, lifeStage: 'senior' } }).includeAllLifeStages, false)
+  assert.equal(app.parseSwitchSessionState({ ...adult, currentProductId: null }).includeAllLifeStages, false)
+  assert.notEqual(app.switchSelectionKey(adult), app.switchSelectionKey({ ...adult, includeAllLifeStages: false }))
+})
+
 test('versioned SWITCH snapshot rejects corrupt/unknown data and storage failures stay non-fatal', () => {
   sessionStorage.setItem('catfood.switch-session.v1', '{not json')
   assert.equal(app.readSwitchSession(sessionStorage), null)

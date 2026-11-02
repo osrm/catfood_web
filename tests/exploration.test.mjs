@@ -1164,6 +1164,34 @@ test('basic alternatives use OR within form/age and AND across axes without infe
   assert.equal(app.canRefineEnergy({...search,feedType:['건식'],features:['weight_management']}),true)
 })
 
+test('adult-only EXPLORE can explicitly include all-life-stage labels without changing age evidence', async () => {
+  products = catalog(3)
+  products[1].life_stage = 'all_life_stages'
+  products[2].life_stage = 'senior'
+  dom.reconfigure({ url: 'https://catfood.test/?view=workspace' })
+  await act(async () => root.render(createElement(app.App)))
+  await click('건식')
+  await click('성묘')
+  const editor = document.querySelector('.condition-basics')
+  assert.match(editor.textContent, /성묘와 전연령은 서로 다른 제품 표기/)
+  assert.ok(button('전연령도 함께 선택'))
+  await click('이 조건으로 찾기')
+  assert.deepEqual(rows('.research-result-card').map(x => x.dataset.productId), [products[0].product_id])
+  assert.match(document.querySelector('.research-results-heading').textContent, /전연령 제품도 보려면 조건 수정/)
+  assert.deepEqual(app.parseNavigationState(window.location.search).search.lifeStage, ['adult'])
+
+  await click('조건 수정')
+  await click('전연령도 함께 선택')
+  assert.equal(rows('.condition-basics button[aria-pressed="true"]').length, 3)
+  assert.equal(button('전연령도 함께 선택'), undefined, 'selection helper hides after all ages are selected')
+  await click('이 조건으로 찾기')
+  assert.deepEqual(rows('.research-result-card').map(x => x.dataset.productId), [products[0].product_id, products[1].product_id])
+  assert.match(rows('.research-result-card')[1].textContent, /전연령/)
+  assert.doesNotMatch(document.querySelector('.research-results-heading').textContent, /전연령 제품도 보려면 조건 수정/)
+  assert.deepEqual(app.parseNavigationState(window.location.search).search.lifeStage, ['adult', 'all_life_stages'])
+  assert.equal(app.evaluateComparisonCriteria(products[1], {...app.INITIAL_SEARCH, lifeStage: ['adult']}).differences.length, 1, 'all-life-stage evidence is not mislabeled as adult-specific')
+})
+
 test('multiple basic choices toggle independently, preserve unchanged sets and clear on actual applied changes', async () => {
   products=catalog(3);products[1].feed_type='습식';products[1].life_stage='senior';products[2].feed_type='동결건조';products[2].life_stage='kitten'
   dom.reconfigure({url:'https://catfood.test/?view=workspace'})

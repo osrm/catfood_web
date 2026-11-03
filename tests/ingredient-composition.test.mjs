@@ -73,3 +73,33 @@ test('a failed reading stays a retryable load failure, not unknown or no ingredi
  assert.match(document.body.textContent,/불러오지 못했습니다/);assert.doesNotMatch(document.body.textContent,/미확인|없음/)
  await act(async()=>document.querySelector('button').click());assert.equal(calls,2);assert.match(document.body.textContent,/닭/)
 })
+
+test('disclosure reading names source wording without converting generic fish oil into species',()=>{
+ const row={raw_text:'닭고기, 어유, 천연향료, 계란',completeness_status:'full'}
+ const reading=app.ingredientDisclosureReading(row)
+ assert.equal(reading.label,'일부 원료 종류 포괄 표기')
+ assert.deepEqual(reading.examples,['어유','천연향료'])
+ assert.match(reading.explanation,/세부 원료 종류를 임의로 추정하지/)
+ assert.match(app.ingredientDisclosureSummary(row),/어유 · 천연향료/)
+})
+test('specifically named oils and flavors are not misclassified as unspecified',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 어유(정어리, 멸치), 연어 오일, 천연향료(닭간), 계란',completeness_status:'full'})
+ assert.equal(reading.examples.length,0)
+ assert.match(reading.label,/포괄 표현 미발견/)
+ assert.match(reading.explanation,/완전 공개를 뜻하지/)
+})
+test('generic fish extract and unspecified animal fat are shown, not confused with listed species',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'육분(닭, 오리), 동물성 지방, 생선추출물, 정어리',completeness_status:'full'})
+ assert.deepEqual(reading.examples,['동물성 지방','생선추출물'])
+})
+test('partial, unreadable and supplementary-source-only ingredient evidence never becomes full disclosure',()=>{
+ const partial=app.ingredientDisclosureReading({raw_text:'닭고기, 계란',completeness_status:'summary'})
+ assert.equal(partial.label,'일부 목록 · 공개 수준 판단 제한')
+ const otherFormula=app.ingredientDisclosureReading({raw_text:null,completeness_status:'summary',supplemental_full_raw_text:'연어, 정어리'})
+ assert.equal(otherFormula.label,'원료표 원문 미확보')
+ assert.deepEqual(otherFormula.examples,[])
+})
+test('algae oil is not a generic fish ingredient',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 미세해양조류오일, 호박',completeness_status:'full'})
+ assert.deepEqual(reading.examples,[])
+})

@@ -31,7 +31,8 @@ jobs:
             fi
           done
           if (( ${#selected[@]} > 0 )); then
-            node --test --test-force-exit "${selected[@]}"
+            printf "Test shard files: %s\n" "${selected[@]}"
+            node --test --test-force-exit --test-timeout=20000 "${selected[@]}"
           fi
 
   check:

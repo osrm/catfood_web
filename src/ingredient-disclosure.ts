@@ -14,7 +14,7 @@ const FLAVOR_CATEGORY = /천연\s*향(?:료|미)?|인공\s*향(?:료|미)?|향�
 
 function hasBroadAnimalWord(ingredient: string) {
   return (FISH_CATEGORY.test(ingredient) && !FISH_SPECIES.test(ingredient))
-    || (ANIMAL_CATEGORY.test(ingredient) && !ANIMAL_SPECIES.test(ingredient))
+    || (ANIMAL_CATEGORY.test(ingredient) && !ANIMAL_SPECIES.test(ingredient) && !/[（(,，]\s*소\s*[,，)）]/.test(ingredient))
     || (FLAVOR_CATEGORY.test(ingredient) && !ANIMAL_SPECIES.test(ingredient) && !FISH_SPECIES.test(ingredient))
 }
 
@@ -33,7 +33,7 @@ export function ingredientDisclosureReading(row: IngredientSource | null | undef
   }
 
   const matches = [...new Set(splitIngredientText(raw).filter(hasBroadAnimalWord))]
-  const examples = matches.map(value => value.length > 60 ? value.slice(0, 59) + '…' : value).slice(0, 3)
+  const examples = matches.slice(0, 3)
 
   if (matches.length) return {
     label: '일부 원료 종류 포괄 표기',

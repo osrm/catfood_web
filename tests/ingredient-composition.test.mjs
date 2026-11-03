@@ -99,6 +99,16 @@ test('partial, unreadable and supplementary-source-only ingredient evidence neve
  assert.equal(otherFormula.label,'원료표 원문 미확보')
  assert.deepEqual(otherFormula.examples,[])
 })
+test('species named in a generic animal-fat parenthesis are not called undisclosed',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'육분(닭, 오리), 동물성 지방(소), 어유',completeness_status:'full'})
+ assert.deepEqual(reading.examples,['어유'])
+})
+test('the original generic ingredient phrase is not cut off in disclosure comparison',()=>{
+ const phrase='생선추출물('+'확인되지 않은 세부 구성 '.repeat(6)+')'
+ const reading=app.ingredientDisclosureReading({raw_text:'닭고기, '+phrase,completeness_status:'full'})
+ assert.deepEqual(reading.examples,[phrase])
+})
+
 test('algae oil is not a generic fish ingredient',()=>{
  const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 미세해양조류오일, 호박',completeness_status:'full'})
  assert.deepEqual(reading.examples,[])

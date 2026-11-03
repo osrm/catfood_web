@@ -86,7 +86,7 @@ test('specifically named oils and flavors are not misclassified as unspecified',
  const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 어유(정어리, 멸치), 연어 오일, 천연향료(닭간), 계란',completeness_status:'full'})
  assert.equal(reading.examples.length,0)
  assert.match(reading.label,/포괄 표현 미발견/)
- assert.match(reading.explanation,/완전 공개를 뜻하지/)
+ assert.match(reading.explanation,/모든 세부 원료의 공개나 특정 원료의 부재를 보증하지/)
 })
 test('generic fish extract and unspecified animal fat are shown, not confused with listed species',()=>{
  const reading=app.ingredientDisclosureReading({raw_text:'육분(닭, 오리), 동물성 지방, 생선추출물, 정어리',completeness_status:'full'})

@@ -26,6 +26,8 @@ jobs:
           files=(tests/*.test.mjs)
           selected=()
           for index in "${!files[@]}"; do
+            # Editorial detail builds the full SSR fixture; run it separately to avoid contention.
+            if [[ "${files[index]}" == "tests/product-detail-editorial.test.mjs" ]]; then continue; fi
             if (( index % 4 == ${{ matrix.shard }} )); then
               selected+=("${files[index]}")
             fi
@@ -35,8 +37,19 @@ jobs:
             node --test --test-force-exit --test-timeout=20000 "${selected[@]}"
           fi
 
+  editorial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: node --test --test-force-exit --test-timeout=45000 tests/product-detail-editorial.test.mjs
+
   check:
-    needs: test
+    needs: [test, editorial]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

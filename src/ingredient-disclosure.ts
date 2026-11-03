@@ -15,7 +15,7 @@ const FLAVOR_CATEGORY = /천연\s*향(?:료|미)?|인공\s*향(?:료|미)?|향�
 function hasBroadAnimalWord(ingredient: string) {
   return (FISH_CATEGORY.test(ingredient) && !FISH_SPECIES.test(ingredient))
     || (ANIMAL_CATEGORY.test(ingredient) && !ANIMAL_SPECIES.test(ingredient))
-    || FLAVOR_CATEGORY.test(ingredient)
+    || (FLAVOR_CATEGORY.test(ingredient) && !ANIMAL_SPECIES.test(ingredient) && !FISH_SPECIES.test(ingredient))
 }
 
 export type IngredientDisclosureReading = {

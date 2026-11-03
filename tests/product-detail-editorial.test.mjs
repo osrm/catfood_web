@@ -441,7 +441,7 @@ test('overview omits repeated package facts for a confirmed single unit and omit
   assert.match(document.body.textContent, /80 g/)
   assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')), false)
   assert.equal(document.querySelector('.detail-section-overview-facts'), null)
-  assert.equal(document.querySelector('.detail-summary-meta'), null)
+  assert.match(document.querySelector('.detail-summary-meta')?.textContent ?? '', /원료 표기:/)
   assert.match(document.body.textContent, /직접 확인 원료닭/)
   assert.match(document.body.textContent, /향미 연관 원료참치/)
 })

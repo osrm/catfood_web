@@ -63,6 +63,7 @@ test('opened quick view shows original generic ingredient wording without extra 
  assert.equal(calls,1)
  assert.match(document.body.textContent,/원료 표기: 일부 원료 종류 포괄 표기/)
  assert.match(document.body.textContent,/어유/)
+ assert.match(document.body.textContent,/한국 판매 제품과 배합 대응 미확인 자료/)
 })
 
 test('an inspector ignores an old product response after switching to another product',async()=>{

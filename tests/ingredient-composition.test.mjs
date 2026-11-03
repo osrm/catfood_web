@@ -55,6 +55,16 @@ test('an untranslated or plant-only declaration remains a visible source excerpt
  assert.match(document.body.textContent,/원문 표기Peas · Potatoes · Rosemary …/)
  assert.doesNotMatch(document.body.textContent,/미확인|원료 없음|육류·어류/)
 })
+test('opened quick view shows original generic ingredient wording without extra fetch',async()=>{
+ let calls=0
+ globalThis.fetch=async()=>{calls++;return Response.json([{...source(['Chicken','Fish oil'],'닭고기, 어유'),completeness_status:'full'}])}
+ root=createRoot(document.getElementById('root'))
+ await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
+ assert.equal(calls,1)
+ assert.match(document.body.textContent,/원료 표기: 일부 원료 종류 포괄 표기/)
+ assert.match(document.body.textContent,/어유/)
+})
+
 test('an inspector ignores an old product response after switching to another product',async()=>{
  let oldResolve;const calls=[]
  globalThis.fetch=(url,options)=>{const u=new URL(url);calls.push({url:u,signal:options.signal});return calls.length===1?new Promise(resolve=>{oldResolve=resolve}):Promise.resolve(Response.json([{...source(['Turkey Meal']),product_id:'product_second'}]))}

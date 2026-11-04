@@ -163,3 +163,12 @@ test('unknown list status and missing primary text cannot inherit full coverage 
  assert.equal(missing.listLabel,'원료표 원문 미확보')
  assert.deepEqual(missing.examples,[])
 })
+
+test('a source heading naming chicken is not a claim that its animal type was omitted',()=>{
+ const heading=app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 닭고기, 조개류',completeness_status:'summary'})
+ assert.equal(heading.listLabel,'일부 원료표만 확보')
+ assert.deepEqual(heading.details,[])
+ const mixed=app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 닭고기/생선, 어유',completeness_status:'summary'})
+ assert.deepEqual(mixed.details.map(item=>item.note),['세부 어종 미기재','세부 어종 미기재'])
+ assert.match(app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 가금류',completeness_status:'summary'}).details[0].note,/세부 동물 종류 미기재/)
+})

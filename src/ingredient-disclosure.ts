@@ -16,6 +16,7 @@ const FLAVOR_CATEGORY = /천연\s*향(?:료|미)?|인공\s*향(?:료|미)?|향�
 // Only an adjacent species or a locally specified parenthesis qualifies it.
 function hasUnspecifiedCategory(ingredient: string, category: RegExp, species: RegExp) {
   const namedPrefix = new RegExp('(?:' + species.source + ')(?:고기|간|육)?\\s*$', 'i')
+  const namedHeading = new RegExp('^\\s*(?:원\\s*)?[:：]\\s*(?:' + species.source + ')(?:고기|간|육)?(?:$|\\s|[·/0-9(%])', 'i')
   for (const match of ingredient.matchAll(new RegExp(category.source, 'gi'))) {
     const before = ingredient.slice(0, match.index)
     const after = ingredient.slice(match.index + match[0].length)
@@ -24,7 +25,7 @@ function hasUnspecifiedCategory(ingredient: string, category: RegExp, species: R
       && (species.test(parenthesis) || (category === ANIMAL_CATEGORY && /^\s*소\s*$/.test(parenthesis)))
       && !/기타|\bother\b|\betc\b|등(?:\s|$)|또는|\bor\b/i.test(parenthesis)
       && !FISH_CATEGORY.test(parenthesis) && !ANIMAL_CATEGORY.test(parenthesis) && !FLAVOR_CATEGORY.test(parenthesis)
-    if (!namedPrefix.test(before) && !specified) return true
+    if (!namedPrefix.test(before) && !namedHeading.test(after) && !specified) return true
   }
   return false
 }

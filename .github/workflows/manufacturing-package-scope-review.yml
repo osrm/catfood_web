@@ -6,7 +6,12 @@ on:
       - 'src/ProductDetail.tsx'
       - 'src/CompareView.tsx'
       - 'src/SwitchFlow.tsx'
+      - 'src/IngredientComposition.tsx'
+      - 'src/IngredientDisclosure.tsx'
+      - 'src/ingredient-disclosure.ts'
+      - 'src/ingredient-disclosure.css'
       - 'qa/manufacturing-package-scope-review.mjs'
+      - 'qa/ingredient-disclosure-review.mjs'
       - '.github/workflows/manufacturing-package-scope-review.yml'
 permissions:
   contents: read
@@ -31,6 +36,7 @@ jobs:
         run: |
           mkdir -p /tmp/manufacturing-scope-review
           cp qa/manufacturing-package-scope-review.mjs /tmp/manufacturing-scope-review/
+          cp qa/ingredient-disclosure-review.mjs /tmp/manufacturing-scope-review/
           cd /tmp/manufacturing-scope-review
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
@@ -43,9 +49,17 @@ jobs:
           exit 1
       - name: Fixture browser QA
         run: OUT_DIR="$GITHUB_WORKSPACE/manufacturing-package-scope-output" node /tmp/manufacturing-scope-review/manufacturing-package-scope-review.mjs
+      - name: Ingredient disclosure browser QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/ingredient-disclosure-output" node /tmp/manufacturing-scope-review/ingredient-disclosure-review.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: manufacturing-package-scope-review
           path: manufacturing-package-scope-output
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ingredient-disclosure-review
+          path: ingredient-disclosure-output
           retention-days: 7

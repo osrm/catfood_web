@@ -14,6 +14,7 @@ export { installRealVisualPreviewFetch } from '../src/real-visual-preview'
 export { installStressPreviewFetch } from '../src/stress-preview'
 
 export * from '../src/ingredient-composition'
+export * from '../src/ingredient-disclosure'
 export { default as IngredientComposition, IngredientCompositionValue } from '../src/IngredientComposition'
 export * from '../src/energy-refine'
 export { fetchExploreEnergy } from '../src/api'

@@ -1,5 +1,7 @@
 import { IngredientCompositionValue } from './IngredientComposition'
 import { ingredientComposition } from './ingredient-composition'
+import { ingredientDisclosureSummary } from './ingredient-disclosure'
+import IngredientDisclosure from './IngredientDisclosure'
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import { setProductMetadata } from './product-metadata'
@@ -511,6 +513,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 {ingredientLoad.status === 'loaded' && !loading.ingredients && !errors.ingredients && ingredients ? <>
                   {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : fullIngredientSummaryFallback ? <p className="detail-summary-meta">{fullIngredientSummaryFallback}</p> : null}
                   {showComposition ? <IngredientCompositionValue row={ingredients} /> : null}
+                  <p className="detail-summary-meta">원료 표기: {ingredientDisclosureSummary(ingredients)}</p>
                   {hasIngredientSummaryFacts && (!showComposition || hasSupplementalFullIngredients) ? <div className="detail-fact-lines detail-fact-lines-compact">
                     {directIngredientLabel && !showComposition ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
                     {flavorIngredientLabel && !showComposition ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}
@@ -558,7 +561,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
               <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
-              {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
+              <IngredientDisclosure row={ingredients} />
               {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure detail-source-disclosure">
                 <summary>원문 보기</summary>
                 <div className="detail-ingredient-copy">{ingredients.raw_text}</div>

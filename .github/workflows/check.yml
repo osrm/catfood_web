@@ -7,7 +7,37 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Test shard ${{ matrix.shard }}
+        shell: bash
+        run: |
+          files=(tests/*.test.mjs)
+          selected=()
+          for index in "${!files[@]}"; do
+            # Editorial detail builds the full SSR fixture; run it separately to avoid contention.
+            if [[ "${files[index]}" == "tests/product-detail-editorial.test.mjs" ]]; then continue; fi
+            if (( index % 4 == ${{ matrix.shard }} )); then
+              selected+=("${files[index]}")
+            fi
+          done
+          if (( ${#selected[@]} > 0 )); then
+            printf "Test shard files: %s\n" "${selected[@]}"
+            node --test --test-force-exit --test-timeout=20000 "${selected[@]}"
+          fi
+
+  editorial:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -16,5 +46,16 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: node --test --test-force-exit --test-timeout=45000 tests/product-detail-editorial.test.mjs
+
+  check:
+    needs: [test, editorial]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - run: npm run build

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchCompareIngredients, type CompareIngredients } from './api'
 import { ingredientComposition, splitIngredientText } from './ingredient-composition'
+import IngredientDisclosure from './IngredientDisclosure'
 import './ingredient-composition.css'
 
 export function IngredientCompositionValue({ row, loading, error, onRetry }: {
@@ -30,5 +31,9 @@ export default function IngredientComposition({ productId }: { productId: string
     }).catch(() => { if (!controller.signal.aborted) setResult({id:productId,row:null,error:'failed',loading:false}) })
     return () => controller.abort()
   },[productId,retry])
-  return <IngredientCompositionValue row={result.id===productId ? result.row : null} loading={result.id!==productId || result.loading} error={result.id===productId ? result.error : null} onRetry={() => setRetry(value=>value+1)} />
+  const row = result.id === productId ? result.row : null
+  return <span className="ingredient-composition-inspector">
+    <IngredientCompositionValue row={row} loading={result.id!==productId || result.loading} error={result.id===productId ? result.error : null} onRetry={() => setRetry(value=>value+1)} />
+    {row ? <><IngredientDisclosure row={row} /><span className="ingredient-composition-disclosure">{row.market_code === 'KR' ? '한국 확인 자료' : row.is_current_resolved_formula ? '국내 동일 배합으로 확인된 자료' : '한국 판매 제품과 배합 대응 미확인 자료'}</span></> : null}
+  </span>
 }

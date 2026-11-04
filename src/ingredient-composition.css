@@ -3,3 +3,12 @@
 .ingredient-composition-line > small { font-size: 12px; font-weight: 400; opacity: .75; }
 .ingredient-composition-line > span { font-weight: 400; line-height: 1.6; }
 .ingredient-composition button { margin-left: 8px; }
+
+.ingredient-composition-inspector { display: grid; gap: 8px; }
+.ingredient-composition-disclosure {
+  display: block;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  color: var(--cf-muted);
+}

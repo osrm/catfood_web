@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { after, before, beforeEach, test } from 'node:test'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'vite'
@@ -15,6 +15,7 @@ const originalNow = Date.now
 const criterion = { axis: 'brand', value: 'AATU', role: 'desired_change', source: 'current_baseline_derived' }
 const input = () => ({ parentSearchRunId: null, mode: 'switch', currentProductId: 'product_current', currentVariantId: 'variant_current', criteriaSnapshot: [criterion], candidateCount: 85, initialPresentedProductIds: Array.from({ length: 40 }, (_, i) => `product_${i}`) })
 before(async () => {
+  await mkdir('node_modules/.cache', { recursive: true })
   temp = await mkdtemp(resolve('node_modules/.cache/north-star-intake-'))
   const result = await build({ configFile: false, logLevel: 'silent', define: {
     'import.meta.env.DEV': 'false', 'import.meta.env.VITE_DECISION_INTAKE_ENABLED': '"true"',

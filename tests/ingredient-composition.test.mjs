@@ -55,6 +55,19 @@ test('an untranslated or plant-only declaration remains a visible source excerpt
  assert.match(document.body.textContent,/원문 표기Peas · Potatoes · Rosemary …/)
  assert.doesNotMatch(document.body.textContent,/미확인|원료 없음|육류·어류/)
 })
+test('opened quick view shows original generic ingredient wording without extra fetch',async()=>{
+ let calls=0
+ globalThis.fetch=async()=>{calls++;return Response.json([{...source(['Chicken','Fish oil'],'닭고기, 어유'),completeness_status:'full'}])}
+ root=createRoot(document.getElementById('root'))
+ await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
+ assert.equal(calls,1)
+ assert.match(document.body.textContent,/원료표 확보전체 원료표 확인/)
+ assert.match(document.body.textContent,/세부 종류를 추가로 확인할 원료/)
+ assert.match(document.body.textContent,/세부 어종 미기재/)
+ assert.match(document.body.textContent,/어유/)
+ assert.match(document.body.textContent,/한국 판매 제품과 배합 대응 미확인 자료/)
+})
+
 test('an inspector ignores an old product response after switching to another product',async()=>{
  let oldResolve;const calls=[]
  globalThis.fetch=(url,options)=>{const u=new URL(url);calls.push({url:u,signal:options.signal});return calls.length===1?new Promise(resolve=>{oldResolve=resolve}):Promise.resolve(Response.json([{...source(['Turkey Meal']),product_id:'product_second'}]))}
@@ -72,4 +85,90 @@ test('a failed reading stays a retryable load failure, not unknown or no ingredi
  await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
  assert.match(document.body.textContent,/불러오지 못했습니다/);assert.doesNotMatch(document.body.textContent,/미확인|없음/)
  await act(async()=>document.querySelector('button').click());assert.equal(calls,2);assert.match(document.body.textContent,/닭/)
+})
+
+test('disclosure reading names source wording without converting generic fish oil into species',()=>{
+ const row={raw_text:'닭고기, 어유, 천연향료, 계란',completeness_status:'full'}
+ const reading=app.ingredientDisclosureReading(row)
+ assert.equal(reading.label,'세부 종류를 추가로 확인할 원료')
+ assert.deepEqual(reading.examples,['어유','천연향료'])
+ assert.match(reading.explanation,/세부 원료 종류를 임의로 추정하지/)
+ assert.match(app.ingredientDisclosureSummary(row),/어유 — 세부 어종 미기재/)
+ assert.match(app.ingredientDisclosureSummary(row),/천연향료 — 향료의 세부 구성 미기재/)
+})
+test('specifically named oils and flavors are not misclassified as unspecified',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 어유(정어리, 멸치), 연어 오일, 천연향료(닭간), 계란',completeness_status:'full'})
+ assert.equal(reading.examples.length,0)
+ assert.match(reading.label,/포괄 표현 미발견/)
+ assert.match(reading.explanation,/모든 세부 원료의 공개나 특정 원료의 부재를 보증하지/)
+})
+test('generic fish extract and unspecified animal fat are shown, not confused with listed species',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'육분(닭, 오리), 동물성 지방, 생선추출물, 정어리',completeness_status:'full'})
+ assert.deepEqual(reading.examples,['동물성 지방','생선추출물'])
+})
+test('partial, unreadable and supplementary-source-only ingredient evidence never becomes full disclosure',()=>{
+ const partial=app.ingredientDisclosureReading({raw_text:'닭고기, 계란',completeness_status:'summary'})
+ assert.equal(partial.label,'일부 목록 · 공개 수준 판단 제한')
+ const otherFormula=app.ingredientDisclosureReading({raw_text:null,completeness_status:'summary',supplemental_full_raw_text:'연어, 정어리'})
+ assert.equal(otherFormula.label,'원료표 원문 미확보')
+ assert.deepEqual(otherFormula.examples,[])
+})
+test('species named in a generic animal-fat parenthesis are not called undisclosed',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'육분(닭, 오리), 동물성 지방(소), 어유',completeness_status:'full'})
+ assert.deepEqual(reading.examples,['어유'])
+})
+test('the original generic ingredient phrase is not cut off in disclosure comparison',()=>{
+ const phrase='생선추출물('+'확인되지 않은 세부 구성 '.repeat(6)+')'
+ const reading=app.ingredientDisclosureReading({raw_text:'닭고기, '+phrase,completeness_status:'full'})
+ assert.deepEqual(reading.examples,[phrase])
+})
+
+test('algae oil is not a generic fish ingredient',()=>{
+ const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 미세해양조류오일, 호박',completeness_status:'full'})
+ assert.deepEqual(reading.examples,[])
+})
+
+test('partial list coverage stays visible when a generic ingredient is also present',async()=>{
+ let calls=0
+ globalThis.fetch=async()=>{calls++;return Response.json([{...source(['Chicken','Fish oil'],'닭고기, 어유'),completeness_status:'partial',market_code:'KR'}])}
+ root=createRoot(document.getElementById('root'))
+ await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
+ const text=document.body.textContent
+ assert.match(text,/일부 원료표만 확보/)
+ assert.match(text,/목록에 없는 원료도 포함될 수 있습니다/)
+ assert.match(text,/어유.*세부 어종 미기재/)
+ assert.match(text,/한국 확인 자료/)
+ assert.doesNotMatch(text,/전체 원료표 확인/)
+ assert.match(app.ingredientDisclosureSummary({raw_text:'닭고기, 어유',completeness_status:'partial'}),/^일부 원료표만 확보/)
+ assert.equal(calls,1)
+})
+
+test('a named species does not identify a different generic oil or an alternative source',()=>{
+ for(const phrase of ['연어 및 어유','연어 어분 및 어유','어유(정어리, 기타 어류)','어유(정어리 또는 멸치)','천연향료(닭간/생선)']) {
+  const reading=app.ingredientDisclosureReading({raw_text:phrase,completeness_status:'full'})
+  assert.deepEqual(reading.examples,[phrase],phrase)
+ }
+ for(const phrase of ['연어 어유','생선기름(정어리, 멸치)','Fish oil (salmon, tuna)','동물성 지방(소)']) {
+  assert.deepEqual(app.ingredientDisclosureReading({raw_text:phrase,completeness_status:'full'}).examples,[],phrase)
+ }
+ const alternatives=app.ingredientDisclosureReading({raw_text:'어유(정어리 또는 멸치)',completeness_status:'full'})
+ assert.equal(alternatives.details[0].note,'사용 어종 구성 미확정')
+})
+
+test('unknown list status and missing primary text cannot inherit full coverage from another source',()=>{
+ const unknown=app.ingredientDisclosureReading({raw_text:'어유',completeness_status:null})
+ assert.equal(unknown.listLabel,'전체 목록 여부 미확인')
+ assert.match(app.ingredientDisclosureSummary({raw_text:'어유',completeness_status:null}),/^전체 목록 여부 미확인/)
+ const missing=app.ingredientDisclosureReading({raw_text:null,completeness_status:'full',supplemental_full_raw_text:'닭고기, 연어'})
+ assert.equal(missing.listLabel,'원료표 원문 미확보')
+ assert.deepEqual(missing.examples,[])
+})
+
+test('a source heading naming chicken is not a claim that its animal type was omitted',()=>{
+ const heading=app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 닭고기, 조개류',completeness_status:'summary'})
+ assert.equal(heading.listLabel,'일부 원료표만 확보')
+ assert.deepEqual(heading.details,[])
+ const mixed=app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 닭고기/생선, 어유',completeness_status:'summary'})
+ assert.deepEqual(mixed.details.map(item=>item.note),['세부 어종 미기재','세부 어종 미기재'])
+ assert.match(app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 가금류',completeness_status:'summary'}).details[0].note,/세부 동물 종류 미기재/)
 })

@@ -1,0 +1,7 @@
+.ingredient-disclosure { display: grid; gap: 8px; margin-block: 12px; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.ingredient-disclosure-row { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.ingredient-disclosure-row small { color: var(--cf-muted); font-size: 12px; }
+.ingredient-disclosure-row strong { font-size: 14px; font-weight: 500; }
+.ingredient-disclosure-example { display: grid; gap: 2px; padding-inline-start: 12px; border-inline-start: 2px solid var(--cf-border, #d9dfdd); }
+.ingredient-disclosure-example q { font-weight: 500; }
+.ingredient-disclosure-example > span, .ingredient-disclosure-note { color: var(--cf-muted); font-size: 13px; }

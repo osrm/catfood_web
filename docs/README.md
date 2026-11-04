@@ -12,6 +12,7 @@
 | [공식 화면 재검토](reference-reassessment-20261013.md) | 중립적인 사실과 시각 표현을 구분하는 다음 디자인 기준; 구현·사람 검증 결과가 아님 |
 | [Brand search aliases](brand-search-aliases.md) | 한글·영문 브랜드 검색 별칭과 브랜드 identity 구분 |
 | [원료 제외](explore-ingredient-exclusion.md) | 확인된 원료 제외, 미발견·근거 부족 유지와 비교 관계 |
+| [원료 정보 선택 과제](ingredient-choice-user-check.md) | 실제 보호자의 선택 이유·미확인 이해를 관찰하기 위한 미실행 진행안 |
 | [복수 브랜드 좁히기](explore-brand-refinement.md) | OR 선택·URL·검색·비교 보존 |
 | [열량 좁히기](explore-energy-refinement.md) | 맥락·단위 환산·자료 범위·지연 조회·미확인·intake 제한 |
 | [후보를 보며 조건 정하기](switch-exploratory-entry.md) | 조건 미정·바꿀 점 없음 구분, 형태·레시피로 목록 좁히기, 현재 사료와 직접 비교, 로컬 전용 기록 |

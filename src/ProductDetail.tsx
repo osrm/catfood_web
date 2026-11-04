@@ -1,6 +1,7 @@
 import { IngredientCompositionValue } from './IngredientComposition'
 import { ingredientComposition } from './ingredient-composition'
-import { ingredientDisclosureReading, ingredientDisclosureSummary } from './ingredient-disclosure'
+import { ingredientDisclosureSummary } from './ingredient-disclosure'
+import IngredientDisclosure from './IngredientDisclosure'
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import { setProductMetadata } from './product-metadata'
@@ -560,12 +561,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
               <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
-              <div className="detail-fact-lines detail-fact-lines-compact">
-                <Fact label="원료 표기 수준" value={ingredientDisclosureReading(ingredients).label} />
-                {ingredientDisclosureReading(ingredients).examples.length ? <Fact label="포괄 표기 원문" value={ingredientDisclosureReading(ingredients).examples.join(' · ')} /> : null}
-              </div>
-              <p className="detail-partial-note">{ingredientDisclosureReading(ingredients).explanation}</p>
-              {ingredients.completeness_status !== 'full' ? <p className="detail-partial-note">목록에 없는 원료도 포함될 수 있습니다.</p> : null}
+              <IngredientDisclosure row={ingredients} />
               {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure detail-source-disclosure">
                 <summary>원문 보기</summary>
                 <div className="detail-ingredient-copy">{ingredients.raw_text}</div>

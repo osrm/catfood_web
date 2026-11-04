@@ -3325,6 +3325,8 @@
 .explore-energy-result strong {font-size:15.5px;font-variant-numeric:tabular-nums}
 .explore-energy-result summary {cursor:pointer;min-height:44px;display:flex;align-items:center}
 .explore-energy-result p {margin:4px 0;max-width:100%;overflow-wrap:anywhere}
+.research-quick-view .explore-energy-result {display:grid;gap:6px;line-height:1.6}
+.research-quick-view .explore-energy-result p {font-size:13px}
 
 /* Applied criteria are explicitly expandable on narrow screens. */
 .research-shell .criteria-disclosure,.research-shell .criteria-empty {display:none}

@@ -1047,6 +1047,34 @@ test('energy is lazy, keeps unknowns and unofficial weight features, preserves b
  assert.equal(energyReads().length,1)
 })
 
+test('energy quick view keeps the selected maximum and distinguishes confirmed values from unknowns without another read',async()=>{
+ products=catalog(3);products.forEach(product=>product.features=['weight_management'])
+ energyData=[energyFixture(0,348.5),energyFixture(1,null),energyFixture(2,422,{observation_scope:'formula',is_current_resolved_formula:false})]
+ await energyExplore();await click(document.querySelector('.energy-refine button'))
+ await energyInput('350');await click('이 열량 이하로 보기')
+ const beforeReads=requests.length
+ await click(document.querySelector(`[data-product-id="${products[0].product_id}"]`))
+ let quick=document.querySelector('.research-quick-view')
+ assert.match(quick.textContent,/348.5 kcal\/100g/)
+ assert.match(quick.textContent,/선택한 최대 열량.*350 kcal\/100g 이하/)
+ assert.match(quick.textContent,/선택한 최대 열량 이하로 확인/)
+ await click('닫기 ×')
+ await click(document.querySelector(`[data-product-id="${products[1].product_id}"]`))
+ quick=document.querySelector('.research-quick-view')
+ assert.match(quick.textContent,/열량 미확인/)
+ assert.match(quick.textContent,/선택한 최대 열량.*350 kcal\/100g 이하/)
+ assert.match(quick.textContent,/이 열량 이하인지 확인하지 못했습니다/)
+ assert.doesNotMatch(quick.textContent,/최대 열량 이하로 확인/)
+ await click('닫기 ×')
+ await click(document.querySelector(`[data-product-id="${products[2].product_id}"]`))
+ quick=document.querySelector('.research-quick-view')
+ assert.equal(quick.querySelector('.explore-energy-result > strong').textContent,'열량 미확인')
+ assert.match(quick.textContent,/이 열량 이하인지 확인하지 못했습니다/)
+ assert.doesNotMatch(quick.textContent,/최대 열량 이하로 확인/)
+ assert.equal(requests.length,beforeReads,'opening energy context reuses the existing public energy read')
+ assert.equal(energyReads().length,1)
+})
+
 test('deep-link energy pending and failure stay distinct from empty results; manual retry retains bound and basket',async()=>{
  products=catalog(2);energyFailure=true
  dom.reconfigure({url:'https://catfood.test/?view=workspace&applied=1&feed=건식&features=weight_management&energyMax=350&compare='+products[0].product_id})

@@ -48,12 +48,16 @@ export function EnergyRefine({ max, status, known, unknown, onOpen, onRetry, onC
     </form> : null}
   </section>
 }
-export function EnergyResult({ row, sameFeed = true }: { row?: ExploreEnergy; sameFeed?: boolean }) {
+export function EnergyResult({ row, sameFeed = true, max }: { row?: ExploreEnergy; sameFeed?: boolean; max?: number }) {
   const amount = energyAmount(row), usable = sameFeed ? usableEnergy(row) : null
   const supplemental = row?.supplemental_nutrition_fields?.includes('energy')
   const scope = supplemental ? row?.supplemental_observation_scope : row?.observation_scope
   return <div className="explore-energy-result">
     <strong>{usable == null ? '열량 미확인' : energyText(usable)}</strong>
+    {max != null ? <>
+      <p className="energy-condition-limit">선택한 최대 열량 · {energyText(max)} 이하</p>
+      <p className="energy-condition-outcome">{!sameFeed ? '사료 형태가 달라 이 기준으로 비교하지 않았습니다.' : usable == null ? '이 열량 이하인지 확인하지 못했습니다.' : usable <= max ? '선택한 최대 열량 이하로 확인했습니다.' : '선택한 최대 열량보다 높습니다.'}</p>
+    </> : null}
     {amount != null ? <details><summary>원래 열량 표기</summary>
       <p>{row?.kcal_per_kg != null ? row.kcal_per_kg.toLocaleString('ko-KR') + ' kcal/kg' : amount.toLocaleString('ko-KR') + ' kcal/100g'}</p>
       <p>{nutritionInterpretationNote(row, 'energy') ?? (scope === 'variant' ? '확인한 포장 기준' : scope === 'formula' ? '같은 배합으로 확인한 자료' : scope === 'product' ? '제품에 대해 확인한 자료' : '자료 범위 미확인')}</p>

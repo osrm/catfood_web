@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { chromium } from 'playwright-core'
+import { createRequire } from 'node:module'
+const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core')
 import { mkdir, writeFile } from 'node:fs/promises'
 const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'switch-results-candidate-output'
@@ -14,6 +15,7 @@ async function pageAt(w,h){
 }
 async function visibleButton(page,name){const xs=page.getByRole('button',{name,exact:true});for(let i=0;i<await xs.count();i++)if(await xs.nth(i).isVisible())return xs.nth(i);throw new Error('button not found '+name)}
 async function setup(page){
+ try {
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000})
  await page.getByRole('button',{name:'먹이는 사료 찾기 →'}).click()
  await page.waitForFunction(()=>/제품\s*\d+개/.test(document.querySelector('.switch-task-status')?.textContent||'')||Boolean(document.querySelector('.switch-state-message.is-error')),null,{timeout:30000})
@@ -25,6 +27,8 @@ async function setup(page){
  await page.locator('.switch-find-search input').fill('AATU')
  const row=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await row.waitFor({state:'visible'});await row.click()
  const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first();await sku.waitFor({state:'visible'});await sku.click();await page.locator('.switch-step-actions .switch-primary-action').click()
+ await page.getByRole('heading',{name:'무엇을 바꾸고 싶나요?',exact:true}).waitFor({state:'visible'})
+ const conditions=page.locator('.switch-other-conditions');if(!await conditions.evaluate(node=>node.open))await conditions.locator('summary').first().click()
  await page.getByRole('button',{name:'다른 브랜드로 보기',exact:true}).waitFor({state:'visible',timeout:30000})
  await (await visibleButton(page,'다른 브랜드로 보기')).click()
  const toggle=page.locator('.switch-change-additional-toggle');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click()
@@ -32,6 +36,10 @@ async function setup(page){
  await page.getByRole('heading',{name:'그대로 두고 싶은 점'}).waitFor()
  await (await visibleButton(page,'건식 유지')).click();await (await visibleButton(page,'생선 레시피 유지')).click()
  await page.locator('.switch-step-actions .switch-primary-action').click();await page.locator('.switch-candidate-row').first().waitFor({state:'visible',timeout:30000})
+ } catch (error) {
+  report.setupFailure={viewport:page.viewportSize(),url:page.url(),body:await page.locator('body').innerText(),conditions:await page.locator('.switch-other-conditions').evaluateAll(nodes=>nodes.map(node=>({open:node.open,display:getComputedStyle(node).display}))),session:await page.evaluate(()=>sessionStorage.getItem('catfood.switch-session.v1'))}
+  await page.screenshot({path:`${OUT}/setup-failure.png`,fullPage:true});await writeFile(`${OUT}/report.json`,JSON.stringify(report,null,2));throw error
+ }
 }
 async function waitVisibleImages(page){await page.evaluate(()=>document.fonts.ready);await page.waitForFunction(()=>[...document.querySelectorAll('img')].filter(i=>{const r=i.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth}).every(i=>i.complete&&i.naturalWidth>0),null,{timeout:10000})}
 async function tabUntil(page,predicate,{reverse=false,max=80}={}){for(let i=1;i<=max;i++){await page.keyboard.press(reverse?'Shift+Tab':'Tab');const state=await page.evaluate(()=>({text:(document.activeElement?.textContent||'').replace(/\s+/g,' ').trim(),cls:document.activeElement?.className||'',tag:document.activeElement?.tagName||''}));if(predicate(state))return{steps:i,...state}}throw new Error('tab target not reached')}

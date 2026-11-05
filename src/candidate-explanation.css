@@ -1,0 +1,18 @@
+.candidate-explanation { display:grid; gap:12px; margin:16px 0; color:#383d37; font-size:14px; line-height:1.7; text-align:left; overflow-wrap:anywhere; min-width:0; }
+.candidate-explanation-group { display:grid; gap:4px; min-width:0; }
+.candidate-explanation-group > strong { font-size:13px; color:#476252; }
+.candidate-explanation-group > :last-child { display:grid; gap:5px; }
+.candidate-explanation-group small { font-size:12px; color:#67615a; }
+.candidate-explanation .is-unknowns > strong { color:#756045; }
+.candidate-explanation details { border-top:1px solid #e1e5df; padding-top:6px; }
+.candidate-explanation summary { min-height:44px; cursor:pointer; display:flex; align-items:center; font-size:13px; }
+.candidate-explanation p { margin:8px 0; font-size:13px; }
+.switch-candidate-row > .candidate-explanation { grid-column:1/-1; grid-row:2; margin:0; }
+.candidate-explanation.is-compact { font-size:13px; gap:10px; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item:has(.candidate-explanation) { display:block; position:relative; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:has(> .candidate-explanation) { grid-template-areas:"image identity" "explanation explanation" "action action"; grid-template-rows:max-content max-content max-content; height:auto; align-content:start; padding:20px; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:has(> .candidate-explanation) > .switch-candidate-image { grid-area:image; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:has(> .candidate-explanation) > .switch-candidate-identity { grid-area:identity; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row > .candidate-explanation { grid-area:explanation; margin:0; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:has(> .candidate-explanation) > .switch-candidate-open { grid-area:action; position:static; transform:none; margin:0; width:calc(50% - 8px); min-height:44px; box-sizing:border-box; }
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item:has(.candidate-explanation) > .switch-candidate-compare { position:absolute; top:auto; left:auto; right:20px; bottom:20px; transform:none; margin:0; width:calc(50% - 28px); min-width:0; min-height:44px; box-sizing:border-box; }

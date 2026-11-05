@@ -148,7 +148,7 @@ export interface CompareIngredients {
   supplemental_is_current_resolved_formula?: boolean
 }
 
-export type ListIngredientSource = Pick<CompareIngredients, 'product_id' | 'raw_text' | 'completeness_status' | 'observation_scope' | 'market_code' | 'is_current_resolved_formula'>
+export type ListIngredientSource = Pick<CompareIngredients, 'product_id' | 'variant_id' | 'raw_text' | 'completeness_status' | 'observation_scope' | 'market_code' | 'is_current_resolved_formula'>
 
 export interface ProductManufacturingDetail {
   product_id: string
@@ -676,13 +676,13 @@ export async function fetchEnergyPackages(variantIds: string[], signal?: AbortSi
   return rows
 }
 
-// Only the selected-source fields needed to explain visible avoidance candidates.
+// Selected-source wording and scope only; variant identity prevents package equivalence claims.
 export async function fetchListIngredientSources(productIds: string[], signal?: AbortSignal): Promise<ListIngredientSource[]> {
   const ids = [...new Set(productIds)].filter(id => !hiddenProductIds.has(id))
   const rows: ListIngredientSource[] = []
   for (let start = 0; start < ids.length; start += 80) {
     const batch = ids.slice(start, start + 80)
-    const page = await fetchRows<ListIngredientSource>('compare_product_ingredients', 'product_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`, signal, 'product_id.asc', String(batch.length))
+    const page = await fetchRows<ListIngredientSource>('compare_product_ingredients', 'product_id,variant_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`, signal, 'product_id.asc', String(batch.length))
     if (page.some(row => !batch.includes(row.product_id)) || new Set(page.map(row => row.product_id)).size !== page.length) throw new Error('Ambiguous ingredient sources')
     rows.push(...page)
   }

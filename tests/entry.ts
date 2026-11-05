@@ -21,6 +21,7 @@ export * from '../src/energy-refine'
 export { fetchExploreEnergy } from '../src/api'
 
 export * from '../src/journey-records'
+export * from '../src/candidate-explanation'
 export { JourneyMemo, JourneyRecordsPanel } from '../src/JourneyReview'
 export { default as ApplicationBoundary } from '../src/ApplicationBoundary'
 export { IngredientListReason } from '../src/IngredientListReason'

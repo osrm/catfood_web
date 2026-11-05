@@ -1744,7 +1744,7 @@ async function retainAFromDetail() {
 async function reachSourceResults() {
   await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
   await click('원료가 얼마나 구체적으로'); await click(exactButton('습식')); await click('후보 제품 보기')
-  await waitForUi(() => document.querySelector('.ingredient-list-reason.is-focused'), 'focused sources ready')
+  await waitForUi(() => document.querySelector('.candidate-explanation') && !document.querySelector('.candidate-explanation').textContent.includes('원료표 자료를 확인 중'), 'focused source comparison ready')
 }
 const sourceButton = key => document.querySelector(`.source-filter-options button:nth-child(${['all','full','partial','missing','wording','scope'].indexOf(key)+1})`)
 const candidateIds = () => all('.switch-candidate-row').map(row => row.dataset.productId)
@@ -1767,7 +1767,7 @@ test('source lenses read all 85 candidates in batches, survive search and keep h
   await click(document.querySelector(`[data-switch-compare-product-id="${many[0].product_id}"]`))
   await click(sourceButton('full'))
   assert.deepEqual(candidateIds(),[many[84].product_id],'candidate beyond first 40 remains discoverable')
-  assert.match(document.querySelector('.ingredient-list-reason').textContent,/한국 제품에 적용 여부 미확인/)
+  assert.match(document.querySelector('.candidate-explanation').textContent,/한국 판매 제품 적용 여부 미확인/)
   assert.deepEqual(session().compareIds,[many[0].product_id],'source lens never removes basket members')
   const reads=sourceRequestIds.length
   await inputValue(document.querySelector('[aria-label="후보 제품 검색"]'),'후보 000')
@@ -1869,7 +1869,7 @@ test('reason-led disclosure keeps observation separate, opens relevant compariso
   assert.deepEqual(session().change, app.emptySwitchCriteria())
   assert.deepEqual(session().keep, app.emptySwitchCriteria())
   await click(exactButton('후보부터 보기 →'))
-  await waitForUi(() => document.querySelector('.ingredient-list-reason.is-focused'), 'source wording appears on focused candidates')
+  await waitForUi(() => document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`)?.textContent.includes('어유'), 'source wording appears on focused candidates')
   assert.match(document.querySelector(`.switch-candidate-row[data-product-id="${candidateA.product_id}"]`).textContent, /어유.*세부 어종 미기재/)
   assert.match(document.querySelector('.switch-session-bar').textContent, /PRIVATE_REASON/)
   await click(document.querySelector(`[data-switch-compare-product-id="${candidateA.product_id}"]`))
@@ -1890,6 +1890,60 @@ test('reason-led disclosure keeps observation separate, opens relevant compariso
   assert.equal(journey().retained[0].context.purpose.reason, oldReason, 'saved reasoning is historical')
   assert.doesNotMatch(window.location.href + JSON.stringify(window.history.state), /PRIVATE_/)
   assert.doesNotMatch(JSON.stringify([...searchRuns, ...considerations, ...decisions]), /PRIVATE_/)
+})
+
+test('candidate explanations connect explicit keep and wording differences, persist historical gaps and stay out of navigation/intake', async () => {
+  catalogProducts=[current,{...candidateA,feed_type:'건식'},{...candidateB,feed_type:'건식'}]
+  questionSources=[
+    {product_id:current.product_id,variant_id:'variant_current_2',raw_text:'Chicken, Fish Oil',completeness_status:'full',observation_scope:'variant',market_code:'KR',is_current_resolved_formula:false},
+    {product_id:candidateA.product_id,variant_id:null,raw_text:'Chicken, fish oil (herring)',completeness_status:'full',observation_scope:'formula',market_code:'US',is_current_resolved_formula:false},
+  ]
+  await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  await click('원료가 얼마나 구체적으로')
+  await textareaValue(document.querySelector('.decision-purpose-writing label:nth-of-type(1) textarea'),'PRIVATE_REASON 어종을 알고 싶어요')
+  await click('건식 유지'); await click('후보부터 보기')
+  await waitForUi(()=>document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`)?.textContent.includes('herring'),'baseline and candidate wording ready')
+  const card=document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`)
+  assert.match(card.querySelector('.is-kept').textContent,/건식.*유지 조건/)
+  assert.match(card.querySelector('.is-differences').textContent,/현재:.*Fish Oil.*후보:.*herring/)
+  assert.match(card.querySelector('.is-unknowns').textContent,/사용 규격의 일치 여부 미확인.*한국 판매 제품 적용 여부 미확인/)
+  await selectCandidate(); assert.ok(document.querySelector('.switch-candidate-inspector .candidate-explanation'))
+  await click('상세 보기'); await waitForUi(()=>document.querySelector('.journey-retain .candidate-explanation'),'explanation reaches detail')
+  await click('후보로 남기기')
+  const snapshot=structuredClone(journey().retained[0].explanation)
+  assert.equal(app.validCandidateExplanation(snapshot),true)
+  assert.match(app.journeyCopyText(journey()),/남길 때 확인한 내용.*\n유지되는 점:.*건식/)
+  await click('돌아가기'); await waitForUi(()=>document.querySelector('.switch-results-stage'),'return from explained detail')
+  questionSources=questionSources.map(row=>({...row,raw_text:'Chicken, salmon oil',observation_scope:'product',market_code:'KR'}))
+  await remountApp()
+  assert.deepEqual(journey().retained[0].explanation,snapshot,'source updates do not rewrite why the candidate was retained')
+  await waitForUi(()=>document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`)?.textContent.includes('원료표 요약은 같지만'),'updated source comparison ready')
+  await click('남긴 후보에서 제거'); await selectCandidate(); await click('상세 보기')
+  await waitForUi(()=>document.querySelector('.journey-retain .candidate-explanation'),'updated explanation ready in detail')
+  await click('후보로 남기기')
+  assert.notDeepEqual(journey().retained[0].explanation,snapshot,'explicit re-retention captures what is seen now')
+  assert.doesNotMatch(JSON.stringify(journey().retained[0].explanation),/herring|Fish Oil/)
+  const stored=journey(); stored.retained[0].explanation={...snapshot,unknowns:['x'.repeat(601)]}; app.writeJourneyRecords(stored)
+  assert.equal(app.readJourneyRecords().retained[0].explanation,undefined,'corrupt optional explanation is discarded without losing the candidate')
+  assert.doesNotMatch(window.location.href+JSON.stringify(window.history.state),/PRIVATE_|Fish Oil|herring/)
+  assert.doesNotMatch(JSON.stringify([...searchRuns,...considerations,...decisions]),/PRIVATE_|explanation|herring/)
+})
+
+test('current source failure has its own retry and cannot invalidate candidate source counts', async () => {
+  sourceBatchFailureId=current.product_id
+  questionSources=[candidateA,candidateB].map(p=>({product_id:p.product_id,raw_text:'Chicken, Fish Oil',completeness_status:'full',observation_scope:'product',market_code:'KR',is_current_resolved_formula:false}))
+  await renderApp(); await reachSourceResults()
+  const row=()=>document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`)
+  assert.match(row().textContent,/불러오지 못해.*미확인/)
+  assert.doesNotMatch(row().textContent,/현재: 원료표 원문 미확보/)
+  await click('원료표 상태로 살펴보기'); await waitForUi(()=>sourceButton('full')?.disabled===false,'candidate source view independent from baseline failure')
+  assert.match(sourceButton('full').textContent,/2개/)
+  const key=app.switchSelectionKey(session())
+  sourceBatchFailureId=null; questionSources.push({product_id:current.product_id,raw_text:'Chicken, fish oil (herring)',completeness_status:'full',observation_scope:'product',market_code:'KR',is_current_resolved_formula:false})
+  await click('현재 사료 원료표 다시 불러오기')
+  await waitForUi(()=>row()?.textContent.includes('herring'),'baseline-only retry restores comparison')
+  assert.equal(app.switchSelectionKey(session()),key)
+  assert.match(sourceButton('full').textContent,/2개/)
 })
 
 test('energy focus requests visible energy without selecting lower energy or a weight-management claim', async () => {

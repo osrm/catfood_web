@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { chromium } from 'playwright-core'
+import { createRequire } from 'node:module'
+const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core')
 import { mkdir, writeFile } from 'node:fs/promises'
 
 const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
@@ -98,7 +99,10 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  report.views[`${label}-detail`]={text:(await page.locator('.detail-document').innerText()).slice(0,1800),targets:detailTargets,horizontalLayout:detailPage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
 
  await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${dental.product_id},${multi.product_id}&compareOpen=1`,{waitUntil:'domcontentloaded'})
- await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/확인된 포장 기준/)
+ await page.locator('.compare-stage').waitFor()
+ await page.getByRole('button',{name:'전체 항목 비교하기',exact:true}).click()
+ assert.equal(await page.locator('.compare-full-record').getAttribute('hidden'),null)
+ assert.match(await page.locator('.compare-stage').innerText(),/확인된 포장 기준/)
  await page.evaluate(()=>{const xs=[...document.querySelectorAll('*')].filter(n=>n.textContent?.trim()==='제조국'&&n.getClientRects().length);xs.at(-1)?.scrollIntoView({block:'center'})})
  await screenshotView(page,`${label}-compare.png`)
  const compareTargets=await assertVisibleNoHorizontalOverflow(page,'.compare-cell,.compare-mobile-two-product-value',`${label} compare manufacturing value`,'확인된 포장 기준')

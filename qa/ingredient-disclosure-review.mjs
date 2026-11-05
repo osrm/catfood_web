@@ -94,7 +94,9 @@ try {
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${specified.product_id}&detailTab=ingredients`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('group', { name: '원료 정보 확인 범위' }).waitFor()
-    assert.equal(await page.locator('.ingredient-disclosure-example').count(), 0)
+    assert.equal(await page.locator('.ingredient-disclosure-example').count(), 1)
+    assert.match(await page.locator('.ingredient-disclosure-example').innerText(), /어유\(정어리, 멸치\)/)
+    assert.doesNotMatch(await page.locator('.ingredient-disclosure').innerText(), /세부 어종 미기재/)
     await capture('specified-detail', '.detail-document')
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${full.product_id},${partial.product_id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })

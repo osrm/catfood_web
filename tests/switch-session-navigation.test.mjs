@@ -27,6 +27,13 @@ let decisions = []
 let resourceRequests = []
 let holdDecision = null
 let failDecisionCount = 0
+let energyRows = []
+let failEnergyCount = 0
+let failEnergyPackages = false
+
+function energyRow(productId, amount, overrides = {}) {
+  return { product_id: productId, variant_id: null, observation_scope: 'product', market_code: 'KR', kcal_per_kg: null, kcal_per_100g: amount, energy_basis: 'direct_label', is_current_resolved_formula: false, supplemental_nutrition_fields: [], ...overrides }
+}
 
 function product(id, name, overrides = {}) {
   return {
@@ -162,6 +169,9 @@ beforeEach(() => {
   resourceRequests = []
   holdDecision = null
   failDecisionCount = 0
+  energyRows = []
+  failEnergyCount = 0
+  failEnergyPackages = false
   sessionStorage.clear()
   window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
   document.body.innerHTML = '<div id="root"></div>'
@@ -188,6 +198,7 @@ function installFetch() {
       return Response.json(catalogProducts)
     }
     if (url.pathname.endsWith('/switch_current_variant_options')) {
+      if (url.searchParams.has('variant_id') && failEnergyPackages) return new Response('', {status: 503})
       const productFilter = url.searchParams.get('product_id')
       if (productFilter?.startsWith('eq.')) {
         if (failVariantCount > 0) {
@@ -205,6 +216,10 @@ function installFetch() {
         sale_total_weight_g: row.sale_total_weight_g,
         display_rank: row.display_rank,
       })))
+    }
+    if (url.pathname.endsWith('/compare_product_nutrition')) {
+      if (failEnergyCount > 0) { failEnergyCount--; return new Response('', {status: 503}) }
+      return Response.json(energyRows)
     }
     if (url.pathname.endsWith('/search-runs')) {
       searchRuns.push(JSON.parse(init.body))
@@ -1834,4 +1849,84 @@ test('SWITCH inspector reads the full animal-source composition beside an advert
   assert.match(inspector.textContent, /지방·오일.*닭/s)
   assert.match(inspector.textContent, /계란·유제품.*계란/s)
   assert.equal(resourceRequests.filter(path => path.endsWith('/compare_product_ingredients_scoped')).length, 1)
+})
+
+test('candidate energy is opt-in, compares equal feed types, keeps unknowns, and restores lower browsing after comparison and reload', async () => {
+  const lower = product('product_lower', '낮은 열량 후보', {brand:'낮은브랜드'})
+  const higher = product('product_higher', '높은 열량 후보')
+  const equal = product('product_equal', '같은 열량 후보')
+  const missing = product('product_missing', '열량 없는 후보')
+  const unresolved = product('product_unresolved', '배합 미확인 후보')
+  const unknownFeed = product('product_no_feed', '형태 미확인 후보', {feed_type:null})
+  catalogProducts = [current, lower, higher, equal, missing, unresolved, unknownFeed, candidateA]
+  variantsByProduct.set(lower.product_id, [variant(lower.product_id,'variant_lower','2.4 kg')])
+  energyRows = [energyRow(current.product_id,370,{variant_id:'variant_current_2',observation_scope:'variant'}), energyRow(lower.product_id,null,{kcal_per_kg:3480,variant_id:'variant_lower',observation_scope:'variant'}), energyRow(higher.product_id,422), energyRow(equal.product_id,370), energyRow(unresolved.product_id,100,{observation_scope:'formula'}), energyRow(unknownFeed.product_id,50), energyRow(candidateA.product_id,80)]
+  await reachUndecidedResults()
+  assert.equal(resourceRequests.filter(path => path.endsWith('/compare_product_nutrition')).length,0)
+  const selectionKey = app.switchSelectionKey(session())
+  await click('후보 열량 살펴보기')
+  await waitForUi(() => document.querySelector('.switch-energy-baseline')?.textContent.includes('370'), 'energy baseline')
+  await waitForUi(() => document.querySelector('.switch-energy-refinement')?.textContent.includes('근거 포장 · 2 kg'), 'baseline evidence package')
+  assert.match(document.querySelector('.switch-energy-refinement').textContent,/사용 규격과 다른 포장에서 확인/)
+  let lowerRow = all('.switch-candidate-row').find(node => node.textContent.includes(lower.canonical_name))
+  assert.match(lowerRow.textContent,/348 kcal\/100g.*22 kcal 낮음.*근거 포장 · 2.4 kg/s)
+  assert.match(all('.switch-candidate-row').find(node => node.textContent.includes(unresolved.canonical_name)).textContent,/열량 비교 미확인.*현재 판매 제품과 같은 배합인지 미확인/s)
+  await click(document.querySelector('.switch-energy-lower input'))
+  const names = all('.switch-candidate-row').map(node => node.textContent)
+  for (const item of [lower,missing,unresolved,unknownFeed]) assert.ok(names.some(text => text.includes(item.canonical_name)),item.canonical_name)
+  for (const item of [higher,equal,candidateA]) assert.ok(!names.some(text => text.includes(item.canonical_name)),item.canonical_name)
+  assert.equal(session().candidateEnergy,'lower')
+  assert.equal(app.switchSelectionKey(session()),selectionKey,'a browse filter does not rewrite change or keep preferences')
+  await selectCandidate(lower.canonical_name)
+  assert.match(document.querySelector('.switch-candidate-inspector').textContent,/348 kcal\/100g.*22 kcal 낮음/s)
+  assert.match(document.querySelector('.switch-candidate-inspector').textContent,/370 kcal\/100g.*근거 포장 · 2 kg.*사용 규격과 다른 포장에서 확인/s)
+  await click('열량·영양 비교 →')
+  await waitForUi(() => document.querySelector('.compare-stage'), 'comparison opens')
+  await click('후보 목록으로')
+  await waitForUi(() => document.querySelector('.switch-candidate-inspector'), 'inspector returns')
+  assert.equal(document.querySelector('.switch-energy-lower input').checked,true)
+  assert.equal(resourceRequests.filter(path => path.endsWith('/compare_product_nutrition')).length,1,'comparison round trip reuses energy-only data')
+  await remountApp()
+  await waitForUi(() => document.querySelector('.switch-energy-baseline')?.textContent.includes('370'), 'energy restores')
+  assert.equal(document.querySelector('.switch-energy-lower input').checked,true)
+  assert.equal(session().candidateEnergy,'lower')
+  await inputValue(document.querySelector('[aria-label="후보 제품 검색"]'),higher.canonical_name)
+  assert.match(document.querySelector('.switch-candidate-list').textContent,/낮은 표기 열량의 후보를 찾지 못했습니다/)
+  assert.doesNotMatch(document.querySelector('.switch-candidate-list').textContent,/이름 검색 결과가 없습니다/)
+  await click('검색 지우기')
+  await click('열량 보기 닫기')
+  assert.equal(all('.switch-candidate-row').length,7,'closing lower browsing restores all matching candidates')
+  assert.deepEqual(session().compareIds,[lower.product_id],'hidden or restored candidates do not change comparison selection')
+})
+
+test('restored lower energy browsing does not filter on API failure or an unresolved current formula', async () => {
+  energyRows = [energyRow(current.product_id,370,{observation_scope:'formula'}),energyRow(singleSku.product_id,348)]
+  const restored = {...app.createInitialSwitchSession(),currentProductId:current.product_id,variantSelection:{kind:'variant',variantId:'variant_current_1'},criteriaUndecided:true,step:'results',candidateEnergy:'lower'}
+  app.writeSwitchSession(restored)
+  failEnergyCount = 1
+  await renderApp()
+  await waitForUi(() => document.querySelector('.switch-energy-refinement [role="alert"]'), 'energy read failure')
+  assert.equal(all('.switch-candidate-row').length,3,'failed read leaves all candidates')
+  assert.equal(session().candidateEnergy,'lower','failure does not silently discard the saved choice')
+  await click('열량 다시 불러오기')
+  await waitForUi(() => document.querySelector('.switch-energy-lower input')?.disabled, 'unresolved formula prevents narrowing')
+  assert.equal(all('.switch-candidate-row').length,3)
+  assert.match(document.querySelector('.switch-energy-refinement').textContent,/현재 판매 제품과 같은 배합인지 미확인/)
+})
+
+test('package lookup failure keeps energy values and cannot attach a primary package to supplemental energy', async () => {
+  energyRows = [energyRow(current.product_id,370,{variant_id:'variant_current_2',observation_scope:'variant'}),energyRow(singleSku.product_id,348,{variant_id:'variant_single_1',observation_scope:'variant',supplemental_nutrition_fields:['energy'],supplemental_observation_scope:'variant'})]
+  failEnergyPackages = true
+  await reachUndecidedResults()
+  await click('후보 열량 살펴보기')
+  await waitForUi(() => button('근거 포장 용량 다시 불러오기'), 'package read failure')
+  assert.match(document.querySelector('.switch-energy-refinement').textContent,/370 kcal\/100g.*근거 포장 용량 조회 실패/s)
+  const singleRow = all('.switch-candidate-row').find(node => node.textContent.includes(singleSku.canonical_name))
+  assert.match(singleRow.textContent,/348 kcal\/100g/)
+  assert.doesNotMatch(singleRow.querySelector('.switch-energy-evidence').textContent,/1 kg/)
+  failEnergyPackages = false
+  await click('근거 포장 용량 다시 불러오기')
+  await waitForUi(() => document.querySelector('.switch-energy-refinement').textContent.includes('근거 포장 · 2 kg'), 'package recovery')
+  assert.equal(resourceRequests.filter(path => path.endsWith('/compare_product_nutrition')).length,1)
+  assert.match(singleRow.querySelector('.switch-energy-evidence').textContent,/근거 포장 용량 미확인/)
 })

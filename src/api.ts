@@ -126,6 +126,8 @@ export type ExploreEnergy = Pick<CompareNutrition,
   'supplemental_nutrition_fields' | 'supplemental_observation_scope' |
   'supplemental_market_code' | 'supplemental_is_current_resolved_formula'>
 
+export type EnergyPackage = Pick<ProductVariant, 'product_id' | 'variant_id' | 'package_size_text'>
+
 export interface CompareIngredients {
   product_id: string
   variant_id: string | null
@@ -651,6 +653,25 @@ export async function fetchExploreEnergy(signal?: AbortSignal): Promise<ExploreE
     }
     if (page.length < 1000) return rows
   }
+}
+
+// Resolve only the evidence packages currently shown in the candidate list.
+export async function fetchEnergyPackages(variantIds: string[], signal?: AbortSignal): Promise<EnergyPackage[]> {
+  const ids = [...new Set(variantIds)]
+  const { baseUrl, publishableKey } = apiConfig()
+  const rows: EnergyPackage[] = []
+  for (let start = 0; start < ids.length; start += 80) {
+    const batch = ids.slice(start, start + 80)
+    const url = new URL(baseUrl + '/rest/v1/switch_current_variant_options')
+    url.searchParams.set('select', 'product_id,variant_id,package_size_text')
+    url.searchParams.set('variant_id', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`)
+    url.searchParams.set('limit', String(batch.length))
+    const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
+    if (!response.ok) throw new Error('Energy package API ' + response.status)
+    const page = await response.json() as EnergyPackage[]
+    rows.push(...page.filter(row => batch.includes(row.variant_id) && !hiddenProductIds.has(row.product_id)))
+  }
+  return rows
 }
 
 export async function fetchCompareNutrition(

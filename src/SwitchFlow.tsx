@@ -7,6 +7,8 @@ import { readJourneyRecords, writeJourneyRecords, clearJourneyRecords, hasJourne
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
+import { useSwitchEnergy, useEnergyPackages, switchEnergyDifference, keepsLowerEnergyCandidate, EnergyEvidence, CandidateEnergy } from './switch-energy'
+import { energyText, usableEnergy } from './energy-refine'
 import {
   createDecisionSearchRun,
   recordProductConsideration,
@@ -677,7 +679,7 @@ export default function SwitchFlow({
   }
   const {
     step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, includeAllLifeStages, noChangeIntent, criteriaUndecided,
-    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection,
+    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection, candidateEnergy = 'off',
   } = activeSession
   const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
   const needsIngredientFacts = !detailProductId && step !== 'current' && step !== 'sku'
@@ -811,6 +813,11 @@ export default function SwitchFlow({
   }, [step])
 
   const currentProduct = products.find((product) => product.product_id === currentProductId) ?? null
+  const candidateEnergyOpen = candidateEnergy !== 'off'
+  const energy = useSwitchEnergy(candidateEnergyOpen && step === 'results')
+  const currentEnergy = currentProduct ? energy.byProduct.get(currentProduct.product_id) : undefined
+  const canCompareEnergy = Boolean(currentProduct && FEED_TYPES.some(([value]) => value === currentProduct.feed_type) && usableEnergy(currentEnergy) != null)
+  const lowerEnergyActive = candidateEnergy === 'lower' && energy.status === 'loaded' && canCompareEnergy
   useLayoutEffect(() => {
     if (step === 'sku') packageHeadingRef.current?.focus({ preventScroll: true })
   }, [step, currentProductId])
@@ -967,7 +974,7 @@ export default function SwitchFlow({
     ? presentedCandidates.filter((item) => candidateBrowseUnknowns(item.product) !== null)
     : presentedCandidates, [presentedCandidates, candidateBrowseActive, candidateFeedTypes, candidateRecipeFamilies])
   const candidateSearchActive = candidateSearch.trim().length > 0
-  const searchedCandidates = useMemo(() => {
+  const nameMatchedCandidates = useMemo(() => {
     const values = !candidateBrowseActive ? browsedCandidates : [
       ...browsedCandidates.filter((item) => candidateBrowseUnknowns(item.product)?.length === 0),
       ...browsedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)),
@@ -980,8 +987,16 @@ export default function SwitchFlow({
     )
     return ordered.filter((item) => matchedIds.has(item.product.product_id))
   }, [browsedCandidates, candidateSearch, candidateSearchActive, candidateBrowseActive, candidateFeedTypes, candidateRecipeFamilies])
+  const searchedCandidates = useMemo(() => {
+    if (!lowerEnergyActive || !currentProduct) return nameMatchedCandidates
+    const kept = nameMatchedCandidates.filter(item => keepsLowerEnergyCandidate(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)))
+    return [...kept.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) != null), ...kept.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) == null)]
+  }, [nameMatchedCandidates, lowerEnergyActive, currentProduct, currentEnergy, energy.byProduct])
   const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
+  const energyPackages = useEnergyPackages(candidateEnergyOpen && energy.status === 'loaded' && step === 'results'
+    ? [currentEnergy, ...visibleCandidates.map(item => energy.byProduct.get(item.product.product_id)), selectedCandidate ? energy.byProduct.get(selectedCandidate.product.product_id) : undefined]
+    : [])
   const hasChange = changeBrand || criteriaCount(change) > 0 || ingredientAvoidTerms.length > 0
   const changeAdditionalLabels = additionalChangeLabels(change, ingredientAvoidTerms)
   const compareItems = useMemo<CompareItem[]>(() => compareIds
@@ -1728,6 +1743,7 @@ export default function SwitchFlow({
                   candidateQuery: current.appliedCriteriaKey === selectionKey ? current.candidateQuery : '',
                   candidateFeedTypes: selectionState.candidateFeedTypes,
                   candidateRecipeFamilies: selectionState.candidateRecipeFamilies,
+                  candidateEnergy: current.appliedCriteriaKey === selectionKey ? current.candidateEnergy : 'off',
                   appliedCriteriaKey: selectionKey,
                   compareOpen: false,
                   compareTab: 'overview',
@@ -1791,7 +1807,7 @@ export default function SwitchFlow({
     const conditionUnknownCandidates = visibleCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0)
     const conditionConfirmedCandidates = visibleCandidates.filter(item => item.unknowns.length === 0 && item.ingredientInsufficient.length === 0)
     const conditionUnknownCount = searchedCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0).length
-    const candidateSummaryText = hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
+    const candidateSummaryText = lowerEnergyActive ? candidateCountText : hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
       ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 조건 미확인 ${conditionUnknownCount}개`
       : candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
     const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
@@ -1814,6 +1830,7 @@ export default function SwitchFlow({
               else candidateButtonRefs.current.delete(product.product_id)
             }}
             type="button"
+            data-product-id={product.product_id}
             aria-label={`${product.brand} ${product.canonical_name} ${unresolved ? '원료 확인' : '빠른 보기'}`}
             aria-describedby={ingredientAvoidTerms.length ? unresolved ? 'switch-unresolved-note' : 'switch-reviewed-note' : undefined}
             onClick={() => openCandidate(product.product_id)}
@@ -1822,6 +1839,7 @@ export default function SwitchFlow({
             <span className="switch-candidate-identity">
               <span>{product.brand}</span><strong>{product.canonical_name}</strong>
               <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
+              {candidateEnergyOpen && energy.status === 'loaded' ? <CandidateEnergy current={currentProduct} candidate={product} baseline={currentEnergy} row={energy.byProduct.get(product.product_id)} packages={energyPackages.packages} packageStatus={energyPackages.status} /> : null}
             </span>
             <RelationBlock evaluation={rowEvaluation} showReviewed={!ingredientAvoidTerms.length || unresolved} />
             <span className="switch-candidate-open">{unresolved ? '원료 확인 →' : '빠른 보기 →'}</span>
@@ -1873,6 +1891,21 @@ export default function SwitchFlow({
               <fieldset><legend>레시피 종류 {currentRecipeFamilies.length ? <small>지금은 {currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)).join(' · ')}</small> : null}</legend><ChoiceButtons options={RECIPE_FAMILIES} selected={candidateRecipeFamilies} onToggle={(value) => changeCandidateBrowse('candidateRecipeFamilies', value)} /></fieldset>
               <div className="switch-browse-footer"><details><summary>레시피 종류 안내</summary><p>생선 레시피라도 닭이 함께 들어갈 수 있습니다. 피하려는 원료는 ‘조건 수정’에서 골라주세요. 선택한 표기를 확인할 자료가 없는 제품도 아래에 따로 남겨둡니다.</p></details><button type="button" onClick={() => updateSession((current) => ({ ...current, candidateFeedTypes: [], candidateRecipeFamilies: [], visibleCandidateCount: 40 }))}>좁히기 해제</button></div>
             </section> : null}
+            <section className="switch-energy-refinement" aria-label="현재 사료와 열량 비교">
+              {!candidateEnergyOpen ? <button className="secondary-action" type="button" onClick={() => setSessionField('candidateEnergy', 'all')}>후보 열량 살펴보기</button> : <>
+                <div className="switch-energy-heading"><h2>현재 사료와 표기 열량 비교</h2><button type="button" onClick={() => updateSession(current => ({ ...current, candidateEnergy: 'off', visibleCandidateCount: 40 }))}>열량 보기 닫기</button></div>
+                {energy.status === 'idle' || energy.status === 'loading' ? <p role="status">열량을 불러오는 중입니다. 후보 조건은 유지됩니다.</p> : null}
+                {energy.status === 'error' ? <div role="alert"><p>열량을 불러오지 못했습니다. 열량으로 목록을 좁히지 않았습니다.</p><button type="button" onClick={energy.retry}>열량 다시 불러오기</button></div> : null}
+                {energy.status === 'loaded' ? <>
+                  <p className="switch-energy-baseline">현재 사료 표기값 · <strong>{usableEnergy(currentEnergy) == null ? '비교 가능한 열량 미확인' : energyText(usableEnergy(currentEnergy)!)}</strong></p>
+                  <EnergyEvidence row={currentEnergy} packages={energyPackages.packages} packageStatus={energyPackages.status} currentVariantId={currentVariantId} />
+                  <label className="switch-energy-lower"><input type="checkbox" checked={candidateEnergy === 'lower'} disabled={!canCompareEnergy} onChange={event => updateSession(current => ({ ...current, candidateEnergy: event.target.checked ? 'lower' : 'all', selectedCandidateId: null, visibleCandidateCount: 40 }))} />같은 형태에서 현재 표기값보다 낮은 후보 보기</label>
+                  <p>{canCompareEnergy ? '열량·사료 형태가 미확인인 제품도 남습니다. 낮은 열량이 더 적합하다는 뜻은 아닙니다.' : '현재 사료의 열량이나 형태를 확인하지 못해 열량으로 목록을 좁히지 않았습니다.'}</p>
+                  {lowerEnergyActive ? <p role="status">낮은 표기값 확인 {searchedCandidates.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) != null).length}개 · 열량 비교 미확인 {searchedCandidates.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) == null).length}개</p> : null}
+                  {energyPackages.status === 'error' ? <button type="button" onClick={energyPackages.retry}>근거 포장 용량 다시 불러오기</button> : null}
+                </> : null}
+              </>}
+            </section>
             <div className="switch-candidate-heading">
               <div><strong>후보 제품</strong><span className="switch-browse-count" role="status">{candidateSummaryText}</span></div>
               <div className="switch-candidate-search">
@@ -1894,9 +1927,10 @@ export default function SwitchFlow({
             </div>
             {includeAllLifeStages ? <p className="switch-option-empty" role="note">성묘 표기와 전연령 표기를 함께 살펴봅니다. 전연령을 성묘 전용으로 바꾸어 표시하지 않습니다.</p> : null}
             <div className="switch-candidate-list">
+              {lowerEnergyActive && nameMatchedCandidates.length > 0 && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이 범위에서 낮은 표기 열량의 후보를 찾지 못했습니다.</strong><span>열량 좁히기를 해제하거나 검색어와 다른 조건을 바꿔 살펴보세요.</span></div> : null}
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 점이나 유지할 점을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
-              {candidates.length > 0 && candidateSearchActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>{candidateBrowseActive ? '좁힌 범위에서 이름 검색 결과가 없습니다.' : '이름 검색 결과가 없습니다.'}</strong><span>검색어를 지우거나 좁힌 항목을 해제해 후보를 다시 살펴보세요.</span></div> : null}
-              {candidates.length > 0 && !candidateSearchActive && candidateBrowseActive && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 표기의 후보가 없습니다.</strong><span>위에서 좁힌 항목을 해제해 다른 후보를 살펴보세요.</span></div> : null}
+              {candidates.length > 0 && candidateSearchActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>{candidateBrowseActive ? '좁힌 범위에서 이름 검색 결과가 없습니다.' : '이름 검색 결과가 없습니다.'}</strong><span>검색어를 지우거나 좁힌 항목을 해제해 후보를 다시 살펴보세요.</span></div> : null}
+              {candidates.length > 0 && !candidateSearchActive && candidateBrowseActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 표기의 후보가 없습니다.</strong><span>위에서 좁힌 항목을 해제해 다른 후보를 살펴보세요.</span></div> : null}
               {ingredientAvoidTerms.length ? <>
                 {reviewedCandidates.length ? <section className="switch-candidate-group is-reviewed" aria-labelledby="switch-reviewed-heading">
                   <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">선택한 원료를 찾지 못한 후보</h2><p id="switch-reviewed-note">검토한 자료 기준이에요. 원료가 없다고 확정한 결과는 아니에요.</p></div>
@@ -1907,8 +1941,8 @@ export default function SwitchFlow({
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
-                {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>선택한 표기를 확인한 후보</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
-                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="선택한 조건을 확인하지 못한 후보"><div className="switch-candidate-group-heading"><h2>선택한 조건을 확인하지 못한 후보</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>{lowerEnergyActive ? '바꿀 점·유지할 점의 표기를 확인한 후보' : '선택한 표기를 확인한 후보'}</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="선택한 조건을 확인하지 못한 후보"><div className="switch-candidate-group-heading"><h2>{lowerEnergyActive ? '바꿀 점·유지할 점을 확인하지 못한 후보' : '선택한 조건을 확인하지 못한 후보'}</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
               </> : candidateBrowseActive ? <>
                 {browseConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보">{browseConfirmedCandidates.map(renderCandidateRow)}</section> : null}
                 {browseUnknownCandidates.length ? <section className="switch-candidate-group switch-browse-unknown" aria-label="선택한 표기를 아직 확인하지 못한 제품"><div className="switch-candidate-group-heading"><h2>선택한 표기를 아직 확인하지 못했어요</h2><p>형태나 레시피 종류를 확인할 자료가 부족해 남겨둔 제품입니다.</p></div>{browseUnknownCandidates.map(renderCandidateRow)}</section> : null}
@@ -1929,6 +1963,8 @@ export default function SwitchFlow({
                   <ProductImage className="switch-inspector-image" product={selectedCandidate.product} />
                   <div><span>{selectedCandidate.product.brand}</span><h1>{selectedCandidate.product.canonical_name}</h1><p>{selectedCandidate.product.feed_type ?? '형태 미확인'} · {selectedCandidate.product.life_stage ? optionLabel(selectedCandidate.product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</p></div>
                 </section>
+
+                {candidateEnergyOpen && energy.status === 'loaded' ? <section className="switch-inspector-section"><h2>현재 사료와 표기 열량 비교</h2><p className="switch-energy-baseline">현재 사료 표기값 · <strong>{usableEnergy(currentEnergy) == null ? '비교 가능한 열량 미확인' : energyText(usableEnergy(currentEnergy)!)}</strong></p><EnergyEvidence row={currentEnergy} packages={energyPackages.packages} packageStatus={energyPackages.status} currentVariantId={currentVariantId} /><CandidateEnergy current={currentProduct} candidate={selectedCandidate.product} baseline={currentEnergy} row={energy.byProduct.get(selectedCandidate.product.product_id)} packages={energyPackages.packages} packageStatus={energyPackages.status} /></section> : null}
 
                 {canBrowseCandidates ? <section className="switch-exploratory-actions" aria-label="현재 사료와 비교할 정보 선택">
                   <p>지금 사료와 무엇을 비교해 볼까요?</p>

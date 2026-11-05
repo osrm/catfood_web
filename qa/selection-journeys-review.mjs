@@ -94,8 +94,36 @@ try{
   await page.getByRole('heading',{name:'그대로 두고 싶은 점'}).waitFor()
   await (await button('건식 유지')).click();await page.locator('.switch-step-actions .switch-primary-action').click()
   await page.locator('.switch-candidate-row').first().waitFor({timeout:45000})
+  const switchEnergyReadsBefore=energyReads
+  await (await button('후보 열량 살펴보기')).click()
+  await page.waitForFunction(()=>document.querySelector('.switch-energy-baseline')?.textContent.includes('370'),null,{timeout:45000})
+  await page.waitForFunction(()=>document.querySelector('.switch-energy-refinement')?.textContent.includes('근거 포장 · 3 kg'),null,{timeout:45000})
+  assert.match(await page.locator('.switch-energy-refinement').innerText(),/사용 규격과 다른 포장에서 확인/)
+  await page.locator('.switch-energy-lower input').check()
+  await page.locator('.switch-energy-refinement').scrollIntoViewIfNeeded()
+  await capture('switch-energy-controls','.switch-energy-refinement')
+  for(let i=0;i<25;i++){const more=page.getByRole('button',{name:/제품 더 보기/});if(!await more.count())break;await more.click()}
+  await page.locator('.switch-candidate-row').first().scrollIntoViewIfNeeded()
+  await capture('switch-lower-energy-list','.switch-candidate-pane')
+  const energyRows=page.locator('.switch-candidate-row')
+  let lowerCount=0,unknownCount=0
+  for(let i=0;i<await energyRows.count();i++){
+   const text=await energyRows.nth(i).locator('.switch-candidate-energy > strong').innerText()
+   if(text==='열량 비교 미확인'){unknownCount++;continue}
+   const amount=Number(text.replace(' kcal/100g','').replaceAll(',',''))
+   assert.ok(amount>0&&amount<370,'rendered lower candidate must have a lower positive label value');lowerCount++
+  }
+  assert.ok(lowerCount>0&&unknownCount>0,'known lower and unknown candidates both remain')
+  const unknownEnergyCandidate=energyRows.filter({has:page.locator('.switch-candidate-energy > strong').filter({hasText:'열량 비교 미확인'})}).first()
+  await unknownEnergyCandidate.click();await page.locator('.switch-candidate-inspector').waitFor()
+  assert.match(await page.locator('.switch-candidate-inspector .switch-candidate-energy').innerText(),/열량 비교 미확인/)
+  await capture('switch-energy-unknown','.switch-candidate-inspector')
+  await page.locator('.switch-preview-topline button').click()
   await page.getByRole('searchbox',{name:'후보 제품 검색'}).fill(lowerCandidateName)
   const lowerCandidate=page.locator('.switch-candidate-row').filter({hasText:lowerCandidateName}).first();await lowerCandidate.waitFor();await lowerCandidate.click()
+  await page.waitForFunction(()=>!/근거 포장 용량 확인 중/.test(document.querySelector('.switch-candidate-inspector')?.textContent||''),null,{timeout:45000})
+  assert.match(await page.locator('.switch-candidate-inspector .switch-candidate-energy').innerText(),/현재 표기값보다.*낮음/)
+  assert.match(await page.locator('.switch-candidate-inspector').innerText(),/근거 포장 · 3 kg[\s\S]*사용 규격과 다른 포장에서 확인/)
   await page.locator('.switch-candidate-inspector').waitFor();await capture('switch-candidate','.switch-candidate-inspector')
   await (await button('현재 사료와 영양 비교 →')).click()
   await page.locator('.compare-stage').waitFor();await page.waitForFunction(()=>{const text=document.querySelector('.compare-stage')?.textContent||'';return /kcal/.test(text)&&!/조회 중|불러오는 중/.test(text)},null,{timeout:45000})
@@ -110,6 +138,10 @@ try{
   report.observations.push({width,case:'current-food',energyDifference:await difference.innerText()})
   await page.getByRole('button',{name:'← 후보 목록으로',exact:true}).click();await page.locator('.switch-candidate-inspector').waitFor()
   assert.match(await page.locator('.switch-candidate-inspector').innerText(),/AATU/)
+  assert.equal(await page.locator('.switch-energy-lower input').isChecked(),true)
+  assert.equal(energyReads,switchEnergyReadsBefore+1,'energy list and inspector share a single energy-only read')
+  await capture('switch-energy-return','.switch-candidate-inspector')
+  report.observations.push({width,case:'switch-energy-list',lowerCount,unknownCount,sourcePackageMismatchVisible:true,lowerFilterPreserved:true})
   await context.close()
  }
  assert.deepEqual(report.errors,[]);assert.deepEqual(report.blocked,[])

@@ -265,3 +265,45 @@
  .switch-workflow-shell .switch-sku-step .switch-sku-list + .switch-step-actions .switch-primary-action::after{content:none}
  .switch-workflow-shell .switch-sku-step .switch-step-actions .switch-secondary-action{min-height:48px;min-width:0;flex:1;line-height:1.5;text-align:left;padding:10px 12px}
 }
+
+.switch-workflow-shell .switch-energy-refinement {
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid #d5dfd9;
+  border-radius: 8px;
+  background: #f8faf8;
+  color: #34483f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.switch-workflow-shell .switch-energy-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.switch-workflow-shell .switch-energy-heading h2 { margin: 0; font-size: 15px; }
+.switch-workflow-shell .switch-energy-refinement button { min-height: 40px; padding: 8px 12px; }
+.switch-workflow-shell .switch-energy-refinement p { margin: 8px 0; }
+.switch-workflow-shell .switch-energy-lower {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+.switch-workflow-shell .switch-energy-lower input { width: 18px; height: 18px; flex-shrink: 0; accent-color: #345c4e; }
+.switch-workflow-shell .switch-candidate-energy {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  color: #34483f;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.switch-workflow-shell .switch-candidate-energy > strong { font-size: 14px; font-weight: 700; }
+.switch-workflow-shell .switch-energy-evidence { display: grid; gap: 2px; color: #606e65; font-size: 12px; line-height: 1.5; }

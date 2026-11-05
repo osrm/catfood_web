@@ -1807,7 +1807,7 @@ export default function SwitchFlow({
     const conditionUnknownCandidates = visibleCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0)
     const conditionConfirmedCandidates = visibleCandidates.filter(item => item.unknowns.length === 0 && item.ingredientInsufficient.length === 0)
     const conditionUnknownCount = searchedCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0).length
-    const candidateSummaryText = hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
+    const candidateSummaryText = lowerEnergyActive ? candidateCountText : hasChosenCandidateCriteria && !ingredientAvoidTerms.length && !candidateBrowseActive
       ? `표기 확인 ${searchedCandidates.length - conditionUnknownCount}개 · 조건 미확인 ${conditionUnknownCount}개`
       : candidateBrowseActive ? `선택한 표기 확인 ${searchedCandidates.length - browseUnknownCount}개${browseUnknownCount ? ` · 표기 미확인 ${browseUnknownCount}개` : ''}` : candidateCountText
     const browseUnknownCandidates = candidateBrowseActive ? visibleCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)) : []
@@ -1941,8 +1941,8 @@ export default function SwitchFlow({
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
-                {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>선택한 표기를 확인한 후보</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
-                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="선택한 조건을 확인하지 못한 후보"><div className="switch-candidate-group-heading"><h2>선택한 조건을 확인하지 못한 후보</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보"><div className="switch-candidate-group-heading"><h2>{lowerEnergyActive ? '바꿀 점·유지할 점의 표기를 확인한 후보' : '선택한 표기를 확인한 후보'}</h2></div>{conditionConfirmedCandidates.map(renderCandidateRow)}</section> : null}
+                {conditionUnknownCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-label="선택한 조건을 확인하지 못한 후보"><div className="switch-candidate-group-heading"><h2>{lowerEnergyActive ? '바꿀 점·유지할 점을 확인하지 못한 후보' : '선택한 조건을 확인하지 못한 후보'}</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>{conditionUnknownCandidates.map(renderCandidateRow)}</section> : null}
               </> : candidateBrowseActive ? <>
                 {browseConfirmedCandidates.length ? <section className="switch-candidate-group" aria-label="선택한 표기를 확인한 후보">{browseConfirmedCandidates.map(renderCandidateRow)}</section> : null}
                 {browseUnknownCandidates.length ? <section className="switch-candidate-group switch-browse-unknown" aria-label="선택한 표기를 아직 확인하지 못한 제품"><div className="switch-candidate-group-heading"><h2>선택한 표기를 아직 확인하지 못했어요</h2><p>형태나 레시피 종류를 확인할 자료가 부족해 남겨둔 제품입니다.</p></div>{browseUnknownCandidates.map(renderCandidateRow)}</section> : null}

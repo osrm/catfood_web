@@ -1,5 +1,5 @@
 import type { ListIngredientSource } from './api'
-import { ingredientDisclosureReading } from './ingredient-disclosure'
+import { ingredientDisclosureReading, ingredientSourceScope } from './ingredient-disclosure'
 
 export type IngredientQuestions = { source: string; items: string[] }
 export type QuestionProduct = { productId: string; brand: string; name: string }
@@ -15,9 +15,8 @@ export function validIngredientQuestions(value: unknown): value is IngredientQue
 // Questions describe what remains to ask; they never certify ingredient absence.
 export function ingredientQuestions(row: ListIngredientSource | null | undefined, avoidLabels: string[] = []): IngredientQuestions {
   const reading = ingredientDisclosureReading(row)
-  const applicable = Boolean(row && ['variant', 'product', 'formula'].includes(row.observation_scope)
-    && (row.market_code === 'KR' || row.is_current_resolved_formula)
-    && (row.observation_scope !== 'formula' || row.is_current_resolved_formula))
+  const scope = ingredientSourceScope(row)
+  const applicable = Boolean(row && !scope.needsCheck)
   const questions: string[] = []
   if (!applicable && row) questions.push('이 자료가 현재 한국에서 판매되는 제품의 배합에도 적용되나요? 확인 근거를 받을 수 있나요?')
   if (!row?.raw_text?.trim() || row.completeness_status !== 'full' || !applicable) questions.push('현재 한국 판매 제품의 최신 전체 원료표를 확인할 수 있나요?')
@@ -30,7 +29,7 @@ export function ingredientQuestions(row: ListIngredientSource | null | undefined
   const labels = [...new Set(avoidLabels)].slice(0, 6).map(label => label.slice(0, 30))
   if (labels.length) questions.push(`현재 한국 판매 제품의 원료·향료·오일 구성에서 ${labels.join('·')}${avoidLabels.length > 6 ? ' 등 선택한 원료' : ''} 포함 여부를 확인할 수 있나요? 근거 자료를 받을 수 있나요?`)
   if (!questions.length) questions.push('구매하려는 포장에 적용되는 최신 전체 원료표를 확인할 수 있나요?')
-  const source = !row ? reading.listLabel : `${row.market_code === 'KR' ? '한국 자료' : row.is_current_resolved_formula ? '국내 동일 배합 확인 자료' : '국내 배합 대응 미확인 자료'} · ${row.observation_scope === 'variant' ? '확인한 포장 기준' : row.observation_scope === 'product' ? '제품 자료' : applicable ? '같은 배합 확인 자료' : '적용 범위 확인 필요'} · ${reading.listLabel}`
+  const source = !row ? reading.listLabel : `${scope.label} · ${reading.listLabel}`
   return { source, items: [...new Set(questions)].slice(0, 5) }
 }
 

@@ -5,6 +5,19 @@ import { splitIngredientText } from './ingredient-composition'
 // absence test, a manufacturer transparency score or an allergen-safety claim.
 // Never merge a different supplemental formula into the selected source.
 type IngredientSource = Pick<CompareIngredients, 'raw_text' | 'completeness_status'>
+type IngredientScope = Partial<Pick<CompareIngredients, 'market_code' | 'observation_scope' | 'is_current_resolved_formula'>>
+
+// Where a source applies is separate from how complete or specific its text is.
+export function ingredientSourceScope(row: IngredientScope | null | undefined) {
+  if (!row) return { label: '자료 범위 미확인', needsCheck: true }
+  const knownScope = ['variant', 'product', 'formula'].includes(row.observation_scope ?? '')
+  const matched = Boolean(row.is_current_resolved_formula)
+  const needsCheck = !knownScope || row.observation_scope === 'formula' && !matched || row.market_code !== 'KR' && !matched
+  const market = row.market_code === 'KR' ? '한국 자료' : row.market_code ? `${row.market_code} 자료` : matched ? '국내 동일 배합 확인 자료' : '자료 국가 미확인'
+  const scope = row.observation_scope === 'variant' ? '확인한 포장 기준' : row.observation_scope === 'product' ? '제품 자료' : row.observation_scope === 'formula' ? '배합 자료' : '제품·포장 범위 미확인'
+  const application = needsCheck ? '한국 판매 제품과 같은 배합인지 미확인' : matched && row.market_code ? '국내 동일 배합 확인 자료' : ''
+  return { label: [market, scope, application].filter(Boolean).join(' · '), needsCheck }
+}
 
 const FISH_CATEGORY = /어유|어류|어개류|생선(?:기름|오일|추출물|육수|분말)?|해수어분|어분|피쉬(?:오일|펩티드|밀|추출물)|魚介類|魚油|魚類|フィッシュ(?:オイル|ミール|エキス)|\bfish(?:\s+(?:oil|meal|broth|extract|protein|peptide)s?)?\b|\bwhitefish\b|\bwhite fish\b/i
 const FISH_SPECIES = /연어|참치|가다랑어|정어리|멸치|청어|고등어|대구|명태|폴락|송어|볼락|가자미|우럭|호키|멘헤이든|サーモン|鮭|マグロ|カツオ|イワシ|アンチョビ|タラ|ニシン|サバ|\bsalmon\b|\btuna\b|\bsardines?\b|\banchov(?:y|ies)\b|\bherring\b|\bmackerel\b|\bcod\b|\bpollock\b|\btrout\b|\bmenhaden\b|\bhoki\b/i

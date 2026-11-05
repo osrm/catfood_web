@@ -5,3 +5,4 @@
 .ingredient-disclosure-example { display: grid; gap: 2px; padding-inline-start: 12px; border-inline-start: 2px solid var(--cf-border, #d9dfdd); }
 .ingredient-disclosure-example q { font-weight: 500; }
 .ingredient-disclosure-example > span, .ingredient-disclosure-note { color: var(--cf-muted); font-size: 13px; }
+.compare-ingredient-reading{display:grid;gap:6px;word-break:keep-all;overflow-wrap:break-word}.compare-ingredient-reading .ingredient-source-scope{display:block;font-size:12px;line-height:1.65;color:var(--cf-muted)}

@@ -1,6 +1,6 @@
 import { IngredientCompositionValue } from './IngredientComposition'
 import { ingredientComposition } from './ingredient-composition'
-import { ingredientDisclosureSummary } from './ingredient-disclosure'
+import { ingredientDisclosureSummary, ingredientSourceScope } from './ingredient-disclosure'
 import IngredientDisclosure from './IngredientDisclosure'
 import IngredientQuestionsButton from './IngredientQuestions'
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
@@ -515,6 +515,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                   {ingredients.completeness_status !== 'full' ? <p className="detail-summary-meta">{completenessLabel(ingredients.completeness_status)}{ingredients.ingredient_count > 0 ? ` · ${ingredients.ingredient_count}개` : ''}</p> : fullIngredientSummaryFallback ? <p className="detail-summary-meta">{fullIngredientSummaryFallback}</p> : null}
                   {showComposition ? <IngredientCompositionValue row={ingredients} /> : null}
                   <p className="detail-summary-meta">원료 표기: {ingredientDisclosureSummary(ingredients)}</p>
+                  <p className="detail-summary-meta ingredient-source-scope">자료 범위 · {ingredientSourceScope(ingredients).label}</p>
                   {hasIngredientSummaryFacts && (!showComposition || hasSupplementalFullIngredients) ? <div className="detail-fact-lines detail-fact-lines-compact">
                     {directIngredientLabel && !showComposition ? <Fact label="직접 확인 원료" value={directIngredientLabel} /> : null}
                     {flavorIngredientLabel && !showComposition ? <Fact label="향미 연관 원료" value={flavorIngredientLabel} /> : null}

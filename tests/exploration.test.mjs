@@ -875,7 +875,7 @@ test('comparison evaluates excluded ingredients without deleting manual products
   assert.equal(app.INGREDIENT_AVOID_OPTIONS.length, 23)
 })
 
-test('ingredient editor, results and analytics preserve evidence states with only selected-product composition reads', async () => {
+test('ingredient editor, results and analytics preserve verdicts with bounded list reasons and selected-product composition reads', async () => {
   products = products.slice(0, 4)
   products[0].confirmed_present_ingredient_terms = ['chicken']
   products[0].direct_evidence_ingredient_terms = ['chicken']
@@ -916,7 +916,10 @@ test('ingredient editor, results and analytics preserve evidence states with onl
   assert.match(document.querySelector('.research-quick-view').textContent, /원료 미확인/)
   await click('닫기 ×')
   assert.equal(requests.some(request => /compare_product_nutrition/.test(request.path)), false)
-  const compositionReads = requests.filter(request => /compare_product_ingredients/.test(request.path))
+  const listReads = requests.filter(request => request.path.endsWith('/compare_product_ingredients'))
+  assert.ok(listReads.length > 0, 'visible avoidance cards may read minimal source wording together')
+  assert.ok(listReads.every(request => new URLSearchParams(request.query).get('select').split(',').length === 6))
+  const compositionReads = requests.filter(request => request.path.endsWith('/compare_product_ingredients_scoped'))
   assert.ok(compositionReads.length > 0, 'an opened inspector may read that product to summarize its ingredients')
   assert.ok(compositionReads.every(request => JSON.parse(new URLSearchParams(request.query).get('p_product_ids').replace('{', '[').replace('}', ']')).length === 1), 'never fetch every result for the opened inspector')
   const criteria = searchRuns().at(-1).body.criteria_snapshot

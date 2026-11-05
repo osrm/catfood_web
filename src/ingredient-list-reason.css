@@ -1,0 +1,4 @@
+.ingredient-list-reason{display:grid;gap:4px;margin-top:12px;color:#495e53;font-size:12px;line-height:1.6;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+.ingredient-list-reason>strong{font-size:12px;font-weight:700}.ingredient-list-reason>small{font-size:11px;color:#66756c}
+.ingredient-reason-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 16px;font-size:13px;line-height:1.6;color:#495e53}
+.ingredient-reason-status button{min-height:40px;padding:8px 12px}

@@ -307,6 +307,11 @@ function desktopCurrentMetric(label) {
 test('SWITCH nutrition keeps current separate and shows only interpretation-changing package evidence inline', async () => {
   await renderSwitch()
 
+  const highlights = document.querySelector('.compare-highlights-mobile .comparison-highlights')
+  assert.match(highlights.textContent, /100g당 52 kcal 높음/)
+  assert.match(highlights.textContent, /근거 포장 · 3 kg/)
+  assert.match(highlights.textContent, /사용 규격과 다른 포장에서 확인/)
+
   const nutritionFilters = requests
     .filter((url) => url.pathname.endsWith('/compare_product_nutrition_scoped'))
     .map((url) => productFilter(url))
@@ -549,6 +554,9 @@ test('failed current nutrition never creates a candidate energy difference', asy
   await renderSwitch()
   assert.match(mobileCurrentMetric('열량').textContent, /조회 실패/)
   assert.equal(document.querySelector('.compare-energy-difference'), null)
+  const highlights = document.querySelector('.compare-highlights-desktop .comparison-highlights')
+  assert.match(highlights.textContent, /열량 차이 판단 보류/)
+  assert.doesNotMatch(highlights.textContent, /kcal (낮음|높음)/)
 })
 
 function productFilter(url) {

@@ -1769,6 +1769,7 @@ export default function SwitchFlow({
           reviewSummary={renderJourneyRecords()}
           onDisplayedCandidates={(ids) => ids.forEach((id) => recordSwitchConsideration(id, 'compare_view', ids))}
           items={compareItems}
+          criteriaLabels={journeyContext()?.labels ?? []}
           currentProduct={currentProduct}
           currentVariantId={currentVariantId}
           currentVariantText={currentVariantText}

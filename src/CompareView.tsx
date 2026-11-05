@@ -15,6 +15,7 @@ import {
   type ProductVariant,
 } from './api'
 import type { CompareTab, DetailTab } from './navigation-state'
+import ComparisonHighlights, { type HighlightFact } from './ComparisonHighlights'
 
 export type CompareItem = {
   product: CatalogProduct
@@ -1179,12 +1180,46 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         : `현재 사료와 담아둔 ${items.length}개 후보의 원재료를 살펴봅니다.`
     : `${items.length}개 제품을 나란히 비교합니다. 최대 5개까지 선택할 수 있습니다.`
 
+  function highlightFacts(product: CatalogProduct): HighlightFact[] {
+    const chosen = new Set(criteriaLabels.flatMap(value => value.split(' · ')))
+    const fields: Array<[OverviewField, string, boolean]> = [
+      ['feedType', '사료 형태', Boolean(product.feed_type)],
+      ['lifeStage', '대상 연령', Boolean(product.life_stage)],
+      ['targets', '제품 표기 대상', Boolean(product.official_targets.length)],
+      ['features', '제품 특징', Boolean(product.features.length)],
+      ['recipeFamilies', '레시피 종류', Boolean(product.recipe_families.length)],
+      ['recipeDetails', '주요 레시피', Boolean(product.recipe_details.length)],
+      ['grainFree', 'Grain-Free 표기', product.official_recipe_traits.includes('grain_free')],
+      ['packages', '판매 규격', Boolean(product.available_package_labels?.length || product.representative_package_size_text)],
+    ]
+    return [{ key: 'brand', label: '브랜드', value: product.brand, known: Boolean(product.brand), priority: criteriaLabels.some(label => /브랜드/.test(label)) }, ...fields.map(([key, label, known]) => {
+      const value = known ? String(overviewValue(product, key)).split(' · ').sort().join(' · ') : '미확인'
+      return { key, label, value, known, priority: chosen.has(label) || value.split(' · ').some(part => chosen.has(part)) }
+    })]
+  }
+  function renderHighlights(visibleItems: CompareItem[], baseline?: CatalogProduct) {
+    const isCurrent = (id: string) => id === currentProduct?.product_id
+    return <ComparisonHighlights tab={tab} items={visibleItems} baseline={baseline} facts={highlightFacts} criteriaLabels={criteriaLabels}
+      nutrition={id => isCurrent(id) ? currentNutrition : nutritionByProduct.get(id)}
+      ingredients={id => isCurrent(id) ? currentIngredients : ingredientsByProduct.get(id)}
+      nutritionLoading={id => isCurrent(id) ? currentNutritionLoadedProductRef.current !== id && !activeCurrentNutritionError : nutritionLoadedKeyRef.current !== productKey && !activeNutritionError}
+      nutritionFailed={id => Boolean(isCurrent(id) ? activeCurrentNutritionError : activeNutritionError)}
+      ingredientsLoading={id => isCurrent(id) ? currentIngredientsLoaded.current !== id && currentIngredientsFailed.current !== id : ingredientsLoadedKeyRef.current !== productKey && !activeIngredientsError}
+      ingredientsFailed={id => Boolean(isCurrent(id) ? currentIngredientsFailed.current === id : activeIngredientsError)}
+      variants={id => isCurrent(id) ? currentVariants : variantsByProduct[id] ?? []}
+      variantStatus={id => isCurrent(id) ? currentVariantsLoading ? 'loading' : currentVariantLookupFailed ? 'error' : 'loaded' : variantsLoading ? 'loading' : variantLookupFailures.includes(id) ? 'error' : 'loaded'}
+      currentVariantId={currentVariantId} />
+  }
+
   return <main className={stageClassName}>
     <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button
       key={key} id={`compare-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`compare-panel-${key}`} tabIndex={tab === key ? 0 : -1}
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}
     >{label}</button>)}</nav>
+
+    <div className="compare-highlights-desktop">{renderHighlights(items, currentProduct ?? undefined)}</div>
+    <div className="compare-highlights-mobile">{renderHighlights(currentProduct ? mobileCandidate ? [mobileCandidate] : [] : mobilePairItems, currentProduct ?? undefined)}</div>
 
     {tab === 'nutrition' && activeNutritionError && !switchNutrition ? <div className="compare-state is-error" role="alert"><p>{activeNutritionError}</p><button type="button" onClick={() => { nutritionLoadedKeyRef.current = null; nutritionErrorKeyRef.current = null; setNutritionError(null); setNutritionLoading(true); setReload((value) => value + 1) }}>다시 시도</button></div> : null}
     {tab === 'ingredients' && activeIngredientsError ? <div className="compare-state is-error" role="alert"><p>{activeIngredientsError}</p><button type="button" onClick={() => { ingredientsLoadedKeyRef.current = null; ingredientsErrorKeyRef.current = null; setIngredientsError(null); setIngredientsLoading(true); setReload((value) => value + 1) }}>다시 시도</button></div> : null}

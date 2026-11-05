@@ -1,0 +1,7 @@
+.ingredient-question-options{border:0;padding:0;margin:16px 0}.ingredient-question-options legend{font-size:13px;font-weight:700;margin-bottom:8px}
+.ingredient-question-options label{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding:8px 0;line-height:1.65}
+.ingredient-question-options input{width:18px;height:18px;flex-shrink:0;margin-top:4px;accent-color:#345c4e}
+.question-actions{display:flex;flex-wrap:wrap;gap:10px}.question-actions button{flex:1 1 150px;white-space:normal;line-height:1.5}
+.saved-ingredient-questions{padding:12px 0;font-size:13px;line-height:1.7}.saved-ingredient-questions ol{padding-left:22px}.saved-ingredient-questions li{border:0;padding:4px 0}
+.ingredient-composition-inspector .ingredient-questions-button{display:block;margin-top:8px;font-size:13px}
+.saved-ingredient-questions > .journey-inline-action{margin-right:16px}

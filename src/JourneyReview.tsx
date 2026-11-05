@@ -1,19 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { journeyCopyText, type JourneyRecords } from './journey-records'
+import { JourneyDialog } from './JourneyDialog'
+import IngredientQuestionsButton from './IngredientQuestions'
+import type { IngredientQuestions } from './ingredient-questions'
+import { INGREDIENT_AVOID_LABELS } from './search'
 import './journey-review.css'
+export { JourneyDialog } from './JourneyDialog'
 
-export function JourneyDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
-    if (ref.current?.showModal) ref.current.showModal()
-    else ref.current?.setAttribute('open', '')
-    return () => { previous?.isConnected && previous.focus({ preventScroll: true }) }
-  }, [])
-  return <dialog className="journey-dialog" ref={ref} aria-label={title} onCancel={(event) => { event.preventDefault(); onClose() }}>
-    <div className="journey-dialog-heading"><h2>{title}</h2><button type="button" onClick={onClose} aria-label="닫기">닫기 ×</button></div>{children}
-  </dialog>
-}
 export function JourneyCopy({ records, onClose }: { records: JourneyRecords; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -28,10 +21,11 @@ export function JourneyMemo({ value, onSave, onClose, title = '찾으면서 기�
     <label>내 메모 <span>(선택, 200자)</span><textarea maxLength={200} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="예: 요즘 잘 안 먹어서 다른 사료도 알아보는 중" /></label>
     <p className="journey-note">메모는 이 탭 안에만 남고 서버로 보내지 않습니다.</p><button type="button" className="primary-action" onClick={() => { onSave(draft); onClose() }}>메모 남기기</button></JourneyDialog>
 }
-export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, onNote, onRemove, onOutcome }: {
+export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, onNote, onRemove, onOutcome, onQuestions }: {
   records: JourneyRecords; selectionKey: string; storageAvailable: boolean
   onNote: (id: string, value: string) => void; onRemove: (id: string) => void
   onOutcome: (kind: 'keep_current' | 'undecided') => void
+  onQuestions?: (id: string, value?: IngredientQuestions) => void
 }) {
   const [copy, setCopy] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -46,6 +40,10 @@ export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, o
       {row.context.selectionKey !== selectionKey ? <strong className="journey-old-context">이전 기준에서 남긴 후보</strong> : null}
       <p className="journey-note">기준: {row.context.current.brand} · {row.context.current.name} · {row.context.variantLabel}</p>
       <details><summary>당시 조건과 내 메모</summary><p>{row.context.labels.join(' · ') || '따로 고른 조건 없음'}</p><p>{row.note || '작성한 메모 없음'}</p><button className="journey-inline-action" type="button" onClick={() => setEditingId(row.id)}>후보 메모 {row.note ? '수정' : '쓰기'}</button></details>
+      <div className="saved-ingredient-questions">{row.checkQuestions ? <><strong>확인할 질문 · 답변 미확인</strong><p>{row.checkQuestions.source}</p><ol>{row.checkQuestions.items.map(item => <li key={item}>{item}</li>)}</ol></> : null}
+        <IngredientQuestionsButton product={row.candidate} saved={row.checkQuestions} avoidLabels={row.context.criteria.filter(item => item.axis === 'ingredient' && item.role === 'ingredient_avoid').map(item => INGREDIENT_AVOID_LABELS[item.value] ?? item.value)} onSave={onQuestions ? value => onQuestions(row.id, value) : undefined} />
+        {row.checkQuestions && onQuestions ? <button className="journey-inline-action" type="button" onClick={() => onQuestions(row.id)}>저장한 질문 지우기</button> : null}
+      </div>
     </li>)}</ul> : <p>아직 남긴 후보가 없습니다. 후보 상세나 비교 화면에서 남길 수 있습니다.</p>}
     <div className="journey-outcome"><strong>이번에는 어떻게 정리할까요? (선택)</strong><div>
       <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'keep_current' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('keep_current')}>지금 사료 유지</button>

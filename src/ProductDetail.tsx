@@ -2,6 +2,7 @@ import { IngredientCompositionValue } from './IngredientComposition'
 import { ingredientComposition } from './ingredient-composition'
 import { ingredientDisclosureSummary } from './ingredient-disclosure'
 import IngredientDisclosure from './IngredientDisclosure'
+import IngredientQuestionsButton from './IngredientQuestions'
 import { CatalogIngredientNotice, type CatalogIngredientLoad } from './catalog-ingredients'
 import { nutritionInterpretationNote } from './nutrition-reading'
 import { setProductMetadata } from './product-metadata'
@@ -586,6 +587,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
               </details> : null}
             </> : null}
             {!loading.ingredients && !errors.ingredients && !ingredients ? <div className="detail-empty">확인된 원재료 정보가 없습니다.</div> : null}
+            {!loading.ingredients && !errors.ingredients ? <IngredientQuestionsButton product={{productId:product.product_id,brand:product.brand,name:product.canonical_name}} source={ingredients} /> : null}
           </section> : null}
           {tab === 'context' ? <>
             <section className="detail-section">

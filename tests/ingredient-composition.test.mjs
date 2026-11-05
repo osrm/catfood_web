@@ -12,6 +12,7 @@ const {createRoot}=await import('react-dom/client')
 const nativeFetch=globalThis.fetch
 let app,temp,root
 const source=(names,raw='')=>({product_id:'product_fixture',ingredient_names:names,raw_text:raw})
+const questionSource=(raw,extra={})=>({product_id:'product_fixture',raw_text:raw,completeness_status:'full',observation_scope:'product',market_code:'KR',is_current_resolved_formula:false,...extra})
 before(async()=>{
  await mkdir('node_modules/.cache',{recursive:true});temp=await mkdtemp(resolve('node_modules/.cache/composition-'))
  const result=await build({configFile:false,logLevel:'silent',define:{'import.meta.env.DEV':'false','import.meta.env.VITE_SUPABASE_URL':'"https://api.test"','import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY':'"test-key"'},build:{ssr:'tests/entry.ts',write:false,minify:false}})
@@ -19,6 +20,24 @@ before(async()=>{
 })
 afterEach(async()=>{if(root){await act(async()=>root.unmount());root=null}globalThis.fetch=nativeFetch;document.body.innerHTML='<div id="root"></div>'})
 after(async()=>{dom.window.close();await rm(temp,{recursive:true})})
+
+test('confirmation questions ask about unspecified species without asserting absence or merging another formula',()=>{
+ const questions=app.ingredientQuestions(questionSource('Peas, Fish Oil, Natural Flavor'),['연어'])
+ assert.ok(questions.items.some(text=>/Fish Oil.*어종/.test(text)))
+ assert.ok(questions.items.some(text=>/Natural Flavor.*구체적인 원료 구성/.test(text)))
+ assert.ok(questions.items.some(text=>/연어.*포함 여부/.test(text)))
+ assert.equal(app.validIngredientQuestions(questions),true)
+ const unresolved=app.ingredientQuestions(questionSource('Fish Oil',{market_code:'US',observation_scope:'formula'}),['연어'])
+ assert.ok(unresolved.items.some(text=>/한국.*적용되나요/.test(text)))
+ assert.ok(!unresolved.items.some(text=>/Fish Oil/.test(text)),'unmatched material does not become a claim about this product')
+ const partial=app.ingredientQuestions(questionSource('동물성 단백질원: 닭고기',{completeness_status:'summary'}))
+ assert.ok(partial.items.some(text=>/전체 원료표/.test(text)))
+ assert.ok(!partial.items.some(text=>/동물 종류/.test(text)))
+ const copy=app.ingredientQuestionsText({productId:'p',brand:'브랜드',name:'제품'},questions)
+ assert.match(copy,/답변이나 원료 부재를 확인한 기록은 아닙니다/)
+ assert.equal(app.validIngredientQuestions({source:'source',items:Array(6).fill('question')}),false)
+ assert.equal(app.validIngredientQuestions({source:'source',items:[' '.repeat(5)]}),false)
+})
 test('groups actual meat, fat and flavor separately instead of treating every species as a recipe',()=>{
  assert.deepEqual(app.ingredientComposition(source(['육분(닭, 오리)','동물성유지(돼지, 닭, 오리)','유도단백질(닭, 칠면조)','천연향(닭간/생선)'])),{protein:['닭','오리','칠면조'],fats:['닭','오리','돼지'],eggsDairy:[],flavor:['닭','생선']})
 })

@@ -105,8 +105,15 @@ export function ingredientDisclosureReading(row: IngredientSource | null | undef
 
 export function ingredientDisclosureSummary(row: IngredientSource | null | undefined) {
   const reading = ingredientDisclosureReading(row)
-  const wording = reading.details.length
-    ? reading.details.slice(0, 2).map(item => item.phrase + ' — ' + item.note).join(' · ') + (reading.details.length > 2 ? ' 외' : '')
-    : reading.label
+  const examples = ingredientWordingExamples(row)
+  if (!examples.length && row?.completeness_status === 'full' && row.raw_text?.trim()) return reading.listLabel
+  const wording = examples.length ? examples.slice(0, 2).join(' · ') + (examples.length > 2 ? ' 외' : '') : reading.label
   return reading.listLabel === reading.label ? reading.label : reading.listLabel + ' · ' + wording
+}
+
+export function ingredientWordingExamples(row: IngredientSource | null | undefined) {
+  const reading = ingredientDisclosureReading(row)
+  if (reading.details.length) return reading.details.map(item => `${item.phrase} — ${item.note}`)
+  return splitIngredientText(row?.raw_text ?? '').filter(value => /어유|생선.*오일|fish\s+oil/i.test(value)).slice(0, 2)
+    .map(value => /fish\s+oil\s*\(\s*herring\s*\)/i.test(value) ? `${value} — 청어를 명시한 오일` : value)
 }

@@ -1,5 +1,11 @@
 # Consumer frontend design
 
+## Reason-led switching — 2026-11-05
+
+HOME states the current-food comparison value alongside its existing entrances. SWITCH lets the consumer select the information to inspect, then explicitly choose keep/change criteria. Personal reasons and observed positives stay local and separate from product facts. Results, comparison and historical choice records carry that context. Long personal text and general reading explanations are folded; actual source wording and interpretation-changing scope exceptions remain visible. See [the flow contract](reason-led-switch.md).
+
+Overview presents differences before an expandable full record, with mobile candidate/pair controls and detail/removal available up front. Nutrition and ingredients use their primary comparisons without the earlier repeated summary blocks. Ingredient list coverage, wording and scope are distinct. These changes express a consumer-facing hierarchy; browser checks do not establish human preference or understanding.
+
 All five screen families share SiteHeader and pinned Pretendard Variable body text. Headings, product names and values use the same Pretendard family; font size, weight and spacing distinguish their roles. Product identity, readable facts and existing actions lead; evidence remains available on demand. In the current implementation, canvas and record surfaces are white, with neutral gray separators and quiet row backgrounds; text and product-brand facts are neutral, enabled primary actions use deep green, selection/navigation retain their separate slate role, and energy graphics use gray. These roles do not rank products or imply suitability.
 
 

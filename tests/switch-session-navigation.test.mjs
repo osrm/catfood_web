@@ -224,7 +224,11 @@ function installFetch() {
       if (failEnergyCount > 0) { failEnergyCount--; return new Response('', {status: 503}) }
       return Response.json(energyRows)
     }
-    if (url.pathname.endsWith('/compare_product_ingredients')) return failQuestionSources ? new Response('',{status:503}) : Response.json(questionSources)
+    if (url.pathname.endsWith('/compare_product_ingredients') || url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+      const raw = url.searchParams.get('p_product_ids') ?? url.searchParams.get('product_id')
+      const ids = raw?.startsWith('{') ? JSON.parse(raw.replace('{','[').replace('}',']')) : raw?.startsWith('in.(') ? raw.slice(4,-1).split(',').map(value => value.replace(/^"|"$/g, '')) : null
+      return failQuestionSources ? new Response('',{status:503}) : Response.json(ids ? questionSources.filter(row => ids.includes(row.product_id)) : questionSources)
+    }
     if (url.pathname.endsWith('/search-runs')) {
       searchRuns.push(JSON.parse(init.body))
       return Response.json({ search_run_id: `run-${searchRuns.length}` })
@@ -1731,6 +1735,66 @@ async function retainAFromDetail() {
   await waitForUi(() => button('후보로 남기기'), 'retention available in full detail')
   await click('후보로 남기기')
 }
+
+test('reason-led disclosure keeps observation separate, opens relevant comparison and snapshots reasons without navigation or intake text', async () => {
+  questionSources = [current, candidateA, candidateB].map((product, index) => ({ product_id: product.product_id, variant_id: null, raw_text: index === 1 ? '닭고기, 어유' : 'chicken, fish oil (herring)', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', ingredient_names: ['닭고기'], ingredient_count: 1, is_current_resolved_formula: false }))
+  await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  await click('원료가 얼마나 구체적으로')
+  assert.equal(document.querySelector('.switch-other-conditions').open, false)
+  await textareaValue(document.querySelector('.decision-purpose-writing label:nth-of-type(1) textarea'), 'PRIVATE_REASON 원료를 구체적으로 알고 싶어요')
+  await textareaValue(document.querySelector('.decision-purpose-writing label:nth-of-type(2) textarea'), 'PRIVATE_POSITIVE 잘 먹었어요')
+  assert.deepEqual(session().change, app.emptySwitchCriteria())
+  assert.deepEqual(session().keep, app.emptySwitchCriteria())
+  await click(exactButton('후보부터 보기 →'))
+  await waitForUi(() => document.querySelector('.ingredient-list-reason.is-focused'), 'source wording appears on focused candidates')
+  assert.match(document.querySelector(`.switch-candidate-row[data-product-id="${candidateA.product_id}"]`).textContent, /어유.*세부 어종 미기재/)
+  assert.match(document.querySelector('.switch-session-bar').textContent, /PRIVATE_REASON/)
+  await click(document.querySelector(`[data-switch-compare-product-id="${candidateA.product_id}"]`))
+  await click(document.querySelector('.switch-compare-dock button'))
+  assert.equal(session().compareTab, 'ingredients')
+  assert.match(document.querySelector('.compare-stage > .decision-purpose-summary').textContent, /PRIVATE_REASON/)
+  assert.equal(document.querySelector('.comparison-highlights'), null, 'ingredient comparison has one primary summary')
+  await click('후보로 남기기')
+  assert.match(journey().retained[0].context.purpose.reason, /PRIVATE_REASON/)
+  assert.match(app.journeyCopyText(journey()), /PRIVATE_POSITIVE/)
+  const oldReason = journey().retained[0].context.purpose.reason
+  await click('후보 목록으로'); await waitForUi(() => document.querySelector('.switch-results-stage'), 'return from focused comparison')
+  await remountApp()
+  assert.equal(journey().purpose.focus, 'disclosure')
+  assert.equal(journey().retained[0].context.purpose.reason, oldReason)
+  await click('조건 수정')
+  await textareaValue(document.querySelector('.decision-purpose-writing label:nth-of-type(1) textarea'), 'PRIVATE_CHANGED 다음 확인 이유')
+  assert.equal(journey().retained[0].context.purpose.reason, oldReason, 'saved reasoning is historical')
+  assert.doesNotMatch(window.location.href + JSON.stringify(window.history.state), /PRIVATE_/)
+  assert.doesNotMatch(JSON.stringify([...searchRuns, ...considerations, ...decisions]), /PRIVATE_/)
+})
+
+test('energy focus requests visible energy without selecting lower energy or a weight-management claim', async () => {
+  energyRows = [energyRow(current.product_id, 370), energyRow(candidateA.product_id, 350)]
+  await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  await click('지금 사료와 표기 열량이')
+  await click(exactButton('후보부터 보기 →'))
+  await waitForUi(() => document.querySelector('.switch-energy-baseline')?.textContent.includes('370'), 'explicit energy focus opens comparison')
+  assert.equal(session().candidateEnergy, 'all')
+  assert.deepEqual(session().change.features, [])
+  assert.equal(document.querySelector('.switch-energy-lower input').checked, false)
+  await click(document.querySelector('.switch-energy-lower input'))
+  assert.equal(session().candidateEnergy, 'lower')
+  await click('조건 수정'); await click(exactButton('습식')); await click('후보 제품 보기')
+  assert.equal(session().candidateEnergy, 'all', 'changed criteria clear the earlier lower-only refinement')
+})
+
+test('invalid optional purpose is discarded without losing an existing retained candidate', async () => {
+  await renderApp(); await reachResultsWithConditions(); await retainAFromDetail()
+  const data = journey()
+  data.purpose = { focus: 'inferred_health', reason: 'bad', positives: '' }
+  data.retained[0].context.purpose = { focus: 'disclosure', reason: 'x'.repeat(201), positives: '' }
+  app.writeJourneyRecords(data)
+  const restored = app.readJourneyRecords()
+  assert.equal(restored.purpose, undefined)
+  assert.equal(restored.retained.length, 1)
+  assert.equal(restored.retained[0].context.purpose, undefined)
+})
 test('optional memo preserves applied criteria and never enters navigation or exact intake payloads; cancel keeps saved text', async () => {
   await renderApp(); await reachResultsWithConditions()
   const key = app.switchSelectionKey(session())

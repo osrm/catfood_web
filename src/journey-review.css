@@ -4,6 +4,12 @@
 .journey-records { margin:32px 0 88px; border-top:1px solid var(--atlas-line,#e1e5e8); padding:24px 0; outline:none; }
 .journey-records h2 { margin:0; font-size:18px; }.journey-records h2 span { font-size:13px; font-weight:400; }
 .journey-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }.journey-panel-heading strong { overflow-wrap:anywhere; }
+.journey-records .journey-panel-heading { flex-wrap:wrap; }
+.journey-records .journey-panel-heading > strong { flex:1 1 180px; min-width:0; }
+.journey-records .journey-panel-heading > button { white-space:normal; }
+.compare-review-actions { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:24px; margin:16px 40px; }
+.compare-stage > .journey-records { margin-left:40px; margin-right:40px; }
+@media(max-width:760px){.compare-review-actions { grid-template-columns:minmax(0,1fr); margin:16px 20px; }.compare-stage > .journey-records { margin-left:20px; margin-right:20px; }}
 .journey-records button,.journey-dialog button,.journey-retain button { min-height:44px; cursor:pointer; }
 .journey-records ul { list-style:none; padding:0; }.journey-records li { border-top:1px solid var(--atlas-line,#e1e5e8); padding:18px 0; }
 .journey-records summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-size:13px; }

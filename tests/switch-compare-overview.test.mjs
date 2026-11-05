@@ -198,6 +198,20 @@ test('highlights put selected differences first and never turn a missing value i
   assert.equal(requests.length, 0, 'highlights reuse existing data and preserve lazy reads')
 })
 
+test('overview starts with differences and explicitly reveals the complete comparison without additional reads', async () => {
+  await renderCompare()
+  const toggle = document.querySelector('.compare-full-record-toggle')
+  const record = document.querySelector('.compare-full-record')
+  assert.equal(record.hidden, true)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'false')
+  assert.ok(document.querySelector('.compare-highlights-desktop .highlight-product-actions button'))
+  await click(toggle)
+  assert.equal(record.hidden, false)
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true')
+  assert.match(record.textContent, /판매 규격/)
+  assert.equal(requests.length, 0)
+})
+
 test('mobile highlights follow the selected candidate and candidate removal', async () => {
   const { baseProps } = await renderCompare()
   const summary = () => document.querySelector('.compare-highlights-mobile .comparison-highlights')
@@ -258,31 +272,15 @@ test('energy highlights follow the energy field source and exclude unresolved fo
   assert.equal(app.highlightEnergy({ ...row, kcal_per_kg: -10 }), null)
 })
 
-test('ingredient highlights quote named oil and unspecified oil separately without merging supplemental text', async () => {
-  const rows = new Map([
-    [current.product_id, { raw_text: '닭고기, 어유', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', supplemental_full_raw_text: 'fish oil (herring)' }],
-    [candidateA.product_id, { raw_text: 'chicken, fish oil (herring)', completeness_status: 'full', observation_scope: 'formula', market_code: null, is_current_resolved_formula: true }],
-    [candidateB.product_id, { raw_text: '닭고기', completeness_status: 'summary', observation_scope: 'formula', market_code: 'US', is_current_resolved_formula: false }],
-  ])
-  root = createRoot(document.getElementById('root'))
-  await act(async () => root.render(createElement(app.ComparisonHighlights, {
-    tab: 'ingredients', items, baseline: current, facts: () => [], criteriaLabels: [],
-    nutrition: () => null, ingredients: id => rows.get(id),
-    nutritionLoading: () => false, nutritionFailed: () => false,
-    ingredientsLoading: () => false, ingredientsFailed: () => false,
-    variants: () => [], variantStatus: () => 'loaded',
-  })))
-  const currentCard = document.querySelector(`[data-product-id="${current.product_id}"]`)
-  assert.match(currentCard.textContent, /어유 — 세부 어종 미기재/)
-  assert.doesNotMatch(currentCard.textContent, /herring/)
-  const named = document.querySelector(`[data-product-id="${candidateA.product_id}"]`)
-  assert.match(named.textContent, /fish oil \(herring\)/)
-  assert.match(named.textContent, /청어를 명시한 오일/)
-  assert.doesNotMatch(named.textContent, /어종 미기재/)
-  const partial = document.querySelector(`[data-product-id="${candidateB.product_id}"]`)
-  assert.match(partial.textContent, /일부 원료표만 확보/)
-  assert.match(partial.textContent, /한국 판매 제품과 같은 배합인지 미확인/)
-  assert.doesNotMatch(partial.textContent, /주요 포괄 표현 미발견/)
+test('ingredient wording stays source-specific and preserves partial and foreign scope', () => {
+  const generic = { raw_text: '닭고기, 어유', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', supplemental_full_raw_text: 'fish oil (herring)' }
+  const named = { raw_text: 'chicken, fish oil (herring)', completeness_status: 'full', observation_scope: 'formula', market_code: null, is_current_resolved_formula: true }
+  const partial = { raw_text: '닭고기', completeness_status: 'summary', observation_scope: 'formula', market_code: 'US', is_current_resolved_formula: false }
+  assert.deepEqual(app.ingredientWordingExamples(generic), ['어유 — 세부 어종 미기재'])
+  assert.match(app.ingredientWordingExamples(named)[0], /fish oil \(herring\).*청어를 명시한 오일/)
+  assert.deepEqual(app.ingredientWordingExamples(partial), [])
+  assert.match(app.ingredientDisclosureSummary(partial), /일부 원료표만 확보/)
+  assert.equal(app.ingredientSourceScope(partial).needsCheck, true)
 })
 
 test('mobile candidate disclosure opens, selects a candidate, closes, and restores toggle focus', async () => {

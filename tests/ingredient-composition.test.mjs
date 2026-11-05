@@ -81,7 +81,7 @@ test('opened quick view shows original generic ingredient wording without extra 
  await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
  assert.equal(calls,1)
  assert.match(document.body.textContent,/원료표 확보전체 원료표 확인/)
- assert.match(document.body.textContent,/세부 종류를 추가로 확인할 원료/)
+ assert.match(document.body.textContent,/표기에서 더 확인할 점/)
  assert.match(document.body.textContent,/세부 어종 미기재/)
  assert.match(document.body.textContent,/어유/)
  assert.match(document.body.textContent,/한국 판매 제품과 같은 배합인지 미확인/)

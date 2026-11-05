@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchListIngredientSources, type ListIngredientSource } from './api'
-import { ingredientDisclosureReading, ingredientSourceScope } from './ingredient-disclosure'
+import { ingredientDisclosureReading, ingredientSourceScope, ingredientWordingExamples } from './ingredient-disclosure'
 import './ingredient-list-reason.css'
 
 // An explanation of source wording; never used to change the catalog's term verdict.
@@ -29,12 +29,17 @@ export function IngredientReasonStatus({ status, onRetry }: { status: string; on
   </div>
 }
 
-export function IngredientListReason({ row }: { row?: ListIngredientSource }) {
+export function IngredientListReason({ row, focused = false }: { row?: ListIngredientSource; focused?: boolean }) {
   const reading = ingredientDisclosureReading(row)
   const scope = ingredientSourceScope(row)
   if (row && scope.needsCheck) {
     return <span className="ingredient-list-reason"><strong>자료 적용 확인 필요</strong><span>{scope.label}</span></span>
   }
+  if (focused) return <span className="ingredient-list-reason is-focused">
+    <strong>{reading.listLabel}</strong>
+    {ingredientWordingExamples(row).length ? ingredientWordingExamples(row).map(example => <span key={example}>{example}</span>) : row?.raw_text ? <span>세부 원료명은 원문에서 살펴보세요.</span> : null}
+    {row?.raw_text ? <small>{scope.label}</small> : null}
+  </span>
   return <span className="ingredient-list-reason">
     <strong>원료표에서 더 확인할 점</strong>
     {reading.details.length ? reading.details.slice(0, 2).map(detail => <span key={detail.phrase}>{detail.phrase} — {detail.note}</span>) : <span>{reading.listLabel === '전체 원료표 확인' ? '이 자료에 전체 목록이 있어도 특정 원료의 부재를 보증하지 않습니다.' : '이 자료 기준 · ' + reading.listLabel}</span>}

@@ -131,6 +131,7 @@ export default function Home({
           <figure className="home-scene"><img src={homeDrawing} alt="크레용으로 그린 사람과 옆에 앉은 고양이" width={1536} height={1024} /></figure>
           <div className="home-start-copy">
             <h1>어떤 사료를 찾으세요?</h1>
+            <p className="home-purpose-promise">지금 먹이는 사료를 기준으로,<br />유지할 점과 확인하고 싶은 차이를 살펴보세요.</p>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
           </div>
           <section className="home-entry-board" aria-label="현재 사료에서 다음 후보 찾기">

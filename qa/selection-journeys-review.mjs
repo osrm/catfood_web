@@ -134,10 +134,8 @@ try{
   }
   const difference=page.locator('.compare-energy-difference').filter({visible:true}).first();await difference.waitFor({timeout:45000})
   assert.match(await difference.innerText(),/낮음/)
-  const energyHighlights=page.locator('.comparison-highlights').filter({visible:true})
-  await energyHighlights.getByText(/100g당 22 kcal 낮음/).waitFor()
-  assert.match(await energyHighlights.innerText(),/근거 포장 · 3 kg/)
-  assert.match(await energyHighlights.innerText(),/사용 규격과 다른 포장에서 확인/)
+  assert.equal(await page.locator('.comparison-highlights').count(),0,'nutrition has one primary comparison')
+  assert.match(await page.locator('.compare-stage').innerText(),/이 값은 3 kg 포장에서 확인/)
   await capture('switch-nutrition','.compare-stage')
   report.observations.push({width,case:'current-food',energyDifference:await difference.innerText()})
   await page.getByRole('button',{name:'← 후보 목록으로',exact:true}).click();await page.locator('.switch-candidate-inspector').waitFor()

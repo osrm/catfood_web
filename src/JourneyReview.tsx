@@ -4,6 +4,7 @@ import { JourneyDialog } from './JourneyDialog'
 import IngredientQuestionsButton from './IngredientQuestions'
 import type { IngredientQuestions } from './ingredient-questions'
 import { INGREDIENT_AVOID_LABELS } from './search'
+import { DecisionPurposeSummary } from './DecisionPurpose'
 import './journey-review.css'
 export { JourneyDialog } from './JourneyDialog'
 
@@ -39,13 +40,14 @@ export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, o
       <div className="journey-panel-heading"><strong>{row.candidate.brand} · {row.candidate.name}</strong><button className="journey-inline-action" type="button" onClick={() => onRemove(row.id)}>남긴 후보에서 제거</button></div>
       {row.context.selectionKey !== selectionKey ? <strong className="journey-old-context">이전 기준에서 남긴 후보</strong> : null}
       <p className="journey-note">기준: {row.context.current.brand} · {row.context.current.name} · {row.context.variantLabel}</p>
+      {row.context.purpose ? <p className="journey-note">이 후보를 남길 때의 이유와 경험</p> : null}<DecisionPurposeSummary purpose={row.context.purpose} compact />
       <details><summary>당시 조건과 내 메모</summary><p>{row.context.labels.join(' · ') || '따로 고른 조건 없음'}</p><p>{row.note || '작성한 메모 없음'}</p><button className="journey-inline-action" type="button" onClick={() => setEditingId(row.id)}>후보 메모 {row.note ? '수정' : '쓰기'}</button></details>
       <div className="saved-ingredient-questions">{row.checkQuestions ? <><strong>확인하려고 남긴 질문</strong><p>직접 확인할 때 사용할 질문 초안입니다.</p><p>질문을 남길 때 살펴본 자료 · {row.checkQuestions.source}</p><ol>{row.checkQuestions.items.map(item => <li key={item}>{item}</li>)}</ol></> : null}
         <IngredientQuestionsButton product={row.candidate} saved={row.checkQuestions} avoidLabels={row.context.criteria.filter(item => item.axis === 'ingredient' && item.role === 'ingredient_avoid').map(item => INGREDIENT_AVOID_LABELS[item.value] ?? item.value)} onSave={onQuestions ? value => onQuestions(row.id, value) : undefined} />
         {row.checkQuestions && onQuestions ? <button className="journey-inline-action" type="button" onClick={() => onQuestions(row.id)}>저장한 질문 지우기</button> : null}
       </div>
     </li>)}</ul> : <p>아직 남긴 후보가 없습니다. 후보 상세나 비교 화면에서 남길 수 있습니다.</p>}
-    <div className="journey-outcome"><strong>이번에는 어떻게 정리할까요? (선택)</strong><div>
+    <div className="journey-outcome"><strong>이번에는 어떻게 정리할까요? (선택)</strong><DecisionPurposeSummary purpose={records.outcome?.context.purpose ?? records.purpose} compact /><div>
       <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'keep_current' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('keep_current')}>지금 사료 유지</button>
       <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'undecided' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('undecided')}>아직 못 고름</button></div><small>고른 뒤에도 계속 살펴볼 수 있습니다.</small>
       {records.outcome && records.outcome.context.selectionKey !== selectionKey ? <p>이전 기준의 정리: {records.outcome.kind === 'keep_current' ? '지금 사료 유지' : '아직 못 고름'} · {records.outcome.context.current.brand} {records.outcome.context.current.name}</p> : null}

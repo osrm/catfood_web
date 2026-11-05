@@ -30,6 +30,8 @@ let failDecisionCount = 0
 let energyRows = []
 let failEnergyCount = 0
 let failEnergyPackages = false
+let questionSources = []
+let failQuestionSources = false
 
 function energyRow(productId, amount, overrides = {}) {
   return { product_id: productId, variant_id: null, observation_scope: 'product', market_code: 'KR', kcal_per_kg: null, kcal_per_100g: amount, energy_basis: 'direct_label', is_current_resolved_formula: false, supplemental_nutrition_fields: [], ...overrides }
@@ -172,6 +174,7 @@ beforeEach(() => {
   energyRows = []
   failEnergyCount = 0
   failEnergyPackages = false
+  questionSources = []; failQuestionSources = false
   sessionStorage.clear()
   window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
   document.body.innerHTML = '<div id="root"></div>'
@@ -221,6 +224,7 @@ function installFetch() {
       if (failEnergyCount > 0) { failEnergyCount--; return new Response('', {status: 503}) }
       return Response.json(energyRows)
     }
+    if (url.pathname.endsWith('/compare_product_ingredients')) return failQuestionSources ? new Response('',{status:503}) : Response.json(questionSources)
     if (url.pathname.endsWith('/search-runs')) {
       searchRuns.push(JSON.parse(init.body))
       return Response.json({ search_run_id: `run-${searchRuns.length}` })
@@ -1678,6 +1682,43 @@ test('SWITCH detail header preserves navigation and restart from both candidate 
 })
 
 function journey() { return app.readJourneyRecords() }
+
+test('saved confirmation questions remain local beside a manual note and survive failed refresh, cancellation and reload',async()=>{
+ questionSources=[{product_id:candidateA.product_id,raw_text:'Fish Oil, Natural Flavor',completeness_status:'full',observation_scope:'product',market_code:'KR',is_current_resolved_formula:false}]
+ await renderApp();await reachResultsWithConditions();await retainAFromDetail()
+ await click('후보 메모 쓰기')
+ await textareaValue(document.querySelector('dialog textarea'),'PRIVATE_NOTE 남겨둔 이유')
+ await click('메모 남기기')
+ await click(document.querySelector('.saved-ingredient-questions button'))
+ await waitForUi(()=>document.querySelector('.ingredient-question-options'),'questions loaded')
+ assert.match(document.querySelector('dialog').textContent,/Fish Oil.*어종/s)
+ assert.match(document.querySelector('dialog').textContent,/닭.*포함 여부/s)
+ const first=document.querySelector('.ingredient-question-options input');await click(first)
+ await click('후보 기록에 질문 남기기')
+ const saved=structuredClone(journey().retained[0].checkQuestions)
+ assert.equal(saved.items.length,2)
+ assert.equal(journey().retained[0].note,'PRIVATE_NOTE 남겨둔 이유')
+ assert.match(app.journeyCopyText(journey()),/답변 미확인/)
+ const key=app.switchSelectionKey(session())
+ assert.doesNotMatch(window.location.href+JSON.stringify(window.history.state)+JSON.stringify(searchRuns)+JSON.stringify(considerations)+JSON.stringify(decisions),/PRIVATE_NOTE|Natural Flavor|구체적인 원료 구성/)
+ await click('저장한 질문 보기·수정')
+ assert.match(document.querySelector('dialog').textContent,/Natural Flavor/)
+ failQuestionSources=true
+ await click('현재 자료로 질문 다시 만들기')
+ await waitForUi(()=>document.querySelector('dialog [role="alert"]'),'question refresh failed')
+ assert.match(document.querySelector('dialog').textContent,/기존 질문은 그대로/)
+ await act(async()=>document.querySelector('dialog').dispatchEvent(new window.Event('cancel',{cancelable:true})))
+ assert.deepEqual(journey().retained[0].checkQuestions,saved)
+ await click('돌아가기')
+ await waitForUi(()=>document.querySelector('.switch-results-stage'),'return before reload')
+ await remountApp()
+ assert.deepEqual(journey().retained[0].checkQuestions,saved)
+ assert.equal(journey().retained[0].note,'PRIVATE_NOTE 남겨둔 이유')
+ assert.equal(app.switchSelectionKey(session()),key)
+ await click('저장한 질문 지우기')
+ assert.equal(journey().retained[0].checkQuestions,undefined)
+ assert.equal(journey().retained[0].note,'PRIVATE_NOTE 남겨둔 이유')
+})
 async function textareaValue(element, value) {
   await act(async () => {
     Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(element, value)

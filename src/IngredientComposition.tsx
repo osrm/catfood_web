@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchCompareIngredients, type CompareIngredients } from './api'
+import { fetchCompareIngredients, type CompareIngredients, type CatalogProduct } from './api'
+import IngredientQuestionsButton from './IngredientQuestions'
 import { ingredientComposition, splitIngredientText } from './ingredient-composition'
 import IngredientDisclosure from './IngredientDisclosure'
 import './ingredient-composition.css'
@@ -20,7 +21,7 @@ export function IngredientCompositionValue({ row, loading, error, onRetry }: {
 }
 
 // Used only for an opened inspector; never for every search-result card.
-export default function IngredientComposition({ productId }: { productId: string }) {
+export default function IngredientComposition({ productId, product, avoidLabels }: { productId: string; product?: CatalogProduct; avoidLabels?: string[] }) {
   const [result,setResult] = useState<{ id: string; row: CompareIngredients | null; error: string | null; loading: boolean }>({ id:'',row:null,error:null,loading:true })
   const [retry,setRetry] = useState(0)
   useEffect(() => {
@@ -35,5 +36,6 @@ export default function IngredientComposition({ productId }: { productId: string
   return <span className="ingredient-composition-inspector">
     <IngredientCompositionValue row={row} loading={result.id!==productId || result.loading} error={result.id===productId ? result.error : null} onRetry={() => setRetry(value=>value+1)} />
     {row ? <><IngredientDisclosure row={row} /><span className="ingredient-composition-disclosure">{row.market_code === 'KR' ? '한국 확인 자료' : row.is_current_resolved_formula ? '국내 동일 배합으로 확인된 자료' : '한국 판매 제품과 배합 대응 미확인 자료'}</span></> : null}
+    {product && result.id === productId && !result.loading && !result.error ? <IngredientQuestionsButton product={{productId,brand:product.brand,name:product.canonical_name}} source={row} avoidLabels={avoidLabels} /> : null}
   </span>
 }

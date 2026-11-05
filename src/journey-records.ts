@@ -1,4 +1,5 @@
 import type { DecisionCriterion, ExplicitDecisionInput, ExplicitDecisionKind } from './analytics'
+import { validIngredientQuestions, type IngredientQuestions } from './ingredient-questions'
 
 // Deliberately separate from navigation/history: user text never enters a URL or intake body.
 export type JourneyIdentity = { productId: string; brand: string; name: string }
@@ -16,6 +17,7 @@ export type JourneyPendingIntake = { pending: ExplicitDecisionInput | null; foll
 export type RetainedCandidate = {
   id: string; revision: number; active: boolean; candidate: JourneyIdentity
   context: JourneyContext; note: string; createdAt: string
+  checkQuestions?: IngredientQuestions
   pendingIntake?: JourneyPendingIntake
   intakeRevision?: number
   searchRunId: string | null
@@ -61,7 +63,10 @@ export function readJourneyRecords(): JourneyRecords {
     memory = { context: value.context && validContext(value.context) ? value.context : null, memo: value.memo.slice(0, 200), retained: value.retained.filter((row) => row && text(row.id, 100)
       && identity(row.candidate) && text(row.note, 200) && text(row.createdAt, 100)
       && typeof row.active === 'boolean' && Number.isInteger(row.revision) && row.revision > 0 && validContext(row.context)
-      && (row.searchRunId === null || text(row.searchRunId, 100))).map((row) => ({ ...row, ...intake(row) })),
+      && (row.searchRunId === null || text(row.searchRunId, 100))).map((row) => {
+        const { checkQuestions, ...rest } = row
+        return { ...rest, ...intake(row), ...(validIngredientQuestions(checkQuestions) ? { checkQuestions } : {}) }
+      }),
       outcome: value.outcome && text(value.outcome.id, 100) && Number.isInteger(value.outcome.revision)
         && value.outcome.revision > 0 && validContext(value.outcome.context)
         && ['keep_current', 'undecided'].includes(value.outcome.kind) ? { ...value.outcome, ...intake(value.outcome) } : null }
@@ -80,7 +85,7 @@ export function journeyCopyText(value: JourneyRecords): string {
   const context = (row: JourneyContext) => [`현재 사료: ${row.current.brand} · ${row.current.name}`, `사용 규격: ${row.variantLabel}`,
     `찾은 조건: ${row.labels.join(' / ') || '따로 고르지 않음'}`].join('\n')
   return ['사료 검토 기록', value.context ? `현재 살펴보는 기준\n${context(value.context)}` : '', value.memo ? `탐색 메모: ${value.memo}` : '',
-    ...value.retained.filter((row) => row.active).map((row) => [`남긴 후보: ${row.candidate.brand} · ${row.candidate.name}`, context(row.context), row.note ? `내 메모: ${row.note}` : ''].filter(Boolean).join('\n')),
+    ...value.retained.filter((row) => row.active).map((row) => [`남긴 후보: ${row.candidate.brand} · ${row.candidate.name}`, context(row.context), row.note ? `내 메모: ${row.note}` : '', row.checkQuestions ? [`확인할 질문 · 답변 미확인`, `질문 작성 때 살펴본 자료: ${row.checkQuestions.source}`, ...row.checkQuestions.items.map((item,index) => `${index + 1}. ${item}`)].join('\n') : ''].filter(Boolean).join('\n')),
     value.outcome ? [value.outcome.kind === 'keep_current' ? '이번 정리: 지금 사료 유지' : '이번 정리: 아직 못 고름', context(value.outcome.context)].join('\n') : '',
     '검토 후보는 구매·급여 전환 기록이 아닙니다.'].filter(Boolean).join('\n\n')
 }

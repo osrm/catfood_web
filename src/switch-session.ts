@@ -26,6 +26,7 @@ export type SwitchSessionState = {
   criteriaUndecided: boolean
   candidateFeedTypes: string[]
   candidateRecipeFamilies: string[]
+  candidateEnergy: 'off' | 'all' | 'lower'
   step: SwitchStep
   visibleCandidateCount: number
   selectedCandidateId: string | null
@@ -119,6 +120,7 @@ export function createInitialSwitchSession(query = '', restartId = ''): SwitchSe
     criteriaUndecided: false,
     candidateFeedTypes: [],
     candidateRecipeFamilies: [],
+    candidateEnergy: 'off',
     step: 'current',
     visibleCandidateCount: 40,
     selectedCandidateId: null,
@@ -179,6 +181,7 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     criteriaUndecided: Boolean(currentProductId && source.criteriaUndecided === true && source.noChangeIntent !== true),
     candidateFeedTypes: currentProductId && (source.criteriaUndecided === true || source.noChangeIntent === true) ? allowedStrings(source.candidateFeedTypes, FEED_TYPES) : [],
     candidateRecipeFamilies: currentProductId && (source.criteriaUndecided === true || source.noChangeIntent === true) ? allowedStrings(source.candidateRecipeFamilies, RECIPE_FAMILIES) : [],
+    candidateEnergy: currentProductId && (source.candidateEnergy === 'all' || source.candidateEnergy === 'lower') ? source.candidateEnergy : 'off',
     step,
     visibleCandidateCount,
     selectedCandidateId: currentProductId ? nullableString(source.selectedCandidateId) : null,

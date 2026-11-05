@@ -4,9 +4,13 @@ on:
     paths:
       - 'src/App.tsx'
       - 'src/energy-refine.tsx'
+      - 'src/switch-energy.tsx'
+      - 'src/switch-session.ts'
+      - 'src/api.ts'
       - 'src/research-ui.css'
       - 'src/SwitchFlow.tsx'
       - 'src/switch-results-reviewed.css'
+      - 'src/switch-consumer-flow.css'
       - 'src/main.tsx'
       - 'tests/switch-session-navigation.test.mjs'
       - 'tests/exploration.test.mjs'

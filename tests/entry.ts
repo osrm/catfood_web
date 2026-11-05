@@ -1,6 +1,7 @@
 export { default as App } from '../src/App'
 export { default as ProductDetail } from '../src/ProductDetail'
 export { default as CompareView } from '../src/CompareView'
+export { default as ComparisonHighlights, differentFacts, highlightEnergy } from '../src/ComparisonHighlights'
 export { default as SwitchFlow } from '../src/SwitchFlow'
 export { fetchCatalog, fetchCatalogIngredientFacts, fetchProductIngredientFacts } from '../src/api'
 export * from '../src/analytics'

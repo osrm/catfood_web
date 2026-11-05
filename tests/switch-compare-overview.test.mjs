@@ -185,6 +185,106 @@ test('SWITCH overview keeps current food as a non-removable baseline and exclude
   assert.equal(requests.length, 0, 'overview must not start compare nutrition, ingredients, or variant reads')
 })
 
+test('highlights put selected differences first and never turn a missing value into a product difference', async () => {
+  await renderCompare({ criteriaLabels: ['바꿀 점 · 습식'] })
+  const summary = document.querySelector('.compare-highlights-desktop .comparison-highlights')
+  assert.match(summary.textContent, /내가 고른 조건 · 바꿀 점 · 습식/)
+  assert.match(summary.textContent, /후보 모두에서 확인 · 바꿀 조건 확인 · 습식/)
+  const card = summary.querySelector(`[data-product-id="${candidateA.product_id}"]`)
+  assert.match(card.textContent, /조건 미확인 · 제품 표기 대상 · 실내묘/)
+  const facts = card.querySelectorAll(':scope > ul > li')
+  assert.equal(facts[0].textContent, '사료 형태: 건식 → 습식')
+  assert.match(card.textContent, /대상 연령 · 자료 확인 차이: 성묘 → 미확인/)
+  assert.equal(requests.length, 0, 'highlights reuse existing data and preserve lazy reads')
+})
+
+test('mobile highlights follow the selected candidate and candidate removal', async () => {
+  const { baseProps } = await renderCompare()
+  const summary = () => document.querySelector('.compare-highlights-mobile .comparison-highlights')
+  assert.match(summary().textContent, /첫 번째 후보 제품/)
+  assert.doesNotMatch(summary().textContent, /두 번째 후보 제품/)
+  await click(document.querySelector('.compare-mobile-candidate-toggle'))
+  await click(document.querySelector(`.compare-mobile-candidate-options [data-product-id="${candidateB.product_id}"]`))
+  assert.match(summary().textContent, /두 번째 후보 제품/)
+  assert.doesNotMatch(summary().textContent, /첫 번째 후보 제품/)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, items: [items[0]] })))
+  await settle()
+  assert.match(summary().textContent, /첫 번째 후보 제품/)
+  assert.doesNotMatch(summary().textContent, /두 번째 후보 제품/)
+})
+
+test('general mobile highlights follow its chosen pair without retaining the original reference', async () => {
+  const candidateC = product('product_candidate_c', '셋째브랜드', '세 번째 후보', { feed_type: '동결건조' })
+  await renderCompare({ currentProduct: null, items: [...items, { product: candidateC }] })
+  const selects = document.querySelectorAll('.compare-mobile-general-pair-picker select')
+  assert.equal(selects.length, 2)
+  await act(async () => {
+    selects[0].value = candidateC.product_id
+    selects[0].dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+  await settle()
+  const summary = document.querySelector('.compare-highlights-mobile .comparison-highlights')
+  assert.match(summary.textContent, /비교 기준 · 셋째브랜드 세 번째 후보/)
+  assert.match(summary.textContent, /사료 형태: 동결건조 → 습식/)
+  assert.doesNotMatch(summary.textContent, /첫 번째 후보 제품/)
+})
+
+test('fact comparison omits shared and mutually unknown values while prioritizing chosen facts', () => {
+  const baseline = [
+    { key: 'feed', value: '건식', known: true },
+    { key: 'unknown', value: '미확인', known: false },
+    { key: 'recipe', value: '닭', known: true },
+    { key: 'age', value: '성묘', known: true, priority: true },
+  ]
+  const compared = app.differentFacts(baseline, [
+    { key: 'feed', value: '건식', known: true },
+    { key: 'unknown', value: '미확인', known: false },
+    { key: 'recipe', value: '생선', known: true },
+    { key: 'age', value: '미확인', known: false },
+  ])
+  assert.deepEqual(compared.map(value => [value.key, value.bothKnown]), [['age', false], ['recipe', true]])
+})
+
+test('energy highlights follow the energy field source and exclude unresolved foreign and supplemental sources', () => {
+  const row = { observation_scope: 'product', market_code: 'KR', kcal_per_kg: 3700, is_current_resolved_formula: false }
+  assert.equal(app.highlightEnergy(row), 370)
+  assert.equal(app.highlightEnergy({ ...row, observation_scope: 'formula' }), null)
+  assert.equal(app.highlightEnergy({ ...row, market_code: 'US' }), null)
+  assert.equal(app.highlightEnergy({ ...row, market_code: null }), null)
+  assert.equal(app.highlightEnergy({ ...row, market_code: null, observation_scope: 'formula', is_current_resolved_formula: true }), 370)
+  const supplemented = { ...row, supplemental_nutrition_fields: ['energy'], supplemental_observation_scope: 'formula', supplemental_market_code: 'US', supplemental_is_current_resolved_formula: false }
+  assert.equal(app.highlightEnergy(supplemented), null)
+  assert.equal(app.highlightEnergy({ ...supplemented, supplemental_is_current_resolved_formula: true }), 370)
+  assert.equal(app.highlightEnergy({ ...row, kcal_per_kg: -10 }), null)
+})
+
+test('ingredient highlights quote named oil and unspecified oil separately without merging supplemental text', async () => {
+  const rows = new Map([
+    [current.product_id, { raw_text: '닭고기, 어유', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', supplemental_full_raw_text: 'fish oil (herring)' }],
+    [candidateA.product_id, { raw_text: 'chicken, fish oil (herring)', completeness_status: 'full', observation_scope: 'formula', market_code: null, is_current_resolved_formula: true }],
+    [candidateB.product_id, { raw_text: '닭고기', completeness_status: 'summary', observation_scope: 'formula', market_code: 'US', is_current_resolved_formula: false }],
+  ])
+  root = createRoot(document.getElementById('root'))
+  await act(async () => root.render(createElement(app.ComparisonHighlights, {
+    tab: 'ingredients', items, baseline: current, facts: () => [], criteriaLabels: [],
+    nutrition: () => null, ingredients: id => rows.get(id),
+    nutritionLoading: () => false, nutritionFailed: () => false,
+    ingredientsLoading: () => false, ingredientsFailed: () => false,
+    variants: () => [], variantStatus: () => 'loaded',
+  })))
+  const currentCard = document.querySelector(`[data-product-id="${current.product_id}"]`)
+  assert.match(currentCard.textContent, /어유 — 세부 어종 미기재/)
+  assert.doesNotMatch(currentCard.textContent, /herring/)
+  const named = document.querySelector(`[data-product-id="${candidateA.product_id}"]`)
+  assert.match(named.textContent, /fish oil \(herring\)/)
+  assert.match(named.textContent, /청어를 명시한 오일/)
+  assert.doesNotMatch(named.textContent, /어종 미기재/)
+  const partial = document.querySelector(`[data-product-id="${candidateB.product_id}"]`)
+  assert.match(partial.textContent, /일부 원료표만 확보/)
+  assert.match(partial.textContent, /한국 판매 제품과 같은 배합인지 미확인/)
+  assert.doesNotMatch(partial.textContent, /주요 포괄 표현 미발견/)
+})
+
 test('mobile candidate disclosure opens, selects a candidate, closes, and restores toggle focus', async () => {
   await renderCompare()
   const toggle = document.querySelector('.compare-mobile-candidate-toggle')

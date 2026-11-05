@@ -34,6 +34,8 @@ on:
       - 'qa/startup-and-ingredient-reasons.mjs'
       - 'qa/ingredient-disclosure-live-review.mjs'
       - 'src/CompareView.tsx'
+      - 'src/ComparisonHighlights.tsx'
+      - 'src/comparison-highlights.css'
       - 'src/IngredientDisclosure.tsx'
       - 'src/ingredient-disclosure.css'
       - '.github/workflows/switch-results-candidate-review.yml'

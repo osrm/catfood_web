@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { readFile } from 'node:fs/promises'
+import { JSDOM } from 'jsdom'
+
+const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+function startup() {
+  const timers = new Map()
+  const dom = new JSDOM(html, { url: 'https://catfood.test/catfood_web/?view=workspace&mode=switch', runScripts: 'dangerously', beforeParse(window) {
+    window.setTimeout = callback => { timers.set(1, callback); return 1 }
+    window.clearTimeout = id => timers.delete(id)
+  } })
+  return { dom, window: dom.window, document: dom.window.document, timers }
+}
+
+test('entry has readable startup and reload navigation before the application or stylesheet loads', () => {
+  const { dom, document } = startup()
+  try {
+    assert.match(document.querySelector('#root').textContent, /CATFOOD.*화면을 여는 중/s)
+    const retry = new URL(document.querySelector('#startup-panel a').href)
+    assert.equal(retry.pathname, '/catfood_web/')
+    assert.equal(retry.search, '?view=workspace&mode=switch')
+    assert.match(document.querySelector('noscript').textContent, /JavaScript/)
+  } finally { dom.window.close() }
+})
+
+test('failed module reports recovery, while image failures and an already-ready app do not overwrite the screen', () => {
+  const { dom, window, document, timers } = startup()
+  try {
+    const image = document.createElement('img');document.body.append(image)
+    image.dispatchEvent(new window.Event('error'))
+    assert.equal(document.querySelector('#startup-panel').getAttribute('role'), 'status')
+    document.querySelector('script[type="module"]').dispatchEvent(new window.Event('error'))
+    assert.match(document.querySelector('#startup-message').textContent, /화면을 불러오지 못했습니다/)
+    assert.equal(document.querySelector('#startup-panel').getAttribute('role'), 'alert')
+    assert.equal(timers.size, 0)
+  } finally { dom.window.close() }
+})
+
+test('slow start keeps a retry and readiness cancels startup guards without clearing stored work', () => {
+  const { dom, window, document, timers } = startup()
+  try {
+    window.sessionStorage.setItem('catfood.switch-session.v1', 'existing work')
+    timers.get(1)()
+    assert.match(document.querySelector('#startup-message').textContent, /시간이 걸리고/)
+    document.dispatchEvent(new window.Event('catfood:ready'))
+    assert.equal(timers.size, 0)
+    document.querySelector('script[type="module"]').dispatchEvent(new window.Event('error'))
+    assert.equal(document.querySelector('#startup-panel').getAttribute('role'), 'status')
+    assert.equal(window.sessionStorage.getItem('catfood.switch-session.v1'), 'existing work')
+  } finally { dom.window.close() }
+})
+
+test('a render failure leaves a reload screen and preserves navigation and saved work', async () => {
+  const { build } = await import('vite')
+  const { mkdir, mkdtemp, writeFile, rm } = await import('node:fs/promises')
+  const { resolve } = await import('node:path')
+  const { pathToFileURL } = await import('node:url')
+  const { act, createElement } = await import('react')
+  const { dom, window, document, timers } = startup()
+  globalThis.window=window;globalThis.document=document;globalThis.IS_REACT_ACT_ENVIRONMENT=true
+  const { createRoot } = await import('react-dom/client')
+  await mkdir('node_modules/.cache',{recursive:true})
+  const temp=await mkdtemp(resolve('node_modules/.cache/startup-'))
+  const root=createRoot(document.getElementById('root')), nativeError=console.error
+  try {
+    const result=await build({configFile:false,logLevel:'silent',build:{ssr:'src/ApplicationBoundary.tsx',write:false,minify:false}})
+    const file=resolve(temp,'boundary.mjs');await writeFile(file,result.output.find(item=>item.type==='chunk'&&item.isEntry).code)
+    const { default: Boundary }=await import(pathToFileURL(file).href)
+    window.sessionStorage.setItem('catfood.switch-session.v1','saved selection')
+    console.error=()=>{}
+    function BrokenScreen(){throw new Error('internal diagnostic text')}
+    await act(async()=>root.render(createElement(Boundary,null,createElement(BrokenScreen))))
+    assert.match(document.querySelector('[role="alert"]').textContent,/화면을 표시하지 못했습니다/)
+    assert.doesNotMatch(document.body.textContent,/internal diagnostic text/)
+    assert.equal(new URL(document.querySelector('a').href).search,'?view=workspace&mode=switch')
+    assert.equal(window.sessionStorage.getItem('catfood.switch-session.v1'),'saved selection')
+    assert.equal(timers.size,0)
+  } finally { console.error=nativeError;await act(async()=>root.unmount());dom.window.close();await rm(temp,{recursive:true}) }
+})

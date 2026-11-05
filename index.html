@@ -5,9 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
     <title>CATFOOD — 고양이 사료 정보</title>
+    <style>
+      .startup-panel{box-sizing:border-box;max-width:540px;margin:12vh auto;padding:28px 24px;font-family:system-ui,sans-serif;color:#243d34;line-height:1.7}
+      .startup-panel h1{font-size:26px;margin:0 0 20px}.startup-panel p{font-size:16px}.startup-panel a{display:inline-block;padding:10px 16px;border:1px solid #9cafa6;border-radius:6px;color:inherit;text-decoration:none;min-height:24px}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><main class="startup-panel" id="startup-panel" role="status"><h1>CATFOOD</h1><p id="startup-message">화면을 여는 중입니다.</p><a href="">다시 불러오기</a><noscript><p>제품을 검색하고 비교하려면 JavaScript를 켜 주세요.</p></noscript></main></div>
+    <script>
+      (() => {
+        const panel = document.getElementById('startup-panel');
+        const message = document.getElementById('startup-message');
+        function showFailure(event) {
+          if (!panel.isConnected) return;
+          if (event && event.type === 'error' && event.target !== window && !(event.target instanceof HTMLScriptElement && event.target.type === 'module')) return;
+          clearTimeout(timer);
+          panel.setAttribute('role', 'alert');
+          message.textContent = '화면을 불러오지 못했습니다. 다시 불러와 주세요.';
+        }
+        const timer = setTimeout(() => {
+          if (panel.isConnected) message.textContent = '화면을 여는 데 시간이 걸리고 있습니다. 연결을 확인한 뒤 다시 불러와 주세요.';
+        }, 12000);
+        window.addEventListener('error', showFailure, true);
+        window.addEventListener('unhandledrejection', showFailure);
+        document.addEventListener('catfood:ready', () => {
+          clearTimeout(timer);
+          window.removeEventListener('error', showFailure, true);
+          window.removeEventListener('unhandledrejection', showFailure);
+        }, { once: true });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

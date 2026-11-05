@@ -13,7 +13,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT=true
 const {createRoot}=await import('react-dom/client')
 const nativeFetch=globalThis.fetch
 const hiddenIds=JSON.parse(await readFile(resolve('data/temporarily-hidden-products.json'),'utf8'))
-let app,root,temp,rows,requests,factsHandler
+let app,root,temp,rows,requests,factsHandler,sourceRows,sourceHandler
 function product(id, name, overrides = {}) {
   return {
     product_id: id,
@@ -70,9 +70,11 @@ beforeEach(()=>{
  dom.reconfigure({url:'https://catfood.test/'});sessionStorage.clear();document.getElementById('root').replaceChildren()
  rows=[product('product_0000000000000001','Alpha',{confirmed_present_ingredient_terms:['chicken'],direct_evidence_ingredient_terms:['chicken'],ingredient_term_result_count:2}),product('product_0000000000000002','Beta',{reviewed_not_found_ingredient_terms:['chicken'],ingredient_term_result_count:2})]
  requests=[];factsHandler=async(url)=>Response.json(url.searchParams.has('product_id') ? rows.filter(row=>'eq.'+row.product_id===url.searchParams.get('product_id')) : rows)
+ sourceRows=[];sourceHandler=async()=>Response.json(sourceRows)
  globalThis.fetch=window.fetch=async(input,init={})=>{
    const url=new URL(String(input));assert.equal(url.origin,'https://api.test');requests.push({url,signal:init.signal})
    if(url.pathname.endsWith('/effective_product_catalog_summary'))return url.searchParams.get('select').split(',').includes('ingredient_term_result_count')?factsHandler(url,init):Response.json(rows)
+   if(url.pathname.endsWith('/compare_product_ingredients'))return sourceHandler(url,init)
    if(url.pathname.endsWith('/compare_product_ingredients_scoped'))return Response.json(rows.map(row=>({product_id:row.product_id,ingredient_names:['chicken','peas'],raw_text:'chicken, peas',ingredient_count:2,completeness_status:'full',declaration_scope:'product'})))
    return Response.json([])
  };root=createRoot(document.getElementById('root'))
@@ -331,4 +333,59 @@ test('a hidden saved SWITCH current product returns to selection without request
  assert.equal(saved.currentProductId,null);assert.equal(saved.step,'current')
  assert.doesNotMatch(text(),/Hidden product/)
  assert.ok(requests.every(r=>!hiddenIds.some(id=>r.url.search.includes(id))))
+})
+
+function listSource(id,raw,overrides={}){return {product_id:id,raw_text:raw,completeness_status:'full',observation_scope:'product',market_code:'KR',is_current_resolved_formula:false,...overrides}}
+
+test('avoidance list explains generic wording without changing verdicts or prefetching sources for ordinary lookup',async()=>{
+ rows=rows.map(row=>({...row,confirmed_present_ingredient_terms:row.canonical_name==='Alpha'?['salmon']:[],direct_evidence_ingredient_terms:[],reviewed_not_found_ingredient_terms:row.canonical_name==='Beta'?['salmon']:[]}))
+ const unknown=product('product_0000000000000003','Gamma',{insufficient_evidence_ingredient_terms:['salmon'],ingredient_term_result_count:1})
+ rows.push(unknown)
+ sourceRows=[listSource(rows[1].product_id,'Peas, Fish Oil, Natural Flavor'),listSource(unknown.product_id,'동물성 단백질원: 닭고기',{completeness_status:'summary'})]
+ await mount('?view=workspace&mode=lookup&q=Test%20Brand')
+ assert.equal(requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients')).length,0)
+ await act(async()=>root.unmount());root=createRoot(document.getElementById('root'))
+ await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=salmon')
+ const cards=[...document.querySelectorAll('.research-result-card')]
+ assert.equal(cards.length,2)
+ const beta=cards.find(card=>card.textContent.includes('Beta')),gamma=cards.find(card=>card.textContent.includes('Gamma'))
+ assert.match(beta.textContent,/Fish Oil — 세부 어종 미기재/)
+ assert.match(beta.textContent,/Natural Flavor — 향료의 세부 구성 미기재/)
+ assert.match(beta.textContent,/검토 자료에서 못 찾음.*연어/s)
+ assert.match(gamma.textContent,/일부 원료표만 확보/)
+ assert.match(gamma.textContent,/원료 미확인.*연어/s)
+ assert.doesNotMatch(text(),/연어 없음|연어가 없다고 확인|세부 동물 종류 미기재/)
+ const sourceRequests=requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients'))
+ assert.equal(sourceRequests.length,1,'one batched read covers the visible list')
+ assert.equal(sourceRequests[0].url.searchParams.get('select').split(',').length,6)
+ assert.ok(!sourceRequests[0].url.search.includes(rows[0].product_id),'excluded products do not get a raw source read')
+})
+
+test('source explanation failure preserves avoidance results and retries separately from term facts',async()=>{
+ sourceHandler=async()=>new Response('',{status:503})
+ await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=chicken')
+ assert.equal(document.querySelectorAll('.research-result-card').length,1)
+ assert.match(text(),/원료표의 추가 안내를 불러오지 못했습니다/)
+ assert.match(text(),/기존 원료 판정과 후보 목록은 유지/)
+ assert.match(text(),/검토 자료에서 못 찾음/)
+ assert.equal(document.querySelector('.ingredient-list-reason'),null,'failed fetch is not displayed as a missing source')
+ const factReads=facts().length
+ sourceRows=[listSource(rows[1].product_id,'Peas, Animal Fat')];sourceHandler=async()=>Response.json(sourceRows)
+ await click('추가 확인 사항 다시 불러오기')
+ assert.match(document.querySelector('.ingredient-list-reason').textContent,/Animal Fat — 세부 동물 종류 미기재/)
+ assert.equal(facts().length,factReads)
+ assert.equal(document.querySelectorAll('.research-result-card').length,1)
+})
+
+test('list source cautions distinguish unresolved applicability, missing raw text and a full named source',async()=>{
+ const row=listSource('product_scope','Fish Oil',{market_code:'US',observation_scope:'formula',is_current_resolved_formula:false})
+ await act(async()=>root.render(createElement(app.IngredientListReason,{row})))
+ assert.match(text(),/자료 적용 확인 필요.*같은 배합인지 미확인/s)
+ assert.doesNotMatch(text(),/Fish Oil|세부 어종 미기재/)
+ await act(async()=>root.render(createElement(app.IngredientListReason,{row:{...row,raw_text:null,market_code:'KR',observation_scope:'product'}})))
+ assert.match(text(),/원료표 원문 미확보/)
+ await act(async()=>root.render(createElement(app.IngredientListReason,{row:{...row,raw_text:'fish oil (herring)',is_current_resolved_formula:true}})))
+ assert.match(text(),/특정 원료의 부재를 보증하지 않습니다/)
+ assert.match(text(),/국내 동일 배합 확인 자료/)
+ assert.doesNotMatch(text(),/세부 어종 미기재/)
 })

@@ -7,6 +7,7 @@ import { readJourneyRecords, writeJourneyRecords, clearJourneyRecords, hasJourne
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
+import { useIngredientListReasons, IngredientListReason, IngredientReasonStatus } from './IngredientListReason'
 import { useSwitchEnergy, useEnergyPackages, switchEnergyDifference, keepsLowerEnergyCandidate, EnergyEvidence, CandidateEnergy } from './switch-energy'
 import { energyText, usableEnergy } from './energy-refine'
 import {
@@ -993,6 +994,8 @@ export default function SwitchFlow({
     return [...kept.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) != null), ...kept.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) == null)]
   }, [nameMatchedCandidates, lowerEnergyActive, currentProduct, currentEnergy, energy.byProduct])
   const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
+  const listReasonsEnabled = step === 'results' && ingredientAvoidTerms.length > 0 && !ingredientFactsPending && !compareOpen && !detailProductId && !loading && !error
+  const listReasons = useIngredientListReasons(listReasonsEnabled ? visibleCandidates.map(item => item.product.product_id) : [])
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const energyPackages = useEnergyPackages(candidateEnergyOpen && energy.status === 'loaded' && step === 'results'
     ? [currentEnergy, ...visibleCandidates.map(item => energy.byProduct.get(item.product.product_id)), selectedCandidate ? energy.byProduct.get(selectedCandidate.product.product_id) : undefined]
@@ -1839,6 +1842,7 @@ export default function SwitchFlow({
             <span className="switch-candidate-identity">
               <span>{product.brand}</span><strong>{product.canonical_name}</strong>
               <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
+              {listReasonsEnabled && listReasons.status === 'loaded' ? <IngredientListReason row={listReasons.byProduct.get(product.product_id)} /> : null}
               {candidateEnergyOpen && energy.status === 'loaded' ? <CandidateEnergy current={currentProduct} candidate={product} baseline={currentEnergy} row={energy.byProduct.get(product.product_id)} packages={energyPackages.packages} packageStatus={energyPackages.status} /> : null}
             </span>
             <RelationBlock evaluation={rowEvaluation} showReviewed={!ingredientAvoidTerms.length || unresolved} />
@@ -1927,6 +1931,7 @@ export default function SwitchFlow({
             </div>
             {includeAllLifeStages ? <p className="switch-option-empty" role="note">성묘 표기와 전연령 표기를 함께 살펴봅니다. 전연령을 성묘 전용으로 바꾸어 표시하지 않습니다.</p> : null}
             <div className="switch-candidate-list">
+              {listReasonsEnabled ? <IngredientReasonStatus status={listReasons.status} onRetry={listReasons.retry} /> : null}
               {lowerEnergyActive && nameMatchedCandidates.length > 0 && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이 범위에서 낮은 표기 열량의 후보를 찾지 못했습니다.</strong><span>열량 좁히기를 해제하거나 검색어와 다른 조건을 바꿔 살펴보세요.</span></div> : null}
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 점이나 유지할 점을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {candidates.length > 0 && candidateSearchActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>{candidateBrowseActive ? '좁힌 범위에서 이름 검색 결과가 없습니다.' : '이름 검색 결과가 없습니다.'}</strong><span>검색어를 지우거나 좁힌 항목을 해제해 후보를 다시 살펴보세요.</span></div> : null}

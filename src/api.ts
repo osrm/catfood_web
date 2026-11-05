@@ -148,6 +148,8 @@ export interface CompareIngredients {
   supplemental_is_current_resolved_formula?: boolean
 }
 
+export type ListIngredientSource = Pick<CompareIngredients, 'product_id' | 'raw_text' | 'completeness_status' | 'observation_scope' | 'market_code' | 'is_current_resolved_formula'>
+
 export interface ProductManufacturingDetail {
   product_id: string
   observation_scope: string
@@ -670,6 +672,19 @@ export async function fetchEnergyPackages(variantIds: string[], signal?: AbortSi
     if (!response.ok) throw new Error('Energy package API ' + response.status)
     const page = await response.json() as EnergyPackage[]
     rows.push(...page.filter(row => batch.includes(row.variant_id) && !hiddenProductIds.has(row.product_id)))
+  }
+  return rows
+}
+
+// Only the selected-source fields needed to explain visible avoidance candidates.
+export async function fetchListIngredientSources(productIds: string[], signal?: AbortSignal): Promise<ListIngredientSource[]> {
+  const ids = [...new Set(productIds)].filter(id => !hiddenProductIds.has(id))
+  const rows: ListIngredientSource[] = []
+  for (let start = 0; start < ids.length; start += 80) {
+    const batch = ids.slice(start, start + 80)
+    const page = await fetchRows<ListIngredientSource>('compare_product_ingredients', 'product_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`, signal, 'product_id.asc', String(batch.length))
+    if (page.some(row => !batch.includes(row.product_id)) || new Set(page.map(row => row.product_id)).size !== page.length) throw new Error('Ambiguous ingredient sources')
+    rows.push(...page)
   }
   return rows
 }

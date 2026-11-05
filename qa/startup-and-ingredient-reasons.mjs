@@ -1,0 +1,97 @@
+import { createRequire } from 'node:module'
+import { mkdir, writeFile } from 'node:fs/promises'
+import assert from 'node:assert/strict'
+const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core')
+const BASE=process.env.CANDIDATE_URL || 'http://127.0.0.1:4173/'
+const OUT=process.env.OUT_DIR || 'startup-ingredient-output'
+await mkdir(OUT,{recursive:true})
+const report={base:BASE,sourceSha:process.env.CANDIDATE_SHA,views:{},blockedWrites:[],injectedFailures:[],network:[],errors:[],sourceReads:[]}
+const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH || '/usr/bin/google-chrome'})
+let page
+try {
+  for(const width of [390,1440]) {
+    const context=await browser.newContext({viewport:{width,height:1000},serviceWorkers:'block'})
+    let failBoot=true,failSources=false
+    page=await context.newPage()
+    page.on('pageerror',e=>report.errors.push(String(e)))
+    page.on('requestfailed',r=>report.network.push({width,url:r.url(),failure:r.failure()}))
+    await page.route('**/*',async route=>{
+      const req=route.request(),url=req.url()
+      if(!['GET','HEAD','OPTIONS'].includes(req.method()) || /functions\/v1|analytics|telemetry|search-runs|considerations/.test(url)){report.blockedWrites.push(url);return route.abort()}
+      if(failBoot&&url.startsWith(BASE)&&['script','stylesheet'].includes(req.resourceType())){report.injectedFailures.push({width,kind:'boot',url});return route.abort()}
+      if(url.includes('/rest/v1/compare_product_ingredients?')){
+        const params=new URL(url).searchParams
+        report.sourceReads.push({width,fields:params.get('select'),ids:params.get('product_id'),limit:params.get('limit')})
+        if(failSources){report.injectedFailures.push({width,kind:'source',url});return route.abort()}
+      }
+      return route.continue()
+    })
+    async function capture(key,selector){
+      await page.locator(selector).first().scrollIntoViewIfNeeded()
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),key+': horizontal overflow')
+      report.views[width+'-'+key]={url:page.url(),text:await page.locator(selector).first().innerText()}
+      await page.screenshot({path:`${OUT}/${width}-${key}.png`})
+    }
+    const target=BASE+'?view=workspace&mode=explore&applied=1&feed='+encodeURIComponent('건식')+'&age=adult&avoidIngredients=salmon'
+    await page.goto(target,{waitUntil:'domcontentloaded'})
+    await page.getByText('화면을 불러오지 못했습니다. 다시 불러와 주세요.',{exact:true}).waitFor()
+    await page.evaluate(()=>sessionStorage.setItem('catfood.startup-test-marker','kept'))
+    await capture('boot-failure','#startup-panel')
+    failBoot=false
+    await page.getByRole('link',{name:'다시 불러오기',exact:true}).click()
+    await page.locator('.research-result-card').first().waitFor({timeout:45000})
+    assert.equal(await page.locator('#startup-panel').count(),0)
+    assert.equal(await page.evaluate(()=>sessionStorage.getItem('catfood.startup-test-marker')),'kept')
+    assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
+    for(let i=0;i<25;i++){const more=page.getByRole('button',{name:/제품 더 보기/});if(!await more.count())break;await more.click()}
+    const royal=page.locator('.research-result-card[data-product-id="product_5b13354ad9792881"]')
+    await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
+    assert.match(await royal.innerText(),/어유 — 세부 어종 미기재/)
+    assert.match(await royal.innerText(),/검토 자료에서 못 찾음[\s\S]*연어/)
+    await capture('avoidance-card', '.research-result-card[data-product-id="product_5b13354ad9792881"]')
+    const unknown=page.locator('.result-evidence-group.is-unverified .research-result-card').filter({hasText:'원료 미확인'}).first()
+    assert.ok(await unknown.count())
+    await unknown.locator('.ingredient-list-reason').waitFor()
+    await capture('unknown-card','.result-evidence-group.is-unverified .research-result-card')
+    const idsBefore=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())
+    failSources=true
+    await page.reload({waitUntil:'domcontentloaded'})
+    await page.getByText('원료표의 추가 안내를 불러오지 못했습니다.',{exact:true}).waitFor({timeout:45000})
+    const idsAfter=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())
+    assert.deepEqual(idsAfter,idsBefore,'additional source failure must preserve filter results')
+    assert.equal(await page.locator('.ingredient-list-reason').count(),0,'failed source fetch is not an unavailable-source claim')
+    await capture('source-retry','.ingredient-reason-status')
+    failSources=false
+    await page.getByRole('button',{name:'추가 확인 사항 다시 불러오기',exact:true}).click()
+    await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
+    assert.match(await royal.innerText(),/어유 — 세부 어종 미기재/)
+    await capture('source-recovered','.research-result-card[data-product-id="product_5b13354ad9792881"]')
+
+    await page.goto(BASE,{waitUntil:'domcontentloaded'})
+    await page.getByRole('button',{name:'먹이는 사료 찾기 →',exact:true}).click()
+    await page.locator('.switch-find-search input').fill('AATU')
+    const current=page.locator('.switch-find-result').filter({hasText:'연어'}).first();await current.waitFor({timeout:45000});await current.click()
+    const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg/}).first();await sku.waitFor();await sku.click()
+    await page.locator('.switch-step-actions .switch-primary-action').click()
+    await page.getByRole('heading',{name:'무엇을 바꾸고 싶나요?',exact:true}).waitFor()
+    const toggle=page.locator('.switch-change-additional-toggle');if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')!=='true')await toggle.click()
+    const salmon=page.locator('.switch-current-ingredients button').filter({hasText:'연어'}).filter({visible:true}).first();await salmon.waitFor({timeout:45000});await salmon.click()
+    await page.getByRole('button',{name:'건식 유지',exact:true}).click()
+    await page.locator('.switch-step-actions .switch-primary-action').click()
+    await page.locator('.switch-candidate-row').first().waitFor({timeout:45000})
+    await page.getByRole('searchbox',{name:'후보 제품 검색'}).fill('로얄캐닌 노르웨이')
+    const candidate=page.locator('.switch-candidate-row[data-product-id="product_5b13354ad9792881"]')
+    await candidate.locator('.ingredient-list-reason').waitFor({timeout:45000})
+    assert.match(await candidate.innerText(),/어유 — 세부 어종 미기재/)
+    await capture('switch-reason','.switch-candidate-row[data-product-id="product_5b13354ad9792881"]')
+    await context.close()
+  }
+  assert.deepEqual(report.blockedWrites,[])
+  assert.deepEqual(report.errors,[])
+  for(const req of report.sourceReads){assert.equal(req.fields.split(',').length,6);assert.ok(Number(req.limit)<=80)}
+} catch(error) {
+  report.failure=String(error)
+  if(page&&!page.isClosed()){report.failureText=await page.locator('body').innerText();await page.screenshot({path:OUT+'/failure.png'})}
+  throw error
+} finally {await browser.close();await writeFile(OUT+'/report.json',JSON.stringify(report,null,2))}
+console.log('Startup recovery and ingredient reasons passed: '+Object.keys(report.views).length+' views')

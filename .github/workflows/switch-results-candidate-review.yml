@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'src/App.tsx'
+      - 'index.html'
+      - 'src/ApplicationBoundary.tsx'
+      - 'src/IngredientListReason.tsx'
+      - 'src/ingredient-list-reason.css'
+      - 'src/ingredient-disclosure.ts'
       - 'src/energy-refine.tsx'
       - 'src/switch-energy.tsx'
       - 'src/switch-session.ts'
@@ -14,8 +19,11 @@ on:
       - 'src/main.tsx'
       - 'tests/switch-session-navigation.test.mjs'
       - 'tests/exploration.test.mjs'
+      - 'tests/startup.test.mjs'
+      - 'tests/catalog-ingredients.test.mjs'
       - 'qa/switch-results-candidate-review.mjs'
       - 'qa/selection-journeys-review.mjs'
+      - 'qa/startup-and-ingredient-reasons.mjs'
       - '.github/workflows/switch-results-candidate-review.yml'
 permissions:
   contents: read
@@ -42,6 +50,7 @@ jobs:
           mkdir -p /tmp/switch-candidate-review
           cp qa/switch-results-candidate-review.mjs /tmp/switch-candidate-review/
           cp qa/selection-journeys-review.mjs /tmp/switch-candidate-review/
+          cp qa/startup-and-ingredient-reasons.mjs /tmp/switch-candidate-review/
           cd /tmp/switch-candidate-review
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
@@ -57,12 +66,21 @@ jobs:
         run: OUT_DIR="$GITHUB_WORKSPACE/switch-results-candidate-output" node /tmp/switch-candidate-review/switch-results-candidate-review.mjs
       - name: Selection journey interaction QA
         run: OUT_DIR="$GITHUB_WORKSPACE/selection-journeys-output" node /tmp/switch-candidate-review/selection-journeys-review.mjs
+      - name: Startup recovery and ingredient reasons QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/startup-ingredient-output" node /tmp/switch-candidate-review/startup-and-ingredient-reasons.mjs
       - name: Upload candidate evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: switch-results-candidate-review
           path: switch-results-candidate-output
+          retention-days: 7
+      - name: Upload startup and ingredient evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-ingredient-review
+          path: startup-ingredient-output
           retention-days: 7
       - name: Upload selection journey evidence
         if: always()

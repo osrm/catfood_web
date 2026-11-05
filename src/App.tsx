@@ -14,6 +14,7 @@ import {
   type DecisionCriterion,
 } from './analytics'
 import IngredientComposition from './IngredientComposition'
+import { useIngredientListReasons, IngredientListReason, IngredientReasonStatus } from './IngredientListReason'
 import { fetchCatalog, fetchCatalogIngredientFacts, fetchExploreEnergy, type ExploreEnergy, type CatalogProduct } from './api'
 import { EnergyRefine, EnergyResult, canRefineEnergy, energyBound, energyText, usableEnergy } from './energy-refine'
 import {
@@ -620,6 +621,8 @@ export default function App() {
     }), [compareIds, products, activeComparisonCriteria, ingredientConditionsPending, search, refine, energyMax, energyByProduct, energyPending, energyError])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
   const visibleProducts = resultProducts.slice(0, visibleCount)
+  const listReasonsEnabled = screen === 'workspace' && mode === 'explore' && Boolean(search.ingredientAvoidTerms?.length) && !ingredientConditionsPending && !loading && !error && !editingConditions && !detailProductId && !compareOpen
+  const listReasons = useIngredientListReasons(listReasonsEnabled ? visibleProducts.map(product => product.product_id) : [])
 
   useEffect(() => {
     if (!pendingRestore.current || screen !== 'workspace' || selectedId || detailProductId || compareOpen || loading) return
@@ -1001,7 +1004,7 @@ export default function App() {
           onClick={() => openExploreProduct(product.product_id)}
         >
           <ProductImage className="research-result-image" product={product} />
-          <span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span></span>
+          <span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span>{listReasonsEnabled && listReasons.status === 'loaded' ? <IngredientListReason row={listReasons.byProduct.get(product.product_id)} /> : null}</span>
           {evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} /> : null : product.official_targets.length || product.recipe_details.length ? <span className="research-result-facts">{product.official_targets.length ? <><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong></> : null}{product.recipe_details.length ? <><span>레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></> : null}</span> : null}
           <span className="research-result-link">제품 보기 →</span>
         </button>
@@ -1022,7 +1025,7 @@ export default function App() {
     const grouped = mode === 'explore' && activeConditions > 0
     const confirmed = visibleProducts.filter(product => !unverifiedResultIds.has(product.product_id))
     const unverified = visibleProducts.filter(product => unverifiedResultIds.has(product.product_id))
-    return <div className="research-results-list">{grouped ? <>
+    return <div className="research-results-list">{listReasonsEnabled ? <IngredientReasonStatus status={listReasons.status} onRetry={listReasons.retry} /> : null}{grouped ? <>
       {confirmed.length ? <section className="result-evidence-group" aria-label={search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}>
         <div className="result-evidence-heading"><h2>{search.ingredientAvoidTerms?.length ? '원료 자료를 검토한 제품' : '선택한 표기를 확인한 제품'}</h2>{search.ingredientAvoidTerms?.length ? <p>피하려는 원료는 검토한 자료에서 찾지 못했습니다. 원료가 없다는 보장은 아닙니다.</p> : null}</div>
         {confirmed.map(renderProduct)}

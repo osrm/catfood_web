@@ -7,31 +7,86 @@
     <title>CATFOOD — 고양이 사료 정보</title>
     <style>
       .startup-panel{box-sizing:border-box;max-width:540px;margin:12vh auto;padding:28px 24px;font-family:system-ui,sans-serif;color:#243d34;line-height:1.7}
-      .startup-panel h1{font-size:26px;margin:0 0 20px}.startup-panel p{font-size:16px}.startup-panel a{display:inline-block;padding:10px 16px;border:1px solid #9cafa6;border-radius:6px;color:inherit;text-decoration:none;min-height:24px}
+      .startup-panel h1{font-size:26px;margin:0 0 20px}.startup-panel p{font-size:16px}.startup-panel a,.startup-panel button{display:inline-block;box-sizing:border-box;margin:0 8px 8px 0;padding:10px 16px;border:1px solid #9cafa6;border-radius:6px;color:inherit;background:#fff;font:inherit;text-decoration:none;min-height:44px;cursor:pointer}.startup-panel button:disabled{cursor:wait;opacity:.65}.startup-panel [hidden]{display:none!important}
     </style>
   </head>
   <body>
-    <div id="root"><main class="startup-panel" id="startup-panel" role="status"><h1>CATFOOD</h1><p id="startup-message">화면을 여는 중입니다.</p><a href="">다시 불러오기</a><noscript><p>제품을 검색하고 비교하려면 JavaScript를 켜 주세요.</p></noscript></main></div>
+    <div id="root"><main class="startup-panel" id="startup-panel" role="status"><h1>CATFOOD</h1><p id="startup-message">화면을 여는 중입니다.</p><button id="startup-retry" type="button" hidden>다시 연결하기</button><a href="">페이지 다시 열기</a><noscript><p>제품을 검색하고 비교하려면 JavaScript를 켜 주세요.</p></noscript></main></div>
     <script>
       (() => {
         const panel = document.getElementById('startup-panel');
         const message = document.getElementById('startup-message');
+        const retry = document.getElementById('startup-retry');
+        let failedModule = null, retryCount = 0, timer;
+        function finishAttempt() {
+          clearTimeout(timer);
+          retry.disabled = false;
+          panel.removeAttribute('aria-busy');
+        }
+        function watchSlowStart() {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            if (!panel.isConnected) return;
+            finishAttempt();
+            retry.hidden = !failedModule;
+            message.textContent = '화면을 여는 데 시간이 걸리고 있습니다. 연결을 확인한 뒤 다시 시도해 주세요.';
+          }, 12000);
+        }
         function showFailure(event) {
           if (!panel.isConnected) return;
           if (event && event.type === 'error' && event.target !== window && !(event.target instanceof HTMLScriptElement && event.target.type === 'module')) return;
-          clearTimeout(timer);
+          finishAttempt();
+          if (event && event.target instanceof HTMLScriptElement && event.target.src) {
+            const url = new URL(event.target.src, location.href);
+            if (url.origin === location.origin) {
+              url.searchParams.delete('_catfood_retry');
+              failedModule = url.href;
+            }
+          }
+          retry.hidden = !failedModule;
           panel.setAttribute('role', 'alert');
-          message.textContent = '화면을 불러오지 못했습니다. 다시 불러와 주세요.';
+          message.textContent = failedModule ? '화면을 불러오지 못했습니다. 선택한 조건과 기록을 유지한 채 다시 연결할 수 있습니다.' : '화면을 불러오지 못했습니다. 페이지를 다시 열어 주세요.';
         }
-        const timer = setTimeout(() => {
-          if (panel.isConnected) message.textContent = '화면을 여는 데 시간이 걸리고 있습니다. 연결을 확인한 뒤 다시 불러와 주세요.';
-        }, 12000);
+        function retryModule() {
+          if (!panel.isConnected || !failedModule || retry.disabled) return;
+          const url = new URL(failedModule);
+          // Give this attempt a fresh module request URL without changing the
+          // document's location, history or stored work.
+          url.searchParams.set('_catfood_retry', Date.now() + '-' + (++retryCount));
+          failedModule = null;
+          retry.disabled = true;
+          panel.setAttribute('role', 'status');
+          panel.setAttribute('aria-busy', 'true');
+          message.textContent = '다시 연결하고 있습니다. 선택한 조건과 기록은 그대로 유지됩니다.';
+          for (const pending of document.querySelectorAll('link[data-startup-retry-style]')) {
+            pending.onload = pending.onerror = null;
+            pending.remove();
+          }
+          for (const original of document.querySelectorAll('link[rel="stylesheet"][href]:not([data-startup-retry-style])')) {
+            const styleUrl = new URL(original.href, location.href);
+            if (styleUrl.origin !== location.origin) continue;
+            styleUrl.searchParams.set('_catfood_retry', Date.now() + '-' + retryCount);
+            const replacement = original.cloneNode();
+            replacement.setAttribute('data-startup-retry-style', '');
+            replacement.href = styleUrl.href;
+            replacement.onload = () => { original.remove(); replacement.removeAttribute('data-startup-retry-style'); };
+            replacement.onerror = () => replacement.remove();
+            document.head.append(replacement);
+          }
+          const script = document.createElement('script');
+          script.type = 'module'; script.crossOrigin = 'anonymous'; script.src = url.href;
+          document.head.append(script);
+          watchSlowStart();
+        }
+        retry.addEventListener('click', retryModule);
+        watchSlowStart();
         window.addEventListener('error', showFailure, true);
         window.addEventListener('unhandledrejection', showFailure);
         document.addEventListener('catfood:ready', () => {
           clearTimeout(timer);
           window.removeEventListener('error', showFailure, true);
           window.removeEventListener('unhandledrejection', showFailure);
+          retry.removeEventListener('click', retryModule);
         }, { once: true });
       })();
     </script>

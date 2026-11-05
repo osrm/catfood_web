@@ -34,13 +34,19 @@ try {
     }
     const target=BASE+'?view=workspace&mode=explore&applied=1&feed='+encodeURIComponent('건식')+'&age=adult&avoidIngredients=salmon'
     await page.goto(target,{waitUntil:'domcontentloaded'})
-    await page.getByText('화면을 불러오지 못했습니다. 다시 불러와 주세요.',{exact:true}).waitFor()
-    await page.evaluate(()=>sessionStorage.setItem('catfood.startup-test-marker','kept'))
+    await page.getByText(/화면을 불러오지 못했습니다/).waitFor()
+    await page.evaluate(()=>{sessionStorage.setItem('catfood.startup-test-marker','kept');window.__startupDocumentMarker='same document'})
     await capture('boot-failure','#startup-panel')
+    await page.getByRole('button',{name:'다시 연결하기',exact:true}).click()
+    await page.locator('#startup-panel[role="alert"]').waitFor()
+    assert.equal(await page.evaluate(()=>window.__startupDocumentMarker),'same document')
+    assert.equal(await page.getByRole('button',{name:'다시 연결하기',exact:true}).isEnabled(),true)
+    await capture('boot-retry-failure','#startup-panel')
     failBoot=false
-    await page.getByRole('link',{name:'다시 불러오기',exact:true}).click()
+    await page.getByRole('button',{name:'다시 연결하기',exact:true}).click()
     await page.locator('.research-result-card').first().waitFor({timeout:45000})
     assert.equal(await page.locator('#startup-panel').count(),0)
+    assert.equal(await page.evaluate(()=>window.__startupDocumentMarker),'same document','retry must not request a new HTML document')
     assert.equal(await page.evaluate(()=>sessionStorage.getItem('catfood.startup-test-marker')),'kept')
     assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
     for(let i=0;i<25;i++){const more=page.getByRole('button',{name:/제품 더 보기/});if(!await more.count())break;await more.click()}

@@ -21,6 +21,7 @@ test('entry has readable startup and reload navigation before the application or
     assert.equal(retry.pathname, '/catfood_web/')
     assert.equal(retry.search, '?view=workspace&mode=switch')
     assert.match(document.querySelector('noscript').textContent, /JavaScript/)
+    assert.equal(document.querySelector('#startup-retry').hidden,true)
   } finally { dom.window.close() }
 })
 
@@ -34,7 +35,51 @@ test('failed module reports recovery, while image failures and an already-ready 
     assert.match(document.querySelector('#startup-message').textContent, /화면을 불러오지 못했습니다/)
     assert.equal(document.querySelector('#startup-panel').getAttribute('role'), 'alert')
     assert.equal(timers.size, 0)
+    assert.equal(document.querySelector('#startup-retry').hidden,false)
   } finally { dom.window.close() }
+})
+
+test('module retry preserves the document, URL, history and local work while making only one fresh attempt at a time',()=>{
+  const {dom,window,document,timers}=startup()
+  try {
+    const original=document.querySelector('script[type="module"]'),panel=document.getElementById('startup-panel'),retry=document.getElementById('startup-retry')
+    window.history.replaceState({selection:'kept'},'',window.location.href)
+    window.sessionStorage.setItem('catfood.switch-session.v1','saved work')
+    const url=window.location.href,historyLength=window.history.length
+    const style=document.createElement('link');style.rel='stylesheet';style.href='/catfood_web/assets/style.css';document.head.append(style)
+    original.dispatchEvent(new window.Event('error'))
+    retry.click()
+    const first=document.querySelector('script[type="module"][src*="_catfood_retry"]')
+    assert.equal(new URL(first.src).pathname,new URL(original.src).pathname)
+    assert.ok(new URL(first.src).searchParams.has('_catfood_retry'))
+    assert.equal(retry.disabled,true)
+    retry.click()
+    assert.equal(document.querySelectorAll('script[type="module"]').length,2,'no second request while the first one is pending')
+    first.dispatchEvent(new window.Event('error'))
+    assert.equal(retry.disabled,false)
+    retry.click()
+    const second=document.querySelectorAll('script[type="module"][src*="_catfood_retry"]')[1]
+    assert.notEqual(second.src,first.src,'the module map must not reuse the failed URL')
+    assert.equal(document.querySelectorAll('[data-startup-retry-style]').length,1,'pending stylesheet retries do not multiply')
+    assert.equal(window.location.href,url)
+    assert.equal(window.history.length,historyLength)
+    assert.deepEqual(window.history.state,{selection:'kept'})
+    assert.equal(window.sessionStorage.getItem('catfood.switch-session.v1'),'saved work')
+    assert.equal(panel,document.getElementById('startup-panel'))
+    timers.get(1)()
+    assert.equal(retry.hidden,true,'a hanging module is not evaluated again without a new load failure')
+  } finally {dom.window.close()}
+})
+
+test('an execution failure offers a document reload without evaluating the entry module twice',()=>{
+  const {dom,window,document}=startup()
+  try {
+    window.dispatchEvent(new window.ErrorEvent('error',{message:'execution failed'}))
+    assert.equal(document.querySelector('#startup-retry').hidden,true)
+    assert.equal(document.querySelector('#startup-panel').getAttribute('role'),'alert')
+    assert.equal(document.querySelectorAll('script[type="module"]').length,1)
+    assert.equal(new URL(document.querySelector('#startup-panel a').href).search,window.location.search)
+  } finally {dom.window.close()}
 })
 
 test('slow start keeps a retry and readiness cancels startup guards without clearing stored work', () => {

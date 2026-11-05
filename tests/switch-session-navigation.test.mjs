@@ -32,6 +32,8 @@ let failEnergyCount = 0
 let failEnergyPackages = false
 let questionSources = []
 let failQuestionSources = false
+let sourceRequestIds = []
+let sourceBatchFailureId = null
 
 function energyRow(productId, amount, overrides = {}) {
   return { product_id: productId, variant_id: null, observation_scope: 'product', market_code: 'KR', kcal_per_kg: null, kcal_per_100g: amount, energy_basis: 'direct_label', is_current_resolved_formula: false, supplemental_nutrition_fields: [], ...overrides }
@@ -175,6 +177,7 @@ beforeEach(() => {
   failEnergyCount = 0
   failEnergyPackages = false
   questionSources = []; failQuestionSources = false
+  sourceRequestIds = []; sourceBatchFailureId = null
   sessionStorage.clear()
   window.history.replaceState(null, '', `${BASE}?view=workspace&mode=switch`)
   document.body.innerHTML = '<div id="root"></div>'
@@ -227,6 +230,8 @@ function installFetch() {
     if (url.pathname.endsWith('/compare_product_ingredients') || url.pathname.endsWith('/compare_product_ingredients_scoped')) {
       const raw = url.searchParams.get('p_product_ids') ?? url.searchParams.get('product_id')
       const ids = raw?.startsWith('{') ? JSON.parse(raw.replace('{','[').replace('}',']')) : raw?.startsWith('in.(') ? raw.slice(4,-1).split(',').map(value => value.replace(/^"|"$/g, '')) : null
+      sourceRequestIds.push(ids)
+      if (sourceBatchFailureId && ids?.includes(sourceBatchFailureId)) return new Response('', {status:503})
       return failQuestionSources ? new Response('',{status:503}) : Response.json(ids ? questionSources.filter(row => ids.includes(row.product_id)) : questionSources)
     }
     if (url.pathname.endsWith('/search-runs')) {
@@ -1735,6 +1740,124 @@ async function retainAFromDetail() {
   await waitForUi(() => button('후보로 남기기'), 'retention available in full detail')
   await click('후보로 남기기')
 }
+
+async function reachSourceResults() {
+  await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  await click('원료가 얼마나 구체적으로'); await click(exactButton('습식')); await click('후보 제품 보기')
+  await waitForUi(() => document.querySelector('.ingredient-list-reason.is-focused'), 'focused sources ready')
+}
+const sourceButton = key => document.querySelector(`.source-filter-options button:nth-child(${['all','full','partial','missing','wording','scope'].indexOf(key)+1})`)
+const candidateIds = () => all('.switch-candidate-row').map(row => row.dataset.productId)
+
+test('source lenses read all 85 candidates in batches, survive search and keep hidden comparison selections', async () => {
+  const many = Array.from({length:85}, (_,i) => ({...candidateA,product_id:`product_source_${String(i).padStart(3,'0')}`,canonical_name:`후보 ${String(i).padStart(3,'0')}`}))
+  catalogProducts = [current,...many]
+  questionSources = many.map((p,i) => ({product_id:p.product_id,raw_text:'Chicken, Fish Oil',completeness_status:i===84?'full':'partial',observation_scope:'product',market_code:i===84?'US':'KR',is_current_resolved_formula:false}))
+  await renderApp(); await reachSourceResults()
+  const baseKey=app.switchSelectionKey(session()), runs=searchRuns.length, signals=considerations.length
+  assert.equal(candidateIds().length,40)
+  sourceRequestIds=[]
+  await click('원료표 상태로 살펴보기')
+  await waitForUi(()=>sourceButton('full')?.disabled===false,'all source batches complete')
+  assert.deepEqual(sourceRequestIds.map(ids=>ids.length),[80,5])
+  assert.match(sourceButton('all').textContent,/85개/)
+  assert.match(sourceButton('partial').textContent,/84개/)
+  assert.match(sourceButton('full').textContent,/1개/)
+  assert.match(sourceButton('scope').textContent,/1개/)
+  await click(document.querySelector(`[data-switch-compare-product-id="${many[0].product_id}"]`))
+  await click(sourceButton('full'))
+  assert.deepEqual(candidateIds(),[many[84].product_id],'candidate beyond first 40 remains discoverable')
+  assert.match(document.querySelector('.ingredient-list-reason').textContent,/한국 제품에 적용 여부 미확인/)
+  assert.deepEqual(session().compareIds,[many[0].product_id],'source lens never removes basket members')
+  const reads=sourceRequestIds.length
+  await inputValue(document.querySelector('[aria-label="후보 제품 검색"]'),'후보 000')
+  assert.equal(candidateIds().length,0)
+  assert.match(sourceButton('full').textContent,/1개/,'counts describe full source universe, not name search')
+  assert.equal(sourceRequestIds.length,reads)
+  await click('원료표 기준 모두 보기')
+  assert.deepEqual(candidateIds(),[many[0].product_id])
+  await click(sourceButton('full')); await click('검색 지우기')
+  await click(document.querySelector('.switch-compare-dock button'))
+  assert.match(document.querySelector('.compare-stage > .source-view-context').textContent,/전체 목록이 있는 자료.*모든 제품의 판정은 아닙니다/)
+  await click('후보로 남기기')
+  assert.equal(journey().retained[0].candidate.productId,many[0].product_id)
+  assert.equal(journey().retained[0].context.candidateRefined,true)
+  assert.ok(journey().retained[0].context.labels.includes('원료표 보기 · 전체 목록이 있는 자료'))
+  await click('후보 목록으로')
+  await waitForUi(()=>document.querySelector('.switch-results-stage'),'return from source comparison')
+  await remountApp()
+  await waitForUi(()=>sourceButton('full')?.disabled===false,'restored source read complete')
+  assert.equal(session().candidateSource,'full')
+  assert.deepEqual(candidateIds(),[many[84].product_id])
+  assert.equal(app.switchSelectionKey(session()),baseKey)
+  await click('조건 수정'); await click('후보 제품 보기')
+  assert.equal(session().candidateSource,'full','unchanged conditions preserve explicit source view')
+  await click('조건 수정'); await click('다른 브랜드로 보기'); await click('후보 제품 보기')
+  assert.equal(session().candidateSource,'off','changed criteria reset source lens')
+  assert.equal(journey().retained[0].context.candidateRefined,true,'old snapshot stays local after reset')
+  assert.equal(decisions.length,0,'unsupported refinement is never backfilled into intake')
+  assert.equal(considerations.length,signals,'refined compare/retain do not masquerade as base signals')
+  assert.ok(searchRuns.length>=runs)
+})
+
+test('a later failed source batch leaves all candidates visible without partial counts and retries independently', async () => {
+  const many=Array.from({length:81},(_,i)=>({...candidateA,product_id:`product_batch_${String(i).padStart(3,'0')}`,canonical_name:`묶음 ${String(i).padStart(3,'0')}`}))
+  catalogProducts=[current,...many]
+  questionSources=many.map(p=>({product_id:p.product_id,raw_text:'Chicken',completeness_status:'full',observation_scope:'product',market_code:'KR',is_current_resolved_formula:false}))
+  await renderApp(); await reachSourceResults(); await click('원료표 상태로 살펴보기')
+  await waitForUi(()=>sourceButton('missing')?.disabled===false,'source status ready')
+  await click(sourceButton('missing')); assert.equal(candidateIds().length,0)
+  sourceBatchFailureId=many[80].product_id
+  await remountApp()
+  await waitForUi(()=>document.querySelector('.ingredient-source-filter [role="alert"]'),'later source batch fails')
+  assert.equal(candidateIds().length,40,'no source lens applied after failure')
+  assert.equal(sourceButton('missing').disabled,true)
+  assert.equal(sourceButton('all').querySelector('strong'),null,'no counts from a successful partial batch')
+  assert.match(document.querySelector('.ingredient-source-filter').textContent,/원료표 조건은 적용하지 않고/)
+  await click(document.querySelector(`[data-switch-compare-product-id="${many[0].product_id}"]`))
+  await click(document.querySelector('.switch-compare-dock button')); await click('후보로 남기기')
+  const saved=structuredClone(journey().retained[0].context)
+  assert.equal(saved.candidateRefined,true)
+  assert.ok(saved.labels.some(label=>/원료표 보기.*미적용/.test(label)),'a failed lens is never recorded as applied')
+  await click('후보 목록으로')
+  await waitForUi(()=>document.querySelector('.ingredient-source-filter [role="alert"]'),'return to failed source view')
+  const facts=resourceRequests.filter(p=>p.endsWith('/catalog_ingredient_term_facts')).length
+  sourceBatchFailureId=null
+  await click('원료표 상태 다시 불러오기')
+  await waitForUi(()=>sourceButton('missing')?.disabled===false,'source-only retry completes')
+  assert.equal(candidateIds().length,0)
+  assert.equal(resourceRequests.filter(p=>p.endsWith('/catalog_ingredient_term_facts')).length,facts)
+  await click('원료표 기준 모두 보기'); assert.equal(candidateIds().length,40)
+  await click('원료표 보기 닫기')
+  assert.deepEqual(journey().retained[0].context,saved,'retry and closing do not rewrite the historical failure context')
+  assert.equal(decisions.length,0)
+})
+
+test('source session defaults are compatible and unsupported hidden focus cannot filter restored candidates', async () => {
+  const state={...app.createInitialSwitchSession(),currentProductId:current.product_id,step:'results',candidateSource:'full'}
+  state.appliedCriteriaKey=app.switchSelectionKey(state)
+  assert.equal(app.parseSwitchSessionState({...state,candidateSource:undefined}).candidateSource,'off')
+  assert.equal(app.parseSwitchSessionState({...state,candidateSource:'highest_quality'}).candidateSource,'off')
+  assert.equal(app.parseSwitchSessionState({...state,currentProductId:null}).candidateSource,'off')
+  app.writeSwitchSession(state,sessionStorage)
+  await renderApp()
+  assert.equal(candidateIds().length,3,'no saved source focus means no invisible lens')
+  assert.equal(document.querySelector('.ingredient-source-filter'),null)
+  assert.equal(session().candidateSource,'off','orphan source state is cleared')
+})
+
+test('changing the reading focus and reselecting the current product clear explicit source lenses', async () => {
+  await renderApp(); await reachSourceResults(); await click('원료표 상태로 살펴보기')
+  await waitForUi(()=>sourceButton('missing')?.disabled===false,'source view loaded')
+  await click(sourceButton('missing'))
+  await click('조건 수정'); await click('살펴볼 정보 바꾸기'); await click('지금 사료와 표기 열량이')
+  assert.equal(session().candidateSource,'off')
+  await click('살펴볼 정보 바꾸기'); await click('원료가 얼마나 구체적으로'); await click('후보 제품 보기')
+  await click('원료표 상태로 살펴보기')
+  await click('조건 수정'); await click('현재 사료 다시 선택')
+  assert.equal(session().candidateSource,'off')
+  assert.equal(session().currentProductId,null)
+})
 
 test('reason-led disclosure keeps observation separate, opens relevant comparison and snapshots reasons without navigation or intake text', async () => {
   questionSources = [current, candidateA, candidateB].map((product, index) => ({ product_id: product.product_id, variant_id: null, raw_text: index === 1 ? '닭고기, 어유' : 'chicken, fish oil (herring)', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', ingredient_names: ['닭고기'], ingredient_count: 1, is_current_resolved_formula: false }))

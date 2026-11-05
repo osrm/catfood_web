@@ -9,6 +9,8 @@ import CompareView, { type CompareItem } from './CompareView'
 import ProductDetail from './ProductDetail'
 import { useIngredientListReasons, IngredientListReason, IngredientReasonStatus } from './IngredientListReason'
 import { DecisionPurposeEditor, DecisionPurposeSummary } from './DecisionPurpose'
+import IngredientSourceFilterPanel from './IngredientSourceFilter'
+import { SOURCE_FILTERS, matchesSourceFilter, sourceFilterLabel, type IngredientSourceFilter } from './ingredient-source-filter'
 import { useSwitchEnergy, useEnergyPackages, switchEnergyDifference, keepsLowerEnergyCandidate, EnergyEvidence, CandidateEnergy } from './switch-energy'
 import { energyText, usableEnergy } from './energy-refine'
 import {
@@ -681,7 +683,7 @@ export default function SwitchFlow({
   }
   const {
     step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, includeAllLifeStages, noChangeIntent, criteriaUndecided,
-    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection, candidateEnergy = 'off',
+    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection, candidateEnergy = 'off', candidateSource = 'off',
   } = activeSession
   const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
   const needsIngredientFacts = !detailProductId && step !== 'current' && step !== 'sku'
@@ -704,6 +706,11 @@ export default function SwitchFlow({
   const setDetailProductId = (value: string | null) => setSessionField('detailProductId', value)
   const [journey, setJourney] = useState<JourneyRecords>(readJourneyRecords)
   const purposeFocus = journey.purpose?.focus
+  const sourceFocusAllowed = purposeFocus === 'disclosure' || purposeFocus === 'ingredients'
+  const sourceReviewRequested = sourceFocusAllowed && candidateSource !== 'off'
+  useEffect(() => {
+    if (!sourceFocusAllowed && candidateSource !== 'off') setSessionField('candidateSource', 'off')
+  }, [sourceFocusAllowed, candidateSource])
   const journeyRef = useRef(journey)
   const journeyMounted = useRef(true)
   useEffect(() => { journeyMounted.current = true; return () => { journeyMounted.current = false } }, [])
@@ -990,14 +997,24 @@ export default function SwitchFlow({
     )
     return ordered.filter((item) => matchedIds.has(item.product.product_id))
   }, [browsedCandidates, candidateSearch, candidateSearchActive, candidateBrowseActive, candidateFeedTypes, candidateRecipeFamilies])
-  const searchedCandidates = useMemo(() => {
+  const unfilteredCandidates = useMemo(() => {
     if (!lowerEnergyActive || !currentProduct) return nameMatchedCandidates
     const kept = nameMatchedCandidates.filter(item => keepsLowerEnergyCandidate(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)))
     return [...kept.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) != null), ...kept.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) == null)]
   }, [nameMatchedCandidates, lowerEnergyActive, currentProduct, currentEnergy, energy.byProduct])
+  const sourceRequestEnabled = step === 'results' && !ingredientFactsPending && !loading && !error
+  const listReasonsEnabled = sourceRequestEnabled && (ingredientAvoidTerms.length > 0 || sourceFocusAllowed) && !compareOpen && !detailProductId
+  const listReasons = useIngredientListReasons(sourceRequestEnabled && sourceReviewRequested
+    ? browsedCandidates.map(item => item.product.product_id)
+    : listReasonsEnabled ? unfilteredCandidates.slice(0, visibleCandidateCount).map(item => item.product.product_id) : [])
+  const sourceReady = sourceReviewRequested && sourceRequestEnabled && listReasons.status === 'loaded'
+  const searchedCandidates = sourceReady ? unfilteredCandidates.filter(item => matchesSourceFilter(listReasons.byProduct.get(item.product.product_id), candidateSource)) : unfilteredCandidates
   const visibleCandidates = searchedCandidates.slice(0, visibleCandidateCount)
-  const listReasonsEnabled = step === 'results' && (ingredientAvoidTerms.length > 0 || purposeFocus === 'disclosure' || purposeFocus === 'ingredients') && !ingredientFactsPending && !compareOpen && !detailProductId && !loading && !error
-  const listReasons = useIngredientListReasons(listReasonsEnabled ? visibleCandidates.map(item => item.product.product_id) : [])
+  const sourceCounts = new Map<IngredientSourceFilter, number>(sourceReady ? SOURCE_FILTERS.map(([key]) => [key, browsedCandidates.filter(item => matchesSourceFilter(listReasons.byProduct.get(item.product.product_id), key)).length]) : [])
+  const sourceViewLabel = sourceReviewRequested ? `원료표 보기 · ${sourceFilterLabel(candidateSource)}${sourceReady ? '' : ' (확인 중 또는 불러오기 실패로 미적용)'}` : undefined
+  function changeSourceFilter(value: IngredientSourceFilter) {
+    updateSession(current => ({ ...current, candidateSource: value, selectedCandidateId: null, visibleCandidateCount: 40 }))
+  }
   const selectedCandidate = candidates.find((item) => item.product.product_id === selectedCandidateId) ?? null
   const energyPackages = useEnergyPackages(candidateEnergyOpen && energy.status === 'loaded' && step === 'results'
     ? [currentEnergy, ...visibleCandidates.map(item => energy.byProduct.get(item.product.product_id)), selectedCandidate ? energy.byProduct.get(selectedCandidate.product.product_id) : undefined]
@@ -1085,11 +1102,12 @@ export default function SwitchFlow({
   }
 
   function runSelectionKey(state: SwitchSessionState) {
-    return JSON.stringify([switchSelectionKey(state), [...state.candidateFeedTypes].sort(), [...state.candidateRecipeFamilies].sort()])
+    return JSON.stringify([switchSelectionKey(state), [...state.candidateFeedTypes].sort(), [...state.candidateRecipeFamilies].sort(), state.candidateSource])
   }
   function journeySelectionKey() {
     const key = activeSession.appliedCriteriaKey ?? switchSelectionKey(activeSession)
-    return candidateBrowseActive ? JSON.stringify([key, [...candidateFeedTypes].sort(), [...candidateRecipeFamilies].sort()]) : key
+    const browsedKey = candidateBrowseActive ? JSON.stringify([key, [...candidateFeedTypes].sort(), [...candidateRecipeFamilies].sort()]) : key
+    return sourceReviewRequested ? JSON.stringify([browsedKey, candidateSource]) : browsedKey
   }
   function beginSwitchRun(runOrigin: 'submitted' | 'restored' = 'submitted', selectionState = activeSession) {
     if (!currentProduct) return
@@ -1102,7 +1120,7 @@ export default function SwitchFlow({
       considerationPromises.current.clear()
     }
     // The intake contract cannot express undecided intent or list refinement.
-    if (selectionState.criteriaUndecided || selectionState.includeAllLifeStages || selectionState.candidateFeedTypes.length || selectionState.candidateRecipeFamilies.length) return
+    if (selectionState.criteriaUndecided || selectionState.includeAllLifeStages || selectionState.candidateFeedTypes.length || selectionState.candidateRecipeFamilies.length || selectionState.candidateSource !== 'off') return
     const generation = switchRunGeneration.current
     const previous = switchRunTail.current
     const next = previous.then((previousRunId) => {
@@ -1137,7 +1155,7 @@ export default function SwitchFlow({
     if (step !== 'results' || !currentProduct || loading || error || ingredientFactsPending) return
     if (switchRunId.current && switchRunSelection.current === runSelectionKey(activeSession)) return
     beginSwitchRun('restored')
-  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, candidateFeedTypes, candidateRecipeFamilies, loading, error, ingredientFactsPending])
+  }, [step, currentProduct?.product_id, activeSession.appliedCriteriaKey, candidateFeedTypes, candidateRecipeFamilies, candidateSource, loading, error, ingredientFactsPending])
 
   function openCandidate(productId: string) {
     setSelectedCandidateId(productId)
@@ -1158,7 +1176,7 @@ export default function SwitchFlow({
     return { kind: candidateSearchActive ? 'named_search' as const : 'load_more' as const, presentedProductIds: batch }
   }
   function recordSwitchConsideration(productId: string, signal: ConsiderationSignal, displayedProductIds?: string[]) {
-    if (criteriaUndecided || candidateBrowseActive || includeAllLifeStages) return Promise.resolve(false)
+    if (criteriaUndecided || candidateBrowseActive || includeAllLifeStages || candidateSource !== 'off') return Promise.resolve(false)
     const generation = switchRunGeneration.current
     const context = { ...considerationContext(productId), displayedProductIds }
     const request = switchRunTail.current.then((searchRunId) => {
@@ -1176,8 +1194,9 @@ export default function SwitchFlow({
     if (criteriaUndecided) labels.push('바꿀 조건은 후보를 보며 정하기')
     if (candidateBrowseActive) labels.push(`목록 좁히기 · ${[...candidateFeedTypes, ...candidateRecipeFamilies.map((value) => `${optionLabel(value, RECIPE_FAMILY_LABELS)} 레시피`)].join(' · ')}`)
     if (includeAllLifeStages) labels.push('성묘·전연령 함께 보기')
+    if (sourceViewLabel) labels.push(sourceViewLabel)
     labels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
-    return { ...(journeyRef.current.purpose ? { purpose: { ...journeyRef.current.purpose } } : {}), ...(criteriaUndecided ? { criteriaUndecided: true } : {}), ...(candidateBrowseActive || includeAllLifeStages ? { candidateRefined: true } : {}), selectionKey: journeySelectionKey(),
+    return { ...(journeyRef.current.purpose ? { purpose: { ...journeyRef.current.purpose } } : {}), ...(criteriaUndecided ? { criteriaUndecided: true } : {}), ...(candidateBrowseActive || includeAllLifeStages || sourceReviewRequested ? { candidateRefined: true } : {}), selectionKey: journeySelectionKey(),
       current: { productId: currentProduct.product_id, brand: currentProduct.brand, name: currentProduct.canonical_name },
       variantId: currentVariantId, variantLabel: currentVariantText, labels,
       criteria: [...switchCriteriaSnapshot({ change, keep, changeBrand, keepBrand, ingredientAvoidTerms, currentProduct }), ...(includeAllLifeStages ? [{ axis: 'life_stage' as const, value: 'all_life_stages', role: keep.lifeStage === 'adult' ? 'keep' as const : 'desired_change' as const, source: 'user_selected' as const }] : [])] }
@@ -1277,7 +1296,7 @@ export default function SwitchFlow({
     if (step !== 'results') return
     const context = journeyContext()
     if (context) updateJourney((value) => ({ ...value, context }))
-  }, [step, activeSession.appliedCriteriaKey, currentVariantText, candidateFeedTypes, candidateRecipeFamilies, journey.purpose])
+  }, [step, activeSession.appliedCriteriaKey, currentVariantText, candidateFeedTypes, candidateRecipeFamilies, candidateSource, sourceViewLabel, journey.purpose])
 
   function renderRetainAction(product: CatalogProduct) {
     const evaluation = candidates.find((item) => item.product.product_id === product.product_id)
@@ -1299,6 +1318,7 @@ export default function SwitchFlow({
     if (!evaluation || !currentProduct) return null
     return <section className="detail-selection-context" aria-label="현재 사료와 선택한 조건의 확인 결과">
       <DecisionPurposeSummary purpose={journey.purpose} compact />
+      {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 이 제품의 판정은 아닙니다.</p> : null}
       <p className="detail-selection-baseline">지금 먹이는 사료 · <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong> · {currentVariantText}</p>
       {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
       <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} />
@@ -1628,7 +1648,7 @@ export default function SwitchFlow({
 
           {!purposeFocus ? <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div> : null}
           {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
-          <DecisionPurposeEditor value={journey.purpose} onChange={purpose => updateJourney(value => ({ ...value, purpose }))} />
+          <DecisionPurposeEditor value={journey.purpose} onChange={purpose => { updateJourney(value => ({ ...value, purpose })); if (purpose.focus !== 'disclosure' && purpose.focus !== 'ingredients') setSessionField('candidateSource', 'off') }} />
           {purposeFocus === 'ingredients' ? renderIngredientAvoidance() : null}
           {purposeFocus === 'disclosure' ? <p className="switch-focus-intro">후보에서 원료 목록과 세부 종류의 표기를 함께 살펴봅니다. 같은 형태를 유지하고 싶다면 아래에서 골라주세요.</p> : null}
           {purposeFocus === 'energy' ? <p className="switch-focus-intro">후보에서 현재 사료와 표기 열량을 비교합니다. 같은 형태를 유지하고 싶다면 아래에서 골라주세요.</p> : null}
@@ -1744,6 +1764,7 @@ export default function SwitchFlow({
     const preserveBrowse = (selectionState.criteriaUndecided || selectionState.noChangeIntent) && activeSession.appliedCriteriaKey === selectionKey
     selectionState.candidateFeedTypes = preserveBrowse ? candidateFeedTypes : []
     selectionState.candidateRecipeFamilies = preserveBrowse ? candidateRecipeFamilies : []
+    selectionState.candidateSource = sourceFocusAllowed && activeSession.appliedCriteriaKey === selectionKey ? candidateSource : 'off'
                 requestExplicitScroll('results')
                 beginSwitchRun('submitted', selectionState)
                 updateSession((current) => ({
@@ -1755,6 +1776,7 @@ export default function SwitchFlow({
                   candidateQuery: current.appliedCriteriaKey === selectionKey ? current.candidateQuery : '',
                   candidateFeedTypes: selectionState.candidateFeedTypes,
                   candidateRecipeFamilies: selectionState.candidateRecipeFamilies,
+                  candidateSource: selectionState.candidateSource,
                   candidateEnergy: journey.purpose?.focus === 'energy' ? current.appliedCriteriaKey === selectionKey && current.candidateEnergy === 'lower' ? 'lower' : 'all' : current.appliedCriteriaKey === selectionKey ? current.candidateEnergy : 'off',
                   appliedCriteriaKey: selectionKey,
                   compareOpen: false,
@@ -1779,6 +1801,7 @@ export default function SwitchFlow({
           items={compareItems}
           criteriaLabels={journeyContext()?.labels ?? []}
           decisionPurpose={journey.purpose}
+          sourceViewLabel={sourceViewLabel}
           currentProduct={currentProduct}
           currentVariantId={currentVariantId}
           currentVariantText={currentVariantText}
@@ -1922,6 +1945,7 @@ export default function SwitchFlow({
                 </> : null}
               </>}
             </section> : null}
+            {sourceFocusAllowed ? <IngredientSourceFilterPanel value={sourceReviewRequested ? candidateSource : 'off'} total={browsedCandidates.length} counts={sourceCounts} status={sourceRequestEnabled ? listReasons.status : 'loading'} displayed={searchedCandidates.length} onChange={changeSourceFilter} onRetry={listReasons.retry} /> : null}
             <div className="switch-candidate-heading">
               <div><strong>후보 제품</strong><span className="switch-browse-count" role="status">{candidateSummaryText}</span></div>
               <div className="switch-candidate-search">
@@ -1943,8 +1967,9 @@ export default function SwitchFlow({
             </div>
             {includeAllLifeStages ? <p className="switch-option-empty" role="note">성묘 표기와 전연령 표기를 함께 살펴봅니다. 전연령을 성묘 전용으로 바꾸어 표시하지 않습니다.</p> : null}
             <div className="switch-candidate-list">
-              {listReasonsEnabled ? <IngredientReasonStatus status={listReasons.status} onRetry={listReasons.retry} /> : null}
-              {lowerEnergyActive && nameMatchedCandidates.length > 0 && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>이 범위에서 낮은 표기 열량의 후보를 찾지 못했습니다.</strong><span>열량 좁히기를 해제하거나 검색어와 다른 조건을 바꿔 살펴보세요.</span></div> : null}
+              {listReasonsEnabled && !sourceReviewRequested ? <IngredientReasonStatus status={listReasons.status} onRetry={listReasons.retry} /> : null}
+              {sourceReady && unfilteredCandidates.length > 0 && searchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 원료표 기준에 해당하는 후보가 없습니다.</strong><span>원료표 기준을 모두 보기로 바꾸어 다른 후보를 살펴보세요.</span><button type="button" onClick={() => changeSourceFilter('all')}>원료표 기준 모두 보기</button></div> : null}
+              {lowerEnergyActive && nameMatchedCandidates.length > 0 && unfilteredCandidates.length === 0 ? <div className="switch-state-message"><strong>이 범위에서 낮은 표기 열량의 후보를 찾지 못했습니다.</strong><span>열량 좁히기를 해제하거나 검색어와 다른 조건을 바꿔 살펴보세요.</span></div> : null}
               {candidates.length === 0 ? <div className="switch-state-message"><strong>조건에 맞는 후보가 없습니다.</strong><span>바꿀 점이나 유지할 점을 수정해 보세요.</span><button className="state-retry" type="button" onClick={() => { requestExplicitScroll('change'); updateSession((current) => ({ ...current, compareOpen: false, detailProductId: null, detailTab: 'overview', step: 'change' }), 'push', 'step') }}>조건 수정</button></div> : null}
               {candidates.length > 0 && candidateSearchActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>{candidateBrowseActive ? '좁힌 범위에서 이름 검색 결과가 없습니다.' : '이름 검색 결과가 없습니다.'}</strong><span>검색어를 지우거나 좁힌 항목을 해제해 후보를 다시 살펴보세요.</span></div> : null}
               {candidates.length > 0 && !candidateSearchActive && candidateBrowseActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 표기의 후보가 없습니다.</strong><span>위에서 좁힌 항목을 해제해 다른 후보를 살펴보세요.</span></div> : null}

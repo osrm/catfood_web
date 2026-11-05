@@ -14,7 +14,11 @@ The representative flow is current food/package → inspect source wording → e
 
 ## Results and records
 
-Source-wording focus reads only the visible candidate IDs through the existing minimal public source read. Loading and retry are independent from candidate qualification. The same raw source, list completeness and market/formula scope are used; supplemental material cannot name an unspecified oil in the selected source.
+Source-wording focus initially reads visible candidate IDs through the existing minimal public source read. An explicit source-status view reads **all candidates under the current conditions and feed/recipe refinements**, in batches of 80. Its counts describe that universe before name search and energy filtering. A product beyond the first 40 can therefore be found using a source-status lens. Comparison selections and retained records are independent of the visible source-filtered list.
+
+The view separates full-list material, partial/unknown list coverage, missing raw text, generic wording needing clarification, and unconfirmed Korean applicability. Coverage and additional checks overlap: a complete foreign list can also contain unspecified fish oil and have unconfirmed applicability. “Full list” never means every subingredient is named. Missing raw text never means ingredient absence or manufacturer non-disclosure. Supplemental material cannot fill a selected source's gaps.
+
+No source lens or partial counts apply until every requested batch succeeds. Failure leaves the candidates visible and offers a source-only retry. The chosen source view survives comparison, reload and unchanged condition application; changed conditions, changing away from source focus or a new current product reset it. Without a saved source focus, restored source state cannot invisibly filter results. Its fixed label follows comparison, detail and historical decision context, with pending/failed status identified as unapplied. Source-view decisions remain local because the intake contract cannot represent this refinement; closing it cannot backfill those historical decisions as base-run choices. No collection flag is enabled.
 
 The consumer can change focus, edit criteria, inspect all source material and use the existing compare tabs. Contextual controls fold after a focus is chosen; selected conditions and their unknown states remain accessible. No arbitrary candidate cutoff or inferred winner is introduced.
 

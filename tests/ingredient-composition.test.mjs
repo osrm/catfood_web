@@ -21,6 +21,34 @@ before(async()=>{
 afterEach(async()=>{if(root){await act(async()=>root.unmount());root=null}globalThis.fetch=nativeFetch;document.body.innerHTML='<div id="root"></div>'})
 after(async()=>{dom.window.close();await rm(temp,{recursive:true})})
 
+test('source lenses separate list coverage, wording and applicability without inferring absence',()=>{
+ const foreignFull=questionSource('Chicken, Fish Oil',{market_code:'US'})
+ assert.equal(app.matchesSourceFilter(foreignFull,'full'),true)
+ assert.equal(app.matchesSourceFilter(foreignFull,'wording'),true)
+ assert.equal(app.matchesSourceFilter(foreignFull,'scope'),true)
+ assert.equal(app.matchesSourceFilter(foreignFull,'missing'),false)
+ const partialNamed=questionSource('fish oil (herring)',{completeness_status:'partial'})
+ assert.equal(app.matchesSourceFilter(partialNamed,'partial'),true)
+ assert.equal(app.matchesSourceFilter(partialNamed,'full'),false)
+ assert.equal(app.matchesSourceFilter(partialNamed,'wording'),false)
+ const supplementalOnly={...questionSource('  '),supplemental_full_ingredient_names:['Salmon'],ingredient_names:['Chicken']}
+ assert.equal(app.matchesSourceFilter(supplementalOnly,'missing'),true)
+ assert.equal(app.matchesSourceFilter(supplementalOnly,'full'),false)
+ assert.equal(app.matchesSourceFilter(supplementalOnly,'scope'),false)
+ assert.equal(app.matchesSourceFilter(undefined,'missing'),true)
+ assert.equal(app.matchesSourceFilter(undefined,'all'),true)
+ assert.equal(app.parseSourceFilter('quality_score'),'off')
+})
+
+test('focused source cards show literal foreign wording together with applicability caveat',async()=>{
+ root=createRoot(document.getElementById('root'))
+ await act(async()=>root.render(createElement(app.IngredientListReason,{focused:true,row:questionSource('Fish Oil',{market_code:'US'})})))
+ assert.match(document.body.textContent,/전체 원료표 확인/)
+ assert.match(document.body.textContent,/Fish Oil.*세부 어종 미기재/)
+ assert.match(document.body.textContent,/한국 제품에 적용 여부 미확인/)
+ assert.match(document.body.textContent,/US 자료/)
+})
+
 test('confirmation questions ask about unspecified species without asserting absence or merging another formula',()=>{
  const questions=app.ingredientQuestions(questionSource('Peas, Fish Oil, Natural Flavor'),['연어'])
  assert.ok(questions.items.some(text=>/Fish Oil.*어종/.test(text)))

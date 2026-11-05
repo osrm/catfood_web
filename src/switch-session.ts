@@ -1,5 +1,6 @@
 import type { CompareTab, DetailTab } from './navigation-state'
 import type { SwitchSearchState as SearchState } from './search'
+import { parseSourceFilter, type IngredientSourceFilter } from './ingredient-source-filter'
 
 export type SwitchStep = 'current' | 'sku' | 'change' | 'keep' | 'results'
 export type SwitchHistoryAction = 'replace' | 'push'
@@ -27,6 +28,7 @@ export type SwitchSessionState = {
   candidateFeedTypes: string[]
   candidateRecipeFamilies: string[]
   candidateEnergy: 'off' | 'all' | 'lower'
+  candidateSource: IngredientSourceFilter
   step: SwitchStep
   visibleCandidateCount: number
   selectedCandidateId: string | null
@@ -121,6 +123,7 @@ export function createInitialSwitchSession(query = '', restartId = ''): SwitchSe
     candidateFeedTypes: [],
     candidateRecipeFamilies: [],
     candidateEnergy: 'off',
+    candidateSource: 'off',
     step: 'current',
     visibleCandidateCount: 40,
     selectedCandidateId: null,
@@ -182,6 +185,7 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     candidateFeedTypes: currentProductId && (source.criteriaUndecided === true || source.noChangeIntent === true) ? allowedStrings(source.candidateFeedTypes, FEED_TYPES) : [],
     candidateRecipeFamilies: currentProductId && (source.criteriaUndecided === true || source.noChangeIntent === true) ? allowedStrings(source.candidateRecipeFamilies, RECIPE_FAMILIES) : [],
     candidateEnergy: currentProductId && (source.candidateEnergy === 'all' || source.candidateEnergy === 'lower') ? source.candidateEnergy : 'off',
+    candidateSource: currentProductId ? parseSourceFilter(source.candidateSource) : 'off',
     step,
     visibleCandidateCount,
     selectedCandidateId: currentProductId ? nullableString(source.selectedCandidateId) : null,

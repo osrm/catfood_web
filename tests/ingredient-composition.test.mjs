@@ -40,6 +40,72 @@ test('source lenses separate list coverage, wording and applicability without in
  assert.equal(app.parseSourceFilter('quality_score'),'off')
 })
 
+const explanationProduct = (extra={}) => ({product_id:'product_explanation',brand:'브랜드',feed_type:'건식',life_stage:'adult',official_targets:[],features:[],recipe_families:[],official_recipe_traits:[],confirmed_present_ingredient_terms:[],reviewed_not_found_ingredient_terms:[],...extra})
+const explain = (extra={}) => app.candidateExplanation({current:explanationProduct(),candidate:explanationProduct({product_id:'product_candidate'}),conditions:[],focus:'disclosure',sourceStatus:'loaded',...extra})
+
+test('candidate explanations contrast quoted wording and explicit keep facts without a suitability claim',()=>{
+ const result=explain({beforeSource:questionSource('Chicken, Fish Oil'),afterSource:questionSource('Chicken, fish oil (herring)'),conditions:[{source:'keep',kind:'feedType',value:'건식',label:'형태 · 건식'}]})
+ assert.match(result.kept.join(' '),/건식.*유지 조건/)
+ assert.match(result.differences.join(' '),/현재:.*Fish Oil.*세부 어종 미기재.*후보:.*herring.*청어/)
+ assert.ok(result.unknowns.some(line=>/현재:.*세부 어종 미기재/.test(line)))
+ assert.ok(!result.unknowns.some(line=>/후보:.*세부 어종 미기재/.test(line)))
+ assert.doesNotMatch(JSON.stringify(result),/더 적합|원료 없음|추천 점수/)
+ assert.ok(app.validCandidateExplanation(result))
+})
+
+test('source failure never becomes missing raw text and partial supplemental material cannot fill source gaps',()=>{
+ const failed=explain({sourceStatus:'error',beforeSource:questionSource('Fish Oil'),afterSource:questionSource('fish oil (herring)')})
+ assert.deepEqual(failed.differences,[])
+ assert.match(failed.unknowns.join(' '),/불러오지 못해/)
+ assert.doesNotMatch(failed.unknowns.join(' '),/원문 미확보/)
+ const missing=explain({beforeSource:questionSource('Fish Oil'),afterSource:questionSource('',{ingredient_names:['Chicken'],supplemental_full_raw_text:'fish oil (herring)'})})
+ assert.ok(missing.unknowns.some(line=>/후보: 원료표 원문 미확보/.test(line)))
+ assert.doesNotMatch(JSON.stringify(missing),/herring/)
+ const partial=explain({beforeSource:questionSource('Fish Oil'),afterSource:questionSource('fish oil (herring)',{completeness_status:'partial'})})
+ assert.match(partial.unknowns.join(' '),/후보: 전체 원료 목록을 확인하지 못/)
+})
+
+test('source applicability and current package mismatch remain explicit before wording cautions',()=>{
+ const result=explain({currentVariantId:'variant_current_1',beforeSource:questionSource('Fish Oil',{observation_scope:'variant',variant_id:'variant_current_3'}),afterSource:questionSource('fish oil (herring)',{market_code:'US',observation_scope:'formula'})})
+ assert.match(result.unknowns[0],/사용 규격의 일치 여부 미확인/)
+ assert.match(result.unknowns[0],/후보 자료의 한국 판매 제품 적용 여부 미확인/)
+ assert.equal(result.references.length,2)
+ const matched=explain({currentVariantId:'variant_current_1',beforeSource:questionSource('Fish Oil',{observation_scope:'variant',variant_id:'variant_current_1'}),afterSource:questionSource('Fish Oil')})
+ assert.ok(!matched.unknowns.some(line=>/사용 규격의 일치/.test(line)))
+ assert.ok(matched.references.some(line=>/선택한 사용 규격에서 확인/.test(line)))
+})
+
+test('an absent feature tag is not a proven improvement and allowed alternate age is a difference',()=>{
+ const result=explain({focus:'other',candidate:explanationProduct({life_stage:'all_life_stages',features:['digestive']}),conditions:[{source:'change',kind:'feature',value:'digestive',label:'기능 · 소화'},{source:'keep',kind:'lifeStage',value:'adult',label:'연령 · 성묘'}]})
+ assert.match(result.unknowns.join(' '),/후보 표기는 확인했으나 현재 제품의 같은 표기는 미확인/)
+ assert.match(result.unknowns.join(' '),/실제 효과/)
+ assert.deepEqual(result.kept,[])
+ assert.match(result.differences.join(' '),/성묘 → 전연령.*다른 표기/)
+ assert.doesNotMatch(result.differences.join(' '),/소화/)
+})
+
+test('reviewed-not-found remains an evidence contrast and never becomes ingredient absence',()=>{
+ const result=explain({focus:'ingredients',current:explanationProduct({confirmed_present_ingredient_terms:['chicken']}),candidate:explanationProduct({reviewed_not_found_ingredient_terms:['chicken']}),conditions:[{source:'change',kind:'ingredientAvoid',value:'chicken',label:'닭'}]})
+ assert.match(result.differences.join(' '),/현재 자료에서 확인.*검토 자료에서 찾지 못함.*부재 보장 아님/)
+ assert.doesNotMatch(JSON.stringify(result),/닭 없음|닭이 없/)
+})
+
+test('energy explanation requires comparable feed and its own source applicability, including supplemental fields',()=>{
+ const energy=(value,extra={})=>({kcal_per_100g:value,observation_scope:'product',market_code:'KR',is_current_resolved_formula:false,...extra})
+ const input={focus:'energy',energyStatus:'loaded',beforeEnergy:energy(380),afterEnergy:energy(350)}
+ assert.match(explain(input).differences.join(' '),/380 kcal\/100g → 350 kcal\/100g/)
+ assert.equal(explain({...input,candidate:explanationProduct({feed_type:'습식'})}).differences.length,0)
+ assert.equal(explain({...input,afterEnergy:energy(350,{market_code:'US'})}).differences.length,0)
+ assert.equal(explain({...input,afterEnergy:energy(350,{supplemental_nutrition_fields:['energy'],supplemental_observation_scope:'product',supplemental_market_code:'US',supplemental_is_current_resolved_formula:false})}).differences.length,0)
+ assert.equal(explain({...input,afterEnergy:energy(350,{observation_scope:'formula'})}).differences.length,0)
+ assert.match(explain({...input,afterEnergy:energy(380)}).kept.join(' '),/380.*380/)
+ const otherPackage=explain({...input,currentVariantId:'variant_1',beforeEnergy:energy(380,{observation_scope:'variant',variant_id:'variant_3'})})
+ assert.match(otherPackage.unknowns.join(' '),/현재 열량 근거 포장.*사용 규격의 일치 여부는 미확인/)
+ const supplemental=explain({...input,currentVariantId:'variant_1',beforeEnergy:energy(380,{variant_id:'variant_1',supplemental_nutrition_fields:['energy'],supplemental_observation_scope:'variant',supplemental_market_code:'KR',supplemental_is_current_resolved_formula:false})})
+ assert.match(supplemental.unknowns.join(' '),/사용 규격의 일치 여부는 미확인/,'primary variant cannot identify supplemental field source')
+ assert.ok(!app.validCandidateExplanation({kept:['x'.repeat(601)],differences:[],unknowns:[],references:[]}))
+})
+
 test('focused source cards show literal foreign wording together with applicability caveat',async()=>{
  root=createRoot(document.getElementById('root'))
  await act(async()=>root.render(createElement(app.IngredientListReason,{focused:true,row:questionSource('Fish Oil',{market_code:'US'})})))

@@ -357,7 +357,7 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  assert.doesNotMatch(text(),/연어 없음|연어가 없다고 확인|세부 동물 종류 미기재/)
  const sourceRequests=requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients'))
  assert.equal(sourceRequests.length,1,'one batched read covers the visible list')
- assert.equal(sourceRequests[0].url.searchParams.get('select').split(',').length,6)
+ assert.equal(sourceRequests[0].url.searchParams.get('select').split(',').length,7)
  assert.ok(!sourceRequests[0].url.search.includes(rows[0].product_id),'excluded products do not get a raw source read')
 })
 

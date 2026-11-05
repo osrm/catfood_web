@@ -34,7 +34,20 @@ try {
       await page.evaluate(() => scrollTo(0, 0))
       const geometry = await page.evaluate(() => ({ width: innerWidth, documentWidth: document.documentElement.scrollWidth }))
       assert.ok(geometry.documentWidth <= width + 1, `${width}-${key}: document overflow`)
-      report.views.push({ width, key, geometry, text: (await page.locator(selector).innerText()).slice(0, 16000) })
+      const cards = await page.locator('.switch-candidate-row:visible').evaluateAll(rows => rows.flatMap(row => {
+        const explanation = row.querySelector('.candidate-explanation'), image = row.querySelector('.switch-candidate-image'), identity = row.querySelector('.switch-candidate-identity'), action = row.querySelector('.switch-candidate-open')
+        if (!explanation || !image || !identity || !action) return []
+        const box = node => { const r = node.getBoundingClientRect(); return {top:r.top,bottom:r.bottom} }
+        const compare = row.parentElement.querySelector('.switch-candidate-compare')
+        const style = node => { const s = getComputedStyle(node); return {display:s.display,position:s.position,gridArea:s.gridArea,gridTemplateAreas:s.gridTemplateAreas,gridTemplateRows:s.gridTemplateRows,padding:s.padding,margin:s.margin,transform:s.transform,top:s.top,bottom:s.bottom,height:s.height} }
+        return [{id:row.dataset.productId,explanation:box(explanation),image:box(image),identity:box(identity),action:box(action),compare:compare ? box(compare) : null,styles:{row:style(row),explanation:style(explanation),action:style(action)}}]
+      }))
+      report.views.push({ width, key, geometry, cards, text: (await page.locator(selector).innerText()).slice(0, 16000) })
+      for (const card of cards) {
+        assert.ok(card.explanation.top >= Math.max(card.image.bottom,card.identity.bottom)-1, `${width}-${key}: explanation overlaps image or identity`)
+        assert.ok(card.explanation.bottom <= card.action.top+1, `${width}-${key}: explanation overlaps action`)
+        if (card.compare) assert.ok(card.explanation.bottom <= card.compare.top+1, `${width}-${key}: explanation overlaps compare action`)
+      }
       await page.screenshot({ path: `${OUT}/${width}-${key}.png`, fullPage: true })
       await page.screenshot({ path: `${OUT}/${width}-${key}-viewport.png` })
     }
@@ -60,7 +73,10 @@ try {
     assert.match(await page.locator('.switch-session-bar').textContent(), /QA_PRIVATE_REASON/)
     await page.getByRole('searchbox', { name: '후보 제품 검색' }).fill('노르웨이 숲')
     const royalRow = page.locator(`.switch-candidate-row[data-product-id="${royal}"]`)
-    await royalRow.locator('.ingredient-list-reason').getByText(/어유.*세부 어종 미기재/).waitFor({ timeout: 45000 })
+    await royalRow.locator('.candidate-explanation .is-differences').getByText(/현재.*후보.*어유.*세부 어종 미기재/).first().waitFor({ timeout: 45000 })
+    assert.match(await royalRow.locator('.candidate-explanation .is-kept').textContent(), /건식.*유지 조건/)
+    assert.match(await royalRow.getAttribute('aria-describedby'), /candidate-explanation-/)
+    assert.match(await royalRow.locator('.candidate-explanation .is-unknowns').textContent(), /어유.*세부 어종 미기재/)
     await capture('royal-source', '.switch-results-stage')
     await (await button('원료표 상태로 살펴보기')).click()
     const sourceOptions = page.locator('.source-filter-options button')
@@ -76,11 +92,12 @@ try {
     assert.deepEqual(await sourceOptions.locator('strong').allTextContents(), sourceCounts, 'typing a name does not redefine source counts')
     await (await button('원료표 기준 모두 보기')).click()
     const allevaRow = page.locator(`.switch-candidate-row[data-product-id="${alleva}"]`)
-    await allevaRow.locator('.ingredient-list-reason').getByText(/fish oil.*herring.*청어/i).waitFor({ timeout: 45000 })
+    await allevaRow.locator('.candidate-explanation .is-differences').getByText(/fish oil.*herring.*청어/i).first().waitFor({ timeout: 45000 })
     await capture('alleva-source', '.switch-results-stage')
     await page.locator(`[data-switch-compare-product-id="${alleva}"]`).click()
     await page.locator('.switch-compare-dock button').click()
     await page.getByRole('tab', { name: '원재료', selected: true }).waitFor()
+    await page.locator('.compare-ingredient-reading').getByText(/어유.*세부 어종 미기재/).filter({ visible: true }).first().waitFor({ timeout: 45000 })
     assert.match(await page.locator('.compare-stage > .decision-purpose-summary').textContent(), /QA_PRIVATE_REASON/)
     assert.match(await page.locator('.compare-stage > .source-view-context').textContent(), /원료표 보기.*모두 보기/)
     assert.equal(await page.locator('.comparison-highlights').count(), 0)
@@ -94,6 +111,9 @@ try {
       await picker.click(); await page.locator(`.compare-mobile-candidate-options [data-product-id="${royal}"]`).click()
     }
     const retain = page.locator('.journey-retain').filter({ has: page.locator('> strong').filter({ hasText: '노르웨이 숲' }) })
+    assert.equal(await retain.locator('.candidate-explanation').count(), 1)
+    assert.match(await retain.locator('.candidate-explanation .is-kept').textContent(), /건식/)
+    assert.match(await retain.locator('.candidate-explanation .is-differences').textContent(), /현재.*후보.*어유/)
     await retain.getByRole('button', { name: '후보로 남기기', exact: true }).click()
     await page.locator('.journey-records li').filter({ hasText: '노르웨이 숲' }).getByText('당시 조건과 내 메모', { exact: true }).click()
     await page.getByRole('button', { name: '후보 메모 쓰기', exact: true }).click()
@@ -101,7 +121,7 @@ try {
     await (await button('아직 못 고름')).click()
     await (await button('기록 복사')).click()
     const copy = await page.getByRole('textbox', { name: '복사할 검토 기록' }).inputValue()
-    for (const text of [reason, positives, note, '노르웨이 숲', '이번 정리: 아직 못 고름']) assert.ok(copy.includes(text), text)
+    for (const text of [reason, positives, note, '노르웨이 숲', '이번 정리: 아직 못 고름', '남길 때 확인한 내용', '유지되는 점:', '확인한 차이:', '아직 모르는 점:']) assert.ok(copy.includes(text), text)
     assert.doesNotMatch(await page.evaluate(() => location.href + JSON.stringify(history.state)), /QA_PRIVATE_/)
     await capture('record', 'dialog')
     await page.reload({ waitUntil: 'domcontentloaded' })
@@ -110,6 +130,8 @@ try {
     assert.match(await page.locator('.journey-records').innerText(), /이 후보를 남길 때의 이유와 경험/)
     const records = await page.evaluate(() => JSON.parse(sessionStorage.getItem('catfood.switch-review.v1')))
     assert.equal(records.retained[0].context.purpose.reason, reason)
+    assert.ok(records.retained[0].explanation.kept.some(line => /건식/.test(line)))
+    assert.ok(records.retained[0].explanation.differences.some(line => /현재.*후보.*어유/.test(line)))
     assert.equal(records.retained[0].context.candidateRefined, true)
     assert.ok(records.retained[0].context.labels.includes('원료표 보기 · 모두 보기'))
     assert.equal(records.outcome.context.purpose.positives, positives)

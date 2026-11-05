@@ -78,7 +78,7 @@ try {
     const quickText = await page.getByRole('group', { name: '원료 정보 확인 범위' }).innerText()
     assert.match(quickText, /일부 원료표만 확보/)
     assert.match(quickText, /어유[\s\S]*세부 어종 미기재/)
-    await page.getByText('한국 판매 제품과 배합 대응 미확인 자료', { exact: true }).waitFor()
+    await page.getByText(/한국 판매 제품과 같은 배합인지 미확인/).filter({ visible: true }).first().waitFor()
     assert.equal(reads.filter(name => name === 'compare_product_ingredients_scoped').length, 1)
     await capture('quick-view', '.ingredient-composition-inspector')
 

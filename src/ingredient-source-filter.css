@@ -1,0 +1,16 @@
+.source-filter-entry { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:8px 0 14px; }
+.source-filter-entry button, .ingredient-source-filter button { min-height:44px; border:1px solid #b9c3bb; border-radius:6px; padding:10px 12px; background:#fff; color:#304e42; font:inherit; font-size:14px; cursor:pointer; }
+.source-filter-entry span { font-size:13px; line-height:1.65; color:#67615a; }
+.ingredient-source-filter { margin:12px 0 20px; padding:16px; border:1px solid #d8ddd7; border-radius:8px; background:#f7f9f6; }
+.ingredient-source-filter header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+.ingredient-source-filter h2 { margin:0; font-size:17px; line-height:1.5; }
+.ingredient-source-filter p { margin:10px 0; font-size:14px; line-height:1.7; }
+.source-filter-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:14px 0; }
+.source-filter-options button { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; min-width:0; }
+.source-filter-options button strong { font-size:14px; }
+.source-filter-options button[aria-pressed=true] { background:#eaf1eb; border-color:#3b6257; color:#244d3d; }
+.source-filter-options button:disabled { cursor:default; opacity:.65; }
+.ingredient-source-filter summary { min-height:44px; padding:10px 0; box-sizing:border-box; cursor:pointer; font-size:14px; line-height:1.65; }
+.source-view-context { margin:10px 0; font-size:14px; line-height:1.65; color:#514b44; }
+.compare-stage > .source-view-context { margin:10px 40px; }
+@media(max-width:760px){.source-filter-options { grid-template-columns:repeat(2,minmax(0,1fr)); }.ingredient-source-filter { padding:12px; }.compare-stage > .source-view-context { margin:10px 20px; }}

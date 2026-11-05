@@ -9,7 +9,7 @@ export function useIngredientListReasons(productIds: string[]) {
   const [retry, setRetry] = useState(0)
   const [result, setResult] = useState<{ key: string; rows: ListIngredientSource[]; status: 'loaded' | 'error' }>({ key: '', rows: [], status: 'loaded' })
   useEffect(() => {
-    if (!key) return
+    if (!key || result.key === key && result.status === 'loaded') return
     const controller = new AbortController()
     fetchListIngredientSources(key.split(','), controller.signal).then(rows => {
       if (!controller.signal.aborted) setResult({ key, rows, status: 'loaded' })
@@ -32,11 +32,12 @@ export function IngredientReasonStatus({ status, onRetry }: { status: string; on
 export function IngredientListReason({ row, focused = false }: { row?: ListIngredientSource; focused?: boolean }) {
   const reading = ingredientDisclosureReading(row)
   const scope = ingredientSourceScope(row)
-  if (row && scope.needsCheck) {
+  if (!focused && row && scope.needsCheck) {
     return <span className="ingredient-list-reason"><strong>자료 적용 확인 필요</strong><span>{scope.label}</span></span>
   }
   if (focused) return <span className="ingredient-list-reason is-focused">
     <strong>{reading.listLabel}</strong>
+    {row?.raw_text && scope.needsCheck ? <span>한국 제품에 적용 여부 미확인</span> : null}
     {ingredientWordingExamples(row).length ? ingredientWordingExamples(row).map(example => <span key={example}>{example}</span>) : row?.raw_text ? <span>세부 원료명은 원문에서 살펴보세요.</span> : null}
     {row?.raw_text ? <small>{scope.label}</small> : null}
   </span>

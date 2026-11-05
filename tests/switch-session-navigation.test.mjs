@@ -1698,7 +1698,7 @@ test('saved confirmation questions remain local beside a manual note and survive
  const saved=structuredClone(journey().retained[0].checkQuestions)
  assert.equal(saved.items.length,2)
  assert.equal(journey().retained[0].note,'PRIVATE_NOTE 남겨둔 이유')
- assert.match(app.journeyCopyText(journey()),/답변 미확인/)
+ assert.match(app.journeyCopyText(journey()),/확인하려고 남긴 질문/)
  const key=app.switchSelectionKey(session())
  assert.doesNotMatch(window.location.href+JSON.stringify(window.history.state)+JSON.stringify(searchRuns)+JSON.stringify(considerations)+JSON.stringify(decisions),/PRIVATE_NOTE|Natural Flavor|구체적인 원료 구성/)
  await click('저장한 질문 보기·수정')

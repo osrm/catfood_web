@@ -84,7 +84,7 @@ test('opened quick view shows original generic ingredient wording without extra 
  assert.match(document.body.textContent,/세부 종류를 추가로 확인할 원료/)
  assert.match(document.body.textContent,/세부 어종 미기재/)
  assert.match(document.body.textContent,/어유/)
- assert.match(document.body.textContent,/한국 판매 제품과 배합 대응 미확인 자료/)
+ assert.match(document.body.textContent,/한국 판매 제품과 같은 배합인지 미확인/)
 })
 
 test('an inspector ignores an old product response after switching to another product',async()=>{
@@ -114,6 +114,22 @@ test('disclosure reading names source wording without converting generic fish oi
  assert.match(reading.explanation,/세부 원료 종류를 임의로 추정하지/)
  assert.match(app.ingredientDisclosureSummary(row),/어유 — 세부 어종 미기재/)
  assert.match(app.ingredientDisclosureSummary(row),/천연향료 — 향료의 세부 구성 미기재/)
+})
+
+test('source scope distinguishes country, package and current formula consistently with confirmation questions',()=>{
+ const full=questionSource('Peas, Fish Oil')
+ assert.equal(app.ingredientSourceScope(full).label,'한국 자료 · 제품 자료')
+ assert.equal(app.ingredientSourceScope(full).needsCheck,false)
+ const unresolved={...full,observation_scope:'formula'}
+ assert.equal(app.ingredientSourceScope(unresolved).needsCheck,true,'Korean material alone does not establish a current formula')
+ assert.match(app.ingredientSourceScope(unresolved).label,/같은 배합인지 미확인/)
+ assert.ok(!app.ingredientQuestions(unresolved).items.some(item=>item.includes('Fish Oil')))
+ const foreign={...full,market_code:'US',observation_scope:'formula',is_current_resolved_formula:true}
+ assert.equal(app.ingredientSourceScope(foreign).needsCheck,false)
+ assert.match(app.ingredientSourceScope(foreign).label,/US 자료.*국내 동일 배합 확인 자료/)
+ assert.match(app.ingredientQuestions(foreign).source,new RegExp(app.ingredientSourceScope(foreign).label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')))
+ assert.match(app.ingredientSourceScope({...full,observation_scope:'variant'}).label,/확인한 포장 기준/)
+ assert.equal(app.ingredientSourceScope({...full,observation_scope:'unknown'}).needsCheck,true)
 })
 test('specifically named oils and flavors are not misclassified as unspecified',()=>{
  const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 어유(정어리, 멸치), 연어 오일, 천연향료(닭간), 계란',completeness_status:'full'})
@@ -156,7 +172,7 @@ test('partial list coverage stays visible when a generic ingredient is also pres
  assert.match(text,/일부 원료표만 확보/)
  assert.match(text,/목록에 없는 원료도 포함될 수 있습니다/)
  assert.match(text,/어유.*세부 어종 미기재/)
- assert.match(text,/한국 확인 자료/)
+ assert.match(text,/한국 자료/)
  assert.doesNotMatch(text,/전체 원료표 확인/)
  assert.match(app.ingredientDisclosureSummary({raw_text:'닭고기, 어유',completeness_status:'partial'}),/^일부 원료표만 확보/)
  assert.equal(calls,1)

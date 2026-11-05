@@ -88,7 +88,7 @@ test('tab record context survives independent navigation and rejects malformed l
   const checkQuestions={source:'한국 자료 · 제품 자료 · 전체 원료표 확인',items:['어유에 사용한 어종은 무엇인가요?']}
   api.writeJourneyRecords({memo:'개인 탐색 메모',context,retained:[{...row,checkQuestions}],outcome:null})
   assert.deepEqual(api.readJourneyRecords().retained[0].checkQuestions,checkQuestions)
-  assert.match(api.journeyCopyText(api.readJourneyRecords()),/후보 개인 메모[\s\S]*확인할 질문 · 답변 미확인[\s\S]*어유에 사용한 어종/)
+  assert.match(api.journeyCopyText(api.readJourneyRecords()),/후보 개인 메모[\s\S]*확인하려고 남긴 질문[\s\S]*어유에 사용한 어종/)
   api.writeJourneyRecords({memo:'',retained:[{...row,checkQuestions:{source:'source',items:['x'.repeat(401)]}}],outcome:null})
   assert.equal(api.readJourneyRecords().retained.length,1,'a malformed optional question does not discard the candidate or memo')
   assert.equal(api.readJourneyRecords().retained[0].note,row.note)

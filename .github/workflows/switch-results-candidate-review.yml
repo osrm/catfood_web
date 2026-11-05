@@ -32,6 +32,10 @@ on:
       - 'qa/switch-results-candidate-review.mjs'
       - 'qa/selection-journeys-review.mjs'
       - 'qa/startup-and-ingredient-reasons.mjs'
+      - 'qa/ingredient-disclosure-live-review.mjs'
+      - 'src/CompareView.tsx'
+      - 'src/IngredientDisclosure.tsx'
+      - 'src/ingredient-disclosure.css'
       - '.github/workflows/switch-results-candidate-review.yml'
 permissions:
   contents: read
@@ -59,6 +63,7 @@ jobs:
           cp qa/switch-results-candidate-review.mjs /tmp/switch-candidate-review/
           cp qa/selection-journeys-review.mjs /tmp/switch-candidate-review/
           cp qa/startup-and-ingredient-reasons.mjs /tmp/switch-candidate-review/
+          cp qa/ingredient-disclosure-live-review.mjs /tmp/switch-candidate-review/
           cd /tmp/switch-candidate-review
           npm init -y >/dev/null
           npm install --no-save --package-lock=false playwright-core@1.55.1
@@ -76,6 +81,8 @@ jobs:
         run: OUT_DIR="$GITHUB_WORKSPACE/selection-journeys-output" node /tmp/switch-candidate-review/selection-journeys-review.mjs
       - name: Startup recovery and ingredient reasons QA
         run: OUT_DIR="$GITHUB_WORKSPACE/startup-ingredient-output" node /tmp/switch-candidate-review/startup-and-ingredient-reasons.mjs
+      - name: Ingredient source consistency QA
+        run: OUT_DIR="$GITHUB_WORKSPACE/ingredient-consistency-output" node /tmp/switch-candidate-review/ingredient-disclosure-live-review.mjs
       - name: Upload candidate evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,6 +96,13 @@ jobs:
         with:
           name: startup-ingredient-review
           path: startup-ingredient-output
+          retention-days: 7
+      - name: Upload ingredient consistency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ingredient-source-consistency
+          path: ingredient-consistency-output
           retention-days: 7
       - name: Upload selection journey evidence
         if: always()

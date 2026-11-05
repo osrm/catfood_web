@@ -35,7 +35,7 @@ export default function IngredientComposition({ productId, product, avoidLabels 
   const row = result.id === productId ? result.row : null
   return <span className="ingredient-composition-inspector">
     <IngredientCompositionValue row={row} loading={result.id!==productId || result.loading} error={result.id===productId ? result.error : null} onRetry={() => setRetry(value=>value+1)} />
-    {row ? <><IngredientDisclosure row={row} /><span className="ingredient-composition-disclosure">{row.market_code === 'KR' ? '한국 확인 자료' : row.is_current_resolved_formula ? '국내 동일 배합으로 확인된 자료' : '한국 판매 제품과 배합 대응 미확인 자료'}</span></> : null}
+    {row ? <IngredientDisclosure row={row} /> : null}
     {product && result.id === productId && !result.loading && !result.error ? <IngredientQuestionsButton product={{productId,brand:product.brand,name:product.canonical_name}} source={row} avoidLabels={avoidLabels} /> : null}
   </span>
 }

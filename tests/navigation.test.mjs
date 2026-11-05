@@ -195,6 +195,7 @@ test('direct detail URL restores the selected tab and still provides a way back 
   assert.equal(nutritionTab?.getAttribute('aria-selected'), 'true')
   assert.equal(nutritionTab?.getAttribute('aria-controls'), 'detail-panel-nutrition')
   assert.equal(document.querySelector('[role="tabpanel"]:not([hidden])')?.getAttribute('aria-labelledby'), 'detail-tab-nutrition')
+  assert.equal(document.querySelector('.detail-return-action').textContent,'← 돌아가기 · 제품 목록')
   await click('제품 목록')
   assert.equal(document.querySelector('.detail-stage'), null)
   assert.ok(document.querySelector('.research-results'))
@@ -1451,7 +1452,8 @@ test('quick view and detail return restore the document and inner list position 
     y = 0 // A mobile quick view hides the list and clamps its document scroll.
     await click('상세 보기 →')
     assert.equal(window.history.state.catfoodDetailEntry, true)
-    await click('돌아가기 · 제품 목록')
+    assert.equal(document.querySelector('.detail-return-action').textContent,'← 돌아가기 · 제품 정보')
+    await click('돌아가기 · 제품 정보')
     await waitForUi(() => document.querySelector('.research-quick-view'), 'detail returned to quick view')
     assert.equal(y, 0, 'do not restore an offscreen list behind quick view')
     await click('닫기 ×')

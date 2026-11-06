@@ -1,4 +1,7 @@
 /* Component layout and visual rules. Shared tokens live in styles.css. */
+.compare-ingredient-verdict { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.compare-ingredient-verdict strong { font-weight: 600; }
+.compare-ingredient-verdict small { color: var(--research-muted); font-size: 12px; line-height: 1.6; }
 @media (max-width: 760px) {.is-switch-overview .compare-switch-mobile-overview .compare-mobile-candidate-picker {
     gap: 0;
     padding: 0;
@@ -1587,6 +1590,10 @@
   .compare-ingredient-pair-summary { margin-bottom: 20px; }
   .compare-ingredient-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .compare-ingredient-pair > div { min-width: 0; overflow-wrap: anywhere; }
+  .compare-ingredient-avoidance { margin: 16px 0; }
+  .compare-ingredient-avoidance > div + div { margin-top: 16px; }
+  .compare-ingredient-avoidance dt { margin-bottom: 6px; font-size: 12px; font-weight: 700; }
+  .compare-ingredient-avoidance dd { margin: 0; }
   .compare-ingredient-summary-values p { margin: 12px 0; font-size: 15.5px; line-height: 1.65; }
   .compare-ingredient-summary-values p small { display: block; }
   .compare-ingredient-pair .compare-ingredient-text { font-size: 13px; line-height: 1.65; }

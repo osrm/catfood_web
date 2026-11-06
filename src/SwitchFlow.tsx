@@ -1810,6 +1810,8 @@ export default function SwitchFlow({
           reviewSummary={renderJourneyRecords()}
           onDisplayedCandidates={(ids) => ids.forEach((id) => recordSwitchConsideration(id, 'compare_view', ids))}
           items={compareItems}
+          ingredientAvoidTerms={ingredientAvoidTerms}
+          ingredientLoad={ingredientLoad}
           criteriaLabels={journeyContext()?.labels ?? []}
           decisionPurpose={journey.purpose}
           sourceViewLabel={sourceViewLabel}

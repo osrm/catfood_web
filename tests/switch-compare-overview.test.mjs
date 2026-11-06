@@ -167,6 +167,89 @@ async function click(node) {
   await settle()
 }
 
+test('selected avoidance rows distinguish confirmed, reviewed-not-found and unknown before the ingredient list', async () => {
+  await renderCompare({
+    initialTab: 'ingredients', ingredientAvoidTerms: ['salmon', 'chicken'],
+    currentProduct: { ...current, confirmed_present_ingredient_terms: ['salmon'] },
+    items: [
+      { product: { ...candidateA, reviewed_not_found_ingredient_terms: ['salmon'], confirmed_present_ingredient_terms: ['chicken'] } },
+      { product: { ...candidateB, canonical_name: '연어 이름은 판정 근거가 아님', direct_evidence_ingredient_terms: [], insufficient_evidence_ingredient_terms: ['salmon'] } },
+    ],
+  })
+  const table = document.querySelector('.compare-ingredient-wide')
+  const rows = [...table.querySelectorAll('.compare-switch-overview-row')]
+  assert.equal(rows[0].querySelector('.compare-row-label').textContent, '연어 확인 결과')
+  assert.deepEqual([...rows[0].querySelectorAll('[data-evidence-state]')].map(node => node.dataset.evidenceState), ['present', 'reviewed-not-found', 'unknown'])
+  assert.match(rows[0].textContent, /원료가 없다는 보장은 아닙니다/)
+  assert.match(rows[0].textContent, /판단 근거 부족.*포함 여부를 확인해야 합니다/s)
+  assert.equal(rows[1].querySelector('.compare-row-label').textContent, '닭 확인 결과')
+  assert.deepEqual([...rows[1].querySelectorAll('[data-evidence-state]')].map(node => node.dataset.evidenceState), ['unknown', 'present', 'unknown'])
+  assert.equal(rows[2].querySelector('.compare-row-label').textContent, '목록 상태')
+  assert.doesNotMatch(rows[0].textContent, /연어 없음|안전|적합|추천/)
+  const mobile = document.querySelector('.compare-ingredient-pair-summary')
+  const values = () => [...mobile.querySelectorAll('.compare-ingredient-avoidance > div:first-child [data-evidence-state]')].map(node => node.dataset.evidenceState)
+  assert.deepEqual(values(), ['present', 'reviewed-not-found'])
+  await click(document.querySelector('.compare-ingredient-mobile-summary .compare-mobile-candidate-toggle'))
+  await click(document.querySelector(`.compare-ingredient-mobile-summary [data-product-id="${candidateB.product_id}"]`))
+  assert.deepEqual(values(), ['present', 'unknown'])
+  assert.doesNotMatch(mobile.textContent, /찾지 못함|없다는 보장/)
+})
+
+test('complete raw ingredient lists and a failed source read cannot turn unknown into reviewed-not-found', async () => {
+  globalThis.fetch = window.fetch = async input => {
+    const url = new URL(String(input))
+    requests.push(url)
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+      const ids = (url.searchParams.get('product_id') ?? '').slice(4, -1).split(',')
+      return Response.json(ids.map(product_id => ({ product_id, completeness_status: 'full', raw_text: '닭고기, 어유', ingredient_names: ['닭고기', '어유'] })))
+    }
+    return Response.json([])
+  }
+  const { baseProps } = await renderCompare({ initialTab: 'ingredients', ingredientAvoidTerms: ['salmon'] })
+  const verdicts = () => [...document.querySelectorAll('.compare-ingredient-wide [data-evidence-state]')]
+  assert.deepEqual(verdicts().map(node => node.dataset.evidenceState), ['unknown', 'unknown', 'unknown'])
+  assert.match(document.querySelector('.compare-ingredient-wide').textContent, /전체 목록 확인/)
+  globalThis.fetch = window.fetch = async () => new Response('', { status: 503 })
+  await act(async () => root.render(createElement(app.CompareView, {
+    ...baseProps, items: [{ product: product('product_failed_source', '후보', '원문 조회 실패 제품', { reviewed_not_found_ingredient_terms: ['salmon'] }) }],
+  })))
+  await settle()
+  const candidate = verdicts().at(-1)
+  assert.equal(candidate.dataset.evidenceState, 'reviewed-not-found')
+  assert.match(candidate.textContent, /없다는 보장은 아닙니다/)
+  assert.match(document.body.textContent, /불러오지 못했습니다/)
+})
+
+test('ingredient facts loading and failure stay separate from an unknown verdict and retry is available', async () => {
+  let retries = 0
+  const missing = { ...candidateA, confirmed_present_ingredient_terms: null, reviewed_not_found_ingredient_terms: null }
+  const load = { status: 'loading', onRequest() {}, onRetry() { retries++ } }
+  const { baseProps } = await renderCompare({ initialTab: 'ingredients', currentProduct: null, ingredientAvoidTerms: ['salmon'], items: [{ product: missing }], ingredientLoad: load })
+  const states = () => [...document.querySelectorAll('.compare-ingredient-verdict')].map(node => node.dataset.evidenceState)
+  assert.deepEqual(states(), ['loading', 'loading'])
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, ingredientLoad: { ...load, status: 'error' } })))
+  await settle()
+  assert.deepEqual(states(), ['error', 'error'])
+  assert.doesNotMatch(document.querySelector('.compare-ingredient-pair-summary').textContent, /판단 근거 부족|찾지 못함/)
+  await click(document.querySelector('.compare-ingredient-mobile-summary .catalog-inline-state button'))
+  assert.equal(retries, 1)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, ingredientLoad: { ...load, status: 'loaded' }, items: [{ product: candidateA }] })))
+  await settle()
+  assert.deepEqual(states(), ['unknown', 'unknown'])
+})
+
+test('avoidance result rows are absent without selected terms and confirmed presence takes precedence', async () => {
+  const { baseProps } = await renderCompare({ initialTab: 'ingredients' })
+  assert.equal(document.querySelector('.compare-ingredient-verdict'), null)
+  await act(async () => root.render(createElement(app.CompareView, {
+    ...baseProps, currentProduct: null, ingredientAvoidTerms: ['salmon'],
+    items: [{ product: { ...candidateA, confirmed_present_ingredient_terms: ['salmon'], reviewed_not_found_ingredient_terms: ['salmon'] } }],
+  })))
+  await settle()
+  assert.deepEqual([...document.querySelectorAll('.compare-ingredient-verdict')].map(node => node.dataset.evidenceState), ['present', 'present'])
+  assert.doesNotMatch(document.querySelector('.compare-ingredient-pair-summary').textContent, /찾지 못함/)
+})
+
 test('SWITCH overview keeps current food as a non-removable baseline and excludes it from compare API requests', async () => {
   await renderCompare()
   const currentHead = document.querySelector('.compare-current-product-head')

@@ -30,6 +30,7 @@ try {
    if(row){
     const boxes=await row.evaluate(node=>{const r=el=>{const b=el.getBoundingClientRect();return{top:b.top,bottom:b.bottom}};return{explanation:r(node.querySelector('.candidate-explanation')),action:r(node.querySelector('.switch-candidate-open')),compare:r(node.parentElement.querySelector('.switch-candidate-compare'))}})
     assert.ok(boxes.explanation.bottom<=Math.min(boxes.action.top,boxes.compare.top)+1,`${width}-${key}: explanation/action overlap`)
+    await row.evaluate(node=>scrollTo(0,Math.max(0,scrollY+node.getBoundingClientRect().top-80)))
     await row.screenshot({path:`${OUT}/${width}-${key}-card.png`})
    }
   }

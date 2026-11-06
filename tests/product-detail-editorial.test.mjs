@@ -751,8 +751,8 @@ test('comparison keeps supplemental nutrition and ingredient source layers behin
   assert.ok(nutritionDisclosure)
   assert.equal(nutritionDisclosure.open, false)
   nutritionDisclosure.open = true
-  assert.match(nutritionDisclosure.textContent, /보완 항목조회분/)
-  assert.match(nutritionDisclosure.textContent, /보완 자료 범위/)
+  assert.match(nutritionDisclosure.textContent, /추가 자료로 확인한 항목조회분/)
+  assert.match(nutritionDisclosure.textContent, /추가 자료의 적용 범위/)
   assert.match(document.body.textContent, /수분을 제외한 영양성분단백질42% 이상/)
 
   const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
@@ -834,7 +834,7 @@ test('comparison renders provided-energy evidence without inventing an empty ing
   assert.ok(nutritionEvidence)
   assert.match(nutritionEvidence.textContent, /원래 열량 표기/)
   assert.match(nutritionEvidence.textContent, /97 kcal\/100g/)
-  assert.doesNotMatch(nutritionEvidence.textContent, /보완 항목|보완 자료 범위/)
+  assert.doesNotMatch(nutritionEvidence.textContent, /추가 자료로 확인한 항목|추가 자료의 적용 범위/)
 
   const ingredientsTab = [...document.querySelectorAll('.compare-tabs button')].find((node) => node.textContent.trim() === '원재료')
   await act(async () => {

@@ -301,16 +301,16 @@ function currentStepIndex(step: SwitchStep): number {
 function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string): string {
   const direct = source.direct_evidence_ingredient_terms?.includes(term)
   const flavor = source.flavor_associated_ingredient_terms?.includes(term)
-  if (direct && flavor) return '직접 · 향미 관련 근거'
-  if (direct) return '직접 근거'
-  if (flavor) return '향미 관련 근거'
-  return '확인 근거'
+  if (direct && flavor) return '원재료·향미 관련 정보에서 확인'
+  if (direct) return '원재료에서 확인'
+  if (flavor) return '향미 관련 정보에서 확인'
+  return '관련 자료에서 확인'
 }
 
 function ingredientAvoidanceStatus(product: CatalogProduct, term: string): string {
-  if (product.confirmed_present_ingredient_terms?.includes(term)) return '확인됨 — 피하려는 원료와 일치'
-  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return '검토한 자료에서 찾지 못함'
-  return '판단 근거 부족'
+  if (product.confirmed_present_ingredient_terms?.includes(term)) return '확인됨 — 선택한 원료와 일치'
+  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return `미확인 · 확인 자료에 ${ingredientLabel(term)} 표기 없음`
+  return '미확인 · 확인 자료 부족'
 }
 
 function SwitchTopbar({
@@ -615,10 +615,10 @@ function RelationBlock({ evaluation, showReviewed = true }: { evaluation: Switch
   return (
     <div className="switch-candidate-relations">
       {showReviewed && evaluation.ingredientReviewedNotFound.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-reviewed" data-evidence-state="reviewed-not-found"><span>피할 원료 확인</span><strong>검토한 자료에서 {evaluation.ingredientReviewedNotFound.join(' · ')} 원료를 찾지 못했어요.</strong><small>원료가 없다고 확정한 결과는 아니에요.</small></div>
+        <div className="switch-relation-line is-ingredient-reviewed" data-evidence-state="reviewed-not-found"><span>원료 미확인</span><strong>확인 자료에 {evaluation.ingredientReviewedNotFound.join(' · ')} 표기 없음</strong><small>원료가 없다고 확정한 결과는 아니에요.</small></div>
       ) : null}
       {evaluation.ingredientInsufficient.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-unknown" data-evidence-state="unknown"><span>원료 확인이 더 필요해요</span><strong>{evaluation.ingredientInsufficient.join(' · ')} 원료가 있는지 아직 확인하지 못했어요.</strong>{evaluation.ingredientInsufficient.includes('닭') && /닭|chicken/i.test(evaluation.product.canonical_name) ? <small>제품 이름에는 닭고기 표기가 있어요. 원재료를 더 확인해야 해요.</small> : null}</div>
+        <div className="switch-relation-line is-ingredient-unknown" data-evidence-state="unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.join(' · ')} · 확인 자료 부족</strong>{evaluation.ingredientInsufficient.includes('닭') && /닭|chicken/i.test(evaluation.product.canonical_name) ? <small>제품 이름에는 닭고기 표기가 있어요. 원재료를 더 확인해야 해요.</small> : null}</div>
       ) : null}
       {evaluation.keepMatches.length > 0 ? (
         <div className="switch-relation-line is-keep"><span>유지할 점</span><strong>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</strong></div>
@@ -1329,7 +1329,7 @@ export default function SwitchFlow({
     if (!evaluation || !currentProduct) return null
     return <section className="detail-selection-context" aria-label="현재 사료와 선택한 조건의 확인 결과">
       <DecisionPurposeSummary purpose={journey.purpose} compact />
-      {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 이 제품의 판정은 아닙니다.</p> : null}
+      {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 이 제품의 품질이나 적합성을 뜻하지 않습니다.</p> : null}
       <p className="detail-selection-baseline">지금 먹이는 사료 · <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong> · {currentVariantText}</p>
       {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
       {!purposeFocus ? <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} /> : null}
@@ -1601,7 +1601,7 @@ export default function SwitchFlow({
             )) : <span>확인 대상 원료에서 찾지 못했습니다.</span>}
           </div>
         ) : null}
-        <p className="switch-ingredient-note">해당 원료가 <strong>확인된</strong> 제품은 후보에서 제외합니다. ‘찾지 못함’은 원료가 없다는 보장은 아닙니다.</p>
+        <p className="switch-ingredient-note">해당 원료가 <strong>확인된</strong> 제품은 후보에서 제외합니다. 미확인인 제품도 남으며, 원료가 없다는 보장은 아닙니다.</p>
       </CriterionSection>
     )
   }
@@ -1955,7 +1955,7 @@ export default function SwitchFlow({
                   <label className="switch-energy-lower"><input type="checkbox" checked={candidateEnergy === 'lower'} disabled={!canCompareEnergy} onChange={event => updateSession(current => ({ ...current, candidateEnergy: event.target.checked ? 'lower' : 'all', selectedCandidateId: null, visibleCandidateCount: 40 }))} />같은 형태에서 현재 표기값보다 낮은 후보 보기</label>
                   <p>{canCompareEnergy ? '열량·사료 형태가 미확인인 제품도 남습니다. 낮은 열량이 더 적합하다는 뜻은 아닙니다.' : '현재 사료의 열량이나 형태를 확인하지 못해 열량으로 목록을 좁히지 않았습니다.'}</p>
                   {lowerEnergyActive ? <p role="status">낮은 표기값 확인 {searchedCandidates.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) != null).length}개 · 열량 비교 미확인 {searchedCandidates.filter(item => switchEnergyDifference(currentProduct, item.product, currentEnergy, energy.byProduct.get(item.product.product_id)) == null).length}개</p> : null}
-                  {energyPackages.status === 'error' ? <button type="button" onClick={energyPackages.retry}>근거 포장 용량 다시 불러오기</button> : null}
+                  {energyPackages.status === 'error' ? <button type="button" onClick={energyPackages.retry}>열량 확인 포장 용량 다시 불러오기</button> : null}
                 </> : null}
               </>}
             </section> : null}
@@ -1990,11 +1990,11 @@ export default function SwitchFlow({
               {candidates.length > 0 && !candidateSearchActive && candidateBrowseActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 표기의 후보가 없습니다.</strong><span>위에서 좁힌 항목을 해제해 다른 후보를 살펴보세요.</span></div> : null}
               {ingredientAvoidTerms.length ? <>
                 {reviewedCandidates.length ? <section className="switch-candidate-group is-reviewed" aria-labelledby="switch-reviewed-heading">
-                  <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">선택한 원료를 찾지 못한 후보</h2><p id="switch-reviewed-note">검토한 자료 기준이에요. 원료가 없다고 확정한 결과는 아니에요.</p></div>
+                  <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">선택한 원료 표기 미확인</h2><p id="switch-reviewed-note">확인 자료에 선택한 원료의 표기가 없습니다. 원료가 없다는 보장은 아닙니다.</p></div>
                   {reviewedCandidates.map(renderCandidateRow)}
                 </section> : null}
                 {unresolvedCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-labelledby="switch-unresolved-heading">
-                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">원료 확인이 더 필요한 제품</h2><p id="switch-unresolved-note">피하려는 원료가 있는지 아직 확인하지 못했어요. 원재료를 먼저 살펴보세요.</p></div>
+                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">확인 자료가 부족한 후보</h2><p id="switch-unresolved-note">포함 여부를 확인할 자료가 부족합니다. 원료표를 추가로 확인해 주세요.</p></div>
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
@@ -2075,7 +2075,7 @@ export default function SwitchFlow({
                   <section className="switch-inspector-section switch-ingredient-inspector">
                     <h2>피하고 싶은 원료</h2>
                     <dl>{ingredientAvoidTerms.map((term) => <div key={term}><dt>{ingredientLabel(term)}</dt><dd>{ingredientAvoidanceStatus(selectedCandidate.product, term)}</dd></div>)}</dl>
-                    <p>‘검토한 자료에서 찾지 못함’은 해당 원료가 없다는 보장이 아닙니다.</p>
+                    <p>확인 자료에 표기가 없어도 해당 원료가 없다는 보장은 아닙니다.</p>
                   </section>
                 ) : null}
 

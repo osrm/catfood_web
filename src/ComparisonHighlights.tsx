@@ -30,13 +30,13 @@ function CompactList({ values }: { values: string[] }) {
 function conditionLines(item: CompareItem) {
   return [...new Set([
     ...(item.ingredientConflicts ?? []).map(value => `피하려는 원료 확인 · ${value}`),
-    ...(item.ingredientInsufficient ?? []).map(value => `${value} · 원료 판단 근거 부족`),
+    ...(item.ingredientInsufficient ?? []).map(value => `${value} · 미확인 — 확인 자료 부족`),
     ...(item.unknowns ?? []).map(value => `조건 미확인 · ${value}`),
     ...(item.changeMatches ?? []).map(value => `바꿀 조건 확인 · ${value}`),
     ...(item.keepMatches ?? []).map(value => `유지할 조건 확인 · ${value}`),
     ...(item.confirmedMatches ?? []).map(value => `선택 조건 확인 · ${value}`),
     ...(item.conditionDifferences ?? []).map(value => `선택 조건과 표기 다름 · ${value}`),
-    ...(item.ingredientReviewedNotFound ?? []).map(value => `${value} · 검토한 자료에서 찾지 못함`),
+    ...(item.ingredientReviewedNotFound ?? []).map(value => `${value} · 미확인 — 확인 자료에 표기 없음 (원료가 없다는 보장 아님)`),
   ])]
 }
 

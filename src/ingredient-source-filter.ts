@@ -5,7 +5,7 @@ export const SOURCE_FILTERS = [
   ['all', '모두 보기'],
   ['full', '전체 목록이 있는 자료'],
   ['partial', '일부 목록·전체 여부 미확인'],
-  ['missing', '원문 미확보'],
+  ['missing', '원료표 미확인'],
   ['wording', '세부 종류를 더 확인할 표기'],
   ['scope', '한국 제품에 적용 여부 미확인'],
 ] as const

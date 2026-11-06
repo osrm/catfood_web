@@ -45,7 +45,7 @@ function QuestionDialog({ product, source, avoidLabels, saved, onSave, onClose }
     {draft ? <><p className="question-source">질문 작성 때 살펴본 자료 · {draft.source}</p>
       <fieldset className="ingredient-question-options" disabled={loading}><legend>확인할 질문 선택</legend>{draft.items.map(item => <label key={item}><input type="checkbox" checked={selected.includes(item)} onChange={event => { setCopyStatus(''); setSelected(values => event.target.checked ? [...values, item] : values.filter(value => value !== item)) }} /><span>{item}</span></label>)}</fieldset>
       <textarea aria-label="복사할 제품 확인 질문" readOnly rows={9} value={value ? ingredientQuestionsText(product, value) : ''} onFocus={event => event.target.select()} />
-      <p className="journey-note">확인하려고 정리한 질문입니다. 아직 답변이나 원료의 부재를 확인한 내용은 아닙니다.</p>
+      <p className="journey-note">확인하려고 정리한 질문입니다. 아직 답변이나 원료가 없음을 확인한 내용은 아닙니다.</p>
       <div className="question-actions"><button className="secondary-action" type="button" disabled={loading || !selected.length} onClick={async () => {
         if (!value) return
         try { if (!navigator.clipboard) throw new Error('clipboard unavailable'); await navigator.clipboard.writeText(ingredientQuestionsText(product, value)); setCopyStatus('질문을 복사했습니다.') }

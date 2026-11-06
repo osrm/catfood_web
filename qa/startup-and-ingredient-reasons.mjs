@@ -52,8 +52,8 @@ try {
     for(let i=0;i<25;i++){const more=page.getByRole('button',{name:/제품 더 보기/});if(!await more.count())break;await more.click()}
     const royal=page.locator('.research-result-card[data-product-id="product_5b13354ad9792881"]')
     await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
-    assert.match(await royal.innerText(),/어유 — 세부 어종 미기재/)
-    assert.match(await royal.innerText(),/검토 자료에서 못 찾음[\s\S]*연어/)
+    assert.match(await royal.innerText(),/어유 — 세부 어종 미표기/)
+    assert.match(await royal.innerText(),/원료 미확인[\s\S]*연어[\s\S]*확인 자료에 표기 없음/)
     assert.match(await royal.innerText(),/자료 범위 · 한국 자료 · 제품 자료/)
     await capture('avoidance-card', '.research-result-card[data-product-id="product_5b13354ad9792881"]')
     await royal.click()
@@ -64,7 +64,7 @@ try {
     assert.match(questionText,/로얄캐닌.*노르웨이/s)
     assert.match(questionText,/어유.*어종/s)
     assert.match(questionText,/연어.*포함 여부/s)
-    assert.match(questionText,/답변이나 원료 부재를 확인한 기록은 아닙니다/)
+    assert.match(questionText,/답변이나 원료가 없음을 확인한 기록은 아닙니다/)
     await capture('quick-questions','dialog[aria-label="제품 확인 질문"]')
     await questions.getByRole('button',{name:'닫기',exact:true}).click()
     await page.getByRole('button',{name:'닫기 ×',exact:true}).filter({visible:true}).first().click()
@@ -83,7 +83,7 @@ try {
     failSources=false
     await page.getByRole('button',{name:'추가 확인 사항 다시 불러오기',exact:true}).click()
     await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
-    assert.match(await royal.innerText(),/어유 — 세부 어종 미기재/)
+    assert.match(await royal.innerText(),/어유 — 세부 어종 미표기/)
     await capture('source-recovered','.research-result-card[data-product-id="product_5b13354ad9792881"]')
 
     await page.goto(BASE,{waitUntil:'domcontentloaded'})
@@ -101,7 +101,7 @@ try {
     await page.getByRole('searchbox',{name:'후보 제품 검색'}).fill('로얄캐닌 노르웨이')
     const candidate=page.locator('.switch-candidate-row[data-product-id="product_5b13354ad9792881"]')
     await candidate.locator('.ingredient-list-reason').waitFor({timeout:45000})
-    assert.match(await candidate.innerText(),/어유 — 세부 어종 미기재/)
+    assert.match(await candidate.innerText(),/어유 — 세부 어종 미표기/)
     await capture('switch-reason','.switch-candidate-row[data-product-id="product_5b13354ad9792881"]')
     await candidate.click()
     await page.getByRole('button',{name:'상세 보기 →',exact:true}).filter({visible:true}).first().click()

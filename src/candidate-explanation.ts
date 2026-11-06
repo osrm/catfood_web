@@ -23,7 +23,7 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
     else {
       const description = (row?: ListIngredientSource) => [ingredientDisclosureReading(row).listLabel, ...ingredientWordingExamples(row).slice(0, 1).map(text => text.length > 150 ? text.slice(0, 147) + '…' : text)].join(' · ')
       const before = description(beforeSource), after = description(afterSource)
-      if (before !== after) differences.push(`확보한 원료표 — 현재: ${before} → 후보: ${after}`)
+      if (before !== after) differences.push(`확인한 원료표 — 현재: ${before} → 후보: ${after}`)
       const scopeChecks = ([['현재', beforeSource], ['후보', afterSource]] as const).flatMap(([label, row]) => {
         if (!row?.raw_text?.trim()) return []
         const notes = []
@@ -35,7 +35,7 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
       if (before === after) unknowns.push('원료표 요약은 같지만, 전체 원료 구성까지 같은지는 원문 비교가 필요합니다.')
       for (const [label, row] of [['현재', beforeSource], ['후보', afterSource]] as const) {
         const reading = ingredientDisclosureReading(row)
-        if (!row?.raw_text?.trim()) unknowns.push(`${label}: 원료표 원문 미확보로 세부 원료를 판단할 수 없습니다.`)
+        if (!row?.raw_text?.trim()) unknowns.push(`${label}: 원료표 자료가 없어 세부 원료를 확인하기 어렵습니다.`)
         else {
           if (row.completeness_status !== 'full') unknowns.push(`${label}: 전체 원료 목록을 확인하지 못했습니다.`)
           if (reading.details.length) unknowns.push(`${label}: ${reading.details.slice(0, 2).map(item => `${item.phrase} — ${item.note}`).join(' / ')}`)
@@ -51,8 +51,8 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
     if (kind === 'ingredientAvoid') {
       if (candidate.reviewed_not_found_ingredient_terms?.includes(value)) {
         const before = current.confirmed_present_ingredient_terms?.includes(value) ? '현재 자료에서 확인' : '현재 포함 여부 미확인'
-        ingredientDifferences.push(`${label} 원료 — ${before} → 후보는 검토 자료에서 찾지 못함 (부재 보장 아님)`)
-      } else ingredientUnknowns.push(`${label} 원료: 후보에 포함되는지 판단할 근거가 부족합니다.`)
+        ingredientDifferences.push(`${label} 원료 — ${before} → 후보 미확인 · 확인 자료에 표기 없음 (원료가 없다는 보장 아님)`)
+      } else ingredientUnknowns.push(`${label} 원료: 후보 미확인 · 확인 자료 부족`)
       continue
     }
     const field = kind === 'brand' ? 'brand' : kind === 'feedType' ? 'feed_type' : kind === 'lifeStage' ? 'life_stage' : null
@@ -87,7 +87,7 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
         const scope = supplemental ? row?.supplemental_observation_scope : row?.observation_scope
         const market = supplemental ? row?.supplemental_market_code : row?.market_code
         references.push(`${label} 열량 · ${market === 'KR' ? '한국' : market ?? '국가 미확인'} 자료 · ${scope === 'variant' ? '특정 포장 기준' : scope === 'formula' ? '동일 배합 확인 자료' : '제품 자료'}`)
-        if (scope === 'variant' && (label === '후보' || supplemental || !row?.variant_id || row.variant_id !== currentVariantId)) unknowns.push(label === '현재' ? '현재 열량 근거 포장과 선택한 사용 규격의 일치 여부는 미확인입니다.' : '후보 열량은 특정 포장 기준입니다. 모든 판매 규격의 같은 값인지는 미확인입니다.')
+        if (scope === 'variant' && (label === '후보' || supplemental || !row?.variant_id || row.variant_id !== currentVariantId)) unknowns.push(label === '현재' ? '현재 열량 열량 확인 포장과 선택한 사용 규격의 일치 여부는 미확인입니다.' : '후보 열량은 특정 포장 기준입니다. 모든 판매 규격의 같은 값인지는 미확인입니다.')
       }
     }
     unknowns.push('표기 열량만으로 급여량이나 체중 변화·적합성을 판단할 수 없습니다.')

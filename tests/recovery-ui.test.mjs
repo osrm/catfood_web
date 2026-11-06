@@ -470,7 +470,7 @@ test('HOME starts from current food and exposes reading topics without inventing
   const sourceLinks = all('.home-official-links a')
   assert.deepEqual(sourceLinks.map(node => new URL(node.href).hostname), ['www.fda.gov', 'www.mafra.go.kr'])
   assert.ok(sourceLinks.every(node => node.target === '_blank' && node.rel.includes('noopener')))
-  assert.match(document.querySelector('.home-safety-scope').textContent, /자동 수집하거나.*판정하지 않습니다/)
+  assert.match(document.querySelector('.home-safety-scope').textContent, /자동으로 모으거나.*확인해 주지는 않습니다/)
   assert.equal(document.querySelector('.home-safety-list'), null, 'no fictitious recall records on the normal HOME')
   assert.equal(calls(), 1, 'reading the guide does not refetch catalog')
   await click('먹이는 사료 찾기 →')

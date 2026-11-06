@@ -6,7 +6,7 @@ import './ingredient-disclosure.css'
 export default function IngredientDisclosure({ row }: { row: CompareIngredients }) {
   const reading = ingredientDisclosureReading(row)
   return <span className="ingredient-disclosure" role="group" aria-label="원료 정보 확인 범위">
-    <span className="ingredient-disclosure-row"><small>원료표 확보</small><strong>{reading.listLabel}</strong></span>
+    <span className="ingredient-disclosure-row"><small>확인한 원료표</small><strong>{reading.listLabel}</strong></span>
     <span className="ingredient-disclosure-row ingredient-source-scope"><small>자료 범위</small><strong>{ingredientSourceScope(row).label}</strong></span>
     {reading.details.length ? <>
       <span className="ingredient-disclosure-row"><small>세부 종류</small><strong>표기에서 더 확인할 점</strong></span>

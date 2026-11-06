@@ -68,7 +68,7 @@ export function EnergyEvidence({ row, packages, packageStatus, currentVariantId 
   const found = variantId ? packages.get(variantId) : undefined
   const label = found?.product_id === row.product_id ? found.package_size_text : null
   const source = scope === 'variant'
-    ? label ? `근거 포장 · ${label}` : variantId && packageStatus === 'loading' ? '근거 포장 용량 확인 중' : variantId && packageStatus === 'error' ? '근거 포장 용량 조회 실패' : '근거 포장 용량 미확인'
+    ? label ? `열량 확인 포장 · ${label}` : variantId && packageStatus === 'loading' ? '열량 확인 포장 용량 확인 중' : variantId && packageStatus === 'error' ? '열량 확인 포장 용량 조회 실패' : '열량 확인 포장 용량 미확인'
     : scope === 'formula' ? '같은 배합으로 확인한 자료' : scope === 'product' ? '제품에 대해 확인한 자료' : '자료 범위 미확인'
   return <span className="switch-energy-evidence">
     <span>{nutritionInterpretationNote(row, 'energy') ?? source}{market ? ` · ${market === 'KR' ? '한국' : market} 자료` : ''}</span>

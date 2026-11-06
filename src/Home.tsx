@@ -34,7 +34,7 @@ const DEMO_RECALLS: DemoRecall[] = [
 
 const GUIDES = [
   { number: '01', tag: '열량', title: '열량 단위가 다르면?', example: '3,480 kcal/kg = 348 kcal/100g', text: 'kcal/kg는 1kg, kcal/100g는 100g에 들어 있는 열량입니다. kg 기준 값을 10으로 나누면 100g 기준이 됩니다. 표시 단위를 맞춘 환산이며, 더 높은 값이 더 좋은 사료라는 뜻은 아닙니다.' },
-  { number: '03', tag: '원재료', title: '오리 레시피면 오리만 들어 있나요?', example: '레시피 이름 ≠ 전체 원재료', text: '레시피 이름과 실제 원재료 목록은 다릅니다. 피하고 싶은 원료가 있다면 이름만으로 판단하지 말고 원재료 목록을 확인하세요. 자료에서 찾지 못했다는 것도 실제로 없다는 보장은 아닙니다.' },
+  { number: '03', tag: '원재료', title: '오리 레시피면 오리만 들어 있나요?', example: '레시피 이름 ≠ 전체 원재료', text: '레시피 이름과 실제 원재료 목록은 다릅니다. 피하고 싶은 원료가 있다면 이름만으로 판단하지 말고 원재료 목록을 확인하세요. 미확인으로 표시돼도 실제로 원료가 없다는 뜻은 아닙니다.' },
   { number: '04', tag: '확인 상태', title: '‘미확인’이라고 나오면?', example: '미확인 ≠ 없음', text: '현재 자료로 판단할 수 없다는 뜻입니다. 성분이 없거나 제품이 조건에 맞지 않는다고 단정하지 않습니다. 원문과 확인된 범위는 제품 상세에서 살펴볼 수 있습니다.' },
 ]
 
@@ -56,12 +56,12 @@ const GLOSSARY = [
     definition: '현재 검토한 자료에서 해당 사실을 직접 확인한 상태입니다.',
   },
   {
-    term: '검토 근거에서 찾지 못함',
-    definition: '검토한 원재료 표기 등에서 해당 항목을 찾지 못한 상태입니다. 실제로 없다는 보장은 아닙니다.',
+    term: '미확인',
+    definition: '확인한 자료에 해당 원료의 표기가 없거나, 확인할 자료가 부족한 상태입니다. 실제로 원료가 없다는 뜻은 아닙니다.',
   },
   {
-    term: '미확인 · 근거 부족',
-    definition: '현재 공개된 자료만으로는 판단하기 어려운 상태입니다.',
+    term: '미확인 사유',
+    definition: '‘확인 자료에 표기 없음’과 ‘확인 자료 부족’을 구분해 안내합니다. ‘세부 어종 미표기’는 확인한 원료표에서 어떤 생선인지 알 수 없다는 뜻입니다. 제품의 품질이나 적합성을 평가한 표시는 아닙니다.',
   },
 ]
 
@@ -190,7 +190,7 @@ export default function Home({
               <a href="https://www.mafra.go.kr/home/5108/subview.do" target="_blank" rel="noopener noreferrer"><span>농림축산식품부<small>한국 · 공지·공고</small></span><span aria-hidden="true">↗</span><span className="visually-hidden">새 탭에서 열기</span></a>
             </nav>
           </div>
-          <p className="home-safety-scope">외부 공식 사이트로 이동합니다. 이 화면은 리콜 목록을 자동 수집하거나 내 제품의 해당 여부를 판정하지 않습니다.</p>
+          <p className="home-safety-scope">외부 공식 사이트로 이동합니다. 이 화면에서 리콜 목록을 자동으로 모으거나 내 제품이 해당되는지 확인해 주지는 않습니다.</p>
         </section>
 
         </details>

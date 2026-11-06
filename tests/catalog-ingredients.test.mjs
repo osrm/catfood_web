@@ -359,6 +359,10 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  assert.equal(sourceRequests.length,1,'one batched read covers the visible list')
  assert.equal(sourceRequests[0].url.searchParams.get('select').split(',').length,7)
  assert.ok(!sourceRequests[0].url.search.includes(rows[0].product_id),'excluded products do not get a raw source read')
+ await click('Beta');await click('비교에 추가');await click('닫기');await click('비교 보기');await click('원재료')
+ const result=[...document.querySelectorAll('.compare-row')].find(node=>node.querySelector('.compare-row-label')?.textContent==='연어 확인 결과')
+ assert.ok(result,'applied avoidance terms reach general comparison')
+ assert.match(result.textContent,/검토 자료에서 찾지 못함.*원료가 없다는 보장은 아닙니다/s)
 })
 
 test('source explanation failure preserves avoidance results and retries separately from term facts',async()=>{

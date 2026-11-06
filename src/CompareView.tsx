@@ -18,6 +18,7 @@ import type { CompareTab, DetailTab } from './navigation-state'
 import ComparisonHighlights, { highlightEnergy, type HighlightFact } from './ComparisonHighlights'
 import { DecisionPurposeSummary } from './DecisionPurpose'
 import type { DecisionPurpose } from './journey-records'
+import { INGREDIENT_AVOID_LABELS } from './search'
 
 export type CompareItem = {
   product: CatalogProduct
@@ -258,18 +259,27 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
     </CompareDisclosure>
   </div>
 }
-function IngredientPairSummary({ products, currentProductId, currentVariantText, onDetail, onRemove, source }: {
+function IngredientAvoidanceResult({ product, term, load }: { product: CatalogProduct; term: string; load?: CatalogIngredientLoad }) {
+  if (product.confirmed_present_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="present"><strong>자료에서 확인됨</strong></div>
+  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="reviewed-not-found"><strong>검토 자료에서 찾지 못함</strong><small>원료가 없다는 보장은 아닙니다.</small></div>
+  const pending = product.confirmed_present_ingredient_terms == null || product.reviewed_not_found_ingredient_terms == null
+  if (pending && load && load.status !== 'loaded') return <div className="compare-ingredient-verdict" data-evidence-state={load.status === 'error' ? 'error' : 'loading'}><strong>{load.status === 'error' ? '원료 확인 정보 조회 실패' : '원료 확인 정보를 불러오는 중'}</strong></div>
+  return <div className="compare-ingredient-verdict" data-evidence-state="unknown"><strong>판단 근거 부족</strong><small>포함 여부를 확인해야 합니다.</small></div>
+}
+function IngredientPairSummary({ products, currentProductId, currentVariantText, onDetail, onRemove, source, avoidance }: {
   products: CatalogProduct[]
   currentProductId?: string
   currentVariantText?: string
   onDetail: (productId: string) => void
   onRemove: (productId: string) => void
   source: (product: CatalogProduct) => ReactNode
+  avoidance?: (product: CatalogProduct) => ReactNode
 }) {
   return <section className="compare-ingredient-pair-summary" aria-label="두 제품 원재료 비교">
     <div className="compare-ingredient-pair">
       {products.map((product) => <div key={product.product_id}>
         <MobileProductHead role={product.product_id === currentProductId ? '현재 사료 · 기준' : currentProductId ? '후보' : '비교 제품'} product={product} variantText={product.product_id === currentProductId ? currentVariantText : undefined} onDetail={() => onDetail(product.product_id)} onRemove={product.product_id === currentProductId ? undefined : () => onRemove(product.product_id)} />
+        {avoidance?.(product)}
         <div className="compare-ingredient-summary-values">
           {product.direct_evidence_ingredient_terms?.length ? <p>{labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)}</p> : null}
           {product.flavor_associated_ingredient_terms?.length ? <p><small>향미 관련</small>{labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)}</p> : null}
@@ -597,7 +607,7 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, items, criteriaLabels = [], decisionPurpose, sourceViewLabel, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, detailContext, reviewActions, reviewSummary, onDisplayedCandidates }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, ingredientAvoidTerms = [], items, criteriaLabels = [], decisionPurpose, sourceViewLabel, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, detailContext, reviewActions, reviewSummary, onDisplayedCandidates }: {
   decisionPurpose?: DecisionPurpose
   sourceViewLabel?: string
   requestedCandidateId?: string | null
@@ -608,6 +618,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   onDisplayedCandidates?: (ids: string[]) => void
   ingredientConditionsPending?: boolean
   ingredientLoad?: CatalogIngredientLoad
+  ingredientAvoidTerms?: string[]
   criteriaLabels?: string[]
   currentProduct?: CatalogProduct | null
   currentVariantId?: string | null
@@ -1227,7 +1238,8 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
 
     {tab === 'ingredients' ? <div className="compare-ingredient-mobile-summary">
       {currentProduct ? renderMobileCandidatePicker() : renderMobileGeneralPairPicker()}
-      <IngredientPairSummary products={currentProduct && mobileCandidate ? [currentProduct, mobileCandidate.product] : mobilePairItems.map((item) => item.product)} currentProductId={currentProduct?.product_id} currentVariantText={currentVariantText} onDetail={openDetail} onRemove={removeComparedProduct} source={(product) => {
+      <CatalogIngredientNotice load={ingredientAvoidTerms.length ? ingredientLoad : undefined} />
+      <IngredientPairSummary products={currentProduct && mobileCandidate ? [currentProduct, mobileCandidate.product] : mobilePairItems.map((item) => item.product)} currentProductId={currentProduct?.product_id} currentVariantText={currentVariantText} onDetail={openDetail} onRemove={removeComparedProduct} avoidance={ingredientAvoidTerms.length ? product => <dl className="compare-ingredient-avoidance">{ingredientAvoidTerms.map(term => <div key={term}><dt>{INGREDIENT_AVOID_LABELS[term] ?? term} 확인 결과</dt><dd><IngredientAvoidanceResult product={product} term={term} load={ingredientLoad} /></dd></div>)}</dl> : undefined} source={(product) => {
         const isCurrent = product.product_id === currentProduct?.product_id
         const loading = isCurrent ? currentIngredientsLoading : ingredientsLoading
         const error = isCurrent ? currentIngredientsError : activeIngredientsError
@@ -1364,6 +1376,8 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         <div className="compare-table compare-ingredient-wide" style={{ '--compare-count': items.length + 1 } as CSSProperties}>
           <div className="compare-head-row"><div className="compare-corner">비교 항목</div><CurrentProductHead product={currentProduct} variantText={currentVariantText} />{items.map((item) => <ProductHead key={item.product.product_id} item={item} roleLabel="후보" onRemove={() => removeComparedProduct(item.product.product_id)} onDetail={() => openDetail(item.product.product_id)} />)}</div>
           <CompareSection title="원재료" note="원문을 확인하며 현재 사료와 같은 점·다른 점을 살펴보세요." />
+          {ingredientAvoidTerms.length ? <CatalogIngredientNotice load={ingredientLoad} /> : null}
+          {ingredientAvoidTerms.map(term => <SwitchOverviewRow key={term} label={`${INGREDIENT_AVOID_LABELS[term] ?? term} 확인 결과`} currentProduct={currentProduct} items={items} currentValue={product => <IngredientAvoidanceResult product={product} term={term} load={ingredientLoad} />} candidateValue={item => <IngredientAvoidanceResult product={item.product} term={term} load={ingredientLoad} />} />)}
           <SwitchOverviewRow label="목록 상태" currentProduct={currentProduct} items={items}
             currentValue={() => currentIngredientsLoading ? '불러오는 중' : currentIngredientsError ? '조회 실패' : currentIngredients ? currentIngredients.completeness_status === 'full' ? '전체 목록 확인' : currentIngredients.completeness_status === 'partial' ? '일부 목록' : '목록 상태 미확인' : '원재료 자료 없음'}
             candidateValue={(item) => ingredientsLoading ? '불러오는 중' : activeIngredientsError ? '조회 실패' : ingredientsByProduct.get(item.product.product_id)?.completeness_status === 'full' ? '전체 목록 확인' : ingredientsByProduct.has(item.product.product_id) ? '일부 목록 또는 요약' : '원재료 자료 없음'} />
@@ -1417,6 +1431,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         </> : null}
 
         {tab === 'ingredients' ? <CatalogIngredientNotice load={ingredientLoad} /> : null}
+        {tab === 'ingredients' ? ingredientAvoidTerms.map(term => <CompareRow key={term} label={`${INGREDIENT_AVOID_LABELS[term] ?? term} 확인 결과`} items={items} render={item => <IngredientAvoidanceResult product={item.product} term={term} load={ingredientLoad} />} />) : null}
         {tab === 'ingredients' && !ingredientsLoading && !activeIngredientsError ? <>
           <CompareSection title="원재료" note="검토된 원료명은 검색·요약용이며 출처 원문을 대체하지 않습니다." />
           <CompareRow label="목록 상태" items={items} render={(item) => { const row = ingredientsByProduct.get(item.product.product_id); if (!row) return '미확인'; const base = row.completeness_status === 'full' ? '전체 목록 확인' : row.completeness_status === 'partial' ? '일부 목록' : row.completeness_status === 'summary' ? '요약 정보' : '상태 미확인'; return row.supplemental_full_raw_text?.trim() || row.supplemental_full_ingredient_names?.length ? `${base} · 전체 목록 보완 있음` : base }} />

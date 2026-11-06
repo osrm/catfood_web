@@ -1,0 +1,40 @@
+name: One-off comparable energy Pages postdeploy review
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/compare-energy-kcal-per-100g-review.yml'
+      - 'qa/compare-energy-kcal-per-100g-review.mjs'
+permissions:
+  contents: read
+jobs:
+  pages-browser:
+    runs-on: ubuntu-latest
+    env:
+      PAGES_URL: https://osrm.github.io/catfood_web/
+      EXPECTED_SHA: da1456004d381ecef2cc94e5201cdf0e1cc53d8c
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/compare-energy-postdeploy
+          cp qa/compare-energy-kcal-per-100g-review.mjs /tmp/compare-energy-postdeploy/
+          cd /tmp/compare-energy-postdeploy
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Chrome Pages postdeploy review
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/compare-energy-postdeploy-output" PAGES_URL="$PAGES_URL" EXPECTED_SHA="$EXPECTED_SHA" node /tmp/compare-energy-postdeploy/compare-energy-kcal-per-100g-review.mjs
+          cp /tmp/compare-energy-postdeploy/compare-energy-kcal-per-100g-review.mjs "$GITHUB_WORKSPACE/compare-energy-postdeploy-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compare-energy-pages-postdeploy
+          path: compare-energy-postdeploy-output
+          retention-days: 7

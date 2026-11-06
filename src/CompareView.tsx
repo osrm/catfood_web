@@ -252,19 +252,19 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
         <p><span>자료 범위</span><strong>{nutritionScopeSummary(detail, variants, failed, loading)}</strong></p>
         {providedEnergy ? <p><span>원래 열량 표기</span><strong>{providedEnergy}</strong></p> : null}
         {fields.length ? <>
-          <p><span>보완 항목</span><strong>{fieldLabels}</strong></p>
-          <p><span>보완 자료 범위</span><strong>{detail.supplemental_observation_scope === 'product' ? '제품' : detail.supplemental_observation_scope === 'formula' ? '배합' : detail.supplemental_observation_scope === 'variant' ? '포장' : '미확인'}{detail.supplemental_observation_scope === 'formula' ? detail.supplemental_is_current_resolved_formula ? ' · 현재 판매 배합으로 확인' : ' · 현재 판매 배합과 동일 여부 미확인' : ''}</strong></p>
+          <p><span>추가 자료로 확인한 항목</span><strong>{fieldLabels}</strong></p>
+          <p><span>추가 자료의 적용 범위</span><strong>{detail.supplemental_observation_scope === 'product' ? '제품' : detail.supplemental_observation_scope === 'formula' ? '배합' : detail.supplemental_observation_scope === 'variant' ? '포장' : '미확인'}{detail.supplemental_observation_scope === 'formula' ? detail.supplemental_is_current_resolved_formula ? ' · 현재 판매 배합으로 확인' : ' · 현재 판매 배합과 동일 여부 미확인' : ''}</strong></p>
         </> : null}
       </div>
     </CompareDisclosure>
   </div>
 }
 function IngredientAvoidanceResult({ product, term, load }: { product: CatalogProduct; term: string; load?: CatalogIngredientLoad }) {
-  if (product.confirmed_present_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="present"><strong>자료에서 확인됨</strong></div>
-  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="reviewed-not-found"><strong>검토 자료에서 찾지 못함</strong><small>원료가 없다는 보장은 아닙니다.</small></div>
+  if (product.confirmed_present_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="present"><strong>확인됨</strong></div>
+  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="reviewed-not-found"><strong>미확인</strong><small>확인 자료에 {INGREDIENT_AVOID_LABELS[term] ?? term} 표기 없음</small><small>원료가 없다는 보장은 아닙니다.</small></div>
   const pending = product.confirmed_present_ingredient_terms == null || product.reviewed_not_found_ingredient_terms == null
   if (pending && load && load.status !== 'loaded') return <div className="compare-ingredient-verdict" data-evidence-state={load.status === 'error' ? 'error' : 'loading'}><strong>{load.status === 'error' ? '원료 확인 정보 조회 실패' : '원료 확인 정보를 불러오는 중'}</strong></div>
-  return <div className="compare-ingredient-verdict" data-evidence-state="unknown"><strong>판단 근거 부족</strong><small>포함 여부를 확인해야 합니다.</small></div>
+  return <div className="compare-ingredient-verdict" data-evidence-state="unknown"><strong>미확인</strong><small>확인 자료 부족</small><small>포함 여부를 확인해야 합니다.</small></div>
 }
 function IngredientPairSummary({ products, currentProductId, currentVariantText, onDetail, onRemove, source, avoidance }: {
   products: CatalogProduct[]
@@ -340,8 +340,8 @@ function RelationSummary({ item }: { item: CompareItem }) {
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
     {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.map((difference) => <span className="compare-condition-difference" key={difference}>{difference}</span>)}</strong></p> : null}
-    {reviewed.length ? <p className="is-reviewed"><span>원료 확인</span><strong>{reviewed.join(' · ')} · 검토한 자료에서 찾지 못함</strong></p> : null}
-    {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 판단 근거 부족</strong></p> : null}
+    {reviewed.length ? <p className="is-reviewed"><span>원료 미확인</span><strong>{reviewed.join(' · ')} · 확인 자료에 표기 없음</strong><small>원료가 없다는 보장은 아닙니다.</small></p> : null}
+    {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 확인 자료 부족</strong></p> : null}
     {unknown.length ? <p className="is-unknown"><span>미확인</span><strong>{unknown.join(' · ')}</strong></p> : null}
   </div>
 }
@@ -1222,7 +1222,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   return <main className={stageClassName}>
     <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
     <DecisionPurposeSummary purpose={decisionPurpose} compact />
-    {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 비교에 담은 모든 제품의 판정은 아닙니다.</p> : null}
+    {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 비교 제품의 품질이나 적합성을 뜻하지 않습니다.</p> : null}
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button
       key={key} id={`compare-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`compare-panel-${key}`} tabIndex={tab === key ? 0 : -1}
       className={tab === key ? 'is-active' : ''} type="button" ref={(node) => { tabRefs.current[index] = node }} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => selectTab(key)}

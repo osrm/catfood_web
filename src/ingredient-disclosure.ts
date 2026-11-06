@@ -46,9 +46,9 @@ function hasUnspecifiedCategory(ingredient: string, category: RegExp, species: R
 function wordingDetail(ingredient: string) {
   const notes = []
   const alternatives = /또는|\bor\b/i.test(ingredient)
-  if (hasUnspecifiedCategory(ingredient, FISH_CATEGORY, FISH_SPECIES)) notes.push(alternatives && FISH_SPECIES.test(ingredient) ? '사용 어종 구성 미확정' : '세부 어종 미기재')
-  if (hasUnspecifiedCategory(ingredient, ANIMAL_CATEGORY, ANIMAL_SPECIES)) notes.push(alternatives && ANIMAL_SPECIES.test(ingredient) ? '사용 동물 종류 미확정' : '세부 동물 종류 미기재')
-  if (hasUnspecifiedCategory(ingredient, FLAVOR_CATEGORY, new RegExp(ANIMAL_SPECIES.source + '|' + FISH_SPECIES.source, 'i'))) notes.push('향료의 세부 구성 미기재')
+  if (hasUnspecifiedCategory(ingredient, FISH_CATEGORY, FISH_SPECIES)) notes.push(alternatives && FISH_SPECIES.test(ingredient) ? '사용 어종 추가 확인 필요' : '세부 어종 미표기')
+  if (hasUnspecifiedCategory(ingredient, ANIMAL_CATEGORY, ANIMAL_SPECIES)) notes.push(alternatives && ANIMAL_SPECIES.test(ingredient) ? '사용 동물 종류 추가 확인 필요' : '세부 동물 종류 미표기')
+  if (hasUnspecifiedCategory(ingredient, FLAVOR_CATEGORY, new RegExp(ANIMAL_SPECIES.source + '|' + FISH_SPECIES.source, 'i'))) notes.push('향료 세부 구성 미표기')
   return notes.join(' · ')
 }
 
@@ -64,16 +64,16 @@ export type IngredientDisclosureReading = {
 export function ingredientDisclosureReading(row: IngredientSource | null | undefined): IngredientDisclosureReading {
   const raw = row?.raw_text?.trim()
   const list = !raw
-    ? { listLabel: '원료표 원문 미확보', listExplanation: '현재 선택된 자료의 원문을 확보하지 못했습니다.' }
+    ? { listLabel: '원료표 미확인', listExplanation: '현재 확인한 자료에는 원료표 원문이 없습니다.' }
     : row?.completeness_status === 'full'
       ? { listLabel: '전체 원료표 확인', listExplanation: '확인한 자료에 전체 원료 목록이 있습니다. 각 원료의 세부 종류까지 밝혀졌다는 뜻은 아닙니다.' }
-      : { listLabel: row?.completeness_status === 'partial' || row?.completeness_status === 'summary' ? '일부 원료표만 확보' : '전체 목록 여부 미확인', listExplanation: '이 자료만으로는 전체 원료를 확인할 수 없습니다. 목록에 없는 원료도 포함될 수 있습니다.' }
+      : { listLabel: row?.completeness_status === 'partial' || row?.completeness_status === 'summary' ? '일부 원료표 확인' : '전체 목록 여부 미확인', listExplanation: '이 자료만으로는 전체 원료를 확인할 수 없습니다. 목록에 없는 원료도 포함될 수 있습니다.' }
   if (!raw) return {
     ...list,
-    label: '원료표 원문 미확보',
+    label: '원료표 미확인',
     examples: [],
     details: [],
-    explanation: '현재 선택된 자료의 원문이 없어 원료의 구체적인 표기 수준을 판단할 수 없습니다.',
+    explanation: '현재 자료만으로는 세부 원료 표기를 확인하기 어렵습니다.',
   }
 
   const matches = [...new Set(splitIngredientText(raw).filter(ingredient => wordingDetail(ingredient)))]
@@ -89,17 +89,17 @@ export function ingredientDisclosureReading(row: IngredientSource | null | undef
   }
   if (row?.completeness_status !== 'full') return {
     ...list,
-    label: '일부 목록 · 공개 수준 판단 제한',
+    label: '일부 원료표 확인',
     examples: [],
     details: [],
     explanation: '확인한 자료가 전체 원료표가 아니므로 다른 원료에 포괄적인 표현이 있는지 판단할 수 없습니다.',
   }
   return {
     ...list,
-    label: '확인한 원료표에서 주요 포괄 표현 미발견',
+    label: '원료표 세부 표기 안내',
     examples: [],
     details: [],
-    explanation: '검토한 표현이 보이지 않는다는 뜻입니다. 모든 세부 원료의 공개나 특정 원료의 부재를 보증하지 않습니다.',
+    explanation: '확인한 범위에서는 세부 종류가 생략된 표기가 보이지 않습니다. 모든 세부 원료가 확인됐거나 특정 원료가 없다는 뜻은 아닙니다.',
   }
 }
 

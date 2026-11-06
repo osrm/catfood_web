@@ -169,7 +169,7 @@ function weightLabel(value: number | null) {
   return numeric >= 1000 ? `${Number((numeric / 1000).toFixed(3)).toLocaleString('ko-KR')} kg` : `${numeric.toLocaleString('ko-KR')} g`
 }
 function evidenceContext(detail: CompareNutrition | CompareIngredients | null, variants: ProductVariant[], variantFailed = false, variantLoading = false) {
-  if (!detail) return '확인 근거 없음'
+  if (!detail) return '자료 미확인'
   const market = detail.market_code === 'KR' ? '한국 확인' : detail.market_code ? `${countryLabel(detail.market_code)} 확인` : ''
   const variant = detail.variant_id ? variants.find((item) => item.variant_id === detail.variant_id) ?? null : null
   let scope = scopeLabel(detail.observation_scope)
@@ -548,7 +548,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                   <div className="detail-fact-lines detail-fact-lines-compact">
                     <Fact label="자료 범위" value={evidenceContext(nutrition, variants, Boolean(errors.variants), loading.variants)} />
                     <Fact label="원래 열량 표기" value={energyValue(nutrition)} />
-                    {nutritionSupplementContext ? <><Fact label="보완 항목" value={nutritionSupplementContext} /><Fact label="보완 자료 범위" value={nutrition.supplemental_observation_scope === 'product' ? '제품' : nutrition.supplemental_observation_scope === 'formula' ? '배합' : nutrition.supplemental_observation_scope === 'variant' ? '포장' : '미확인'} /></> : null}
+                    {nutritionSupplementContext ? <><Fact label="추가 자료로 확인한 항목" value={nutritionSupplementContext} /><Fact label="추가 자료의 적용 범위" value={nutrition.supplemental_observation_scope === 'product' ? '제품' : nutrition.supplemental_observation_scope === 'formula' ? '배합' : nutrition.supplemental_observation_scope === 'variant' ? '포장' : '미확인'} /></> : null}
                   </div>
                 </details>
                 {!basisFirst && alternateNutritionValues.length ? <BasisNutrition row={nutrition} /> : null}
@@ -628,7 +628,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
               {!loading.markets && !errors.markets && markets.length ? <details className="detail-disclosure detail-market-disclosure">
                 <summary>해외 판매 · 배합 보기</summary>
                 <div className="detail-market-list">{markets.map((market) => <div className="detail-market-row" key={`${market.country_code}-${market.display_rank}`}>
-                  <div><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 미기재'}</span></div>
+                  <div><strong>{countryLabel(market.country_code)}</strong><span>{market.assessed_at ? `${market.assessed_at} 확인` : '확인일 정보 없음'}</span></div>
                   <div><span>유통</span><strong>{distributionLabel(market.distribution_status)}</strong></div>
                   <div><span>한국 제품과의 배합 비교</span><strong>{formulaMarketLabel(market.formula_correspondence_status)}</strong></div>
                   {market.counterpart_name ? <div><span>현지 제품명</span><strong>{market.counterpart_name}</strong></div> : null}

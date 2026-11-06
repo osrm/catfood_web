@@ -6,10 +6,10 @@ const BASE = process.env.CANDIDATE_URL || 'http://127.0.0.1:4173/'
 const OUT = process.env.OUT_DIR || 'ingredient-disclosure-live-output'
 await mkdir(OUT, { recursive: true })
 const products = [
-  { id: 'product_5b13354ad9792881', key: 'royalcanin', expected: /어유[\s\S]*세부 어종 미기재/, scope: '한국 자료 · 제품 자료' },
+  { id: 'product_5b13354ad9792881', key: 'royalcanin', expected: /어유[\s\S]*세부 어종 미표기/, scope: '한국 자료 · 제품 자료' },
   { id: 'product_2bd53155d56271cf', key: 'alleva', expected: /전체 원료표 확인/, scope: '국내 동일 배합 확인 자료 · 배합 자료' },
-  { id: 'product_3bbce42b94471540', key: 'feline', expected: /일부 원료표만 확보/, scope: '한국 자료 · 확인한 포장 기준' },
-  { id: 'product_072fbf975f493006', key: 'inaba', expected: /일부 원료표만 확보/, scope: '한국 자료 · 제품 자료' },
+  { id: 'product_3bbce42b94471540', key: 'feline', expected: /일부 원료표 확인/, scope: '한국 자료 · 확인한 포장 기준' },
+  { id: 'product_072fbf975f493006', key: 'inaba', expected: /일부 원료표 확인/, scope: '한국 자료 · 제품 자료' },
 ]
 const report = { base: BASE, sourceSha: process.env.CANDIDATE_SHA, realPublicData: true, blockedWrites: [], errors: [], requests: [], sources: {}, views: {} }
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
@@ -57,16 +57,16 @@ try {
       await capture(product.key + '-detail', '.detail-document')
       if (product.key === 'feline') {
         // A source heading explicitly naming chicken must not claim the species was omitted.
-        assert.doesNotMatch(await page.locator('.ingredient-disclosure').innerText(), /세부 동물 종류 미기재/)
+        assert.doesNotMatch(await page.locator('.ingredient-disclosure').innerText(), /세부 동물 종류 미표기/)
       }
     }
     await page.goto(`${BASE}?view=workspace&mode=lookup&q=${encodeURIComponent('로얄캐닌')}&selected=${products[0].id}`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('group', { name: '원료 정보 확인 범위' }).waitFor({ timeout: 45000 })
-    assert.match(await page.locator('.ingredient-disclosure').innerText(), /세부 어종 미기재/)
+    assert.match(await page.locator('.ingredient-disclosure').innerText(), /세부 어종 미표기/)
     assert.equal(await page.locator('.ingredient-disclosure .ingredient-source-scope strong').innerText(), products[0].scope)
     await capture('quick-view', '.ingredient-composition-inspector')
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${products[0].id},${products[1].id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })
-    await page.getByText(/어유.*세부 어종 미기재/).filter({ visible: true }).first().waitFor({ timeout: 45000 })
+    await page.getByText(/어유.*세부 어종 미표기/).filter({ visible: true }).first().waitFor({ timeout: 45000 })
     assert.ok((await page.locator('.compare-stage').innerText()).includes(products[0].scope))
     assert.ok((await page.locator('.compare-stage').innerText()).includes(products[1].scope))
     assert.equal(await page.locator('.comparison-highlights').count(), 0, 'ingredients uses the primary comparison')

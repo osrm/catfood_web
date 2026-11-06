@@ -3,7 +3,7 @@
 .candidate-explanation-group > strong { font-size:13px; color:#476252; }
 .candidate-explanation-group > :last-child { display:grid; gap:5px; }
 .candidate-explanation-group small { font-size:12px; color:#67615a; }
-.candidate-explanation .is-unknowns > strong { color:#756045; }
+.candidate-explanation .is-unknowns > strong { color:#67615a; }
 .candidate-explanation details { border-top:1px solid #e1e5df; padding-top:6px; }
 .candidate-explanation summary { min-height:44px; cursor:pointer; display:flex; align-items:center; font-size:13px; }
 .candidate-explanation p { margin:8px 0; font-size:13px; }

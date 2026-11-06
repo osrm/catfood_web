@@ -46,9 +46,9 @@ const explain = (extra={}) => app.candidateExplanation({current:explanationProdu
 test('candidate explanations contrast quoted wording and explicit keep facts without a suitability claim',()=>{
  const result=explain({beforeSource:questionSource('Chicken, Fish Oil'),afterSource:questionSource('Chicken, fish oil (herring)'),conditions:[{source:'keep',kind:'feedType',value:'건식',label:'형태 · 건식'}]})
  assert.match(result.kept.join(' '),/건식.*유지 조건/)
- assert.match(result.differences.join(' '),/현재:.*Fish Oil.*세부 어종 미기재.*후보:.*herring.*청어/)
- assert.ok(result.unknowns.some(line=>/현재:.*세부 어종 미기재/.test(line)))
- assert.ok(!result.unknowns.some(line=>/후보:.*세부 어종 미기재/.test(line)))
+ assert.match(result.differences.join(' '),/현재:.*Fish Oil.*세부 어종 미표기.*후보:.*herring.*청어/)
+ assert.ok(result.unknowns.some(line=>/현재:.*세부 어종 미표기/.test(line)))
+ assert.ok(!result.unknowns.some(line=>/후보:.*세부 어종 미표기/.test(line)))
  assert.doesNotMatch(JSON.stringify(result),/더 적합|원료 없음|추천 점수/)
  assert.ok(app.validCandidateExplanation(result))
 })
@@ -57,9 +57,9 @@ test('source failure never becomes missing raw text and partial supplemental mat
  const failed=explain({sourceStatus:'error',beforeSource:questionSource('Fish Oil'),afterSource:questionSource('fish oil (herring)')})
  assert.deepEqual(failed.differences,[])
  assert.match(failed.unknowns.join(' '),/불러오지 못해/)
- assert.doesNotMatch(failed.unknowns.join(' '),/원문 미확보/)
+ assert.doesNotMatch(failed.unknowns.join(' '),/원료표 미확인/)
  const missing=explain({beforeSource:questionSource('Fish Oil'),afterSource:questionSource('',{ingredient_names:['Chicken'],supplemental_full_raw_text:'fish oil (herring)'})})
- assert.ok(missing.unknowns.some(line=>/후보: 원료표 원문 미확보/.test(line)))
+ assert.ok(missing.unknowns.some(line=>/후보: 원료표 자료가 없어/.test(line)))
  assert.doesNotMatch(JSON.stringify(missing),/herring/)
  const partial=explain({beforeSource:questionSource('Fish Oil'),afterSource:questionSource('fish oil (herring)',{completeness_status:'partial'})})
  assert.match(partial.unknowns.join(' '),/후보: 전체 원료 목록을 확인하지 못/)
@@ -86,7 +86,7 @@ test('an absent feature tag is not a proven improvement and allowed alternate ag
 
 test('reviewed-not-found remains an evidence contrast and never becomes ingredient absence',()=>{
  const result=explain({focus:'ingredients',current:explanationProduct({confirmed_present_ingredient_terms:['chicken']}),candidate:explanationProduct({reviewed_not_found_ingredient_terms:['chicken']}),conditions:[{source:'change',kind:'ingredientAvoid',value:'chicken',label:'닭'}]})
- assert.match(result.differences.join(' '),/현재 자료에서 확인.*검토 자료에서 찾지 못함.*부재 보장 아님/)
+ assert.match(result.differences.join(' '),/현재 자료에서 확인.*미확인.*확인 자료에 표기 없음.*원료가 없다는 보장 아님/)
  assert.doesNotMatch(JSON.stringify(result),/닭 없음|닭이 없/)
 })
 
@@ -95,31 +95,31 @@ test('compact cards answer an explicit ingredient avoidance before source and ba
  root=createRoot(document.getElementById('root'))
  await act(async()=>root.render(createElement(app.CandidateExplanationView,{value,compact:true})))
  const visible=document.querySelector('.is-differences').textContent
- assert.match(visible,/연어 원료.*현재 자료에서 확인.*검토 자료에서 찾지 못함.*부재 보장 아님/)
- assert.doesNotMatch(visible,/확보한 원료표|건식 → 습식/)
+ assert.match(visible,/연어 원료.*현재 자료에서 확인.*미확인.*확인 자료에 표기 없음.*원료가 없다는 보장 아님/)
+ assert.doesNotMatch(visible,/확인한 원료표|건식 → 습식/)
  await act(async()=>root.render(createElement(app.CandidateExplanationView,{value})))
- assert.match(document.querySelector('.is-differences').textContent,/연어 원료.*확보한 원료표.*건식 → 습식/)
- assert.match(document.querySelector('.is-unknowns').textContent,/Fish Oil.*세부 어종 미기재/)
+ assert.match(document.querySelector('.is-differences').textContent,/연어 원료.*확인한 원료표.*건식 → 습식/)
+ assert.match(document.querySelector('.is-unknowns').textContent,/Fish Oil.*세부 어종 미표기/)
 })
 
 test('unresolved selected ingredients precede general source cautions and stay unresolved after source failure',()=>{
  const input={focus:'ingredients',beforeSource:questionSource('fish oil (herring)'),afterSource:questionSource('Fish Oil',{market_code:'US'}),conditions:[{source:'change',kind:'ingredientAvoid',value:'salmon',label:'연어'}]}
  const value=explain(input)
- assert.match(value.unknowns[0],/^연어 원료: 후보에 포함되는지 판단할 근거가 부족/)
+ assert.match(value.unknowns[0],/^연어 원료: 후보 미확인 · 확인 자료 부족/)
  assert.ok(value.unknowns.some(line=>/한국 판매 제품 적용 여부 미확인/.test(line)))
- assert.ok(value.unknowns.some(line=>/Fish Oil.*세부 어종 미기재/.test(line)))
+ assert.ok(value.unknowns.some(line=>/Fish Oil.*세부 어종 미표기/.test(line)))
  const failed=explain({...input,sourceStatus:'error'})
- assert.match(failed.unknowns[0],/^연어 원료:.*근거가 부족/)
+ assert.match(failed.unknowns[0],/^연어 원료:.*확인 자료 부족/)
  assert.ok(failed.unknowns.some(line=>/불러오지 못해/.test(line)))
- assert.doesNotMatch(failed.unknowns.join(' '),/연어 없음|검토 자료에서 찾지 못함|원문 미확보/)
+ assert.doesNotMatch(failed.unknowns.join(' '),/연어 없음|미확인.*확인 자료에 표기 없음|원료표 미확인/)
 })
 
 test('explicit avoidance priority is independent of optional reading focus and preserves selected-term order',()=>{
  const conditions=[{source:'change',kind:'ingredientAvoid',value:'salmon',label:'연어'},{source:'change',kind:'ingredientAvoid',value:'chicken',label:'닭'}]
  for(const focus of ['disclosure','ingredients','other','energy']){
   const value=explain({focus,conditions,candidate:explanationProduct({reviewed_not_found_ingredient_terms:['salmon','chicken']}),beforeSource:questionSource('fish oil (herring)'),afterSource:questionSource('Fish Oil')})
-  assert.match(value.differences[0],/^연어 원료.*부재 보장 아님/)
-  assert.match(value.differences[1],/^닭 원료.*부재 보장 아님/)
+  assert.match(value.differences[0],/^연어 원료.*원료가 없다는 보장 아님/)
+  assert.match(value.differences[1],/^닭 원료.*원료가 없다는 보장 아님/)
  }
 })
 
@@ -133,7 +133,7 @@ test('energy explanation requires comparable feed and its own source applicabili
  assert.equal(explain({...input,afterEnergy:energy(350,{observation_scope:'formula'})}).differences.length,0)
  assert.match(explain({...input,afterEnergy:energy(380)}).kept.join(' '),/380.*380/)
  const otherPackage=explain({...input,currentVariantId:'variant_1',beforeEnergy:energy(380,{observation_scope:'variant',variant_id:'variant_3'})})
- assert.match(otherPackage.unknowns.join(' '),/현재 열량 근거 포장.*사용 규격의 일치 여부는 미확인/)
+ assert.match(otherPackage.unknowns.join(' '),/현재 열량 열량 확인 포장.*사용 규격의 일치 여부는 미확인/)
  const supplemental=explain({...input,currentVariantId:'variant_1',beforeEnergy:energy(380,{variant_id:'variant_1',supplemental_nutrition_fields:['energy'],supplemental_observation_scope:'variant',supplemental_market_code:'KR',supplemental_is_current_resolved_formula:false})})
  assert.match(supplemental.unknowns.join(' '),/사용 규격의 일치 여부는 미확인/,'primary variant cannot identify supplemental field source')
  assert.ok(!app.validCandidateExplanation({kept:['x'.repeat(601)],differences:[],unknowns:[],references:[]}))
@@ -143,7 +143,7 @@ test('focused source cards show literal foreign wording together with applicabil
  root=createRoot(document.getElementById('root'))
  await act(async()=>root.render(createElement(app.IngredientListReason,{focused:true,row:questionSource('Fish Oil',{market_code:'US'})})))
  assert.match(document.body.textContent,/전체 원료표 확인/)
- assert.match(document.body.textContent,/Fish Oil.*세부 어종 미기재/)
+ assert.match(document.body.textContent,/Fish Oil.*세부 어종 미표기/)
  assert.match(document.body.textContent,/한국 제품에 적용 여부 미확인/)
  assert.match(document.body.textContent,/US 자료/)
 })
@@ -161,7 +161,7 @@ test('confirmation questions ask about unspecified species without asserting abs
  assert.ok(partial.items.some(text=>/전체 원료표/.test(text)))
  assert.ok(!partial.items.some(text=>/동물 종류/.test(text)))
  const copy=app.ingredientQuestionsText({productId:'p',brand:'브랜드',name:'제품'},questions)
- assert.match(copy,/답변이나 원료 부재를 확인한 기록은 아닙니다/)
+ assert.match(copy,/답변이나 원료가 없음을 확인한 기록은 아닙니다/)
  assert.equal(app.validIngredientQuestions({source:'source',items:Array(6).fill('question')}),false)
  assert.equal(app.validIngredientQuestions({source:'source',items:[' '.repeat(5)]}),false)
 })
@@ -207,9 +207,9 @@ test('opened quick view shows original generic ingredient wording without extra 
  root=createRoot(document.getElementById('root'))
  await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
  assert.equal(calls,1)
- assert.match(document.body.textContent,/원료표 확보전체 원료표 확인/)
+ assert.match(document.body.textContent,/확인한 원료표전체 원료표 확인/)
  assert.match(document.body.textContent,/표기에서 더 확인할 점/)
- assert.match(document.body.textContent,/세부 어종 미기재/)
+ assert.match(document.body.textContent,/세부 어종 미표기/)
  assert.match(document.body.textContent,/어유/)
  assert.match(document.body.textContent,/한국 판매 제품과 같은 배합인지 미확인/)
 })
@@ -239,8 +239,8 @@ test('disclosure reading names source wording without converting generic fish oi
  assert.equal(reading.label,'세부 종류를 추가로 확인할 원료')
  assert.deepEqual(reading.examples,['어유','천연향료'])
  assert.match(reading.explanation,/세부 원료 종류를 임의로 추정하지/)
- assert.match(app.ingredientDisclosureSummary(row),/어유 — 세부 어종 미기재/)
- assert.match(app.ingredientDisclosureSummary(row),/천연향료 — 향료의 세부 구성 미기재/)
+ assert.match(app.ingredientDisclosureSummary(row),/어유 — 세부 어종 미표기/)
+ assert.match(app.ingredientDisclosureSummary(row),/천연향료 — 향료 세부 구성 미표기/)
 })
 
 test('source scope distinguishes country, package and current formula consistently with confirmation questions',()=>{
@@ -261,8 +261,8 @@ test('source scope distinguishes country, package and current formula consistent
 test('specifically named oils and flavors are not misclassified as unspecified',()=>{
  const reading=app.ingredientDisclosureReading({raw_text:'닭고기, 어유(정어리, 멸치), 연어 오일, 천연향료(닭간), 계란',completeness_status:'full'})
  assert.equal(reading.examples.length,0)
- assert.match(reading.label,/포괄 표현 미발견/)
- assert.match(reading.explanation,/모든 세부 원료의 공개나 특정 원료의 부재를 보증하지/)
+ assert.match(reading.label,/원료표 세부 표기 안내/)
+ assert.match(reading.explanation,/모든 세부 원료가 확인됐거나 특정 원료가 없다는 뜻은 아닙니다/)
 })
 test('generic fish extract and unspecified animal fat are shown, not confused with listed species',()=>{
  const reading=app.ingredientDisclosureReading({raw_text:'육분(닭, 오리), 동물성 지방, 생선추출물, 정어리',completeness_status:'full'})
@@ -270,9 +270,9 @@ test('generic fish extract and unspecified animal fat are shown, not confused wi
 })
 test('partial, unreadable and supplementary-source-only ingredient evidence never becomes full disclosure',()=>{
  const partial=app.ingredientDisclosureReading({raw_text:'닭고기, 계란',completeness_status:'summary'})
- assert.equal(partial.label,'일부 목록 · 공개 수준 판단 제한')
+ assert.equal(partial.label,'일부 원료표 확인')
  const otherFormula=app.ingredientDisclosureReading({raw_text:null,completeness_status:'summary',supplemental_full_raw_text:'연어, 정어리'})
- assert.equal(otherFormula.label,'원료표 원문 미확보')
+ assert.equal(otherFormula.label,'원료표 미확인')
  assert.deepEqual(otherFormula.examples,[])
 })
 test('species named in a generic animal-fat parenthesis are not called undisclosed',()=>{
@@ -296,12 +296,12 @@ test('partial list coverage stays visible when a generic ingredient is also pres
  root=createRoot(document.getElementById('root'))
  await act(async()=>root.render(createElement(app.IngredientComposition,{productId:'product_fixture'})))
  const text=document.body.textContent
- assert.match(text,/일부 원료표만 확보/)
+ assert.match(text,/일부 원료표 확인/)
  assert.match(text,/목록에 없는 원료도 포함될 수 있습니다/)
- assert.match(text,/어유.*세부 어종 미기재/)
+ assert.match(text,/어유.*세부 어종 미표기/)
  assert.match(text,/한국 자료/)
  assert.doesNotMatch(text,/전체 원료표 확인/)
- assert.match(app.ingredientDisclosureSummary({raw_text:'닭고기, 어유',completeness_status:'partial'}),/^일부 원료표만 확보/)
+ assert.match(app.ingredientDisclosureSummary({raw_text:'닭고기, 어유',completeness_status:'partial'}),/^일부 원료표 확인/)
  assert.equal(calls,1)
 })
 
@@ -314,7 +314,7 @@ test('a named species does not identify a different generic oil or an alternativ
   assert.deepEqual(app.ingredientDisclosureReading({raw_text:phrase,completeness_status:'full'}).examples,[],phrase)
  }
  const alternatives=app.ingredientDisclosureReading({raw_text:'어유(정어리 또는 멸치)',completeness_status:'full'})
- assert.equal(alternatives.details[0].note,'사용 어종 구성 미확정')
+ assert.equal(alternatives.details[0].note,'사용 어종 추가 확인 필요')
 })
 
 test('unknown list status and missing primary text cannot inherit full coverage from another source',()=>{
@@ -322,15 +322,15 @@ test('unknown list status and missing primary text cannot inherit full coverage 
  assert.equal(unknown.listLabel,'전체 목록 여부 미확인')
  assert.match(app.ingredientDisclosureSummary({raw_text:'어유',completeness_status:null}),/^전체 목록 여부 미확인/)
  const missing=app.ingredientDisclosureReading({raw_text:null,completeness_status:'full',supplemental_full_raw_text:'닭고기, 연어'})
- assert.equal(missing.listLabel,'원료표 원문 미확보')
+ assert.equal(missing.listLabel,'원료표 미확인')
  assert.deepEqual(missing.examples,[])
 })
 
 test('a source heading naming chicken is not a claim that its animal type was omitted',()=>{
  const heading=app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 닭고기, 조개류',completeness_status:'summary'})
- assert.equal(heading.listLabel,'일부 원료표만 확보')
+ assert.equal(heading.listLabel,'일부 원료표 확인')
  assert.deepEqual(heading.details,[])
  const mixed=app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 닭고기/생선, 어유',completeness_status:'summary'})
- assert.deepEqual(mixed.details.map(item=>item.note),['세부 어종 미기재','세부 어종 미기재'])
- assert.match(app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 가금류',completeness_status:'summary'}).details[0].note,/세부 동물 종류 미기재/)
+ assert.deepEqual(mixed.details.map(item=>item.note),['세부 어종 미표기','세부 어종 미표기'])
+ assert.match(app.ingredientDisclosureReading({raw_text:'동물성 단백질원: 가금류',completeness_status:'summary'}).details[0].note,/세부 동물 종류 미표기/)
 })

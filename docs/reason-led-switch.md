@@ -36,6 +36,8 @@ Retaining a candidate snapshots the three groups and their public source-scope n
 
 ## Comparison and visual hierarchy
 
+Explicit ingredient-avoidance results precede general source and basic-fact differences in explanations, independently of the optional reading focus. Reviewed-not-found keeps its absence caveat in the same visible line; unresolved selected ingredients lead the unanswered questions. This prevents a compact card's one-difference/two-question limit from hiding the selected criterion behind a generic source summary. The existing bounds, full-source notes, evaluator, candidate order and historical snapshots remain unchanged.
+
 Overview starts with known differences and grouped shared conditions; the full record is explicitly expandable. Pair/candidate controls and detail/removal actions remain available before expansion. Nutrition and ingredients use their primary comparisons, without a second stacked summary repeating the same values and source wording. The selected purpose appears once as shared context; long personal text is available in a disclosure.
 
 Ingredient reading shows list coverage, actual wording examples and source applicability first. General explanations are available in a disclosure. This reduces repetition without removing interpretation-changing exceptions or claiming ingredient absence.

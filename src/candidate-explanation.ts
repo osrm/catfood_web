@@ -16,6 +16,7 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
   currentVariantId?: string | null; beforeEnergy?: ExploreEnergy; afterEnergy?: ExploreEnergy; energyStatus?: string
 }): CandidateExplanation {
   const kept: string[] = [], differences: string[] = [], unknowns: string[] = [], references: string[] = []
+  const ingredientDifferences: string[] = [], ingredientUnknowns: string[] = []
   const sourceFocus = focus === 'disclosure' || focus === 'ingredients'
   if (sourceFocus) {
     if (sourceStatus !== 'loaded') unknowns.push(sourceStatus === 'error' ? '원료표 자료를 불러오지 못해 현재 사료와의 표기 차이는 미확인입니다.' : '현재 사료와 후보의 원료표 자료를 확인 중입니다.')
@@ -50,8 +51,8 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
     if (kind === 'ingredientAvoid') {
       if (candidate.reviewed_not_found_ingredient_terms?.includes(value)) {
         const before = current.confirmed_present_ingredient_terms?.includes(value) ? '현재 자료에서 확인' : '현재 포함 여부 미확인'
-        differences.push(`${label} 원료 — ${before} → 후보는 검토 자료에서 찾지 못함 (부재 보장 아님)`)
-      } else unknowns.push(`${label} 원료: 후보에 포함되는지 판단할 근거가 부족합니다.`)
+        ingredientDifferences.push(`${label} 원료 — ${before} → 후보는 검토 자료에서 찾지 못함 (부재 보장 아님)`)
+      } else ingredientUnknowns.push(`${label} 원료: 후보에 포함되는지 판단할 근거가 부족합니다.`)
       continue
     }
     const field = kind === 'brand' ? 'brand' : kind === 'feedType' ? 'feed_type' : kind === 'lifeStage' ? 'life_stage' : null
@@ -91,7 +92,9 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
     }
     unknowns.push('표기 열량만으로 급여량이나 체중 변화·적합성을 판단할 수 없습니다.')
   }
-  return { kept: unique(kept), differences: unique(differences), unknowns: unique(unknowns), references: unique(references) }
+  // Answer the explicit avoidance criterion before general source/basic facts.
+  // Compact cards show bounded lines, so this also keeps the absence caveat visible.
+  return { kept: unique(kept), differences: unique([...ingredientDifferences, ...differences]), unknowns: unique([...ingredientUnknowns, ...unknowns]), references: unique(references) }
 }
 
 export function validCandidateExplanation(value: unknown): value is CandidateExplanation {

@@ -90,6 +90,39 @@ test('reviewed-not-found remains an evidence contrast and never becomes ingredie
  assert.doesNotMatch(JSON.stringify(result),/닭 없음|닭이 없/)
 })
 
+test('compact cards answer an explicit ingredient avoidance before source and basic differences, with the caveat visible',async()=>{
+ const value=explain({focus:'ingredients',current:explanationProduct({confirmed_present_ingredient_terms:['salmon']}),candidate:explanationProduct({feed_type:'습식',reviewed_not_found_ingredient_terms:['salmon']}),beforeSource:questionSource('fish oil (herring)'),afterSource:questionSource('Fish Oil'),conditions:[{source:'change',kind:'feedType',value:'습식',label:'형태 · 습식'},{source:'change',kind:'ingredientAvoid',value:'salmon',label:'연어'}]})
+ root=createRoot(document.getElementById('root'))
+ await act(async()=>root.render(createElement(app.CandidateExplanationView,{value,compact:true})))
+ const visible=document.querySelector('.is-differences').textContent
+ assert.match(visible,/연어 원료.*현재 자료에서 확인.*검토 자료에서 찾지 못함.*부재 보장 아님/)
+ assert.doesNotMatch(visible,/확보한 원료표|건식 → 습식/)
+ await act(async()=>root.render(createElement(app.CandidateExplanationView,{value})))
+ assert.match(document.querySelector('.is-differences').textContent,/연어 원료.*확보한 원료표.*건식 → 습식/)
+ assert.match(document.querySelector('.is-unknowns').textContent,/Fish Oil.*세부 어종 미기재/)
+})
+
+test('unresolved selected ingredients precede general source cautions and stay unresolved after source failure',()=>{
+ const input={focus:'ingredients',beforeSource:questionSource('fish oil (herring)'),afterSource:questionSource('Fish Oil',{market_code:'US'}),conditions:[{source:'change',kind:'ingredientAvoid',value:'salmon',label:'연어'}]}
+ const value=explain(input)
+ assert.match(value.unknowns[0],/^연어 원료: 후보에 포함되는지 판단할 근거가 부족/)
+ assert.ok(value.unknowns.some(line=>/한국 판매 제품 적용 여부 미확인/.test(line)))
+ assert.ok(value.unknowns.some(line=>/Fish Oil.*세부 어종 미기재/.test(line)))
+ const failed=explain({...input,sourceStatus:'error'})
+ assert.match(failed.unknowns[0],/^연어 원료:.*근거가 부족/)
+ assert.ok(failed.unknowns.some(line=>/불러오지 못해/.test(line)))
+ assert.doesNotMatch(failed.unknowns.join(' '),/연어 없음|검토 자료에서 찾지 못함|원문 미확보/)
+})
+
+test('explicit avoidance priority is independent of optional reading focus and preserves selected-term order',()=>{
+ const conditions=[{source:'change',kind:'ingredientAvoid',value:'salmon',label:'연어'},{source:'change',kind:'ingredientAvoid',value:'chicken',label:'닭'}]
+ for(const focus of ['disclosure','ingredients','other','energy']){
+  const value=explain({focus,conditions,candidate:explanationProduct({reviewed_not_found_ingredient_terms:['salmon','chicken']}),beforeSource:questionSource('fish oil (herring)'),afterSource:questionSource('Fish Oil')})
+  assert.match(value.differences[0],/^연어 원료.*부재 보장 아님/)
+  assert.match(value.differences[1],/^닭 원료.*부재 보장 아님/)
+ }
+})
+
 test('energy explanation requires comparable feed and its own source applicability, including supplemental fields',()=>{
  const energy=(value,extra={})=>({kcal_per_100g:value,observation_scope:'product',market_code:'KR',is_current_resolved_formula:false,...extra})
  const input={focus:'energy',energyStatus:'loaded',beforeEnergy:energy(380),afterEnergy:energy(350)}

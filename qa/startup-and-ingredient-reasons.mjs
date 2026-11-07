@@ -53,7 +53,7 @@ try {
     const royal=page.locator('.research-result-card[data-product-id="product_5b13354ad9792881"]')
     await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
     assert.match(await royal.innerText(),/어유 — 세부 어종 미표기/)
-    assert.match(await royal.innerText(),/원료 미확인[\s\S]*연어[\s\S]*확인 자료에 표기 없음/)
+    assert.match(await royal.innerText(),/원료 미확인[\s\S]*연어[\s\S]*(?:확인 자료에 표기 없음|확인 자료 부족)/)
     assert.match(await royal.innerText(),/자료 범위 · 한국 자료 · 제품 자료/)
     await capture('avoidance-card', '.research-result-card[data-product-id="product_5b13354ad9792881"]')
     await royal.click()

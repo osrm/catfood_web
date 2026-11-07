@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core')
 const BASE = process.env.CANDIDATE_URL || 'http://127.0.0.1:4173/'
 const OUT = process.env.OUT_DIR || 'ingredient-verdict-priority-output'
-const royal = 'product_5b13354ad9792881', unresolved = 'product_e7eb6b131871033e'
+const reviewedProduct = 'product_2bd53155d56271cf', unresolved = 'product_e7eb6b131871033e'
 const report = { sourceSha: process.env.CANDIDATE_SHA, base: BASE, realPublicData: true, views: [], errors: [], failedRequests: [], blockedWrites: [] }
 await mkdir(OUT, { recursive: true })
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome' })
@@ -45,13 +45,13 @@ try {
   await page.locator('.switch-current-ingredients button').filter({hasText:'연어'}).filter({visible:true}).first().click({timeout:45000})
   await button('건식 유지').click(); await page.locator('.switch-step-actions .switch-primary-action').click()
   const search=page.getByRole('searchbox',{name:'후보 제품 검색'})
-  await search.fill('로얄캐닌 노르웨이')
-  const reviewed=page.locator(`.switch-candidate-row[data-product-id="${royal}"]`)
+  await search.fill('Equilibrium Indoor')
+  const reviewed=page.locator(`.switch-candidate-row[data-product-id="${reviewedProduct}"]`)
   const primary=reviewed.locator('.is-differences > span > span').first()
   await primary.waitFor({timeout:45000}); assert.match(await primary.innerText(),/^연어 원료.*미확인.*확인 자료에 표기 없음.*원료가 없다는 보장 아님/)
-  await reviewed.locator('.is-unknowns').getByText(/어유.*세부 어종 미표기/).first().waitFor({timeout:45000})
+  await reviewed.locator('.candidate-explanation').filter({hasNotText:'원료표 자료를 확인 중입니다.'}).waitFor({timeout:45000})
   await capture('reviewed',reviewed)
-  await page.locator(`[data-switch-compare-product-id="${royal}"]`).click()
+  await page.locator(`[data-switch-compare-product-id="${reviewedProduct}"]`).click()
   await search.fill('다이제스티브 케어')
   const unknown=page.locator(`.switch-candidate-row[data-product-id="${unresolved}"]`)
   await unknown.waitFor({timeout:45000})
@@ -59,12 +59,12 @@ try {
   await unknown.locator('.is-unknowns').getByText(/어분.*세부 어종 미표기/).first().waitFor({timeout:45000})
   await capture('unresolved',unknown)
   await page.locator(`[data-switch-compare-product-id="${unresolved}"]`).click(); await page.locator('.switch-compare-dock button').click()
-  const retain=page.locator('.journey-retain').filter({has:page.locator('> strong').filter({hasText:'노르웨이 숲'})})
+  const retain=page.locator('.journey-retain').filter({has:page.locator('> strong').filter({hasText:'Equilibrium Indoor'})})
   const picker=page.locator('.compare-mobile-candidate-toggle')
-  if(await picker.isVisible() && !await retain.isVisible()){await picker.click();await page.locator(`.compare-mobile-candidate-options [data-product-id="${royal}"]`).click()}
+  if(await picker.isVisible() && !await retain.isVisible()){await picker.click();await page.locator(`.compare-mobile-candidate-options [data-product-id="${reviewedProduct}"]`).click()}
   const lines=await retain.locator('.is-differences > div > span').allTextContents()
-  assert.match(lines[0],/^연어 원료.*원료가 없다는 보장 아님/);assert.ok(lines.some(line=>line.includes('확인한 원료표')))
-  await page.locator('.compare-ingredient-reading').getByText(/어유.*세부 어종 미표기/).filter({visible:true}).first().waitFor({timeout:45000})
+  assert.match(lines[0],/^연어 원료.*원료가 없다는 보장 아님/);assert.ok(lines.some(line=>/확인한 원료표.*fish oil.*herring/i.test(line)))
+  await page.locator('.compare-ingredient-reading').getByText(/fish oil.*herring/i).filter({visible:true}).first().waitFor({timeout:45000})
   await capture('comparison')
   await retain.getByRole('button',{name:'후보로 남기기',exact:true}).click()
   await page.reload({waitUntil:'domcontentloaded'})

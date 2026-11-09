@@ -241,6 +241,39 @@ test('ingredient facts loading and failure stay separate from an unknown verdict
   assert.deepEqual(states(), ['unknown', 'unknown'])
 })
 
+test('fish avoidance explains an unspecified ingredient using the applicable original label', async () => {
+  const sources = [
+    { product_id: current.product_id, observation_scope: 'variant', variant_id: 'variant_other', raw_text: '어분' },
+    { product_id: candidateA.product_id, observation_scope: 'product', raw_text: '쌀, 어유' },
+    { product_id: candidateB.product_id, observation_scope: 'product', raw_text: 'Fish Oil (Tilapia), Salmon' },
+  ].map(row => ({ market_code: 'KR', completeness_status: 'full', ingredient_names: [], ...row }))
+  const fetchDefault = globalThis.fetch
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (!url.pathname.endsWith('/compare_product_ingredients_scoped')) return fetchDefault(input)
+    const requested = url.searchParams.get('p_product_ids')
+    return Response.json(sources.filter(row => requested.includes(row.product_id)))
+  }
+
+  await renderCompare({
+    initialTab: 'ingredients', ingredientAvoidTerms: ['herring', 'chicken', 'salmon'],
+    currentVariantId: 'variant_selected',
+    items: [
+      { product: { ...candidateA, reviewed_not_found_ingredient_terms: ['salmon'] } },
+      { product: { ...candidateB, confirmed_present_ingredient_terms: ['salmon'] } },
+    ],
+  })
+  const rows = [...document.querySelectorAll('.compare-ingredient-wide .compare-switch-overview-row')]
+  const reasons = row => [...row.querySelectorAll('.compare-ingredient-verdict small:first-of-type')].map(node => node.textContent)
+  const originalLabel = '확인한 원료표에 ‘어유’로 표기 · 세부 어종 미표기'
+  assert.deepEqual(reasons(rows[0]), ['확인 자료 부족', originalLabel, '확인 자료 부족'])
+  assert.deepEqual(reasons(rows[1]), ['확인 자료 부족', '확인 자료 부족', '확인 자료 부족'])
+  assert.deepEqual(reasons(rows[2]), ['확인 자료 부족', '확인 자료에 연어 표기 없음'])
+  assert.equal(rows[2].querySelector('[data-evidence-state="present"]').textContent, '확인됨')
+  const mobileCandidate = document.querySelector('.compare-ingredient-pair > div:nth-child(2)')
+  assert.equal(mobileCandidate.querySelector('.compare-ingredient-verdict small').textContent, originalLabel)
+})
+
 test('avoidance result rows are absent without selected terms and confirmed presence takes precedence', async () => {
   const { baseProps } = await renderCompare({ initialTab: 'ingredients' })
   assert.equal(document.querySelector('.compare-ingredient-verdict'), null)

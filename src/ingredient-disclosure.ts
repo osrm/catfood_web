@@ -19,11 +19,22 @@ export function ingredientSourceScope(row: IngredientScope | null | undefined) {
   return { label: [market, scope, application].filter(Boolean).join(' · '), needsCheck }
 }
 
-const FISH_CATEGORY = /어유|어류|어개류|생선(?:기름|오일|추출물|육수|분말)?|해수어분|어분|피쉬(?:오일|펩티드|밀|추출물)|魚介類|魚油|魚類|フィッシュ(?:オイル|ミール|エキス)|\bfish(?:\s+(?:oil|meal|broth|extract|protein|peptide)s?)?\b|\bwhitefish\b|\bwhite fish\b/i
+const FISH_CATEGORY = /어유|어류(?:\s*(?:추출물|단백질|자가분해물|가수분해물))?|어개류|생선(?:\s*(?:기름|오일|추출물|육수|분말))?|해수어분|어분|피쉬\s*(?:오일|펩티드|밀|추출물)|魚介類|魚油|魚類|フィッシュ(?:オイル|ミール|エキス)|\bfish(?:\s+(?:oil|meal|(?:bone\s+)?broth|extract|protein|peptide|autolysate|hydrolysate)s?)?\b|\bwhitefish\b|\bwhite fish\b/i
 const FISH_SPECIES = /연어|참치|가다랑어|정어리|멸치|청어|고등어|대구|명태|폴락|송어|볼락|가자미|우럭|호키|멘헤이든|サーモン|鮭|マグロ|カツオ|イワシ|アンチョビ|タラ|ニシン|サバ|\bsalmon\b|\btuna\b|\bsardines?\b|\banchov(?:y|ies)\b|\bherring\b|\bmackerel\b|\bcod\b|\bpollock\b|\btrout\b|\bmenhaden\b|\bhoki\b/i
 const ANIMAL_CATEGORY = /동물성\s*(?:유도)?\s*(?:단백질|지방)|가금(?:류|육)|육분|육류|동물성유지|\bpoultry\b|\banimal (?:fat|protein|meal)\b|\bmeat meal\b/i
 const ANIMAL_SPECIES = /닭|오리|칠면조|돼지|쇠고기|소고기|양고기|토끼|사슴|메추리|거위|\bchicken\b|\bduck\b|\bturkey\b|\bpork\b|\bbeef\b|\blamb\b|\brabbit\b|\bvenison\b|\bquail\b|\bgoose\b/i
 const FLAVOR_CATEGORY = /천연\s*향(?:료|미)?|인공\s*향(?:료|미)?|향미료|조미향료|\bnatural flavo(?:u)?r\b|\bartificial flavo(?:u)?r\b|香料/i
+
+const FISH_AVOID_TERMS = new Set(['anchovy', 'cod', 'herring', 'mackerel', 'menhaden', 'salmon', 'sardine', 'trout', 'tuna', 'whitefish'])
+// Require a complete generic entry here. A qualifier may name a species even
+// if it is outside the search vocabulary.
+const GENERIC_FISH_ENTRY = new RegExp(`^(?:정제\\s*)?(?:${FISH_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
+
+export function unspecifiedFishIngredient(row: CompareIngredients, term: string) {
+  if (!FISH_AVOID_TERMS.has(term) || row.completeness_status !== 'full' || ingredientSourceScope(row).needsCheck) return
+  return splitIngredientText(row.raw_text ?? '').find(phrase =>
+    GENERIC_FISH_ENTRY.test(phrase) && !(term === 'whitefish' && /^white\s*fish\b/i.test(phrase)))
+}
 
 // A species elsewhere in a phrase does not identify this ingredient's source.
 // Only an adjacent species or a locally specified parenthesis qualifies it.

@@ -88,7 +88,14 @@ try{
 
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
   await (await button('먹이는 사료 찾기 →')).click();await page.locator('.switch-find-search input').fill('AATU')
-  const current=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await current.waitFor({timeout:45000});await current.click()
+  const current=page.locator('.switch-find-result').filter({hasText:/연어/}).first()
+  const retryCatalog=page.locator('.switch-state-message.is-error').getByRole('button',{name:'다시 시도',exact:true})
+  await current.or(retryCatalog).first().waitFor({timeout:45000})
+  if(await retryCatalog.isVisible()){
+   report.retries??=[];report.retries.push({width,case:'switch-catalog'})
+   await retryCatalog.click()
+  }
+  await current.click({timeout:45000})
   const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first();await sku.waitFor();await sku.click();await page.locator('.switch-step-actions .switch-primary-action').click()
   await (await button('다른 브랜드로 보기')).click()
   await page.getByRole('heading',{name:'그대로 두고 싶은 점'}).waitFor()
@@ -131,6 +138,11 @@ try{
   if(await retryCurrent.isVisible()){
    report.retries??=[];report.retries.push({width,case:'current-food',message:await page.locator('.compare-state.is-error').innerText()})
    await capture('switch-nutrition-retry','.compare-stage');await retryCurrent.click()
+  }
+  const retryCandidate=page.getByRole('button',{name:'후보 다시 시도',exact:true})
+  if(await retryCandidate.isVisible()){
+   report.retries??=[];report.retries.push({width,case:'candidate-nutrition'})
+   await retryCandidate.click()
   }
   const difference=page.locator('.compare-energy-difference').filter({visible:true}).first();await difference.waitFor({timeout:45000})
   assert.match(await difference.innerText(),/낮음/)

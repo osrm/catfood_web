@@ -12,6 +12,7 @@ import { DecisionPurposeEditor, DecisionPurposeSummary } from './DecisionPurpose
 import IngredientSourceFilterPanel from './IngredientSourceFilter'
 import CandidateExplanationView from './CandidateExplanation'
 import { candidateExplanation } from './candidate-explanation'
+import { ingredientAvoidanceWording } from './ingredient-disclosure'
 import { SOURCE_FILTERS, matchesSourceFilter, sourceFilterLabel, type IngredientSourceFilter } from './ingredient-source-filter'
 import { useSwitchEnergy, useEnergyPackages, switchEnergyDifference, keepsLowerEnergyCandidate, EnergyEvidence, CandidateEnergy } from './switch-energy'
 import { energyText, usableEnergy } from './energy-refine'
@@ -28,6 +29,7 @@ import {
 import {
   fetchProductVariants,
   type CatalogProduct,
+  type ListIngredientSource,
   type ProductVariant,
 } from './api'
 import { lookupCatalog, toggleValue, type SwitchSearchState as SearchState } from './search'
@@ -305,12 +307,6 @@ function ingredientEvidenceLabel(source: IngredientEvidenceSource, term: string)
   if (direct) return '원재료에서 확인'
   if (flavor) return '향미 관련 정보에서 확인'
   return '관련 자료에서 확인'
-}
-
-function ingredientAvoidanceStatus(product: CatalogProduct, term: string): string {
-  if (product.confirmed_present_ingredient_terms?.includes(term)) return '확인됨 — 선택한 원료와 일치'
-  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return `미확인 · 확인 자료에 ${ingredientLabel(term)} 표기 없음`
-  return '미확인 · 확인 자료 부족'
 }
 
 function SwitchTopbar({
@@ -603,23 +599,28 @@ function candidateRelationLabel(label: string) {
   return label
 }
 
-function RelationBlock({ evaluation, showReviewed = true }: { evaluation: SwitchEvaluation; showReviewed?: boolean }) {
+function RelationBlock({ evaluation, ingredientTerms, source }: {
+  evaluation: SwitchEvaluation
+  ingredientTerms: string[]
+  source?: ListIngredientSource
+}) {
   const hasAny = evaluation.keepMatches.length > 0
     || evaluation.changeMatches.length > 0
     || evaluation.unknowns.length > 0
-    || (showReviewed && evaluation.ingredientReviewedNotFound.length > 0)
-    || evaluation.ingredientInsufficient.length > 0
+    || ingredientTerms.length > 0
 
   if (!hasAny) return null
 
   return (
     <div className="switch-candidate-relations">
-      {showReviewed && evaluation.ingredientReviewedNotFound.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-reviewed" data-evidence-state="reviewed-not-found"><span>원료 미확인</span><strong>확인 자료에 {evaluation.ingredientReviewedNotFound.join(' · ')} 표기 없음</strong><small>원료가 없다고 확정한 결과는 아니에요.</small></div>
-      ) : null}
-      {evaluation.ingredientInsufficient.length > 0 ? (
-        <div className="switch-relation-line is-ingredient-unknown" data-evidence-state="unknown"><span>원료 미확인</span><strong>{evaluation.ingredientInsufficient.join(' · ')} · 확인 자료 부족</strong>{evaluation.ingredientInsufficient.includes('닭') && /닭|chicken/i.test(evaluation.product.canonical_name) ? <small>제품 이름에는 닭고기 표기가 있어요. 원재료를 더 확인해야 해요.</small> : null}</div>
-      ) : null}
+      {ingredientTerms.map(term => {
+        const wording = ingredientAvoidanceWording(evaluation.product, term, source)
+        return <div key={term} className={`switch-relation-line is-ingredient-${wording.state === 'reviewed-not-found' ? 'reviewed' : wording.state}`} data-evidence-state={wording.state}>
+          <span>{ingredientLabel(term)} 포함 여부</span><strong>{wording.summary}</strong>
+          {wording.detail ? <small>{wording.detail}</small> : null}
+          {wording.state === 'unknown' && term === 'chicken' && /닭|chicken/i.test(evaluation.product.canonical_name) ? <small>제품 이름에는 닭고기 표기가 있어요. 원재료를 더 확인해야 해요.</small> : null}
+        </div>
+      })}
       {evaluation.keepMatches.length > 0 ? (
         <div className="switch-relation-line is-keep"><span>유지할 점</span><strong>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</strong></div>
       ) : null}
@@ -1006,10 +1007,10 @@ export default function SwitchFlow({
   }, [nameMatchedCandidates, lowerEnergyActive, currentProduct, currentEnergy, energy.byProduct])
   const sourceRequestEnabled = step === 'results' && !ingredientFactsPending && !loading && !error
   const listReasonsEnabled = sourceRequestEnabled && (ingredientAvoidTerms.length > 0 || sourceFocusAllowed) && !compareOpen && !detailProductId
-  const explanationIds = sourceFocusAllowed ? [...compareIds, selectedCandidateId, detailProductId].filter((id): id is string => Boolean(id) && id !== currentProductId) : []
+  const explanationIds = [...compareIds, selectedCandidateId, detailProductId].filter((id): id is string => Boolean(id) && id !== currentProductId)
   const listReasons = useIngredientListReasons(sourceRequestEnabled && (sourceReviewRequested || sourceFocusAllowed)
     ? [...(sourceReviewRequested ? browsedCandidates : unfilteredCandidates.slice(0, visibleCandidateCount)).map(item => item.product.product_id), ...explanationIds]
-    : listReasonsEnabled ? unfilteredCandidates.slice(0, visibleCandidateCount).map(item => item.product.product_id) : [])
+    : sourceRequestEnabled && ingredientAvoidTerms.length ? [...(listReasonsEnabled ? unfilteredCandidates.slice(0, visibleCandidateCount).map(item => item.product.product_id) : []), ...explanationIds] : [])
   const currentSource = useIngredientListReasons(sourceRequestEnabled && sourceFocusAllowed && currentProductId ? [currentProductId] : [])
   const explanationSourceStatus = currentSource.status === 'error' || listReasons.status === 'error' ? 'error' : currentSource.status === 'loaded' && listReasons.status === 'loaded' ? 'loaded' : 'loading'
   function explanationFor(product: CatalogProduct) {
@@ -1041,7 +1042,11 @@ export default function SwitchFlow({
       unknowns: item.unknowns,
       ingredientReviewedNotFound: item.ingredientReviewedNotFound,
       ingredientInsufficient: item.ingredientInsufficient,
-    })), [compareIds, candidates])
+      ingredientReasons: ingredientAvoidTerms.length ? ingredientAvoidTerms.map(term => {
+        const wording = ingredientAvoidanceWording(item.product, term, listReasons.byProduct.get(item.product.product_id))
+        return `${ingredientLabel(term)} 포함 여부 · ${[wording.summary, wording.state === 'reviewed-not-found' ? wording.detail : null].filter(Boolean).join(' · ')}`
+      }) : undefined,
+    })), [compareIds, candidates, ingredientAvoidTerms, listReasons.byProduct])
   const compareDetailOpen = compareOpen && compareItems.some((item) => item.product.product_id === detailProductId)
 
   useLayoutEffect(() => {
@@ -1315,7 +1320,7 @@ export default function SwitchFlow({
     const full = journey.retained.filter((row) => row.active).length >= 5
     return <div className="journey-retain"><strong>{product.brand} · {product.canonical_name}</strong>
       {currentProduct ? <p>지금 사료: {currentProduct.brand} · {currentProduct.canonical_name} · {currentVariantText}</p> : null}
-      {explanation ? <CandidateExplanationView value={explanation} /> : evaluation ? <RelationBlock evaluation={{ ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] }} /> : null}
+      {explanation ? <CandidateExplanationView value={explanation} /> : evaluation ? <RelationBlock evaluation={{ ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] }} ingredientTerms={ingredientAvoidTerms} source={listReasons.byProduct.get(product.product_id)} /> : null}
       {!explanation && evaluation ? <dl className="journey-related-facts">
         {evaluation.changeMatches.length ? <div><dt>바꾸고 싶은 점에서 확인</dt><dd>{evaluation.changeMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
         {evaluation.keepMatches.length ? <div><dt>유지할 점에서 확인</dt><dd>{evaluation.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
@@ -1332,7 +1337,7 @@ export default function SwitchFlow({
       {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 이 제품의 품질이나 적합성을 뜻하지 않습니다.</p> : null}
       <p className="detail-selection-baseline">지금 먹이는 사료 · <strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong> · {currentVariantText}</p>
       {ingredientAvoidTerms.length ? <p className="detail-selection-terms">피하고 싶은 원료 · {ingredientAvoidTerms.map(ingredientLabel).join(' · ')}</p> : null}
-      {!purposeFocus ? <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} /> : null}
+      {!purposeFocus ? <RelationBlock evaluation={ingredientAvoidTerms.length ? { ...evaluation, keepMatches: [], changeMatches: [], unknowns: [] } : evaluation} ingredientTerms={ingredientAvoidTerms} source={listReasons.byProduct.get(product.product_id)} /> : null}
       <div className="detail-criterion-actions">
         {ingredientAvoidTerms.length ? <button className="primary-action detail-criterion-action" type="button" onClick={() => selectTab('ingredients')}>{evaluation.ingredientInsufficient.length ? '원재료부터 확인 →' : '원재료 확인 →'}</button> : <button className="primary-action detail-criterion-action" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateFacts(product.product_id)}>현재 사료와 영양 비교 →</button>}
         {ingredientAvoidTerms.length && !evaluation.ingredientInsufficient.length ? <button className="detail-inline-link" type="button" disabled={compareIds.length >= 5 && !compareIds.includes(product.product_id)} onClick={() => compareCandidateFacts(product.product_id)}>영양도 비교하기 →</button> : null}
@@ -1893,7 +1898,7 @@ export default function SwitchFlow({
               {listReasonsEnabled && !sourceFocusAllowed && listReasons.status === 'loaded' ? <IngredientListReason row={listReasons.byProduct.get(product.product_id)} /> : null}
               {candidateEnergyOpen && purposeFocus !== 'energy' && energy.status === 'loaded' ? <CandidateEnergy current={currentProduct} candidate={product} baseline={currentEnergy} row={energy.byProduct.get(product.product_id)} packages={energyPackages.packages} packageStatus={energyPackages.status} /> : null}
             </span>
-            {explanation ? <CandidateExplanationView value={explanation} compact id={`candidate-explanation-${product.product_id}`} /> : <RelationBlock evaluation={rowEvaluation} showReviewed={!ingredientAvoidTerms.length || unresolved} />}
+            {explanation ? <CandidateExplanationView value={explanation} compact id={`candidate-explanation-${product.product_id}`} /> : <RelationBlock evaluation={rowEvaluation} ingredientTerms={ingredientAvoidTerms} source={listReasons.byProduct.get(product.product_id)} />}
             <span className="switch-candidate-open">{unresolved ? '원료 확인 →' : '빠른 보기 →'}</span>
           </button>
           <button
@@ -1990,11 +1995,11 @@ export default function SwitchFlow({
               {candidates.length > 0 && !candidateSearchActive && candidateBrowseActive && nameMatchedCandidates.length === 0 ? <div className="switch-state-message"><strong>선택한 표기의 후보가 없습니다.</strong><span>위에서 좁힌 항목을 해제해 다른 후보를 살펴보세요.</span></div> : null}
               {ingredientAvoidTerms.length ? <>
                 {reviewedCandidates.length ? <section className="switch-candidate-group is-reviewed" aria-labelledby="switch-reviewed-heading">
-                  <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">선택한 원료 표기 미확인</h2><p id="switch-reviewed-note">확인 자료에 선택한 원료의 표기가 없습니다. 원료가 없다는 보장은 아닙니다.</p></div>
+                  <div className="switch-candidate-group-heading"><h2 id="switch-reviewed-heading">확인한 자료에 선택 원료 표기 없음</h2><p id="switch-reviewed-note">이 표기만으로는 선택한 원료가 들어 있는지 알기 어려워요.</p></div>
                   {reviewedCandidates.map(renderCandidateRow)}
                 </section> : null}
                 {unresolvedCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-labelledby="switch-unresolved-heading">
-                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">확인 자료가 부족한 후보</h2><p id="switch-unresolved-note">포함 여부를 확인할 자료가 부족합니다. 원료표를 추가로 확인해 주세요.</p></div>
+                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">포함 여부를 판단하기 어려운 후보</h2><p id="switch-unresolved-note">원료표에 세부 종류가 표시되지 않았거나 확인한 자료가 일부일 수 있어요.</p></div>
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>
@@ -2063,7 +2068,6 @@ export default function SwitchFlow({
                 {!purposeFocus && hasChosenCandidateCriteria ? <section className="switch-inspector-section switch-inspector-decision">
                   <h2>선택한 조건과 비교</h2>
                   <div className="switch-inspector-baseline"><span>비교 기준</span><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
-                  <RelationBlock evaluation={{ ...selectedCandidate, keepMatches: [], changeMatches: [], unknowns: [] }} />
                   <dl>
                     {selectedCandidate.keepMatches.length ? <div><dt>유지할 점</dt><dd>{selectedCandidate.keepMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
                     {selectedCandidate.changeMatches.length ? <div><dt>바꿀 점</dt><dd>{selectedCandidate.changeMatches.map(candidateRelationLabel).join(' · ')}</dd></div> : null}
@@ -2074,8 +2078,10 @@ export default function SwitchFlow({
                 {ingredientAvoidTerms.length > 0 ? (
                   <section className="switch-inspector-section switch-ingredient-inspector">
                     <h2>피하고 싶은 원료</h2>
-                    <dl>{ingredientAvoidTerms.map((term) => <div key={term}><dt>{ingredientLabel(term)}</dt><dd>{ingredientAvoidanceStatus(selectedCandidate.product, term)}</dd></div>)}</dl>
-                    <p>확인 자료에 표기가 없어도 해당 원료가 없다는 보장은 아닙니다.</p>
+                    <dl>{ingredientAvoidTerms.map(term => {
+                      const wording = ingredientAvoidanceWording(selectedCandidate.product, term, listReasons.byProduct.get(selectedCandidate.product.product_id))
+                      return <div key={term}><dt>{ingredientLabel(term)} 포함 여부</dt><dd>{wording.summary}{wording.detail ? ` · ${wording.detail}` : ''}</dd></div>
+                    })}</dl>
                   </section>
                 ) : null}
 

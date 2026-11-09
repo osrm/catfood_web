@@ -1,5 +1,6 @@
-import type { CompareIngredients } from './api'
+import type { CatalogProduct, CompareIngredients, ListIngredientSource } from './api'
 import { splitIngredientText } from './ingredient-composition'
+import { INGREDIENT_AVOID_LABELS } from './search'
 
 // Reads the selected source verbatim. This is a visibility aid, not an ingredient
 // absence test, a manufacturer transparency score or an allergen-safety claim.
@@ -26,14 +27,45 @@ const ANIMAL_SPECIES = /닭|오리|칠면조|돼지|쇠고기|소고기|양고�
 const FLAVOR_CATEGORY = /천연\s*향(?:료|미)?|인공\s*향(?:료|미)?|향미료|조미향료|\bnatural flavo(?:u)?r\b|\bartificial flavo(?:u)?r\b|香料/i
 
 const FISH_AVOID_TERMS = new Set(['anchovy', 'cod', 'herring', 'mackerel', 'menhaden', 'salmon', 'sardine', 'trout', 'tuna', 'whitefish'])
+const POULTRY_AVOID_TERMS = new Set(['chicken', 'duck', 'turkey', 'goose', 'quail'])
+const LAND_ANIMAL_AVOID_TERMS = new Set(['beef', 'lamb', 'pork', 'rabbit', 'venison', 'goat', 'boar'])
 // Require a complete generic entry here. A qualifier may name a species even
 // if it is outside the search vocabulary.
 const GENERIC_FISH_ENTRY = new RegExp(`^(?:정제\\s*)?(?:${FISH_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
+const GENERIC_POULTRY_ENTRY = /^(?:가금(?:류|육)(?:\s*(?:지방|단백질|육분|분말))?|poultry(?:\s+(?:fat|meal|protein))?)(?:\s*\d+(?:[.,]\d+)?\s*%)?$/i
+const GENERIC_ANIMAL_ENTRY = new RegExp(`^(?:${ANIMAL_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
 
-export function unspecifiedFishIngredient(row: CompareIngredients, term: string) {
-  if (!FISH_AVOID_TERMS.has(term) || row.completeness_status !== 'full' || ingredientSourceScope(row).needsCheck) return
-  return splitIngredientText(row.raw_text ?? '').find(phrase =>
-    GENERIC_FISH_ENTRY.test(phrase) && !(term === 'whitefish' && /^white\s*fish\b/i.test(phrase)))
+export function ingredientAvoidanceWording(product: CatalogProduct, term: string, row?: ListIngredientSource | null, variantId?: string | null): {
+  state: 'present' | 'reviewed-not-found' | 'unknown'
+  summary: string
+  detail?: string
+} {
+  const label = INGREDIENT_AVOID_LABELS[term] ?? term
+  if (product.confirmed_present_ingredient_terms?.includes(term)) {
+    const flavorOnly = product.flavor_associated_ingredient_terms?.includes(term) && !product.direct_evidence_ingredient_terms?.includes(term)
+    return { state: 'present', summary: '확인됨', detail: flavorOnly ? `향미 표기에서 ${label} 관련 표현을 확인했어요.` : `확인한 자료에서 ${label} 관련 원료를 확인했어요.` }
+  }
+  if (product.reviewed_not_found_ingredient_terms?.includes(term)) {
+    return { state: 'reviewed-not-found', summary: `확인 자료에 ${label} 표기 없음`, detail: '이 표기만으로는 포함 여부를 알기 어려워요.' }
+  }
+  const fallback = { state: 'unknown' as const, summary: '현재 자료로는 포함 여부를 알기 어려워요.' }
+  if (!row?.raw_text?.trim() || row.product_id !== product.product_id || ingredientSourceScope(row).needsCheck) return fallback
+  if (row.observation_scope === 'variant' && variantId && row.variant_id !== variantId) return fallback
+  if (row.completeness_status === 'partial' || row.completeness_status === 'summary') {
+    return { state: 'unknown', summary: '원료표 일부만 확인', detail: fallback.summary }
+  }
+  if (row.completeness_status !== 'full') return fallback
+  const entries = splitIngredientText(row.raw_text)
+  if (FISH_AVOID_TERMS.has(term)) {
+    const phrase = entries.find(entry => GENERIC_FISH_ENTRY.test(entry) && !(term === 'whitefish' && /^white\s*fish\b/i.test(entry)))
+    if (phrase) return { state: 'unknown', summary: `‘${phrase}’ 표기 · 어종 표시 없음`, detail: `확인한 원료표에는 ‘${phrase}’라고 적혀 있어요. 어떤 생선인지는 따로 표시되어 있지 않아요.` }
+  }
+  if (POULTRY_AVOID_TERMS.has(term) || LAND_ANIMAL_AVOID_TERMS.has(term)) {
+    const poultry = POULTRY_AVOID_TERMS.has(term)
+    const phrase = entries.find(entry => GENERIC_POULTRY_ENTRY.test(entry) ? poultry : GENERIC_ANIMAL_ENTRY.test(entry))
+    if (phrase) return { state: 'unknown', summary: `‘${phrase}’ 표기 · 동물 종류 표시 없음`, detail: `확인한 원료표에는 ‘${phrase}’라고 적혀 있어요. 어떤 동물에서 나온 원료인지는 따로 표시되어 있지 않아요.` }
+  }
+  return fallback
 }
 
 // A species elsewhere in a phrase does not identify this ingredient's source.

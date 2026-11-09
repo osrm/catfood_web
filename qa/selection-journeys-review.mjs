@@ -5,7 +5,7 @@ const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE_PATH
 const BASE=process.env.CANDIDATE_URL||'http://127.0.0.1:4173/'
 const OUT=process.env.OUT_DIR||'selection-journeys-output'
 await mkdir(OUT,{recursive:true})
-const report={base:BASE,sourceSha:process.env.CANDIDATE_SHA,realPublicData:true,blocked:[],errors:[],views:{},observations:[]}
+const report={base:BASE,sourceSha:process.env.CANDIDATE_SHA,realPublicData:true,blocked:[],errors:[],apiFailures:[],views:{},observations:[]}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome'})
 let page
 try{
@@ -15,8 +15,14 @@ try{
   const facts=new Map(),reads=[];let energyReads=0
   page.on('response',response=>{
    const path=new URL(response.url()).pathname
+   if(path.startsWith('/rest/v1/')&&response.status()>=400)report.apiFailures.push({width,path,status:response.status()})
    if(path.endsWith('/compare_product_nutrition'))energyReads++
    if(path.endsWith('/effective_product_catalog_summary'))reads.push(response.json().then(rows=>{for(const row of rows)facts.set(row.product_id,{...facts.get(row.product_id),...row})}).catch(()=>{}))
+  })
+  page.on('requestfailed',request=>{
+   const path=new URL(request.url()).pathname
+   const error=request.failure()?.errorText
+   if(path.startsWith('/rest/v1/')&&error!=='net::ERR_ABORTED')report.apiFailures.push({width,path,error})
   })
   await page.route('**/*',async route=>{
    const req=route.request(),url=req.url()
@@ -26,10 +32,21 @@ try{
   })
   async function capture(key,selector){await page.evaluate(()=>document.fonts.ready);const geometry=await page.evaluate(()=>({width:innerWidth,documentWidth:document.documentElement.scrollWidth}));assert.ok(geometry.documentWidth<=width+1,key+': page overflow');report.views[width+'-'+key]={url:page.url(),geometry,text:(await page.locator(selector).innerText()).slice(0,14000)};await page.screenshot({path:`${OUT}/${width}-${key}.png`})}
   async function button(name){return page.getByRole('button',{name,exact:true}).filter({visible:true}).first()}
+  async function waitForCatalog(result,retry,scenario){
+   await result.or(retry).first().waitFor({timeout:45000})
+   if(!await result.isVisible()&&await retry.isVisible()){
+    report.retries??=[];report.retries.push({width,case:scenario})
+    await retry.click()
+   }
+   await result.waitFor({timeout:45000})
+  }
+  const firstExploreResult=page.locator('.research-result-card').first()
+  const retryExploreCatalog=page.locator('.research-results .error-message').getByRole('button',{name:'다시 시도',exact:true})
   await page.goto(BASE+'?view=workspace&mode=explore',{waitUntil:'domcontentloaded'})
   await (await button('건식')).click();await (await button('성묘')).click()
   await page.locator('.mobile-additional-toggle').click();await (await button('체중 관리')).click()
-  await (await button('이 조건으로 찾기')).click();await page.locator('.research-result-card').first().waitFor({timeout:45000})
+  await (await button('이 조건으로 찾기')).click()
+  await waitForCatalog(firstExploreResult,retryExploreCatalog,'explore-catalog')
   if(!await page.locator('.energy-refine').isVisible())await page.locator('.mobile-refine-entry button').click()
   await (await button('열량으로 좁히기')).click();await page.locator('#energy-max').waitFor({timeout:45000})
   await page.locator('#energy-max').fill('350');await (await button('이 열량 이하로 보기')).click()
@@ -59,19 +76,19 @@ try{
   await capture('energy-unknown','.research-quick-view')
 
   await page.goto(BASE+'?view=workspace&mode=explore&applied=1&feed='+encodeURIComponent('건식')+'&age=adult&avoidIngredients=salmon',{waitUntil:'domcontentloaded'})
-  await page.locator('.research-result-card').first().waitFor({timeout:45000})
+  await waitForCatalog(firstExploreResult,retryExploreCatalog,'explore-avoidance-catalog')
   const reviewedId=await page.locator('.result-evidence-group:not(.is-unverified) .research-result-card').first().getAttribute('data-product-id')
   for(let i=0;i<25;i++){const more=page.getByRole('button',{name:/제품 더 보기/});if(!await more.count())break;await more.click()}
   await Promise.all(reads)
   const displayedIds=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId))
   for(const id of displayedIds){const row=facts.get(id);assert.ok(row?.confirmed_present_ingredient_terms,'missing public ingredient facts');assert.ok(![...row.confirmed_present_ingredient_terms,...row.direct_evidence_ingredient_terms,...row.flavor_associated_ingredient_terms].includes('salmon'),'confirmed salmon must be excluded')}
   await capture('salmon-results','.research-workspace')
-  const unknown=page.locator('.result-evidence-group.is-unverified .research-result-card').filter({hasText:'원료 미확인'}).first()
+  const unknown=page.locator('.result-evidence-group.is-unverified .research-result-card').filter({hasText:'연어 포함 여부'}).first()
   assert.ok(await unknown.count(),'expected an unresolved salmon candidate')
   const unknownId=await unknown.getAttribute('data-product-id')
   assert.ok(facts.get(unknownId).insufficient_evidence_ingredient_terms.includes('salmon'))
   await unknown.click();await quick.waitFor();await page.locator('.ingredient-disclosure').waitFor({timeout:45000})
-  assert.match(await quick.innerText(),/원료 미확인[\s\S]*연어/)
+  assert.match(await quick.innerText(),/연어 포함 여부/)
   await capture('salmon-unknown','.research-quick-view')
   await page.locator('.quick-view-actions button').first().click();await (await button('닫기 ×')).click()
   await page.locator(`[data-compare-product-id="${reviewedId}"]`).click();await (await button('비교 보기 →')).click()
@@ -88,7 +105,10 @@ try{
 
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
   await (await button('먹이는 사료 찾기 →')).click();await page.locator('.switch-find-search input').fill('AATU')
-  const current=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await current.waitFor({timeout:45000});await current.click()
+  const current=page.locator('.switch-find-result').filter({hasText:/연어/}).first()
+  const retryCatalog=page.locator('.switch-state-message.is-error').getByRole('button',{name:'다시 시도',exact:true})
+  await waitForCatalog(current,retryCatalog,'switch-catalog')
+  await current.click({timeout:45000})
   const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first();await sku.waitFor();await sku.click();await page.locator('.switch-step-actions .switch-primary-action').click()
   await (await button('다른 브랜드로 보기')).click()
   await page.getByRole('heading',{name:'그대로 두고 싶은 점'}).waitFor()
@@ -131,6 +151,11 @@ try{
   if(await retryCurrent.isVisible()){
    report.retries??=[];report.retries.push({width,case:'current-food',message:await page.locator('.compare-state.is-error').innerText()})
    await capture('switch-nutrition-retry','.compare-stage');await retryCurrent.click()
+  }
+  const retryCandidate=page.getByRole('button',{name:'후보 다시 시도',exact:true})
+  if(await retryCandidate.isVisible()){
+   report.retries??=[];report.retries.push({width,case:'candidate-nutrition'})
+   await retryCandidate.click()
   }
   const difference=page.locator('.compare-energy-difference').filter({visible:true}).first();await difference.waitFor({timeout:45000})
   assert.match(await difference.innerText(),/낮음/)

@@ -351,9 +351,9 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  const beta=cards.find(card=>card.textContent.includes('Beta')),gamma=cards.find(card=>card.textContent.includes('Gamma'))
  assert.match(beta.textContent,/Fish Oil — 세부 어종 미표기/)
  assert.match(beta.textContent,/Natural Flavor — 향료 세부 구성 미표기/)
- assert.match(beta.textContent,/원료 미확인.*연어.*확인 자료에 표기 없음/s)
+ assert.match(beta.textContent,/연어 포함 여부.*확인 자료에 연어 표기 없음/s)
  assert.match(gamma.textContent,/일부 원료표 확인/)
- assert.match(gamma.textContent,/원료 미확인.*연어/s)
+ assert.match(gamma.textContent,/연어 포함 여부.*원료표 일부만 확인/s)
  assert.doesNotMatch(text(),/연어 없음|연어가 없다고 확인|세부 동물 종류 미표기/)
  const sourceRequests=requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients'))
  assert.equal(sourceRequests.length,1,'one batched read covers the visible list')
@@ -362,7 +362,7 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  await click('Beta');await click('비교에 추가');await click('닫기');await click('비교 보기');await click('원재료')
  const result=[...document.querySelectorAll('.compare-row')].find(node=>node.querySelector('.compare-row-label')?.textContent==='연어 확인 결과')
  assert.ok(result,'applied avoidance terms reach general comparison')
- assert.match(result.textContent,/미확인.*확인 자료에 연어 표기 없음.*원료가 없다는 보장은 아닙니다/s)
+ assert.match(result.textContent,/확인 자료에 연어 표기 없음.*포함 여부를 알기 어려워요/s)
 })
 
 test('source explanation failure preserves avoidance results and retries separately from term facts',async()=>{
@@ -371,7 +371,7 @@ test('source explanation failure preserves avoidance results and retries separat
  assert.equal(document.querySelectorAll('.research-result-card').length,1)
  assert.match(text(),/원료표의 추가 안내를 불러오지 못했습니다/)
  assert.match(text(),/기존 원료 확인 결과과 후보 목록은 유지/)
- assert.match(text(),/확인 자료에 표기 없음/)
+ assert.match(text(),/확인 자료에 닭 표기 없음/)
  assert.equal(document.querySelector('.ingredient-list-reason'),null,'failed fetch is not displayed as a missing source')
  const factReads=facts().length
  sourceRows=[listSource(rows[1].product_id,'Peas, Animal Fat')];sourceHandler=async()=>Response.json(sourceRows)

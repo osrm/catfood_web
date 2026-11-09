@@ -68,7 +68,7 @@ try {
     await capture('quick-questions','dialog[aria-label="제품 확인 질문"]')
     await questions.getByRole('button',{name:'닫기',exact:true}).click()
     await page.getByRole('button',{name:'닫기 ×',exact:true}).filter({visible:true}).first().click()
-    const unknown=page.locator('.result-evidence-group.is-unverified .research-result-card').filter({hasText:'원료 미확인'}).first()
+    const unknown=page.locator('.result-evidence-group.is-unverified .research-result-card').filter({hasText:'연어 포함 여부'}).first()
     assert.ok(await unknown.count())
     await unknown.locator('.ingredient-list-reason').waitFor()
     await capture('unknown-card','.result-evidence-group.is-unverified .research-result-card')

@@ -1,5 +1,5 @@
 import { IngredientCompositionValue } from './IngredientComposition'
-import { ingredientDisclosureSummary, ingredientSourceScope, unspecifiedFishIngredient } from './ingredient-disclosure'
+import { ingredientAvoidanceWording, ingredientDisclosureSummary, ingredientSourceScope } from './ingredient-disclosure'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import { Fragment, useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import ProductDetail, { type SwitchDetailNavigation } from './ProductDetail'
@@ -30,6 +30,7 @@ export type CompareItem = {
   ingredientConflicts?: string[]
   ingredientReviewedNotFound?: string[]
   ingredientInsufficient?: string[]
+  ingredientReasons?: string[]
 }
 
 type CompareRowTone = 'metric' | 'context'
@@ -266,14 +267,10 @@ function IngredientAvoidanceResult({ product, term, load, source, variantId }: {
   source?: CompareIngredients | null
   variantId?: string | null
 }) {
-  if (product.confirmed_present_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="present"><strong>확인됨</strong></div>
-  if (product.reviewed_not_found_ingredient_terms?.includes(term)) return <div className="compare-ingredient-verdict" data-evidence-state="reviewed-not-found"><strong>미확인</strong><small>확인 자료에 {INGREDIENT_AVOID_LABELS[term] ?? term} 표기 없음</small><small>원료가 없다는 보장은 아닙니다.</small></div>
+  const wording = ingredientAvoidanceWording(product, term, source, variantId)
   const pending = product.confirmed_present_ingredient_terms == null || product.reviewed_not_found_ingredient_terms == null
-  if (pending && load && load.status !== 'loaded') return <div className="compare-ingredient-verdict" data-evidence-state={load.status === 'error' ? 'error' : 'loading'}><strong>{load.status === 'error' ? '원료 확인 정보 조회 실패' : '원료 확인 정보를 불러오는 중'}</strong></div>
-  const matchesPackage = source?.observation_scope !== 'variant' || !variantId || source.variant_id === variantId
-  const ingredient = source?.product_id === product.product_id && matchesPackage ? unspecifiedFishIngredient(source, term) : undefined
-  const reason = ingredient ? `확인한 원료표에 ‘${ingredient}’로 표기 · 세부 어종 미표기` : '확인 자료 부족'
-  return <div className="compare-ingredient-verdict" data-evidence-state="unknown"><strong>미확인</strong><small>{reason}</small><small>포함 여부를 확인해야 합니다.</small></div>
+  if (wording.state === 'unknown' && pending && load && load.status !== 'loaded') return <div className="compare-ingredient-verdict" data-evidence-state={load.status === 'error' ? 'error' : 'loading'}><strong>{load.status === 'error' ? '원료 확인 정보 조회 실패' : '원료 확인 정보를 불러오는 중'}</strong></div>
+  return <div className="compare-ingredient-verdict" data-evidence-state={wording.state}><strong>{wording.summary}</strong>{wording.detail ? <small>{wording.detail}</small> : null}</div>
 }
 function IngredientPairSummary({ products, currentProductId, currentVariantText, onDetail, onRemove, source, avoidance }: {
   products: CatalogProduct[]
@@ -349,8 +346,10 @@ function RelationSummary({ item }: { item: CompareItem }) {
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
     {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.map((difference) => <span className="compare-condition-difference" key={difference}>{difference}</span>)}</strong></p> : null}
-    {reviewed.length ? <p className="is-reviewed"><span>원료 미확인</span><strong>{reviewed.join(' · ')} · 확인 자료에 표기 없음</strong><small>원료가 없다는 보장은 아닙니다.</small></p> : null}
-    {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 확인 자료 부족</strong></p> : null}
+    {item.ingredientReasons ? item.ingredientReasons.map(reason => <p className="is-unknown" key={reason}><strong>{reason}</strong></p>) : <>
+      {reviewed.length ? <p className="is-reviewed"><span>원료 미확인</span><strong>{reviewed.join(' · ')} · 확인 자료에 표기 없음</strong><small>원료가 없다는 보장은 아닙니다.</small></p> : null}
+      {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 확인 자료 부족</strong></p> : null}
+    </>}
     {unknown.length ? <p className="is-unknown"><span>미확인</span><strong>{unknown.join(' · ')}</strong></p> : null}
   </div>
 }

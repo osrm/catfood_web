@@ -180,11 +180,10 @@ test('selected avoidance rows distinguish confirmed, reviewed-not-found and unkn
   const rows = [...table.querySelectorAll('.compare-switch-overview-row')]
   assert.equal(rows[0].querySelector('.compare-row-label').textContent, '연어 확인 결과')
   assert.deepEqual([...rows[0].querySelectorAll('[data-evidence-state]')].map(node => node.dataset.evidenceState), ['present', 'reviewed-not-found', 'unknown'])
-  assert.deepEqual([...rows[0].querySelectorAll('.compare-ingredient-verdict > strong')].map(node => node.textContent), ['확인됨', '미확인', '미확인'])
+  assert.deepEqual([...rows[0].querySelectorAll('.compare-ingredient-verdict > strong')].map(node => node.textContent), ['확인됨', '확인 자료에 연어 표기 없음', '현재 자료로는 포함 여부를 알기 어려워요.'])
   assert.match(rows[0].querySelector('[data-evidence-state="reviewed-not-found"]').textContent, /확인 자료에 연어 표기 없음/)
-  assert.match(rows[0].querySelector('[data-evidence-state="unknown"]').textContent, /확인 자료 부족/)
-  assert.match(rows[0].textContent, /원료가 없다는 보장은 아닙니다/)
-  assert.match(rows[0].textContent, /미확인.*확인 자료 부족.*포함 여부를 확인해야 합니다/s)
+  assert.match(rows[0].querySelector('[data-evidence-state="unknown"]').textContent, /현재 자료로는 포함 여부를 알기 어려워요/)
+  assert.match(rows[0].querySelector('[data-evidence-state="reviewed-not-found"]').textContent, /이 표기만으로는 포함 여부를 알기 어려워요/)
   assert.equal(rows[1].querySelector('.compare-row-label').textContent, '닭 확인 결과')
   assert.deepEqual([...rows[1].querySelectorAll('[data-evidence-state]')].map(node => node.dataset.evidenceState), ['unknown', 'present', 'unknown'])
   assert.equal(rows[2].querySelector('.compare-row-label').textContent, '목록 상태')
@@ -219,7 +218,7 @@ test('complete raw ingredient lists and a failed source read cannot turn unknown
   await settle()
   const candidate = verdicts().at(-1)
   assert.equal(candidate.dataset.evidenceState, 'reviewed-not-found')
-  assert.match(candidate.textContent, /없다는 보장은 아닙니다/)
+  assert.match(candidate.textContent, /포함 여부를 알기 어려워요/)
   assert.match(document.body.textContent, /불러오지 못했습니다/)
 })
 
@@ -233,7 +232,7 @@ test('ingredient facts loading and failure stay separate from an unknown verdict
   await act(async () => root.render(createElement(app.CompareView, { ...baseProps, ingredientLoad: { ...load, status: 'error' } })))
   await settle()
   assert.deepEqual(states(), ['error', 'error'])
-  assert.doesNotMatch(document.querySelector('.compare-ingredient-pair-summary').textContent, /미확인.*확인 자료 부족|찾지 못함/)
+  assert.doesNotMatch(document.querySelector('.compare-ingredient-pair-summary').textContent, /포함 여부를 알기 어려워요|표기 없음/)
   await click(document.querySelector('.compare-ingredient-mobile-summary .catalog-inline-state button'))
   assert.equal(retries, 1)
   await act(async () => root.render(createElement(app.CompareView, { ...baseProps, ingredientLoad: { ...load, status: 'loaded' }, items: [{ product: candidateA }] })))
@@ -241,11 +240,13 @@ test('ingredient facts loading and failure stay separate from an unknown verdict
   assert.deepEqual(states(), ['unknown', 'unknown'])
 })
 
-test('fish avoidance explains an unspecified ingredient using the applicable original label', async () => {
+test('avoidance shows only relevant generic terms from applicable full labels', async () => {
+  const partial = product('product_partial', '후보', '일부 원료표 제품')
   const sources = [
     { product_id: current.product_id, observation_scope: 'variant', variant_id: 'variant_other', raw_text: '어분' },
     { product_id: candidateA.product_id, observation_scope: 'product', raw_text: '쌀, 어유' },
-    { product_id: candidateB.product_id, observation_scope: 'product', raw_text: 'Fish Oil (Tilapia), Salmon' },
+    { product_id: candidateB.product_id, observation_scope: 'product', raw_text: 'Fish Oil (Tilapia), Salmon, 가금류 지방' },
+    { product_id: partial.product_id, observation_scope: 'product', completeness_status: 'partial', raw_text: '어유' },
   ].map(row => ({ market_code: 'KR', completeness_status: 'full', ingredient_names: [], ...row }))
   const fetchDefault = globalThis.fetch
   globalThis.fetch = window.fetch = async (input) => {
@@ -256,22 +257,25 @@ test('fish avoidance explains an unspecified ingredient using the applicable ori
   }
 
   await renderCompare({
-    initialTab: 'ingredients', ingredientAvoidTerms: ['herring', 'chicken', 'salmon'],
+    initialTab: 'ingredients', ingredientAvoidTerms: ['herring', 'chicken', 'salmon', 'beef'],
     currentVariantId: 'variant_selected',
     items: [
       { product: { ...candidateA, reviewed_not_found_ingredient_terms: ['salmon'] } },
       { product: { ...candidateB, confirmed_present_ingredient_terms: ['salmon'] } },
+      { product: partial },
     ],
   })
   const rows = [...document.querySelectorAll('.compare-ingredient-wide .compare-switch-overview-row')]
-  const reasons = row => [...row.querySelectorAll('.compare-ingredient-verdict small:first-of-type')].map(node => node.textContent)
-  const originalLabel = '확인한 원료표에 ‘어유’로 표기 · 세부 어종 미표기'
-  assert.deepEqual(reasons(rows[0]), ['확인 자료 부족', originalLabel, '확인 자료 부족'])
-  assert.deepEqual(reasons(rows[1]), ['확인 자료 부족', '확인 자료 부족', '확인 자료 부족'])
-  assert.deepEqual(reasons(rows[2]), ['확인 자료 부족', '확인 자료에 연어 표기 없음'])
-  assert.equal(rows[2].querySelector('[data-evidence-state="present"]').textContent, '확인됨')
+  const reasons = row => [...row.querySelectorAll('.compare-ingredient-verdict strong')].map(node => node.textContent)
+  const originalLabel = '‘어유’ 표기 · 어종 표시 없음'
+  const fallback = '현재 자료로는 포함 여부를 알기 어려워요.'
+  const partialLabel = '원료표 일부만 확인'
+  assert.deepEqual(reasons(rows[0]), [fallback, originalLabel, fallback, partialLabel])
+  assert.deepEqual(reasons(rows[1]), [fallback, fallback, '‘가금류 지방’ 표기 · 동물 종류 표시 없음', partialLabel])
+  assert.deepEqual(reasons(rows[2]), [fallback, '확인 자료에 연어 표기 없음', '확인됨', partialLabel])
+  assert.deepEqual(reasons(rows[3]), [fallback, fallback, fallback, partialLabel])
   const mobileCandidate = document.querySelector('.compare-ingredient-pair > div:nth-child(2)')
-  assert.equal(mobileCandidate.querySelector('.compare-ingredient-verdict small').textContent, originalLabel)
+  assert.equal(mobileCandidate.querySelector('.compare-ingredient-verdict strong').textContent, originalLabel)
 })
 
 test('avoidance result rows are absent without selected terms and confirmed presence takes precedence', async () => {

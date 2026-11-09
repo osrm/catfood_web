@@ -362,7 +362,7 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  await click('Beta');await click('비교에 추가');await click('닫기');await click('비교 보기');await click('원재료')
  const result=[...document.querySelectorAll('.compare-row')].find(node=>node.querySelector('.compare-row-label')?.textContent==='연어 확인 결과')
  assert.ok(result,'applied avoidance terms reach general comparison')
- assert.match(result.textContent,/미확인.*확인 자료에 연어 표기 없음.*원료가 없다는 보장은 아닙니다/s)
+ assert.match(result.textContent,/확인 자료에 연어 표기 없음.*포함 여부를 알기 어려워요/s)
 })
 
 test('source explanation failure preserves avoidance results and retries separately from term facts',async()=>{

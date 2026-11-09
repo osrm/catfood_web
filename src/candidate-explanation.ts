@@ -1,5 +1,5 @@
 import type { CatalogProduct, ExploreEnergy, ListIngredientSource } from './api'
-import { ingredientDisclosureReading, ingredientSourceScope, ingredientWordingExamples } from './ingredient-disclosure'
+import { ingredientAvoidanceWording, ingredientDisclosureReading, ingredientSourceScope, ingredientWordingExamples } from './ingredient-disclosure'
 import { energyText, usableEnergy } from './energy-refine'
 
 export type CandidateExplanation = { kept: string[]; differences: string[]; unknowns: string[]; references: string[] }
@@ -49,10 +49,11 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
   for (const condition of conditions) {
     const { kind, value, label, source } = condition
     if (kind === 'ingredientAvoid') {
-      if (candidate.reviewed_not_found_ingredient_terms?.includes(value)) {
-        const before = current.confirmed_present_ingredient_terms?.includes(value) ? '현재 자료에서 확인' : '현재 포함 여부 미확인'
-        ingredientDifferences.push(`${label} 원료 — ${before} → 후보 미확인 · 확인 자료에 표기 없음 (원료가 없다는 보장 아님)`)
-      } else ingredientUnknowns.push(`${label} 원료: 후보 미확인 · 확인 자료 부족`)
+      const wording = ingredientAvoidanceWording(candidate, value, afterSource)
+      const contrast = wording.state === 'reviewed-not-found' && current.confirmed_present_ingredient_terms?.includes(value) ? '현재 자료에서 확인 → ' : ''
+      const line = `${label} 포함 여부 · ${contrast}${wording.summary}`
+      if (wording.state === 'unknown') ingredientUnknowns.push(line)
+      else ingredientDifferences.push([line, wording.detail].filter(Boolean).join(' · '))
       continue
     }
     const field = kind === 'brand' ? 'brand' : kind === 'feedType' ? 'feed_type' : kind === 'lifeStage' ? 'life_stage' : null

@@ -143,7 +143,14 @@ try {
   }
   assert.deepEqual(report.blockedWrites,[])
   assert.deepEqual(report.errors,[])
-  for(const req of report.sourceReads){assert.deepEqual(req.fields.split(','),['product_id','variant_id','raw_text','completeness_status','observation_scope','market_code','is_current_resolved_formula']);assert.ok(Number(req.limit)<=80)}
+  const sourceFields=['product_id','variant_id','raw_text','completeness_status','observation_scope','market_code','is_current_resolved_formula']
+  const publisherField='is_manufacturer_source'
+  assert.ok(report.sourceReads.some(req=>req.fields.split(',').includes(publisherField)))
+  for(const req of report.sourceReads){
+    const fields=req.fields.split(',')
+    assert.deepEqual(fields,fields.at(-1)===publisherField?[...sourceFields,publisherField]:sourceFields)
+    assert.ok(Number(req.limit)<=80)
+  }
 } catch(error) {
   report.failure=String(error)
   if(page&&!page.isClosed()){report.failureText=await page.locator('body').innerText();await page.screenshot({path:OUT+'/failure.png'})}

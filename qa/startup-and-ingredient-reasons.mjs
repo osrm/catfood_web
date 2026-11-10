@@ -51,10 +51,10 @@ try {
     assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
     for(let i=0;i<25;i++){const more=page.getByRole('button',{name:/제품 더 보기/});if(!await more.count())break;await more.click()}
     const royal=page.locator('.research-result-card[data-product-id="product_5b13354ad9792881"]')
-    await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
-    assert.match(await royal.innerText(),/어유 — 세부 어종 미표기/)
-    assert.match(await royal.innerText(),/연어 포함 여부[\s\S]*(?:어종 표시 없음|포함 여부를 알기 어려워요)/)
-    assert.match(await royal.innerText(),/자료 범위 · 한국 자료 · 제품 자료/)
+    const royalVerdict = royal.getByText('제조사 표기 · ‘어유’(어종 미표기)', {exact:true})
+    await royalVerdict.waitFor({timeout:45000})
+    assert.match(await royal.innerText(),/연어 포함 여부/)
+    assert.equal(await royal.locator('.ingredient-list-reason').count(),0,'the selected ingredient verdict already shows the oil wording')
     await capture('avoidance-card', '.research-result-card[data-product-id="product_5b13354ad9792881"]')
     await royal.click()
     await page.locator('.research-quick-view .ingredient-questions-button').click({timeout:45000})
@@ -70,7 +70,7 @@ try {
     await page.getByRole('button',{name:'닫기 ×',exact:true}).filter({visible:true}).first().click()
     const unknown=page.locator('.result-evidence-group.is-unverified .research-result-card').filter({hasText:'연어 포함 여부'}).first()
     assert.ok(await unknown.count())
-    await unknown.locator('.ingredient-list-reason').waitFor()
+    await unknown.locator('.result-relations').waitFor()
     await capture('unknown-card','.result-evidence-group.is-unverified .research-result-card')
     const idsBefore=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())
     failSources=true
@@ -82,8 +82,7 @@ try {
     await capture('source-retry','.ingredient-reason-status')
     failSources=false
     await page.getByRole('button',{name:'추가 확인 사항 다시 불러오기',exact:true}).click()
-    await royal.locator('.ingredient-list-reason').waitFor({timeout:45000})
-    assert.match(await royal.innerText(),/어유 — 세부 어종 미표기/)
+    await royalVerdict.waitFor({timeout:45000})
     await capture('source-recovered','.research-result-card[data-product-id="product_5b13354ad9792881"]')
 
     await page.goto(BASE,{waitUntil:'domcontentloaded'})

@@ -1,4 +1,4 @@
-import type { CatalogProduct, CompareIngredients, ListIngredientSource } from './api'
+import type { CatalogProduct, CompareIngredients, ListIngredientSource, ProductVariant } from './api'
 import { splitIngredientText } from './ingredient-composition'
 import { INGREDIENT_AVOID_LABELS } from './search'
 
@@ -35,7 +35,7 @@ const GENERIC_FISH_ENTRY = new RegExp(`^(?:정제\\s*)?(?:${FISH_CATEGORY.source
 const GENERIC_POULTRY_ENTRY = /^(?:가금(?:류|육)(?:\s*(?:지방|단백질|육분|분말))?|poultry(?:\s+(?:fat|meal|protein))?)(?:\s*\d+(?:[.,]\d+)?\s*%)?$/i
 const GENERIC_ANIMAL_ENTRY = new RegExp(`^(?:${ANIMAL_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
 
-export function ingredientAvoidanceWording(product: CatalogProduct, term: string, row?: ListIngredientSource | null, variantId?: string | null): {
+export function ingredientAvoidanceWording(product: CatalogProduct | ProductVariant, term: string, row?: ListIngredientSource | null, variantId?: string | null): {
   state: 'present' | 'reviewed-not-found' | 'unknown'
   summary: string
   detail?: string

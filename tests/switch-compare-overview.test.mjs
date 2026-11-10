@@ -279,6 +279,54 @@ test('avoidance shows only relevant generic terms from applicable full labels', 
   assert.equal(mobileCandidate.querySelector('.compare-ingredient-verdict strong').textContent, originalLabel)
 })
 
+test('selected current package uses its own ingredient evidence and qualifies an unmatched formula label', async () => {
+  const variant = (id, status, terms) => ({
+    product_id: current.product_id, variant_id: id, formula_evidence_status: status,
+    confirmed_present_ingredient_terms: terms, direct_evidence_ingredient_terms: terms,
+    flavor_associated_ingredient_terms: [], reviewed_not_found_ingredient_terms: [],
+    insufficient_evidence_ingredient_terms: terms.length ? [] : ['egg', 'salmon'],
+  })
+  const linked = variant('variant_linked', 'confirmed', ['egg', 'salmon'])
+  const unlinked = variant('variant_unlinked', 'not_observed', [])
+  const source = {
+    product_id: current.product_id, variant_id: null, observation_scope: 'formula', completeness_status: 'full',
+    is_current_resolved_formula: true, raw_text: 'Whole egg, salmon oil', ingredient_names: ['Whole egg', 'salmon oil'],
+  }
+  const fetchDefault = globalThis.fetch
+  globalThis.fetch = window.fetch = async (input) => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/switch_current_variant_options') && url.searchParams.get('product_id') === `eq.${current.product_id}`) {
+      return Response.json([linked, unlinked])
+    }
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped') && url.searchParams.get('p_product_ids').includes(current.product_id)) {
+      return Response.json([source])
+    }
+    return fetchDefault(input)
+  }
+
+  const { baseProps } = await renderCompare({
+    initialTab: 'ingredients', ingredientAvoidTerms: ['egg', 'salmon'], currentVariantId: unlinked.variant_id,
+    currentProduct: { ...current, confirmed_present_ingredient_terms: ['egg', 'salmon'], direct_evidence_ingredient_terms: ['egg', 'salmon'] },
+  })
+  const desktop = () => [...document.querySelectorAll('.compare-ingredient-wide .is-current .compare-ingredient-verdict')]
+  const mobile = () => [...document.querySelectorAll('.compare-ingredient-pair > div:first-child .compare-ingredient-verdict')]
+  const states = nodes => nodes.map(node => node.dataset.evidenceState)
+  assert.deepEqual(states(desktop()), ['unknown', 'unknown'])
+  assert.deepEqual(states(mobile()), ['unknown', 'unknown'])
+  assert.match(desktop()[0].textContent, /선택한 포장 원료표 확인 필요/)
+  const mobileTerms = () => document.querySelector('.compare-ingredient-pair > div:first-child .compare-ingredient-summary-values').textContent
+  assert.equal(mobileTerms(), '')
+  const scope = () => [...document.querySelectorAll('.ingredient-source-scope')].map(node => node.textContent)
+  assert.ok(scope().some(value => value.includes('선택한 포장 적용 여부 확인 필요')))
+
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, currentVariantId: linked.variant_id })))
+  await settle()
+  assert.deepEqual(states(desktop()), ['present', 'present'])
+  assert.deepEqual(states(mobile()), ['present', 'present'])
+  assert.match(mobileTerms(), /계란.*연어/)
+  assert.ok(!scope().some(value => value.includes('선택한 포장 적용 여부 확인 필요')))
+})
+
 test('avoidance result rows are absent without selected terms and confirmed presence takes precedence', async () => {
   const { baseProps } = await renderCompare({ initialTab: 'ingredients' })
   assert.equal(document.querySelector('.compare-ingredient-verdict'), null)

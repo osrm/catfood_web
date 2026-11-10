@@ -95,7 +95,7 @@ try{
   await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/연어/)
   await capture('salmon-comparison','.compare-stage')
   await page.getByRole('tab',{name:'원재료',exact:true}).click()
-  await page.getByText(/원료 표기/).filter({visible:true}).first().waitFor({timeout:45000})
+  await page.locator('.compare-ingredient-reading').filter({visible:true}).first().waitFor({timeout:45000})
   await capture('salmon-source-comparison','.compare-stage')
   await page.getByRole('button',{name:/제품 목록으로/}).filter({visible:true}).first().click()
   await page.locator('.research-result-card').first().waitFor()

@@ -1,7 +1,6 @@
 /* Component layout and visual rules. Shared tokens live in styles.css. */
-.compare-ingredient-verdict { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.compare-ingredient-verdict { font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
 .compare-ingredient-verdict strong { font-weight: 600; }
-.compare-ingredient-verdict small { color: var(--research-muted); font-size: 12px; line-height: 1.6; }
 @media (max-width: 760px) {.is-switch-overview .compare-switch-mobile-overview .compare-mobile-candidate-picker {
     gap: 0;
     padding: 0;

@@ -233,10 +233,14 @@ function ingredientDetailContext(detail: CompareIngredients | undefined, variant
   if (!hasSupplemental) return context
   return `${context} · ${detail?.supplemental_is_current_resolved_formula ? '현재 확인 배합 전체 목록 보완' : '보조 전체 목록 보완'}`
 }
-const PACKAGE_INGREDIENT_REFERENCE = '비교 참고 자료 · 선택한 포장 적용 여부 확인 필요'
+const PACKAGE_INGREDIENT_REFERENCE = '참고용 원료표 · 포장 확인 필요'
 
-function IngredientReadingSummary({ row, packageReference = false }: { row?: CompareIngredients | null; packageReference?: boolean }) {
-  return <span className="compare-ingredient-reading"><span>{ingredientDisclosureSummary(row)}</span><span className="ingredient-source-scope">자료 범위 · {packageReference ? PACKAGE_INGREDIENT_REFERENCE : ingredientSourceScope(row).label}</span></span>
+function IngredientReadingSummary({ row, packageReference = false, showRoutineScope = true }: { row?: CompareIngredients | null; packageReference?: boolean; showRoutineScope?: boolean }) {
+  const scope = ingredientSourceScope(row)
+  return <span className="compare-ingredient-reading">
+    <span>{ingredientDisclosureSummary(row)}</span>
+    {packageReference || showRoutineScope || (row && scope.needsCheck) ? <span className="ingredient-source-scope">자료 범위 · {packageReference ? PACKAGE_INGREDIENT_REFERENCE : scope.label}</span> : null}
+  </span>
 }
 function hasOverviewListValue(product: CatalogProduct, field: 'targets' | 'features') {
   return field === 'targets' ? product.official_targets.length > 0 : product.features.length > 0
@@ -262,17 +266,16 @@ function NutritionScope({ detail, variants = [], failed = false, loading = false
     </CompareDisclosure>
   </div>
 }
-function IngredientAvoidanceResult({ product, term, load, source, packageUnconfirmed = false }: {
+function IngredientAvoidanceResult({ product, term, load, source }: {
   product: CatalogProduct | ProductVariant
   term: string
   load?: CatalogIngredientLoad
   source?: CompareIngredients | null
-  packageUnconfirmed?: boolean
 }) {
-  const wording = ingredientAvoidanceWording(product, term, source)
+  const wording = ingredientAvoidanceWording(product, term, source, { compact: true })
   const pending = product.confirmed_present_ingredient_terms == null || product.reviewed_not_found_ingredient_terms == null
   if (wording.state === 'unknown' && pending && load && load.status !== 'loaded') return <div className="compare-ingredient-verdict" data-evidence-state={load.status === 'error' ? 'error' : 'loading'}><strong>{load.status === 'error' ? '원료 확인 정보 조회 실패' : '원료 확인 정보를 불러오는 중'}</strong></div>
-  return <div className="compare-ingredient-verdict" data-evidence-state={wording.state}><strong>{wording.summary}</strong>{wording.detail ? <small>{wording.detail}</small> : packageUnconfirmed && wording.state === 'unknown' ? <small>선택한 포장 원료표 확인 필요</small> : null}</div>
+  return <div className="compare-ingredient-verdict" data-evidence-state={wording.state}><strong>{wording.summary}</strong></div>
 }
 function IngredientPairSummary({ products, currentProductId, currentVariantText, onDetail, onRemove, source, avoidance }: {
   products: CatalogProduct[]
@@ -795,10 +798,10 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
       return <div className="compare-ingredient-verdict" data-evidence-state="error"><strong>선택한 포장 정보 조회 실패</strong></div>
     }
     if (!currentIngredientVariant) {
-      return <div className="compare-ingredient-verdict" data-evidence-state="unknown"><strong>현재 자료로는 포함 여부를 알기 어려워요.</strong><small>선택한 포장 원료표 확인 필요</small></div>
+      return <div className="compare-ingredient-verdict" data-evidence-state="unknown"><strong>포장 확인 필요</strong></div>
     }
     const packageSource = source?.observation_scope === 'variant' && source.variant_id === currentVariantId ? source : null
-    return <IngredientAvoidanceResult product={currentIngredientVariant} term={term} source={packageSource} packageUnconfirmed={currentIngredientVariant.formula_evidence_status !== 'confirmed'} />
+    return <IngredientAvoidanceResult product={currentIngredientVariant} term={term} source={packageSource} />
   }
   const additionalNutrientKeys = useMemo(() => {
     const keys = new Set<string>()
@@ -1283,7 +1286,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         const error = isCurrent ? currentIngredientsError : activeIngredientsError
         const row = isCurrent ? currentIngredients ?? undefined : ingredientsByProduct.get(product.product_id)
         return loading ? <p role="status">원재료를 불러오는 중입니다.</p> : error ? <p role="alert">원재료를 불러오지 못했습니다.</p> : <>
-          <p className="compare-ingredient-context">원료 표기: <IngredientReadingSummary row={row} packageReference={isCurrent && currentIngredientPackageReference} /></p>
+          <p className="compare-ingredient-context"><IngredientReadingSummary row={row} packageReference={isCurrent && currentIngredientPackageReference} showRoutineScope={false} /></p>
           <IngredientSourceDisclosure row={row} />
           {row ? <details className="compare-ingredient-context"><summary>자료 보기</summary>{isCurrent && currentIngredientPackageReference ? PACKAGE_INGREDIENT_REFERENCE : ingredientDetailContext(row, isCurrent ? currentVariants : variantsByProduct[product.product_id], isCurrent ? currentVariantLookupFailed : variantLookupFailures.includes(product.product_id), isCurrent ? currentVariantsLoading : variantsLoading)}</details> : null}
         </>

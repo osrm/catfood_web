@@ -67,8 +67,17 @@ try {
     await capture('quick-view', '.ingredient-composition-inspector')
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${products[0].id},${products[1].id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })
     await page.getByText(/어유.*세부 어종 미표기/).filter({ visible: true }).first().waitFor({ timeout: 45000 })
-    assert.ok((await page.locator('.compare-stage').innerText()).includes(products[0].scope))
-    assert.ok((await page.locator('.compare-stage').innerText()).includes(products[1].scope))
+    if (width === 390) {
+      const sources = page.locator('.compare-ingredient-pair-summary details.compare-ingredient-context')
+      assert.equal(await page.locator('.compare-ingredient-pair-summary .ingredient-source-scope').count(), 0)
+      assert.equal(await sources.count(), 2)
+      for (const details of await sources.all()) await details.locator('summary').click()
+      assert.match(await sources.nth(0).innerText(), /한국 판매 제품 자료/)
+      assert.match(await sources.nth(1).innerText(), /같은 배합으로 확인된 제품 자료/)
+    } else {
+      assert.ok((await page.locator('.compare-stage').innerText()).includes(products[0].scope))
+      assert.ok((await page.locator('.compare-stage').innerText()).includes(products[1].scope))
+    }
     assert.equal(await page.locator('.comparison-highlights').count(), 0, 'ingredients uses the primary comparison')
     assert.match(await page.locator('.compare-stage').innerText(), /fish oil \(herring\)/i)
     assert.match(await page.locator('.compare-stage').innerText(), /청어를 명시한 오일/)

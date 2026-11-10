@@ -22,6 +22,7 @@ export function ingredientSourceScope(row: IngredientScope | null | undefined) {
 
 const FISH_CATEGORY = /어유|어류(?:\s*(?:추출물|단백질|자가분해물|가수분해물))?|어개류|생선(?:\s*(?:기름|오일|추출물|육수|분말))?|해수어분|어분|피쉬\s*(?:오일|펩티드|밀|추출물)|魚介類|魚油|魚類|フィッシュ(?:オイル|ミール|エキス)|\bfish(?:\s+(?:oil|meal|(?:bone\s+)?broth|extract|protein|peptide|autolysate|hydrolysate)s?)?\b|\bwhitefish\b|\bwhite fish\b/i
 const FISH_SPECIES = /연어|참치|가다랑어|정어리|멸치|청어|고등어|대구|명태|폴락|송어|볼락|가자미|우럭|호키|멘헤이든|サーモン|鮭|マグロ|カツオ|イワシ|アンチョビ|タラ|ニシン|サバ|\bsalmon\b|\btuna\b|\bsardines?\b|\banchov(?:y|ies)\b|\bherring\b|\bmackerel\b|\bcod\b|\bpollock\b|\btrout\b|\bmenhaden\b|\bhoki\b/i
+const NAMED_KOREAN_FISH_OIL = new RegExp(`(?:${FISH_SPECIES.source})유$`, 'i')
 const ANIMAL_CATEGORY = /동물성\s*(?:유도)?\s*(?:단백질|지방)|가금(?:류|육)|육분|육류|동물성유지|\bpoultry\b|\banimal (?:fat|protein|meal)\b|\bmeat meal\b/i
 const ANIMAL_SPECIES = /닭|오리|칠면조|돼지|쇠고기|소고기|양고기|토끼|사슴|메추리|거위|\bchicken\b|\bduck\b|\bturkey\b|\bpork\b|\bbeef\b|\blamb\b|\brabbit\b|\bvenison\b|\bquail\b|\bgoose\b/i
 const FLAVOR_CATEGORY = /천연\s*향(?:료|미)?|인공\s*향(?:료|미)?|향미료|조미향료|\bnatural flavo(?:u)?r\b|\bartificial flavo(?:u)?r\b|香料/i
@@ -35,7 +36,12 @@ const GENERIC_FISH_ENTRY = new RegExp(`^(?:정제\\s*)?(?:${FISH_CATEGORY.source
 const GENERIC_POULTRY_ENTRY = /^(?:가금(?:류|육)(?:\s*(?:지방|단백질|육분|분말))?|poultry(?:\s+(?:fat|meal|protein))?)(?:\s*\d+(?:[.,]\d+)?\s*%)?$/i
 const GENERIC_ANIMAL_ENTRY = new RegExp(`^(?:${ANIMAL_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
 
-export function ingredientAvoidanceWording(product: CatalogProduct | ProductVariant, term: string, row?: ListIngredientSource | null, variantId?: string | null): {
+export function ingredientAvoidanceWording(
+  product: CatalogProduct | ProductVariant,
+  term: string,
+  row?: ListIngredientSource | null,
+  { variantId, compact = false }: { variantId?: string | null; compact?: boolean } = {},
+): {
   state: 'present' | 'reviewed-not-found' | 'unknown'
   summary: string
   detail?: string
@@ -43,12 +49,13 @@ export function ingredientAvoidanceWording(product: CatalogProduct | ProductVari
   const label = INGREDIENT_AVOID_LABELS[term] ?? term
   if (product.confirmed_present_ingredient_terms?.includes(term)) {
     const flavorOnly = product.flavor_associated_ingredient_terms?.includes(term) && !product.direct_evidence_ingredient_terms?.includes(term)
+    if (compact) return { state: 'present', summary: flavorOnly ? '향미 표기에서 확인' : '확인됨' }
     return { state: 'present', summary: '확인됨', detail: flavorOnly ? `향미 표기에서 ${label} 관련 표현을 확인했어요.` : `확인한 자료에서 ${label} 관련 원료를 확인했어요.` }
   }
   const reviewed = product.reviewed_not_found_ingredient_terms?.includes(term)
   const fallback = reviewed
-    ? { state: 'reviewed-not-found' as const, summary: `확인 자료에 ${label} 표기 없음`, detail: '이 표기만으로는 포함 여부를 알기 어려워요.' }
-    : { state: 'unknown' as const, summary: '현재 자료로는 포함 여부를 알기 어려워요.' }
+    ? { state: 'reviewed-not-found' as const, summary: compact ? '확인한 원료표에 표기 없음' : `확인 자료에 ${label} 표기 없음`, detail: compact ? undefined : '이 표기만으로는 포함 여부를 알기 어려워요.' }
+    : { state: 'unknown' as const, summary: compact ? '포장 확인 필요' : '현재 자료로는 포함 여부를 알기 어려워요.' }
   if (!row?.raw_text?.trim() || row.product_id !== product.product_id || ingredientSourceScope(row).needsCheck) return fallback
   if (row.observation_scope === 'variant' && variantId && row.variant_id !== variantId) return fallback
   const manufacturer = row.is_manufacturer_source === true
@@ -58,15 +65,16 @@ export function ingredientAvoidanceWording(product: CatalogProduct | ProductVari
   }
   if (row.completeness_status !== 'full') return fallback
   const source = manufacturer ? '제조사 원료표' : '확인한 원료표'
+  const compactSource = manufacturer ? '제조사 표기' : '원료표'
   const entries = splitIngredientText(row.raw_text)
   if (FISH_AVOID_TERMS.has(term)) {
     const phrase = entries.find(entry => GENERIC_FISH_ENTRY.test(entry) && !(term === 'whitefish' && /^white\s*fish\b/i.test(entry)))
-    if (phrase) return { state: fallback.state, summary: `${source}에 어종 표시 없음 · ‘${phrase}’ 표기` }
+    if (phrase) return { state: fallback.state, summary: compact ? `${compactSource} · ‘${phrase}’(어종 미표기)` : `${source}에 어종 표시 없음 · ‘${phrase}’ 표기` }
   }
   if (POULTRY_AVOID_TERMS.has(term) || LAND_ANIMAL_AVOID_TERMS.has(term)) {
     const poultry = POULTRY_AVOID_TERMS.has(term)
     const phrase = entries.find(entry => GENERIC_POULTRY_ENTRY.test(entry) ? poultry : GENERIC_ANIMAL_ENTRY.test(entry))
-    if (phrase) return { state: fallback.state, summary: `${source}에 동물 종류 표시 없음 · ‘${phrase}’ 표기` }
+    if (phrase) return { state: fallback.state, summary: compact ? `${compactSource} · ‘${phrase}’(동물 종류 미표기)` : `${source}에 동물 종류 표시 없음 · ‘${phrase}’ 표기` }
   }
   return fallback
 }
@@ -78,6 +86,8 @@ function hasUnspecifiedCategory(ingredient: string, category: RegExp, species: R
   const namedHeading = new RegExp('^\\s*(?:원\\s*)?[:：]\\s*(?:' + species.source + ')(?:고기|간|육)?(?:$|\\s|[·/0-9(%])', 'i')
   for (const match of ingredient.matchAll(new RegExp(category.source, 'gi'))) {
     const before = ingredient.slice(0, match.index)
+    // In 연어유, the match 어유 starts inside the named species.
+    if (category === FISH_CATEGORY && match[0] === '어유' && NAMED_KOREAN_FISH_OIL.test(before + match[0])) continue
     const after = ingredient.slice(match.index + match[0].length)
     const parenthesis = after.match(/^\s*[（(]([^()（）]*)[)）]/)?.[1]
     const specified = parenthesis != null

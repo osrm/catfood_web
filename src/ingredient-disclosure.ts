@@ -45,6 +45,7 @@ export function ingredientAvoidanceWording(
   state: 'present' | 'reviewed-not-found' | 'unknown'
   summary: string
   detail?: string
+  sourcePhrase?: string
 } {
   const label = INGREDIENT_AVOID_LABELS[term] ?? term
   if (product.confirmed_present_ingredient_terms?.includes(term)) {
@@ -69,12 +70,12 @@ export function ingredientAvoidanceWording(
   const entries = splitIngredientText(row.raw_text)
   if (FISH_AVOID_TERMS.has(term)) {
     const phrase = entries.find(entry => GENERIC_FISH_ENTRY.test(entry) && !(term === 'whitefish' && /^white\s*fish\b/i.test(entry)))
-    if (phrase) return { state: fallback.state, summary: compact ? `${compactSource} · ‘${phrase}’(어종 미표기)` : `${source}에 어종 표시 없음 · ‘${phrase}’ 표기` }
+    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: compact ? `${compactSource} · ‘${phrase}’(어종 미표기)` : `${source}에 어종 표시 없음 · ‘${phrase}’ 표기` }
   }
   if (POULTRY_AVOID_TERMS.has(term) || LAND_ANIMAL_AVOID_TERMS.has(term)) {
     const poultry = POULTRY_AVOID_TERMS.has(term)
     const phrase = entries.find(entry => GENERIC_POULTRY_ENTRY.test(entry) ? poultry : GENERIC_ANIMAL_ENTRY.test(entry))
-    if (phrase) return { state: fallback.state, summary: compact ? `${compactSource} · ‘${phrase}’(동물 종류 미표기)` : `${source}에 동물 종류 표시 없음 · ‘${phrase}’ 표기` }
+    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: compact ? `${compactSource} · ‘${phrase}’(동물 종류 미표기)` : `${source}에 동물 종류 표시 없음 · ‘${phrase}’ 표기` }
   }
   return fallback
 }

@@ -146,9 +146,10 @@ export interface CompareIngredients {
   supplemental_observation_scope?: string | null
   supplemental_market_code?: string | null
   supplemental_is_current_resolved_formula?: boolean
+  is_manufacturer_source?: boolean
 }
 
-export type ListIngredientSource = Pick<CompareIngredients, 'product_id' | 'variant_id' | 'raw_text' | 'completeness_status' | 'observation_scope' | 'market_code' | 'is_current_resolved_formula'>
+export type ListIngredientSource = Pick<CompareIngredients, 'product_id' | 'variant_id' | 'raw_text' | 'completeness_status' | 'observation_scope' | 'market_code' | 'is_current_resolved_formula' | 'is_manufacturer_source'>
 
 export interface ProductManufacturingDetail {
   product_id: string
@@ -430,6 +431,18 @@ function requestHeaders(publishableKey: string) {
   }
 }
 
+async function fetchRead(url: URL, options: RequestInit) {
+  const response = await fetch(url, options)
+  const fields = url.searchParams.get('select')?.split(',')
+  if (response.status !== 400 || !fields?.includes('is_manufacturer_source')) return response
+  const error = await response.clone().json().catch(() => null)
+  if (!['42703', 'PGRST204'].includes(error?.code) || typeof error?.message !== 'string' || !error.message.includes('is_manufacturer_source')) return response
+  // Older API deployments can still provide the label without its publisher.
+  const compatibleUrl = new URL(url)
+  compatibleUrl.searchParams.set('select', fields.filter(field => field !== 'is_manufacturer_source').join(','))
+  return fetch(compatibleUrl, options)
+}
+
 async function fetchRows<T>(
   view: string,
   fields: string,
@@ -445,7 +458,7 @@ async function fetchRows<T>(
   if (order) url.searchParams.set('order', order)
   url.searchParams.set('limit', limit)
 
-  const response = await fetch(url, {
+  const response = await fetchRead(url, {
     signal,
     headers: requestHeaders(publishableKey),
   })
@@ -471,7 +484,7 @@ async function fetchCompareRows<T>(
   url.searchParams.set('p_product_ids', `{${productIds.map((id) => JSON.stringify(id)).join(',')}}`)
   url.searchParams.set('limit', '5')
 
-  const response = await fetch(url, {
+  const response = await fetchRead(url, {
     signal,
     headers: requestHeaders(publishableKey),
   })
@@ -682,7 +695,7 @@ export async function fetchListIngredientSources(productIds: string[], signal?: 
   const rows: ListIngredientSource[] = []
   for (let start = 0; start < ids.length; start += 80) {
     const batch = ids.slice(start, start + 80)
-    const page = await fetchRows<ListIngredientSource>('compare_product_ingredients', 'product_id,variant_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`, signal, 'product_id.asc', String(batch.length))
+    const page = await fetchRows<ListIngredientSource>('compare_product_ingredients', 'product_id,variant_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula,is_manufacturer_source', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`, signal, 'product_id.asc', String(batch.length))
     if (page.some(row => !batch.includes(row.product_id)) || new Set(page.map(row => row.product_id)).size !== page.length) throw new Error('Ambiguous ingredient sources')
     rows.push(...page)
   }
@@ -707,7 +720,7 @@ export async function fetchCompareIngredients(
   signal?: AbortSignal,
 ): Promise<CompareIngredients[]> {
   const data = await fetchCompareRows<CompareIngredients>(
-    'compare_product_ingredients_scoped', COMPARE_INGREDIENT_FIELDS, productIds, signal,
+    'compare_product_ingredients_scoped', COMPARE_INGREDIENT_FIELDS + ',is_manufacturer_source', productIds, signal,
   )
   return data.map(normalizeCompareIngredients)
 }

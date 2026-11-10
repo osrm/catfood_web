@@ -45,25 +45,28 @@ export function ingredientAvoidanceWording(product: CatalogProduct, term: string
     const flavorOnly = product.flavor_associated_ingredient_terms?.includes(term) && !product.direct_evidence_ingredient_terms?.includes(term)
     return { state: 'present', summary: '확인됨', detail: flavorOnly ? `향미 표기에서 ${label} 관련 표현을 확인했어요.` : `확인한 자료에서 ${label} 관련 원료를 확인했어요.` }
   }
-  if (product.reviewed_not_found_ingredient_terms?.includes(term)) {
-    return { state: 'reviewed-not-found', summary: `확인 자료에 ${label} 표기 없음`, detail: '이 표기만으로는 포함 여부를 알기 어려워요.' }
-  }
-  const fallback = { state: 'unknown' as const, summary: '현재 자료로는 포함 여부를 알기 어려워요.' }
+  const reviewed = product.reviewed_not_found_ingredient_terms?.includes(term)
+  const fallback = reviewed
+    ? { state: 'reviewed-not-found' as const, summary: `확인 자료에 ${label} 표기 없음`, detail: '이 표기만으로는 포함 여부를 알기 어려워요.' }
+    : { state: 'unknown' as const, summary: '현재 자료로는 포함 여부를 알기 어려워요.' }
   if (!row?.raw_text?.trim() || row.product_id !== product.product_id || ingredientSourceScope(row).needsCheck) return fallback
   if (row.observation_scope === 'variant' && variantId && row.variant_id !== variantId) return fallback
+  const manufacturer = row.is_manufacturer_source === true
+  if (reviewed && !manufacturer) return fallback
   if (row.completeness_status === 'partial' || row.completeness_status === 'summary') {
-    return { state: 'unknown', summary: '원료표 일부만 확인', detail: fallback.summary }
+    return reviewed ? fallback : { state: 'unknown', summary: '원료표 일부만 확인', detail: fallback.summary }
   }
   if (row.completeness_status !== 'full') return fallback
+  const source = manufacturer ? '제조사 원료표' : '확인한 원료표'
   const entries = splitIngredientText(row.raw_text)
   if (FISH_AVOID_TERMS.has(term)) {
     const phrase = entries.find(entry => GENERIC_FISH_ENTRY.test(entry) && !(term === 'whitefish' && /^white\s*fish\b/i.test(entry)))
-    if (phrase) return { state: 'unknown', summary: `‘${phrase}’ 표기 · 어종 표시 없음`, detail: `확인한 원료표에는 ‘${phrase}’라고 적혀 있어요. 어떤 생선인지는 따로 표시되어 있지 않아요.` }
+    if (phrase) return { state: fallback.state, summary: `${source}에 어종 표시 없음 · ‘${phrase}’ 표기` }
   }
   if (POULTRY_AVOID_TERMS.has(term) || LAND_ANIMAL_AVOID_TERMS.has(term)) {
     const poultry = POULTRY_AVOID_TERMS.has(term)
     const phrase = entries.find(entry => GENERIC_POULTRY_ENTRY.test(entry) ? poultry : GENERIC_ANIMAL_ENTRY.test(entry))
-    if (phrase) return { state: 'unknown', summary: `‘${phrase}’ 표기 · 동물 종류 표시 없음`, detail: `확인한 원료표에는 ‘${phrase}’라고 적혀 있어요. 어떤 동물에서 나온 원료인지는 따로 표시되어 있지 않아요.` }
+    if (phrase) return { state: fallback.state, summary: `${source}에 동물 종류 표시 없음 · ‘${phrase}’ 표기` }
   }
   return fallback
 }

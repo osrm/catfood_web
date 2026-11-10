@@ -918,7 +918,10 @@ test('ingredient editor, results and analytics preserve verdicts with bounded li
   assert.equal(requests.some(request => /compare_product_nutrition/.test(request.path)), false)
   const listReads = requests.filter(request => request.path.endsWith('/compare_product_ingredients'))
   assert.ok(listReads.length > 0, 'visible avoidance cards may read minimal source wording together')
-  assert.ok(listReads.every(request => new URLSearchParams(request.query).get('select').split(',').length === 7))
+  assert.ok(listReads.every(request => {
+    const fields = new URLSearchParams(request.query).get('select').split(',')
+    return fields.length === 8 && fields.includes('is_manufacturer_source')
+  }))
   const compositionReads = requests.filter(request => request.path.endsWith('/compare_product_ingredients_scoped'))
   assert.ok(compositionReads.length > 0, 'an opened inspector may read that product to summarize its ingredients')
   assert.ok(compositionReads.every(request => JSON.parse(new URLSearchParams(request.query).get('p_product_ids').replace('{', '[').replace('}', ']')).length === 1), 'never fetch every result for the opened inspector')

@@ -66,7 +66,25 @@ test('aborting catalog packaging propagates cancellation without retry or fallba
   assert.deepEqual(requests, ['/rest/v1/effective_product_catalog_summary', '/rest/v1/catalog_package_options'])
 })
 
-for (const [resource, method, fields] of [['ingredients', 'fetchCompareIngredients', 17], ['nutrition', 'fetchCompareNutrition', 28]]) {
+test('ingredient reads keep their neutral source wording on an older API', async () => {
+  const selects = []
+  globalThis.fetch = async input => {
+    const fields = new URL(input).searchParams.get('select').split(',')
+    selects.push(fields)
+    if (fields.includes('is_manufacturer_source')) {
+      return Response.json({ code: '42703', message: 'column is_manufacturer_source does not exist' }, { status: 400 })
+    }
+    return Response.json([{ product_id: 'product_a', raw_text: '어유' }])
+  }
+  for (const method of ['fetchCompareIngredients', 'fetchListIngredientSources']) {
+    const [row] = await api[method](['product_a'])
+    assert.equal(row.raw_text, '어유')
+    assert.equal(row.is_manufacturer_source, undefined)
+  }
+  assert.deepEqual(selects.map(fields => fields.includes('is_manufacturer_source')), [true, false, true, false])
+})
+
+for (const [resource, method, fields] of [['ingredients', 'fetchCompareIngredients', 18], ['nutrition', 'fetchCompareNutrition', 28]]) {
 test(resource + ': empty selection does not make a request', async () => {
   globalThis.fetch = () => { throw new Error('unexpected request') }
   assert.deepEqual(await api[method]([]), [])

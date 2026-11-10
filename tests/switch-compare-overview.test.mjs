@@ -243,10 +243,10 @@ test('ingredient facts loading and failure stay separate from an unknown verdict
 test('avoidance shows only relevant generic terms from applicable full labels', async () => {
   const partial = product('product_partial', '후보', '일부 원료표 제품')
   const sources = [
-    { product_id: current.product_id, observation_scope: 'variant', variant_id: 'variant_other', raw_text: '어분' },
-    { product_id: candidateA.product_id, observation_scope: 'product', raw_text: '쌀, 어유' },
+    { product_id: current.product_id, observation_scope: 'variant', variant_id: 'variant_other', raw_text: '어분', is_manufacturer_source: true },
+    { product_id: candidateA.product_id, observation_scope: 'product', raw_text: '쌀, 어유', is_manufacturer_source: true },
     { product_id: candidateB.product_id, observation_scope: 'product', raw_text: 'Fish Oil (Tilapia), Salmon, 가금류 지방' },
-    { product_id: partial.product_id, observation_scope: 'product', completeness_status: 'partial', raw_text: '어유' },
+    { product_id: partial.product_id, observation_scope: 'product', completeness_status: 'partial', raw_text: '어유', is_manufacturer_source: true },
   ].map(row => ({ market_code: 'KR', completeness_status: 'full', ingredient_names: [], ...row }))
   const fetchDefault = globalThis.fetch
   globalThis.fetch = window.fetch = async (input) => {
@@ -267,12 +267,13 @@ test('avoidance shows only relevant generic terms from applicable full labels', 
   })
   const rows = [...document.querySelectorAll('.compare-ingredient-wide .compare-switch-overview-row')]
   const reasons = row => [...row.querySelectorAll('.compare-ingredient-verdict strong')].map(node => node.textContent)
-  const originalLabel = '‘어유’ 표기 · 어종 표시 없음'
+  const originalLabel = '제조사 원료표에 어종 표시 없음 · ‘어유’ 표기'
   const fallback = '현재 자료로는 포함 여부를 알기 어려워요.'
   const partialLabel = '원료표 일부만 확인'
   assert.deepEqual(reasons(rows[0]), [fallback, originalLabel, fallback, partialLabel])
-  assert.deepEqual(reasons(rows[1]), [fallback, fallback, '‘가금류 지방’ 표기 · 동물 종류 표시 없음', partialLabel])
-  assert.deepEqual(reasons(rows[2]), [fallback, '확인 자료에 연어 표기 없음', '확인됨', partialLabel])
+  assert.deepEqual(reasons(rows[1]), [fallback, fallback, '확인한 원료표에 동물 종류 표시 없음 · ‘가금류 지방’ 표기', partialLabel])
+  assert.deepEqual(reasons(rows[2]), [fallback, originalLabel, '확인됨', partialLabel])
+  assert.equal(rows[2].querySelectorAll('.compare-ingredient-verdict')[1].dataset.evidenceState, 'reviewed-not-found')
   assert.deepEqual(reasons(rows[3]), [fallback, fallback, fallback, partialLabel])
   const mobileCandidate = document.querySelector('.compare-ingredient-pair > div:nth-child(2)')
   assert.equal(mobileCandidate.querySelector('.compare-ingredient-verdict strong').textContent, originalLabel)

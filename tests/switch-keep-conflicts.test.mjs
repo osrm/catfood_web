@@ -206,6 +206,7 @@ test('SWITCH clears only conflicting KEEP axes and never restores them after CHA
 
   await click(all('.switch-current-ingredients button')[0])
   assert.match(document.body.textContent, /닭 ×/)
+  assert.doesNotMatch(document.body.textContent, /현재 사료에서 확인한 원료가 아직 없습니다/)
 
   await click('다른 브랜드로 보기')
   assert.match(document.querySelector('[role="status"]').textContent, /브랜드 유지 조건을 해제했습니다/)

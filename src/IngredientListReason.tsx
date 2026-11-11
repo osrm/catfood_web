@@ -42,12 +42,13 @@ export function IngredientListReason({ row, focused = false, shownPhrases = [] }
     {row?.raw_text ? <small>{scope.label}</small> : null}
   </span>
   const details = reading.details.filter(detail => !shownPhrases.includes(detail.phrase))
-  if (shownPhrases.length && !details.length) return null
+  const incomplete = reading.listLabel !== '전체 원료표 확인'
+  if (!details.length && !incomplete) return null
   return <span className="ingredient-list-reason">
-    <strong>원료표에서 더 확인할 점</strong>
-    {details.length ? details.slice(0, 2).map(detail => <span key={detail.phrase}>{detail.phrase} — {detail.note}</span>) : <span>{reading.listLabel === '전체 원료표 확인' ? '이 자료에 전체 목록이 있어도 특정 원료가 없다는 보장은 아닙니다.' : '이 자료 기준 · ' + reading.listLabel}</span>}
-    {reading.details.length && row?.completeness_status !== 'full' ? <span>이 자료 기준 · {reading.listLabel}</span> : null}
-    {row?.raw_text ? <small>자료 범위 · {scope.label}</small> : null}
-    {!shownPhrases.length ? <span>피하려는 원료의 포함 여부는 별도로 확인해 주세요.</span> : null}
+    {details.length ? <>
+      <strong>원료표에서 더 확인할 점</strong>
+      {details.slice(0, 2).map(detail => <span key={detail.phrase}>{detail.phrase} — {detail.note}</span>)}
+    </> : null}
+    {incomplete ? <span>{reading.listLabel}</span> : null}
   </span>
 }

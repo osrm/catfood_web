@@ -185,7 +185,7 @@ test('selected avoidance rows distinguish confirmed, reviewed-not-found and unkn
   assert.equal(rows[1].querySelector('.compare-row-label').textContent, '닭 확인 결과')
   assert.deepEqual([...rows[1].querySelectorAll('[data-evidence-state]')].map(node => node.dataset.evidenceState), ['unknown', 'present', 'unknown'])
   assert.equal(rows[1].querySelector('[data-evidence-state=present]').textContent, '향미 표기에서 확인')
-  assert.equal(rows[2].querySelector('.compare-row-label').textContent, '목록 상태')
+  assert.equal(rows[2].querySelector('.compare-row-label').textContent, '세부 원료 표시')
   assert.doesNotMatch(rows[0].textContent, /연어 없음|안전|적합|추천/)
   const mobile = document.querySelector('.compare-ingredient-pair-summary')
   const values = () => [...mobile.querySelectorAll('.compare-ingredient-avoidance > div:first-child [data-evidence-state]')].map(node => node.dataset.evidenceState)
@@ -209,7 +209,7 @@ test('complete raw ingredient lists and a failed source read cannot turn unknown
   const { baseProps } = await renderCompare({ initialTab: 'ingredients', ingredientAvoidTerms: ['salmon'] })
   const verdicts = () => [...document.querySelectorAll('.compare-ingredient-wide [data-evidence-state]')]
   assert.deepEqual(verdicts().map(node => node.dataset.evidenceState), ['unknown', 'unknown', 'unknown'])
-  assert.match(document.querySelector('.compare-ingredient-wide').textContent, /전체 목록 확인/)
+  assert.match(document.querySelector('.compare-ingredient-wide .compare-ingredient-reading').textContent, /어유.*세부 어종 미표기/)
   globalThis.fetch = window.fetch = async () => new Response('', { status: 503 })
   await act(async () => root.render(createElement(app.CompareView, {
     ...baseProps, items: [{ product: product('product_failed_source', '후보', '원문 조회 실패 제품', { reviewed_not_found_ingredient_terms: ['salmon'] }) }],

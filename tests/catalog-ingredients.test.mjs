@@ -399,7 +399,5 @@ test('list source cautions distinguish unresolved applicability, missing raw tex
  await act(async()=>root.render(createElement(app.IngredientListReason,{row:{...row,raw_text:null,market_code:'KR',observation_scope:'product'}})))
  assert.match(text(),/원료표 미확인/)
  await act(async()=>root.render(createElement(app.IngredientListReason,{row:{...row,raw_text:'fish oil (herring)',is_current_resolved_formula:true}})))
- assert.match(text(),/특정 원료가 없다는 보장은 아닙니다/)
- assert.match(text(),/국내 동일 배합 확인 자료/)
- assert.doesNotMatch(text(),/세부 어종 미표기/)
+ assert.equal(document.querySelector('.ingredient-list-reason'),null,'a complete applicable source needs no routine list guidance')
 })

@@ -101,7 +101,10 @@ try {
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${full.product_id},${partial.product_id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })
     await page.getByText(/일부 원료표 확인.*어유/).filter({ visible: true }).first().waitFor()
-    assert.match(await page.locator('.compare-stage').innerText(), /전체 원료표 확인/)
+    const original = page.locator('.compare-stage .compare-evidence-disclosure').filter({ visible: true }).first()
+    assert.equal(await original.getAttribute('open'), null)
+    await original.locator('summary').click()
+    assert.match(await original.innerText(), /전체 원료표 확인/)
     await capture('compare', '.compare-stage')
     await context.close()
   }

@@ -23,14 +23,14 @@ after(async () => { globalThis.fetch = nativeFetch; if (temp) await rm(temp, { r
 test('catalog packaging uses narrow metadata while selected-product variants retain full facts', async () => {
   const requests = []
   const controller = new AbortController()
+  let resolveCatalog
+  const catalogResponse = new Promise(resolve => { resolveCatalog = resolve })
   globalThis.fetch = async (input, init) => {
     const url = new URL(input)
     requests.push(url)
     assert.equal(init.signal, controller.signal)
     assert.equal(init.headers['Accept-Profile'], 'api')
-    if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json([{
-      product_id: 'product_a', representative_package_size_text: '85 g', representative_units_per_sale: 12,
-    }])
+    if (url.pathname.endsWith('/effective_product_catalog_summary')) return catalogResponse
     if (url.pathname.endsWith('/catalog_package_options')) return Response.json([
       { product_id: 'product_a', variant_id: 'variant_a', package_size_text: '85 g', package_weight_g: 85, units_per_sale: 12, sale_total_weight_g: 1020, display_rank: 1 },
       { product_id: 'product_a', variant_id: 'variant_b', package_size_text: '2 kg', package_weight_g: 2000, units_per_sale: 1, sale_total_weight_g: 2000, display_rank: 2 },
@@ -41,7 +41,13 @@ test('catalog packaging uses narrow metadata while selected-product variants ret
     assert.match(url.searchParams.get('select'), /confirmed_present_ingredient_terms/)
     return Response.json([{ product_id: 'product_a', variant_id: 'variant_a', formula_evidence_status: 'conflicting', confirmed_present_ingredient_terms: ['chicken'] }])
   }
-  const catalog = await api.fetchCatalog(controller.signal)
+  const loading = api.fetchCatalog(controller.signal)
+  const startedPackagesBeforeCatalog = requests.some(url => url.pathname.endsWith('/catalog_package_options'))
+  resolveCatalog(Response.json([{
+    product_id: 'product_a', representative_package_size_text: '85 g', representative_units_per_sale: 12,
+  }]))
+  const catalog = await loading
+  assert.ok(startedPackagesBeforeCatalog, 'package options start while the catalog response is pending')
   assert.deepEqual(catalog[0].available_package_labels, ['85 g × 12', '2 kg'])
   assert.equal(requests.some((url) => url.pathname.endsWith('/switch_current_variant_options')), false)
   const variants = await api.fetchProductVariants('product_a', controller.signal)

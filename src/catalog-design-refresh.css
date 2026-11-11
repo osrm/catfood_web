@@ -1199,6 +1199,11 @@
     font-size: 14px;
   }
 
+  .research-shell .research-results .research-result-card .relation-line.is-ingredient-verdict {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
   .research-shell .research-results .research-result-card .research-result-meta,
   .research-shell .research-results .research-result-card .research-result-packages,
   .result-relations,

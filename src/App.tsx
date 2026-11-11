@@ -212,17 +212,18 @@ function ProductImage({ product, className }: { product: CatalogProduct; classNa
   if (!product.display_image_url) return <div className={`${className} image-placeholder`}>이미지 없음</div>
   return <img alt="" className={className} loading="lazy" src={product.display_image_url} onError={(event) => { event.currentTarget.style.visibility = 'hidden' }} />
 }
-function RelationSummary({ evaluation, ingredientVerdicts }: { evaluation: CandidateEvaluation; ingredientVerdicts: Array<{ term: string } & ReturnType<typeof ingredientAvoidanceWording>> }) {
+function RelationSummary({ evaluation, ingredientVerdicts, children }: { evaluation: CandidateEvaluation; ingredientVerdicts: Array<{ term: string } & ReturnType<typeof ingredientAvoidanceWording>>; children?: ReactNode }) {
   const confirmed = evaluation.confirmedMatches.map(relationLabel), unknown = evaluation.unknowns.map(unknownLabel)
   if (!confirmed.length && !unknown.length && !ingredientVerdicts.length) return <p className="result-relation-empty">추가 조건 없음</p>
   return <div className="result-relations">
     {confirmed.length ? <div className="relation-line is-confirmed"><span>확인된 조건</span><strong>{confirmed.slice(0, 3).join(' · ')}{confirmed.length > 3 ? ` 외 ${confirmed.length - 3}개` : ''}</strong></div> : null}
     {unknown.length ? <div className="relation-line is-unknown"><span>미확인 조건</span><strong>{unknown.slice(0, 2).join(' · ')}{unknown.length > 2 ? ` 외 ${unknown.length - 2}개` : ''}</strong></div> : null}
     {ingredientVerdicts.map(({ term, state, summary }) => (
-      <div className={`relation-line${state === 'unknown' ? ' is-unknown' : ''}`} key={term}>
+      <div className={`relation-line is-ingredient-verdict${state === 'unknown' ? ' is-unknown' : ''}`} key={term}>
         <span>{optionLabel(term, INGREDIENT_AVOID_LABELS)} 포함 여부</span><strong>{summary}</strong>
       </div>
     ))}
+    {children}
   </div>
 }
 
@@ -1009,6 +1010,9 @@ export default function App() {
       const ingredientVerdicts = [...(evaluation?.ingredientReviewedNotFound ?? []), ...(evaluation?.ingredientInsufficient ?? [])]
         .map(term => ({ term, ...ingredientAvoidanceWording(product, term, source, { compact: true }) }))
       const shownPhrases = ingredientVerdicts.flatMap(verdict => verdict.sourcePhrase ? [verdict.sourcePhrase] : [])
+      const ingredientNote = listReasonsEnabled && listReasons.status === 'loaded'
+        ? <IngredientListReason row={source} shownPhrases={shownPhrases} />
+        : null
       const isCompared = compareIds.includes(product.product_id)
       const compareDisabled = compareIds.length >= 5 && !isCompared
       const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' ')
@@ -1021,8 +1025,16 @@ export default function App() {
           onClick={() => openExploreProduct(product.product_id)}
         >
           <ProductImage className="research-result-image" product={product} />
-          <span className="research-result-identity"><span className="research-result-brand">{product.brand}</span><strong>{product.canonical_name}</strong><span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span><span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span>{listReasonsEnabled && listReasons.status === 'loaded' ? <IngredientListReason row={source} shownPhrases={shownPhrases} /> : null}</span>
-          {evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} ingredientVerdicts={ingredientVerdicts} /> : null : product.official_targets.length || product.recipe_details.length ? <span className="research-result-facts">{product.official_targets.length ? <><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong></> : null}{product.recipe_details.length ? <><span>레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></> : null}</span> : null}
+          <span className="research-result-identity">
+            <span className="research-result-brand">{product.brand}</span>
+            <strong>{product.canonical_name}</strong>
+            <span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span>
+            <span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span>
+            {!ingredientVerdicts.length ? ingredientNote : null}
+          </span>
+          {evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} ingredientVerdicts={ingredientVerdicts}>
+            {ingredientVerdicts.length ? ingredientNote : null}
+          </RelationSummary> : null : product.official_targets.length || product.recipe_details.length ? <span className="research-result-facts">{product.official_targets.length ? <><span>제품 표기 대상</span><strong>{compactList(product.official_targets, TARGET_LABELS)}</strong></> : null}{product.recipe_details.length ? <><span>레시피</span><strong>{compactList(product.recipe_details, RECIPE_DETAIL_LABELS)}</strong></> : null}</span> : null}
           <span className="research-result-link">제품 보기 →</span>
         </button>
         <button

@@ -82,6 +82,48 @@ test('an execution failure offers a document reload without evaluating the entry
   } finally {dom.window.close()}
 })
 
+test('stylesheet-only failure holds the app until styles are retried in the same document', () => {
+  const { dom, window, document, timers } = startup()
+  try {
+    const style = document.createElement('link')
+    style.rel = 'stylesheet'
+    style.href = '/catfood_web/assets/style.css'
+    Object.defineProperty(style, 'sheet', {
+      value: { get cssRules() { throw new window.DOMException('Stylesheet unavailable', 'SecurityError') } },
+    })
+    document.head.append(style)
+    const retry = document.getElementById('startup-retry')
+    const url = window.location.href
+    let renders = 0
+    const canRender = document.dispatchEvent(new window.CustomEvent('catfood:before-render', {
+      cancelable: true,
+      detail() {
+        renders++
+        document.dispatchEvent(new window.Event('catfood:ready'))
+      },
+    }))
+    assert.equal(canRender, false)
+    assert.equal(retry.hidden, false)
+    assert.equal(renders, 0)
+
+    retry.click()
+    const first = document.querySelector('link[data-startup-retry-style]')
+    first.dispatchEvent(new window.Event('error'))
+    assert.equal(retry.disabled, false)
+    assert.equal(renders, 0)
+
+    retry.click()
+    const replacement = document.querySelector('link[data-startup-retry-style]')
+    Object.defineProperty(replacement, 'sheet', { value: { cssRules: [] } })
+    replacement.dispatchEvent(new window.Event('load'))
+    assert.equal(renders, 1)
+    assert.equal(timers.size, 0)
+    assert.equal(document.querySelectorAll('script[type="module"]').length, 1)
+    assert.equal(window.location.href, url)
+    assert.equal(style.isConnected, false)
+  } finally { dom.window.close() }
+})
+
 test('slow start keeps a retry and readiness cancels startup guards without clearing stored work', () => {
   const { dom, window, document, timers } = startup()
   try {

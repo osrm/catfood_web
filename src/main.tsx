@@ -125,6 +125,14 @@ document.addEventListener('wheel', captureIngredientWheelStart, { capture: true,
 document.addEventListener('keydown', captureIngredientKeyStart, true)
 document.addEventListener('scroll', syncCompareScroll, true)
 
+function renderApp() {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ApplicationBoundary><App /></ApplicationBoundary>
+    </StrictMode>,
+  )
+}
+
 async function start() {
   if (import.meta.env.DEV) {
     if (isDemoPreview()) (await import('./demo-preview')).installDemoPreviewFetch()
@@ -132,11 +140,8 @@ async function start() {
     if (isStressPreview()) (await import('./stress-preview')).installStressPreviewFetch()
   }
 
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <ApplicationBoundary><App /></ApplicationBoundary>
-    </StrictMode>,
-  )
+  const canRender = document.dispatchEvent(new CustomEvent('catfood:before-render', { cancelable: true, detail: renderApp }))
+  if (canRender) renderApp()
 }
 
 void start()

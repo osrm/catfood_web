@@ -90,6 +90,58 @@ test('ingredient reads keep their neutral source wording on an older API', async
   assert.deepEqual(selects.map(fields => fields.includes('is_manufacturer_source')), [true, false, true, false])
 })
 
+const statementTimeout = () => Response.json({
+  code: '57014', message: 'canceling statement due to statement timeout',
+}, { status: 500 })
+
+test('affected catalog and ingredient reads retry a statement timeout once with the same scope', async () => {
+  const controller = new AbortController()
+  const id = 'product_a'
+  const row = { product_id: id, ingredient_term_result_count: 0, confirmed_present_ingredient_terms: [], direct_evidence_ingredient_terms: [],
+    flavor_associated_ingredient_terms: [], reviewed_not_found_ingredient_terms: [], insufficient_evidence_ingredient_terms: [] }
+  for (const [endpoint, read] of [
+    ['effective_product_catalog_summary', () => api.fetchCatalog(controller.signal)],
+    ['effective_product_catalog_summary', () => api.fetchCatalogIngredientFacts([id], controller.signal)],
+    ['compare_product_ingredients', () => api.fetchListIngredientSources([id], controller.signal)],
+    ['compare_product_ingredients_scoped', () => api.fetchCompareIngredients([id], controller.signal)],
+  ]) {
+    const requests = []
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input)
+      assert.equal(init.signal, controller.signal)
+      if (url.pathname.endsWith('/catalog_package_options')) return Response.json([])
+      assert.ok(url.pathname.endsWith('/' + endpoint))
+      requests.push(url.href)
+      return requests.length === 1 ? statementTimeout() : Response.json([row])
+    }
+    assert.deepEqual((await read()).map(item => item.product_id), [id])
+    assert.equal(requests.length, 2)
+    assert.equal(requests[1], requests[0])
+  }
+})
+
+test('a repeated ingredient timeout surfaces the error after two attempts', async () => {
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls++
+    return statementTimeout()
+  }
+  await assert.rejects(api.fetchCompareIngredients(['product_a']), /Data API 500/)
+  assert.equal(calls, 2)
+})
+
+test('leaving a timed-out ingredient read cancels its retry', async () => {
+  const controller = new AbortController()
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls++
+    setTimeout(() => controller.abort(), 25)
+    return statementTimeout()
+  }
+  await assert.rejects(api.fetchListIngredientSources(['product_a'], controller.signal), { name: 'AbortError' })
+  assert.equal(calls, 1)
+})
+
 for (const [resource, method, fields] of [['ingredients', 'fetchCompareIngredients', 18], ['nutrition', 'fetchCompareNutrition', 28]]) {
 test(resource + ': empty selection does not make a request', async () => {
   globalThis.fetch = () => { throw new Error('unexpected request') }
@@ -138,11 +190,14 @@ test(resource + ': IDs are quoted as array elements, not query syntax', async ()
   await api[method](ids)
 })
 
-test(resource + ': errors stay errors and retry is a new explicit call', async () => {
+test(resource + ': other errors stay errors and retry is a new explicit call', async () => {
   let calls = 0
   globalThis.fetch = async () => {
     calls++
-    return calls === 1 ? Response.json({ code: '57014' }, { status: 500 }) : Response.json([])
+    const error = resource === 'nutrition'
+      ? statementTimeout()
+      : Response.json({ code: '57014', message: 'canceling statement due to user request' }, { status: 500 })
+    return calls === 1 ? error : Response.json([])
   }
   await assert.rejects(api[method](['product_a']), /Data API 500/)
   assert.equal(calls, 1, 'no automatic retry or old-view fallback')

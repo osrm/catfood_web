@@ -443,6 +443,19 @@ async function fetchRead(url: URL, options: RequestInit) {
   return fetch(compatibleUrl, options)
 }
 
+async function fetchAfterStatementTimeout(url: URL, options: RequestInit) {
+  const response = await fetchRead(url, options)
+  if (response.status !== 500) return response
+  const error = await response.clone().json().catch(() => null)
+  if (error?.code !== '57014' || typeof error.message !== 'string' || !/statement timeout/i.test(error.message)) return response
+
+  // Give a timed-out read one more chance while the current screen stays open.
+  options.signal?.throwIfAborted()
+  await new Promise(resolve => setTimeout(resolve, 300))
+  options.signal?.throwIfAborted()
+  return fetchRead(url, options)
+}
+
 async function fetchRows<T>(
   view: string,
   fields: string,
@@ -458,7 +471,8 @@ async function fetchRows<T>(
   if (order) url.searchParams.set('order', order)
   url.searchParams.set('limit', limit)
 
-  const response = await fetchRead(url, {
+  const read = view === 'compare_product_ingredients' ? fetchAfterStatementTimeout : fetchRead
+  const response = await read(url, {
     signal,
     headers: requestHeaders(publishableKey),
   })
@@ -484,7 +498,8 @@ async function fetchCompareRows<T>(
   url.searchParams.set('p_product_ids', `{${productIds.map((id) => JSON.stringify(id)).join(',')}}`)
   url.searchParams.set('limit', '5')
 
-  const response = await fetchRead(url, {
+  const read = view === 'compare_product_ingredients_scoped' ? fetchAfterStatementTimeout : fetchRead
+  const response = await read(url, {
     signal,
     headers: requestHeaders(publishableKey),
   })
@@ -561,7 +576,7 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
   url.searchParams.set('order', 'brand.asc,canonical_name.asc')
   url.searchParams.set('limit', '1000')
 
-  const catalogRequest = fetch(url, {
+  const catalogRequest = fetchAfterStatementTimeout(url, {
     signal,
     headers: requestHeaders(publishableKey),
   }).then(async (response) => {
@@ -598,7 +613,7 @@ async function fetchIngredientFacts(productIds: string[], signal?: AbortSignal, 
   url.searchParams.set('order', 'product_id.asc')
   url.searchParams.set('limit', productId ? '1' : '1000')
   if (productId) url.searchParams.set('product_id', `eq.${productId}`)
-  const response = await fetch(url, { signal, headers: requestHeaders(publishableKey) })
+  const response = await fetchAfterStatementTimeout(url, { signal, headers: requestHeaders(publishableKey) })
   if (!response.ok) throw new Error(`Ingredient facts API ${response.status}`)
   const payload: unknown = await response.json()
   const expected = new Set(productIds)

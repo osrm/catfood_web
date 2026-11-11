@@ -208,10 +208,17 @@ test('detail preserves supplemental raw ingredients without parsed names', async
 test('detail distinguishes a timeout from missing facts and retries successfully', async () => {
   const fallbackFetch = globalThis.fetch
   let failing = true
+  let failedAttempts = 0
+  let finishAutomaticRetry
+  const automaticRetry = new Promise(resolve => { finishAutomaticRetry = resolve })
   globalThis.fetch = window.fetch = async (input, init) => {
     const url = new URL(String(input))
     if (url.pathname.endsWith('/compare_product_ingredients_scoped')) {
-      if (failing) return Response.json({ code: '57014', message: 'canceling statement due to statement timeout' }, { status: 500 })
+      if (failing) {
+        failedAttempts++
+        if (failedAttempts === 2) finishAutomaticRetry()
+        return Response.json({ code: '57014', message: 'canceling statement due to statement timeout' }, { status: 500 })
+      }
       return Response.json([{ product_id: products[0].product_id, ingredient_names: ['Test ingredient'], ingredient_count: 1, completeness_status: 'full', raw_text: 'Recovered ingredient declaration' }])
     }
     if (url.pathname.endsWith('/product_detail_manufacturing')) {
@@ -220,6 +227,8 @@ test('detail distinguishes a timeout from missing facts and retries successfully
     return fallbackFetch(input, init)
   }
   await act(async () => root.render(createElement(app.ProductDetail, { product: products[0], onClose() {} })))
+  await act(async () => automaticRetry)
+  assert.equal(failedAttempts, 2)
   assert.match(document.querySelector('[role="alert"]').textContent, /다시 시도/)
   assert.doesNotMatch(document.body.textContent, /57014|Data API|statement timeout|현재 공개 화면에서 확인할 수 있는 원재료 목록이 없습니다/)
   failing = false

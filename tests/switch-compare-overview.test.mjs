@@ -401,7 +401,11 @@ test('mobile highlights follow the selected candidate and candidate removal', as
 
 test('general mobile highlights follow its chosen pair without retaining the original reference', async () => {
   const candidateC = product('product_candidate_c', '셋째브랜드', '세 번째 후보', { feed_type: '동결건조' })
-  await renderCompare({ currentProduct: null, items: [...items, { product: candidateC }] })
+  const listed = '연어 포함 여부 · 확인한 원료표에 표기 없음'
+  const unspecified = '연어 포함 여부 · 제조사 표기 · ‘어유’(어종 미표기)'
+  await renderCompare({ currentProduct: null, items: [{ ...items[0], ingredientReasons: [listed] }, items[1], { product: candidateC, ingredientReasons: [unspecified] }] })
+  const summary = () => document.querySelector('.compare-highlights-mobile .comparison-highlights')
+  assert.equal(summary().querySelector('header li').textContent, listed)
   const selects = document.querySelectorAll('.compare-mobile-general-pair-picker select')
   assert.equal(selects.length, 2)
   await act(async () => {
@@ -409,10 +413,10 @@ test('general mobile highlights follow its chosen pair without retaining the ori
     selects[0].dispatchEvent(new window.Event('change', { bubbles: true }))
   })
   await settle()
-  const summary = document.querySelector('.compare-highlights-mobile .comparison-highlights')
-  assert.match(summary.textContent, /비교 기준 · 셋째브랜드 세 번째 후보/)
-  assert.match(summary.textContent, /사료 형태: 동결건조 → 습식/)
-  assert.doesNotMatch(summary.textContent, /첫 번째 후보 제품/)
+  assert.equal(summary().querySelector('header li').textContent, unspecified)
+  assert.match(summary().textContent, /비교 기준 · 셋째브랜드 세 번째 후보/)
+  assert.match(summary().textContent, /사료 형태: 동결건조 → 습식/)
+  assert.doesNotMatch(summary().textContent, /첫 번째 후보 제품/)
 })
 
 test('fact comparison omits shared and mutually unknown values while prioritizing chosen facts', () => {

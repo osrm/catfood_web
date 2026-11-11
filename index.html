@@ -17,7 +17,17 @@
         const panel = document.getElementById('startup-panel');
         const message = document.getElementById('startup-message');
         const retry = document.getElementById('startup-retry');
-        let failedModule = null, retryCount = 0, timer;
+        let failedModule = null, resumeApp = null, retryCount = 0, timer;
+        const retryStyleSelector = 'link[data-startup-retry-style]';
+        function missingStyles() {
+          return [...document.querySelectorAll('link[rel="stylesheet"][href]:not([data-startup-retry-style])')]
+            .filter(link => {
+              if (new URL(link.href).origin !== location.origin) return false;
+              // A failed request can leave a sheet whose rules are inaccessible.
+              try { return !link.sheet?.cssRules; }
+              catch { return true; }
+            });
+        }
         function finishAttempt() {
           clearTimeout(timer);
           retry.disabled = false;
@@ -28,7 +38,7 @@
           timer = setTimeout(() => {
             if (!panel.isConnected) return;
             finishAttempt();
-            retry.hidden = !failedModule;
+            retry.hidden = !failedModule && !resumeApp;
             message.textContent = '화면을 여는 데 시간이 걸리고 있습니다. 연결을 확인한 뒤 다시 시도해 주세요.';
           }, 12000);
         }
@@ -43,42 +53,63 @@
               failedModule = url.href;
             }
           }
-          retry.hidden = !failedModule;
+          retry.hidden = !failedModule && !resumeApp;
           panel.setAttribute('role', 'alert');
-          message.textContent = failedModule ? '화면을 불러오지 못했습니다. 선택한 조건과 기록을 유지한 채 다시 연결할 수 있습니다.' : '화면을 불러오지 못했습니다. 페이지를 다시 열어 주세요.';
+          message.textContent = retry.hidden ? '화면을 불러오지 못했습니다. 페이지를 다시 열어 주세요.' : '화면을 불러오지 못했습니다. 선택한 조건과 기록을 유지한 채 다시 연결할 수 있습니다.';
         }
-        function retryModule() {
-          if (!panel.isConnected || !failedModule || retry.disabled) return;
-          const url = new URL(failedModule);
-          // Give this attempt a fresh module request URL without changing the
-          // document's location, history or stored work.
-          url.searchParams.set('_catfood_retry', Date.now() + '-' + (++retryCount));
+        function finishStyleRetry() {
+          if (!resumeApp || document.querySelector(retryStyleSelector)) return;
+          if (missingStyles().length) { showFailure(); return; }
+          const render = resumeApp;
+          resumeApp = null;
+          render();
+        }
+        function retryStartup() {
+          if (!panel.isConnected || (!failedModule && !resumeApp) || retry.disabled) return;
+          const moduleUrl = failedModule && new URL(failedModule);
+          const attempt = Date.now() + '-' + (++retryCount);
           failedModule = null;
           retry.disabled = true;
           panel.setAttribute('role', 'status');
           panel.setAttribute('aria-busy', 'true');
           message.textContent = '다시 연결하고 있습니다. 선택한 조건과 기록은 그대로 유지됩니다.';
-          for (const pending of document.querySelectorAll('link[data-startup-retry-style]')) {
+          for (const pending of document.querySelectorAll(retryStyleSelector)) {
             pending.onload = pending.onerror = null;
             pending.remove();
           }
-          for (const original of document.querySelectorAll('link[rel="stylesheet"][href]:not([data-startup-retry-style])')) {
-            const styleUrl = new URL(original.href, location.href);
-            if (styleUrl.origin !== location.origin) continue;
-            styleUrl.searchParams.set('_catfood_retry', Date.now() + '-' + retryCount);
+          for (const original of missingStyles()) {
+            const styleUrl = new URL(original.href);
+            styleUrl.searchParams.set('_catfood_retry', attempt);
             const replacement = original.cloneNode();
             replacement.setAttribute('data-startup-retry-style', '');
             replacement.href = styleUrl.href;
-            replacement.onload = () => { original.remove(); replacement.removeAttribute('data-startup-retry-style'); };
-            replacement.onerror = () => replacement.remove();
+            replacement.onload = () => {
+              original.remove();
+              replacement.removeAttribute('data-startup-retry-style');
+              finishStyleRetry();
+            };
+            replacement.onerror = () => {
+              replacement.remove();
+              finishStyleRetry();
+            };
             document.head.append(replacement);
           }
-          const script = document.createElement('script');
-          script.type = 'module'; script.crossOrigin = 'anonymous'; script.src = url.href;
-          document.head.append(script);
+          if (moduleUrl) {
+            moduleUrl.searchParams.set('_catfood_retry', attempt);
+            const script = document.createElement('script');
+            script.type = 'module'; script.crossOrigin = 'anonymous'; script.src = moduleUrl.href;
+            document.head.append(script);
+          }
           watchSlowStart();
+          finishStyleRetry();
         }
-        retry.addEventListener('click', retryModule);
+        document.addEventListener('catfood:before-render', (event) => {
+          if (!missingStyles().length) return;
+          event.preventDefault();
+          resumeApp = event.detail;
+          finishStyleRetry();
+        }, { once: true });
+        retry.addEventListener('click', retryStartup);
         watchSlowStart();
         window.addEventListener('error', showFailure, true);
         window.addEventListener('unhandledrejection', showFailure);
@@ -86,7 +117,7 @@
           clearTimeout(timer);
           window.removeEventListener('error', showFailure, true);
           window.removeEventListener('unhandledrejection', showFailure);
-          retry.removeEventListener('click', retryModule);
+          retry.removeEventListener('click', retryStartup);
         }, { once: true });
       })();
     </script>

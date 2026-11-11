@@ -340,7 +340,7 @@ function listSource(id,raw,overrides={}){return {product_id:id,raw_text:raw,comp
 test('avoidance list explains generic wording without changing verdicts or prefetching sources for ordinary lookup',async()=>{
  rows=rows.map(row=>({...row,confirmed_present_ingredient_terms:row.canonical_name==='Alpha'?['salmon']:[],direct_evidence_ingredient_terms:[],reviewed_not_found_ingredient_terms:row.canonical_name==='Beta'?['salmon']:[]}))
  const unknown=product('product_0000000000000003','Gamma',{insufficient_evidence_ingredient_terms:['salmon'],ingredient_term_result_count:1})
- const generic = product('product_0000000000000004', 'Delta', {insufficient_evidence_ingredient_terms:['salmon'], ingredient_term_result_count:1})
+ const generic = product('product_0000000000000004', 'Delta', {reviewed_not_found_ingredient_terms:['salmon'], ingredient_term_result_count:1})
  rows.push(unknown, generic)
  sourceRows=[
    listSource(rows[1].product_id, 'Peas, Fish Oil, Natural Flavor'),
@@ -356,11 +356,14 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  const beta=cards.find(card=>card.textContent.includes('Beta')),gamma=cards.find(card=>card.textContent.includes('Gamma'))
  const delta=cards.find(card=>card.dataset.productId===generic.product_id)
  assert.match(delta.textContent, /연어 포함 여부.*제조사 표기 · ‘어유’\(어종 미표기\)/s)
+ assert.equal(delta.closest('.result-evidence-group').getAttribute('aria-label'), '포함 여부를 판단하기 어려운 후보')
+ assert.ok(delta.querySelector('.is-ingredient-verdict.is-unknown'))
  assert.equal(delta.querySelector('.ingredient-list-reason'), null)
  assert.equal(delta.textContent.match(/어유/g)?.length, 1)
  assert.match(beta.textContent,/Fish Oil — 세부 어종 미표기/)
  assert.match(beta.textContent,/Natural Flavor — 향료 세부 구성 미표기/)
  assert.match(beta.textContent,/연어 포함 여부.*확인한 원료표에 표기 없음/s)
+ assert.equal(beta.closest('.result-evidence-group').getAttribute('aria-label'), '확인한 자료에 선택 원료 표기 없음')
  assert.match(gamma.textContent,/일부 원료표 확인/)
  assert.match(gamma.textContent,/연어 포함 여부.*원료표 일부만 확인/s)
  assert.doesNotMatch(text(),/연어 없음|연어가 없다고 확인|세부 동물 종류 미표기/)

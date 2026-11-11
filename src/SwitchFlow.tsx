@@ -12,7 +12,7 @@ import { DecisionPurposeEditor, DecisionPurposeSummary } from './DecisionPurpose
 import IngredientSourceFilterPanel from './IngredientSourceFilter'
 import CandidateExplanationView from './CandidateExplanation'
 import { candidateExplanation } from './candidate-explanation'
-import { ingredientAvoidanceWording } from './ingredient-disclosure'
+import { hasUnspecifiedAvoidanceIngredient, ingredientAvoidanceWording } from './ingredient-disclosure'
 import { SOURCE_FILTERS, matchesSourceFilter, sourceFilterLabel, type IngredientSourceFilter } from './ingredient-source-filter'
 import { useSwitchEnergy, useEnergyPackages, switchEnergyDifference, keepsLowerEnergyCandidate, EnergyEvidence, CandidateEnergy } from './switch-energy'
 import { energyText, usableEnergy } from './energy-refine'
@@ -1861,7 +1861,7 @@ export default function SwitchFlow({
     const unresolvedCandidates = visibleCandidates.filter((item) => {
       if (item.ingredientInsufficient.length > 0) return true
       const source = listReasons.byProduct.get(item.product.product_id)
-      return ingredientAvoidTerms.some(term => ingredientAvoidanceWording(item.product, term, source).sourcePhrase !== undefined)
+      return hasUnspecifiedAvoidanceIngredient(item.product, ingredientAvoidTerms, source)
     })
     const unresolvedCandidateIds = new Set(unresolvedCandidates.map(item => item.product.product_id))
     const reviewedCandidates = visibleCandidates.filter(item => !unresolvedCandidateIds.has(item.product.product_id))

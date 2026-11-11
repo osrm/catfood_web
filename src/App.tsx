@@ -15,7 +15,7 @@ import {
 } from './analytics'
 import IngredientComposition from './IngredientComposition'
 import { useIngredientListReasons, IngredientListReason, IngredientReasonStatus } from './IngredientListReason'
-import { ingredientAvoidanceWording } from './ingredient-disclosure'
+import { hasUnspecifiedAvoidanceIngredient, ingredientAvoidanceWording } from './ingredient-disclosure'
 import { fetchCatalog, fetchCatalogIngredientFacts, fetchExploreEnergy, type ExploreEnergy, type CatalogProduct } from './api'
 import { EnergyRefine, EnergyResult, canRefineEnergy, energyBound, energyText, usableEnergy } from './energy-refine'
 import {
@@ -218,8 +218,8 @@ function RelationSummary({ evaluation, ingredientVerdicts, children }: { evaluat
   return <div className="result-relations">
     {confirmed.length ? <div className="relation-line is-confirmed"><span>확인된 조건</span><strong>{confirmed.slice(0, 3).join(' · ')}{confirmed.length > 3 ? ` 외 ${confirmed.length - 3}개` : ''}</strong></div> : null}
     {unknown.length ? <div className="relation-line is-unknown"><span>미확인 조건</span><strong>{unknown.slice(0, 2).join(' · ')}{unknown.length > 2 ? ` 외 ${unknown.length - 2}개` : ''}</strong></div> : null}
-    {ingredientVerdicts.map(({ term, state, summary }) => (
-      <div className={`relation-line is-ingredient-verdict${state === 'unknown' ? ' is-unknown' : ''}`} key={term}>
+    {ingredientVerdicts.map(({ term, state, summary, sourcePhrase }) => (
+      <div className={`relation-line is-ingredient-verdict${state === 'unknown' || sourcePhrase ? ' is-unknown' : ''}`} key={term}>
         <span>{optionLabel(term, INGREDIENT_AVOID_LABELS)} 포함 여부</span><strong>{summary}</strong>
       </div>
     ))}
@@ -1052,15 +1052,20 @@ export default function App() {
       </div>
     }
     const grouped = mode === 'explore' && activeConditions > 0
-    const confirmed = visibleProducts.filter(product => !unverifiedResultIds.has(product.product_id))
-    const unverified = visibleProducts.filter(product => unverifiedResultIds.has(product.product_id))
+    const avoidTerms = search.ingredientAvoidTerms ?? []
+    const ingredientOnly = avoidTerms.length > 0 && activeEvidenceConditions === avoidTerms.length && energyMax == null
+    const unverifiedHeading = ingredientOnly ? '포함 여부를 판단하기 어려운 후보' : '선택한 조건을 확인하지 못한 제품'
+    const unverified = visibleProducts.filter(product => unverifiedResultIds.has(product.product_id)
+      || hasUnspecifiedAvoidanceIngredient(product, avoidTerms, listReasons.byProduct.get(product.product_id)))
+    const unverifiedIds = new Set(unverified.map(product => product.product_id))
+    const confirmed = visibleProducts.filter(product => !unverifiedIds.has(product.product_id))
     return <div className="research-results-list">{listReasonsEnabled ? <IngredientReasonStatus status={listReasons.status} onRetry={listReasons.retry} /> : null}{grouped ? <>
       {confirmed.length ? <section className="result-evidence-group" aria-label={search.ingredientAvoidTerms?.length ? '확인한 자료에 선택 원료 표기 없음' : '선택한 표기를 확인한 제품'}>
         <div className="result-evidence-heading"><h2>{search.ingredientAvoidTerms?.length ? '확인한 자료에 선택 원료 표기 없음' : '선택한 표기를 확인한 제품'}</h2>{search.ingredientAvoidTerms?.length ? <p>이 표기만으로는 선택한 원료가 들어 있는지 알기 어려워요.</p> : null}</div>
         {confirmed.map(renderProduct)}
       </section> : null}
-      {unverified.length ? <section className="result-evidence-group is-unverified" aria-label="선택한 조건을 확인하지 못한 제품">
-        <div className="result-evidence-heading"><h2>선택한 조건을 확인하지 못한 제품</h2><p>고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.</p></div>
+      {unverified.length ? <section className="result-evidence-group is-unverified" aria-label={unverifiedHeading}>
+        <div className="result-evidence-heading"><h2>{unverifiedHeading}</h2><p>{ingredientOnly ? '원료표에 세부 종류가 표시되지 않았거나 확인한 자료가 일부일 수 있어요.' : '고른 조건의 표기나 근거를 확인하지 못했습니다. 제품의 원료·영양 정보 전체가 부족하다는 뜻은 아닙니다.'}</p></div>
         {unverified.map(renderProduct)}
       </section> : null}
     </> : visibleProducts.map(renderProduct)}{visibleCount < resultProducts.length ? <button className="load-more" type="button" onClick={loadMore}>제품 더 보기 · {resultProducts.length - visibleProducts.length}개 남음</button> : null}</div>
@@ -1093,7 +1098,7 @@ export default function App() {
   const resultSummaryText = mode === 'explore' && ingredientConditionsPending && !loading && !error ? (ingredientStatus === 'error' ? '원료 정보 조회 실패' : '원료 정보 확인 중') : loading
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
     : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중'
-    : mode === 'explore' && activeConditions > 0 ? `${search.ingredientAvoidTerms?.length ? '원료 자료 검토' : '표기 확인'} ${resultProducts.length - unverifiedResultIds.size}개 · 조건 미확인 ${unverifiedResultIds.size}개` : resultCountText
+    : mode === 'explore' && activeConditions > 0 && !search.ingredientAvoidTerms?.length ? `표기 확인 ${resultProducts.length - unverifiedResultIds.size}개 · 조건 미확인 ${unverifiedResultIds.size}개` : resultCountText
   const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
   const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType.length || search.lifeStage.length)
     ? (priorityLabels.length === 1

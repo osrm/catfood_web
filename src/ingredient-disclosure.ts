@@ -80,6 +80,10 @@ export function ingredientAvoidanceWording(
   return fallback
 }
 
+export function hasUnspecifiedAvoidanceIngredient(product: CatalogProduct, terms: readonly string[], row?: ListIngredientSource) {
+  return terms.some(term => ingredientAvoidanceWording(product, term, row).sourcePhrase !== undefined)
+}
+
 // A species elsewhere in a phrase does not identify this ingredient's source.
 // Only an adjacent species or a locally specified parenthesis qualifies it.
 function hasUnspecifiedCategory(ingredient: string, category: RegExp, species: RegExp) {

@@ -561,23 +561,21 @@ export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct
   url.searchParams.set('order', 'brand.asc,canonical_name.asc')
   url.searchParams.set('limit', '1000')
 
-  const response = await fetch(url, {
+  const catalogRequest = fetch(url, {
     signal,
     headers: requestHeaders(publishableKey),
+  }).then(async (response) => {
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 240)
+      throw new Error(`Catalog API ${response.status}: ${detail || response.statusText}`)
+    }
+    return (await response.json()) as CatalogProduct[]
   })
-
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 240)
-    throw new Error(`Catalog API ${response.status}: ${detail || response.statusText}`)
-  }
-
-  const rawProducts = (await response.json()) as CatalogProduct[]
-  let packageRows: CatalogPackageOption[] = []
-  try {
-    packageRows = await fetchCatalogPackageOptions(signal)
-  } catch (reason: unknown) {
+  const packageRequest = fetchCatalogPackageOptions(signal).catch((reason: unknown) => {
     if (reason instanceof DOMException && reason.name === 'AbortError') throw reason
-  }
+    return []
+  })
+  const [rawProducts, packageRows] = await Promise.all([catalogRequest, packageRequest])
   const packages = packageLabelsByProduct(packageRows)
 
   return rawProducts.filter(value => !hiddenProductIds.has(value.product_id)).map((value) => normalizeProduct({

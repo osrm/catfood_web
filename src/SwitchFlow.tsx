@@ -1570,7 +1570,8 @@ export default function SwitchFlow({
 
   function renderIngredientAvoidance() {
     if (!currentProduct || currentProduct.confirmed_present_ingredient_terms == null) return null
-    const currentConfirmed = currentProduct.confirmed_present_ingredient_terms
+    const confirmedTerms = currentProduct.confirmed_present_ingredient_terms
+    const currentConfirmed = confirmedTerms
       .filter((term) => !ingredientAvoidTerms.includes(term))
       .sort((a, b) => ingredientLabel(a).localeCompare(ingredientLabel(b), 'ko-KR'))
 
@@ -1594,9 +1595,9 @@ export default function SwitchFlow({
               ))}
             </div>
           </div>
-        ) : (
+        ) : confirmedTerms.length === 0 ? (
           <p className="switch-option-empty">현재 사료에서 확인한 원료가 아직 없습니다. 이름으로 검색해 보세요.</p>
-        )}
+        ) : null}
 
         <input className="switch-ingredient-search" type="search" value={ingredientSearch} placeholder="원료 검색 · 예: 닭, 연어" onChange={(event) => setIngredientSearch(event.target.value)} />
         {ingredientSearch.trim() ? (

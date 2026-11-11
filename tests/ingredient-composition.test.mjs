@@ -85,9 +85,13 @@ test('an absent feature tag is not a proven improvement and allowed alternate ag
 })
 
 test('reviewed-not-found remains an evidence contrast and never becomes ingredient absence',()=>{
- const result=explain({focus:'ingredients',current:explanationProduct({confirmed_present_ingredient_terms:['chicken']}),candidate:explanationProduct({reviewed_not_found_ingredient_terms:['chicken']}),conditions:[{source:'change',kind:'ingredientAvoid',value:'chicken',label:'닭'}]})
+ const input={focus:'ingredients',current:explanationProduct({confirmed_present_ingredient_terms:['chicken']}),candidate:explanationProduct({reviewed_not_found_ingredient_terms:['chicken']}),conditions:[{source:'change',kind:'ingredientAvoid',value:'chicken',label:'닭'}]}
+ const result=explain(input)
  assert.match(result.differences.join(' '),/현재 자료에서 확인.*확인 자료에 닭 표기 없음.*포함 여부를 알기 어려워요/)
  assert.doesNotMatch(JSON.stringify(result),/닭 없음|닭이 없/)
+ const broad=explain({...input,afterSource:questionSource('Poultry meal',{product_id:input.candidate.product_id,is_manufacturer_source:true})})
+ assert.match(broad.unknowns[0],/^닭 포함 여부 · 제조사 원료표에 동물 종류 표시 없음 · ‘Poultry meal’ 표기$/)
+ assert.ok(!broad.differences.some(line=>line.includes('닭 포함 여부')))
 })
 
 test('compact cards answer an explicit ingredient avoidance before source and basic differences, with the caveat visible',async()=>{

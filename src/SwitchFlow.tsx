@@ -615,7 +615,8 @@ function RelationBlock({ evaluation, ingredientTerms, source }: {
     <div className="switch-candidate-relations">
       {ingredientTerms.map(term => {
         const wording = ingredientAvoidanceWording(evaluation.product, term, source)
-        return <div key={term} className={`switch-relation-line is-ingredient-${wording.state === 'reviewed-not-found' ? 'reviewed' : wording.state}`} data-evidence-state={wording.state}>
+        const state = wording.sourcePhrase ? 'unknown' : wording.state
+        return <div key={term} className={`switch-relation-line is-ingredient-${state === 'reviewed-not-found' ? 'reviewed' : state}`} data-evidence-state={state}>
           <span>{ingredientLabel(term)} 포함 여부</span><strong>{wording.summary}</strong>
           {wording.detail ? <small>{wording.detail}</small> : null}
           {wording.state === 'unknown' && term === 'chicken' && /닭|chicken/i.test(evaluation.product.canonical_name) ? <small>제품 이름에는 닭고기 표기가 있어요. 원재료를 더 확인해야 해요.</small> : null}
@@ -1857,8 +1858,13 @@ export default function SwitchFlow({
     const comparedNames = compareItems.map((item) => `${item.product.brand} · ${item.product.canonical_name}`)
     const sharedKeep = candidates[0]?.keepMatches.filter((label) => candidates.every((item) => item.keepMatches.includes(label))) ?? []
     const sharedChange = candidates[0]?.changeMatches.filter((label) => candidates.every((item) => item.changeMatches.includes(label))) ?? []
-    const reviewedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length === 0)
-    const unresolvedCandidates = visibleCandidates.filter((item) => item.ingredientInsufficient.length > 0)
+    const unresolvedCandidates = visibleCandidates.filter((item) => {
+      if (item.ingredientInsufficient.length > 0) return true
+      const source = listReasons.byProduct.get(item.product.product_id)
+      return ingredientAvoidTerms.some(term => ingredientAvoidanceWording(item.product, term, source).sourcePhrase !== undefined)
+    })
+    const unresolvedCandidateIds = new Set(unresolvedCandidates.map(item => item.product.product_id))
+    const reviewedCandidates = visibleCandidates.filter(item => !unresolvedCandidateIds.has(item.product.product_id))
     const browseUnknownCount = candidateBrowseActive ? searchedCandidates.filter((item) => Boolean(candidateBrowseUnknowns(item.product)?.length)).length : 0
     const conditionUnknownCandidates = visibleCandidates.filter(item => item.unknowns.length > 0 || item.ingredientInsufficient.length > 0)
     const conditionConfirmedCandidates = visibleCandidates.filter(item => item.unknowns.length === 0 && item.ingredientInsufficient.length === 0)
@@ -1875,7 +1881,7 @@ export default function SwitchFlow({
       const product = evaluation.product
       const explanation = explanationFor(product)
       const isCompared = compareIds.includes(product.product_id)
-      const unresolved = evaluation.ingredientInsufficient.length > 0
+      const unresolved = unresolvedCandidateIds.has(product.product_id)
       const rowEvaluation = { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) }
       const compareDisabled = compareIds.length >= 5 && !isCompared
       return (

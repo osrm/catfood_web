@@ -1445,6 +1445,22 @@ test('ingredient groups retain exact batch order in search runs and load-more co
   assert.equal(record.presented_product_ids[record.position], last.dataset.switchCompareProductId)
 })
 
+test('candidate groups keep unspecified manufacturer wording separate from an unlisted ingredient name', async () => {
+  questionSources = [candidateA, candidateB].map((candidate, index) => ({
+    product_id: candidate.product_id,
+    raw_text: index === 0 ? 'Poultry meal, Rice' : 'Herring, Rice',
+    completeness_status: 'full', observation_scope: 'product', market_code: 'KR', is_manufacturer_source: true,
+  }))
+  await renderApp()
+  await reachResultsWithConditions()
+  const row = product => document.querySelector(`.switch-candidate-row[data-product-id="${product.product_id}"]`)
+  await waitForUi(() => row(candidateA)?.querySelector('.is-ingredient-unknown'), 'manufacturer wording is displayed as unresolved')
+  assert.match(row(candidateA).closest('.switch-candidate-group').textContent, /포함 여부를 판단하기 어려운 후보/)
+  assert.match(row(candidateA).textContent, /동물 종류 표시 없음.*Poultry meal/)
+  assert.match(row(candidateB).closest('.switch-candidate-group').textContent, /확인한 자료에 선택 원료 표기 없음/)
+  assert.match(row(candidateB).textContent, /확인 자료에 닭 표기 없음/)
+})
+
 test('detail without ingredient avoidance retains a direct current-food comparison action', async () => {
   await renderApp(); await reachResultsWithConditions({ avoidIngredient: false })
   await selectCandidate(candidateA.canonical_name); await click('상세 보기')

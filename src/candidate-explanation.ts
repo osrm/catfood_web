@@ -50,10 +50,12 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
     const { kind, value, label, source } = condition
     if (kind === 'ingredientAvoid') {
       const wording = ingredientAvoidanceWording(candidate, value, afterSource)
-      const contrast = wording.state === 'reviewed-not-found' && current.confirmed_present_ingredient_terms?.includes(value) ? '현재 자료에서 확인 → ' : ''
-      const line = `${label} 포함 여부 · ${contrast}${wording.summary}`
-      if (wording.state === 'unknown') ingredientUnknowns.push(line)
-      else ingredientDifferences.push([line, wording.detail].filter(Boolean).join(' · '))
+      const unresolved = wording.state === 'unknown' || Boolean(wording.sourcePhrase)
+      if (unresolved) ingredientUnknowns.push(`${label} 포함 여부 · ${wording.summary}`)
+      else {
+        const contrast = wording.state === 'reviewed-not-found' && current.confirmed_present_ingredient_terms?.includes(value) ? '현재 자료에서 확인 → ' : ''
+        ingredientDifferences.push([`${label} 포함 여부 · ${contrast}${wording.summary}`, wording.detail].filter(Boolean).join(' · '))
+      }
       continue
     }
     const field = kind === 'brand' ? 'brand' : kind === 'feedType' ? 'feed_type' : kind === 'lifeStage' ? 'life_stage' : null

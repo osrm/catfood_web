@@ -123,8 +123,10 @@ function additionalConditionLabels(search: SearchState) {
     ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)),
   ]
   if (search.grainFree) values.push('Grain-Free 표기')
-  values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
   return values
+}
+function avoidanceCriteriaLabel(terms: SearchState['ingredientAvoidTerms']) {
+  return terms?.length ? '피하고 싶은 원료 · ' + terms.map(term => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ') : null
 }
 function packageOptionsLabel(product: CatalogProduct) {
   const labels = product.available_package_labels ?? []
@@ -172,7 +174,8 @@ function comparisonCriteriaLabels(search: SearchState, refine: RefineState) {
     ...search.features.map((value) => `제품 특징 · ${optionLabel(value, FEATURE_LABELS)}`),
     ...search.recipeFamilies.map((value) => `레시피 종류 · ${optionLabel(value, RECIPE_FAMILY_LABELS)}`),
   )
-  if (search.ingredientAvoidTerms?.length) values.push('피하고 싶은 원료 · ' + search.ingredientAvoidTerms.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · '))
+  const avoidanceLabel = avoidanceCriteriaLabel(search.ingredientAvoidTerms)
+  if (avoidanceLabel) values.push(avoidanceLabel)
   if (search.grainFree) values.push('레시피 특성 · Grain-Free 표기')
   if (refine.brands?.length) values.push('브랜드 · ' + refine.brands.join(' 또는 '))
   if (energyBound(search, refine) != null) values.push('열량 · ' + energyText(refine.energyMax!) + ' 이하 · 미확인 포함')
@@ -895,7 +898,8 @@ export default function App() {
     if (search.lifeStage.length) values.push(search.lifeStage.map(value => optionLabel(value, LIFE_STAGE_LABELS)).join(' 또는 '))
     values.push(...search.officialTargets.map((value) => optionLabel(value, TARGET_LABELS)), ...search.features.map((value) => optionLabel(value, FEATURE_LABELS)), ...search.recipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)))
     if (search.grainFree) values.push('Grain-Free 표기')
-    values.push(...(search.ingredientAvoidTerms ?? []).map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS) + ' 제외'))
+    const avoidanceLabel = avoidanceCriteriaLabel(search.ingredientAvoidTerms)
+    if (avoidanceLabel) values.push(avoidanceLabel)
     if (energyMax != null) values.push('열량' + ' · ' + energyText(energyMax) + ' 이하 · 미확인 포함')
     values.push(...(refine.brands ?? []).map((brand) => brand))
     values.push(...refine.recipeDetails.map((value) => optionLabel(value, RECIPE_DETAIL_LABELS)))
@@ -904,7 +908,7 @@ export default function App() {
 
   function renderConditionEditor() {
     const additionalCount = countAdditionalConditions(draftSearch)
-    const additionalLabels = additionalConditionLabels({ ...draftSearch, ingredientAvoidTerms: [] })
+    const additionalLabels = additionalConditionLabels(draftSearch)
     const avoidOptions = INGREDIENT_AVOID_OPTIONS.filter(([term], index) => showAllAvoidIngredients || index < 8 || draftSearch.ingredientAvoidTerms?.includes(term))
     return <div className="condition-editor">
       <div className="condition-basics">
@@ -1101,7 +1105,7 @@ export default function App() {
     ? mode === 'lookup' ? '브랜드나 제품명을 입력하면 결과가 표시됩니다.' : '조건을 고르면 결과가 표시됩니다.'
     : mode === 'explore' && energyPending ? energyError ? '열량 조회 실패 · 조건 유지 중' : '열량 확인 중'
     : mode === 'explore' && activeConditions > 0 && !search.ingredientAvoidTerms?.length ? `표기 확인 ${resultProducts.length - unverifiedResultIds.size}개 · 조건 미확인 ${unverifiedResultIds.size}개` : resultCountText
-  const priorityLabels = additionalConditionLabels({ ...search, ingredientAvoidTerms: [] })
+  const priorityLabels = additionalConditionLabels(search)
   const resultPriorityText = mode === 'explore' && countActiveConditions(search) > 0 && (priorityLabels.length > 0 || search.feedType.length || search.lifeStage.length)
     ? (priorityLabels.length === 1
       ? priorityLabels[0].replace(/ 표기$/, '') + (search.feedType.length || search.lifeStage.length ? ' 등 고른 조건이 더 많이 확인된 제품부터 보여줍니다.' : ' 표기가 있는 제품부터 보여줍니다.')

@@ -1353,6 +1353,13 @@ test('ingredient criteria and manual comparison survive lookup and refresh, whil
   try {
     const start = 'https://catfood.test/catfood_web/?view=workspace&applied=1&avoidIngredients=chicken'
     await renderApp(start)
+    const checkAvoidanceLabel = (label, count) => {
+      const criteria = document.querySelector('.criteria-bar')
+      assert.equal(criteria.querySelector('.criteria-chips').textContent, label)
+      assert.equal(criteria.querySelector('.criteria-expanded-values').textContent, label)
+      assert.equal(criteria.querySelector('.criteria-disclosure summary').textContent, `적용된 조건 ${count}개`)
+    }
+    checkAvoidanceLabel('피하고 싶은 원료 · 닭', 1)
     const add = document.querySelector('.research-result-compare')
     assert.ok(add)
     await act(async () => add.click())
@@ -1379,6 +1386,7 @@ test('ingredient criteria and manual comparison survive lookup and refresh, whil
     const section = [...document.querySelectorAll('.filter-section')].find(node => node.textContent.includes('피하고 싶은 원료'))
     await act(async () => [...section.querySelectorAll('.choice')].find(node => node.textContent === '오리').click())
     await click('이 조건으로 찾기')
+    checkAvoidanceLabel('피하고 싶은 원료 · 닭 · 오리', 2)
     assert.deepEqual(app.parseNavigationState(window.location.search).compareIds, [], 'changed conditions use existing reset policy')
     await click(document.querySelector('.site-wordmark').textContent)
     await click('조건 고르기')

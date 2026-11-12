@@ -1045,7 +1045,10 @@ export default function SwitchFlow({
       ingredientInsufficient: item.ingredientInsufficient,
       ingredientReasons: ingredientAvoidTerms.length ? ingredientAvoidTerms.map(term => {
         const wording = ingredientAvoidanceWording(item.product, term, listReasons.byProduct.get(item.product.product_id))
-        return `${ingredientLabel(term)} 포함 여부 · ${[wording.summary, wording.state === 'reviewed-not-found' ? wording.detail : null].filter(Boolean).join(' · ')}`
+        return {
+          label: ingredientLabel(term),
+          summary: [wording.summary, wording.state === 'reviewed-not-found' ? wording.detail : null].filter(Boolean).join(' · '),
+        }
       }) : undefined,
     })), [compareIds, candidates, ingredientAvoidTerms, listReasons.byProduct])
   const compareDetailOpen = compareOpen && compareItems.some((item) => item.product.product_id === detailProductId)

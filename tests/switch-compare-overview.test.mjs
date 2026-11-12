@@ -401,21 +401,24 @@ test('mobile highlights follow the selected candidate and candidate removal', as
 
 test('general mobile highlights follow its chosen pair without retaining the original reference', async () => {
   const candidateC = product('product_candidate_c', '셋째브랜드', '세 번째 후보', { feed_type: '동결건조' })
-  const listed = '연어 포함 여부 · 확인한 원료표에 표기 없음'
-  const unspecified = '연어 포함 여부 · 제조사 표기 · ‘어유’(어종 미표기)'
+  const listed = { label: '연어', summary: '확인한 원료표에 표기 없음' }
+  const unspecified = { label: '연어', summary: '어종 미표기 · 제조사 표기 ‘어유’' }
+  const present = { label: '닭', summary: '확인됨' }
   const { removed } = await renderCompare({
     currentProduct: null, criteriaLabels: ['브랜드 · 같은후보브랜드 또는 셋째브랜드'],
     items: [
       { ...items[0], ingredientReasons: [listed], brandMatched: true },
       { ...items[1], ingredientReasons: [listed], brandMatched: true, confirmedMatches: ['습식'] },
-      { product: candidateC, ingredientReasons: [unspecified], brandMatched: true },
+      { product: candidateC, ingredientReasons: [unspecified, present], ingredientConflicts: ['닭'], brandMatched: true },
     ],
   })
   const summary = () => document.querySelector('.compare-highlights-mobile .comparison-highlights')
   const cards = () => [...summary().querySelectorAll('.highlight-cards article')]
-  const verdicts = () => cards().map(card => card.querySelector('.highlight-conditions li').textContent)
+  const verdicts = () => cards().map(card => [...card.querySelectorAll('.highlight-ingredient-result')].map(row => [
+    row.querySelector('span').textContent, row.querySelector('strong').textContent,
+  ]))
   assert.deepEqual(cards().map(card => card.dataset.productId), [candidateA.product_id, candidateB.product_id])
-  assert.deepEqual(verdicts(), [listed, listed])
+  assert.deepEqual(verdicts(), [[['연어 확인 결과', listed.summary]], [['연어 확인 결과', listed.summary]]])
   assert.match(summary().textContent, /내가 고른 조건 · 브랜드 · 같은후보브랜드 또는 셋째브랜드/)
   assert.match(cards()[1].textContent, /선택 조건 확인 · 습식/)
   assert.doesNotMatch(summary().textContent, /선택 조건 확인 · 같은후보브랜드/)
@@ -426,7 +429,8 @@ test('general mobile highlights follow its chosen pair without retaining the ori
     selects[0].dispatchEvent(new window.Event('change', { bubbles: true }))
   })
   await settle()
-  assert.deepEqual(verdicts(), [unspecified, listed])
+  assert.deepEqual(verdicts(), [[['연어 확인 결과', unspecified.summary], ['닭 확인 결과', present.summary]], [['연어 확인 결과', listed.summary]]])
+  assert.doesNotMatch(cards()[0].textContent, /피하려는 원료 확인/)
   assert.match(cards()[0].querySelector('h3').textContent, /셋째브랜드 · 비교 기준.*세 번째 후보/)
   assert.match(summary().textContent, /사료 형태: 동결건조 → 습식/)
   assert.doesNotMatch(summary().textContent, /첫 번째 후보 제품/)

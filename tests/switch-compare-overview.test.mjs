@@ -403,9 +403,22 @@ test('general mobile highlights follow its chosen pair without retaining the ori
   const candidateC = product('product_candidate_c', '셋째브랜드', '세 번째 후보', { feed_type: '동결건조' })
   const listed = '연어 포함 여부 · 확인한 원료표에 표기 없음'
   const unspecified = '연어 포함 여부 · 제조사 표기 · ‘어유’(어종 미표기)'
-  await renderCompare({ currentProduct: null, items: [{ ...items[0], ingredientReasons: [listed] }, items[1], { product: candidateC, ingredientReasons: [unspecified] }] })
+  const { removed } = await renderCompare({
+    currentProduct: null, criteriaLabels: ['브랜드 · 같은후보브랜드 또는 셋째브랜드'],
+    items: [
+      { ...items[0], ingredientReasons: [listed], brandMatched: true },
+      { ...items[1], ingredientReasons: [listed], brandMatched: true, confirmedMatches: ['습식'] },
+      { product: candidateC, ingredientReasons: [unspecified], brandMatched: true },
+    ],
+  })
   const summary = () => document.querySelector('.compare-highlights-mobile .comparison-highlights')
-  assert.equal(summary().querySelector('header li').textContent, listed)
+  const cards = () => [...summary().querySelectorAll('.highlight-cards article')]
+  const verdicts = () => cards().map(card => card.querySelector('.highlight-conditions li').textContent)
+  assert.deepEqual(cards().map(card => card.dataset.productId), [candidateA.product_id, candidateB.product_id])
+  assert.deepEqual(verdicts(), [listed, listed])
+  assert.match(summary().textContent, /내가 고른 조건 · 브랜드 · 같은후보브랜드 또는 셋째브랜드/)
+  assert.match(cards()[1].textContent, /선택 조건 확인 · 습식/)
+  assert.doesNotMatch(summary().textContent, /선택 조건 확인 · 같은후보브랜드/)
   const selects = document.querySelectorAll('.compare-mobile-general-pair-picker select')
   assert.equal(selects.length, 2)
   await act(async () => {
@@ -413,10 +426,12 @@ test('general mobile highlights follow its chosen pair without retaining the ori
     selects[0].dispatchEvent(new window.Event('change', { bubbles: true }))
   })
   await settle()
-  assert.equal(summary().querySelector('header li').textContent, unspecified)
-  assert.match(summary().textContent, /비교 기준 · 셋째브랜드 세 번째 후보/)
+  assert.deepEqual(verdicts(), [unspecified, listed])
+  assert.match(cards()[0].querySelector('h3').textContent, /셋째브랜드 · 비교 기준.*세 번째 후보/)
   assert.match(summary().textContent, /사료 형태: 동결건조 → 습식/)
   assert.doesNotMatch(summary().textContent, /첫 번째 후보 제품/)
+  await click([...cards()[0].querySelectorAll('button')].find(button => button.textContent === '비교에서 제거'))
+  assert.deepEqual(removed, [candidateC.product_id])
 })
 
 test('fact comparison omits shared and mutually unknown values while prioritizing chosen facts', () => {

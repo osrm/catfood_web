@@ -56,28 +56,35 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
   const compared = baseline ? items : items.slice(1)
   if (!reference || !compared.length) return null
   const before = facts(reference)
-  const referenceIngredients = baseline ? [] : ingredientLines(items[0])
-  const commonConditions = conditionLines(items[0]).filter(value => /조건 확인 ·/.test(value) && items.every(item => conditionLines(item).includes(value)))
+  const conditionsByItem = items.map(conditionLines)
+  const commonConditions = conditionsByItem[0].filter(value => /조건 확인 ·/.test(value) && conditionsByItem.every(conditions => conditions.includes(value)))
   const commonFacts = before.filter(fact => fact.known && compared.every(item => facts(item.product).some(value => value.key === fact.key && value.known && value.value === fact.value)))
-  return <section className="comparison-highlights" aria-label="핵심 차이 먼저 보기">
-    <header><h2>핵심 차이 먼저 보기</h2><p>{baseline ? '현재 사료' : '비교 기준'} · {reference.brand} {reference.canonical_name}</p>
-      <CompactList values={referenceIngredients} />
-      <div className="highlight-product-actions">{onDetail ? <button type="button" onClick={() => onDetail(reference.product_id)}>기준 제품 상세 보기</button> : null}{!baseline && onRemove ? <button type="button" onClick={() => onRemove(reference.product_id)}>기준 제품 비교에서 제거</button> : null}</div>
-    </header>
-    {criteriaLabels.length ? <p className="highlight-priorities">내가 고른 조건 · {criteriaLabels.join(' · ')}</p> : null}
+  const common = <>
     {commonConditions.length ? <p className="highlight-common">{baseline ? '후보 모두에서 확인' : '제품 모두에서 확인'} · {commonConditions.join(' / ')}</p> : null}
     {commonFacts.length ? <details className="highlight-common"><summary>함께 확인된 제품 표기 {commonFacts.length}개</summary><p>{commonFacts.map(fact => `${fact.label} · ${fact.value}`).join(' / ')}</p></details> : null}
-    <div className="highlight-cards">{compared.map(item => {
-      const differences = differentFacts(before, facts(item.product))
-      const conditions = conditionLines(item).filter(value => !commonConditions.includes(value))
+  </>
+  return <section className="comparison-highlights" aria-label="핵심 차이 먼저 보기">
+    <header><h2>핵심 차이 먼저 보기</h2>
+      {baseline ? <>
+        <p>현재 사료 · {baseline.brand} {baseline.canonical_name}</p>
+        {onDetail ? <div className="highlight-product-actions"><button type="button" onClick={() => onDetail(baseline.product_id)}>기준 제품 상세 보기</button></div> : null}
+      </> : null}
+    </header>
+    {criteriaLabels.length ? <p className="highlight-priorities">내가 고른 조건 · {criteriaLabels.join(' · ')}</p> : null}
+    {baseline ? common : null}
+    <div className="highlight-cards">{items.map((item, index) => {
+      const isReference = !baseline && index === 0
+      const differences = isReference ? [] : differentFacts(before, facts(item.product))
+      const conditions = isReference ? ingredientLines(item) : conditionsByItem[index].filter(value => !commonConditions.includes(value))
       return <article key={item.product.product_id} data-product-id={item.product.product_id}>
         {item.product.display_image_url ? <img className="highlight-product-image" src={item.product.display_image_url} alt="" /> : null}
-        <h3><span>{item.product.brand}</span>{item.product.canonical_name}</h3>
+        <h3><span>{item.product.brand}{isReference ? ' · 비교 기준' : ''}</span>{item.product.canonical_name}</h3>
         {conditions.length ? <div className="highlight-conditions"><CompactList values={conditions} /></div> : null}
         <CompactList values={differences.map(fact => `${fact.label}${fact.bothKnown ? '' : ' · 자료 확인 차이'}: ${fact.before} → ${fact.value}`)} />
-        {!differences.length ? <p>확인된 기본 표기에서 기준 제품과의 차이를 찾지 못했습니다.</p> : null}
+        {!isReference && !differences.length ? <p>확인된 기본 표기에서 기준 제품과의 차이를 찾지 못했습니다.</p> : null}
         <div className="highlight-product-actions">{onDetail ? <button type="button" onClick={() => onDetail(item.product.product_id)}>상세 보기</button> : null}{onRemove ? <button type="button" onClick={() => onRemove(item.product.product_id)}>비교에서 제거</button> : null}</div>
       </article>
     })}</div>
+    {baseline ? null : common}
   </section>
 }

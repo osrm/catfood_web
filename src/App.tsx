@@ -633,8 +633,8 @@ export default function App() {
         ingredientReviewedNotFound: evaluation.ingredientReviewedNotFound.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
         ingredientInsufficient: evaluation.ingredientInsufficient.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),
         ingredientReasons: search.ingredientAvoidTerms?.length ? search.ingredientAvoidTerms.map(term => {
-          const wording = ingredientAvoidanceWording(product, term, listReasons.byProduct.get(product.product_id), { compact: true })
-          return `${optionLabel(term, INGREDIENT_AVOID_LABELS)} 포함 여부 · ${wording.summary}`
+          const wording = ingredientAvoidanceWording(product, term, listReasons.byProduct.get(product.product_id), { compact: 'status-first' })
+          return { label: optionLabel(term, INGREDIENT_AVOID_LABELS), summary: wording.summary }
         }) : undefined,
       }
     }), [compareIds, products, activeComparisonCriteria, ingredientConditionsPending, search, refine, energyMax, energyByProduct, energyPending, energyError, listReasons.byProduct])

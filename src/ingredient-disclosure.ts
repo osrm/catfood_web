@@ -40,7 +40,7 @@ export function ingredientAvoidanceWording(
   product: CatalogProduct | ProductVariant,
   term: string,
   row?: ListIngredientSource | null,
-  { variantId, compact = false }: { variantId?: string | null; compact?: boolean } = {},
+  { variantId, compact = false }: { variantId?: string | null; compact?: boolean | 'status-first' } = {},
 ): {
   state: 'present' | 'reviewed-not-found' | 'unknown'
   summary: string
@@ -67,15 +67,20 @@ export function ingredientAvoidanceWording(
   if (row.completeness_status !== 'full') return fallback
   const source = manufacturer ? '제조사 원료표' : '확인한 원료표'
   const compactSource = manufacturer ? '제조사 표기' : '원료표'
+  const sourceSummary = (phrase: string, typeLabel: string) => {
+    if (compact === 'status-first') return `${typeLabel} 미표기 · ${compactSource} ‘${phrase}’`
+    if (compact) return `${compactSource} · ‘${phrase}’(${typeLabel} 미표기)`
+    return `${source}에 ${typeLabel} 표시 없음 · ‘${phrase}’ 표기`
+  }
   const entries = splitIngredientText(row.raw_text)
   if (FISH_AVOID_TERMS.has(term)) {
     const phrase = entries.find(entry => GENERIC_FISH_ENTRY.test(entry) && !(term === 'whitefish' && /^white\s*fish\b/i.test(entry)))
-    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: compact ? `${compactSource} · ‘${phrase}’(어종 미표기)` : `${source}에 어종 표시 없음 · ‘${phrase}’ 표기` }
+    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: sourceSummary(phrase, '어종') }
   }
   if (POULTRY_AVOID_TERMS.has(term) || LAND_ANIMAL_AVOID_TERMS.has(term)) {
     const poultry = POULTRY_AVOID_TERMS.has(term)
     const phrase = entries.find(entry => GENERIC_POULTRY_ENTRY.test(entry) ? poultry : GENERIC_ANIMAL_ENTRY.test(entry))
-    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: compact ? `${compactSource} · ‘${phrase}’(동물 종류 미표기)` : `${source}에 동물 종류 표시 없음 · ‘${phrase}’ 표기` }
+    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: sourceSummary(phrase, '동물 종류') }
   }
   return fallback
 }

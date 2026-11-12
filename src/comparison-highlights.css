@@ -13,6 +13,8 @@
 .highlight-cards + .highlight-common { margin-top: 12px; }
 .highlight-conditions { border-bottom: 1px solid var(--cf-line, #ded9d0); padding-bottom: 8px; margin-bottom: 8px; }
 .highlight-conditions li { word-break: keep-all; }
+.highlight-ingredient-result > span, .highlight-ingredient-result > strong { display: block; }
+.highlight-ingredient-result > span { color: var(--cf-muted, #68645e); font-size: 12px; }
 .comparison-highlights .highlight-energy-delta { font-size: 18px; }
 .comparison-highlights .highlight-footnote { margin-top: 14px; margin-bottom: 0; }
 .compare-highlights-mobile { display: none; }

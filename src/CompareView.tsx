@@ -20,6 +20,8 @@ import { DecisionPurposeSummary } from './DecisionPurpose'
 import type { DecisionPurpose } from './journey-records'
 import { INGREDIENT_AVOID_LABELS } from './search'
 
+export type CompareIngredientReason = { label: string; summary: string }
+
 export type CompareItem = {
   product: CatalogProduct
   confirmedMatches?: string[]
@@ -31,7 +33,7 @@ export type CompareItem = {
   ingredientConflicts?: string[]
   ingredientReviewedNotFound?: string[]
   ingredientInsufficient?: string[]
-  ingredientReasons?: string[]
+  ingredientReasons?: CompareIngredientReason[]
 }
 
 type CompareRowTone = 'metric' | 'context'
@@ -359,7 +361,7 @@ function RelationSummary({ item }: { item: CompareItem }) {
     {keep.length ? <p className="is-keep"><span>유지 조건</span><strong>{keep.join(' · ')}</strong></p> : null}
     {change.length ? <p className="is-change"><span>변경 조건</span><strong>{change.join(' · ')}</strong></p> : null}
     {differences.length ? <p className="is-different"><span>제품 표기 다름</span><strong>{differences.map((difference) => <span className="compare-condition-difference" key={difference}>{difference}</span>)}</strong></p> : null}
-    {item.ingredientReasons ? item.ingredientReasons.map(reason => <p className="is-unknown" key={reason}><strong>{reason}</strong></p>) : <>
+    {item.ingredientReasons ? item.ingredientReasons.map(({ label, summary }) => <p className="is-unknown" key={label}><strong>{label} 포함 여부 · {summary}</strong></p>) : <>
       {reviewed.length ? <p className="is-reviewed"><span>원료 미확인</span><strong>{reviewed.join(' · ')} · 확인 자료에 표기 없음</strong><small>원료가 없다는 보장은 아닙니다.</small></p> : null}
       {insufficient.length ? <p className="is-unknown"><span>원료 미확인</span><strong>{insufficient.join(' · ')} · 확인 자료 부족</strong></p> : null}
     </>}

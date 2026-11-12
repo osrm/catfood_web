@@ -23,6 +23,7 @@ import { INGREDIENT_AVOID_LABELS } from './search'
 export type CompareItem = {
   product: CatalogProduct
   confirmedMatches?: string[]
+  brandMatched?: boolean
   keepMatches?: string[]
   changeMatches?: string[]
   conditionDifferences?: string[]
@@ -346,10 +347,11 @@ function MobileProductHead({ role, product, variantText, onDetail, onRemove }: {
   </div>
 }
 function hasRelationData(item: CompareItem) {
-  return [item.confirmedMatches, item.keepMatches, item.changeMatches, item.conditionDifferences, item.unknowns, item.ingredientConflicts, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
+  return item.brandMatched || [item.confirmedMatches, item.keepMatches, item.changeMatches, item.conditionDifferences, item.unknowns, item.ingredientConflicts, item.ingredientReviewedNotFound, item.ingredientInsufficient].some((values) => values?.length)
 }
 function RelationSummary({ item }: { item: CompareItem }) {
-  const confirmed = item.confirmedMatches ?? [], keep = item.keepMatches ?? [], change = item.changeMatches ?? [], differences = item.conditionDifferences ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []
+  const confirmed = [...(item.confirmedMatches ?? []), ...(item.brandMatched ? [`브랜드 · ${item.product.brand}`] : [])]
+  const keep = item.keepMatches ?? [], change = item.changeMatches ?? [], differences = item.conditionDifferences ?? [], unknown = item.unknowns ?? [], reviewed = item.ingredientReviewedNotFound ?? [], insufficient = item.ingredientInsufficient ?? []
   if (!hasRelationData(item)) return <span className="compare-muted">비교할 검색 조건 없음</span>
   return <div className="compare-relations">
     {item.ingredientConflicts?.length ? <p className="is-different"><span>피하려는 원료 확인</span><strong>{item.ingredientConflicts.join(' · ')}</strong></p> : null}

@@ -89,8 +89,9 @@ try {
     if (width === 390) {
       await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${products.slice(0, 3).map(product => product.id).join(',')}&compareOpen=1&compareTab=overview`, { waitUntil: 'domcontentloaded' })
       await page.getByRole('combobox', { name: '표시 제품 1 선택' }).selectOption(products[2].id)
-      assert.match(await highlights.locator('header').innerText(), /Feline Natural/)
-      assert.doesNotMatch(await highlights.locator('header').innerText(), /로얄캐닌/)
+      const reference = highlights.locator('.highlight-cards article').first().getByRole('heading')
+      assert.match(await reference.innerText(), /Feline Natural/)
+      assert.doesNotMatch(await reference.innerText(), /로얄캐닌/)
       await capture('compare-pair-changed', '.compare-stage')
     }
     await context.close()

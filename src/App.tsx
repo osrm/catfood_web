@@ -622,9 +622,11 @@ export default function App() {
         else if (amount <= energyMax) energyConfirmed.push('열량 · ' + energyText(amount) + ' (선택 ' + energyText(energyMax) + ' 이하)')
         else energyDifferences.push('열량 · ' + energyText(amount) + ' (선택 ' + energyText(energyMax) + ' 이하)')
       }
+      const brandMatch = '브랜드:' + product.brand
       return {
         product,
-        confirmedMatches: [...evaluation.confirmedMatches.map(relationLabel), ...energyConfirmed],
+        brandMatched: evaluation.confirmedMatches.includes(brandMatch),
+        confirmedMatches: [...evaluation.confirmedMatches.filter(value => value !== brandMatch).map(relationLabel), ...energyConfirmed],
         unknowns: [...evaluation.unknowns.map(unknownLabel), ...energyUnknown],
         conditionDifferences: [...evaluation.differences.map(comparisonDifferenceLabel), ...energyDifferences],
         ingredientConflicts: evaluation.ingredientConflicts.map((term) => optionLabel(term, INGREDIENT_AVOID_LABELS)),

@@ -12,7 +12,7 @@ import { DecisionPurposeEditor, DecisionPurposeSummary } from './DecisionPurpose
 import IngredientSourceFilterPanel from './IngredientSourceFilter'
 import CandidateExplanationView from './CandidateExplanation'
 import { candidateExplanation } from './candidate-explanation'
-import { hasUnspecifiedAvoidanceIngredient, ingredientAvoidanceWording } from './ingredient-disclosure'
+import { candidateIngredientSummary, hasUnspecifiedAvoidanceIngredient, ingredientAvoidanceWording } from './ingredient-disclosure'
 import { SOURCE_FILTERS, matchesSourceFilter, sourceFilterLabel, type IngredientSourceFilter } from './ingredient-source-filter'
 import { useSwitchEnergy, useEnergyPackages, switchEnergyDifference, keepsLowerEnergyCandidate, EnergyEvidence, CandidateEnergy } from './switch-energy'
 import { energyText, usableEnergy } from './energy-refine'
@@ -1882,12 +1882,16 @@ export default function SwitchFlow({
     const changeCandidateBrowse = (field: 'candidateFeedTypes' | 'candidateRecipeFamilies', value: string) => {
       updateSession((current) => ({ ...current, [field]: toggleValue(current[field], value), visibleCandidateCount: 40 }))
     }
+    const showIngredientSummary = purposeFocus === 'disclosure' && !ingredientAvoidTerms.length
     const renderCandidateRow = (evaluation: SwitchEvaluation) => {
       const product = evaluation.product
-      const explanation = explanationFor(product)
+      const explanation = showIngredientSummary ? undefined : explanationFor(product)
+      const sourceSummary = showIngredientSummary && listReasons.status === 'loaded' ? candidateIngredientSummary(listReasons.byProduct.get(product.product_id)) : ''
       const isCompared = compareIds.includes(product.product_id)
       const unresolved = unresolvedCandidateIds.has(product.product_id)
       const rowEvaluation = { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) }
+      const hasIngredientSummary = showIngredientSummary && Boolean(sourceSummary || evaluation.unknowns.length)
+      const explanationId = explanation || hasIngredientSummary ? `candidate-explanation-${product.product_id}` : undefined
       const compareDisabled = compareIds.length >= 5 && !isCompared
       return (
         <div className={isCompared ? 'switch-candidate-item is-compared' : 'switch-candidate-item'} key={product.product_id}>
@@ -1900,7 +1904,7 @@ export default function SwitchFlow({
             type="button"
             data-product-id={product.product_id}
             aria-label={`${product.brand} ${product.canonical_name} ${unresolved ? '원료 확인' : '빠른 보기'}`}
-            aria-describedby={[ingredientAvoidTerms.length ? unresolved ? 'switch-unresolved-note' : 'switch-reviewed-note' : '', explanation ? `candidate-explanation-${product.product_id}` : ''].filter(Boolean).join(' ') || undefined}
+            aria-describedby={[ingredientAvoidTerms.length ? unresolved ? 'switch-unresolved-note' : 'switch-reviewed-note' : '', explanationId].filter(Boolean).join(' ') || undefined}
             onClick={() => openCandidate(product.product_id)}
           >
             <ProductImage className="switch-candidate-image" product={product} />
@@ -1910,7 +1914,12 @@ export default function SwitchFlow({
               {listReasonsEnabled && !sourceFocusAllowed && listReasons.status === 'loaded' ? <IngredientListReason row={listReasons.byProduct.get(product.product_id)} /> : null}
               {candidateEnergyOpen && purposeFocus !== 'energy' && energy.status === 'loaded' ? <CandidateEnergy current={currentProduct} candidate={product} baseline={currentEnergy} row={energy.byProduct.get(product.product_id)} packages={energyPackages.packages} packageStatus={energyPackages.status} /> : null}
             </span>
-            {explanation ? <CandidateExplanationView value={explanation} compact id={`candidate-explanation-${product.product_id}`} /> : <RelationBlock evaluation={rowEvaluation} ingredientTerms={ingredientAvoidTerms} source={listReasons.byProduct.get(product.product_id)} />}
+            {hasIngredientSummary ? <span id={explanationId} className="candidate-explanation is-card-summary">
+              {sourceSummary ? <strong>{sourceSummary}</strong> : null}
+              {evaluation.unknowns.length ? <span>표기 미확인 · {evaluation.unknowns.map(candidateRelationLabel).join(' · ')}</span> : null}
+            </span> : null}
+            {explanation ? <CandidateExplanationView value={explanation} compact id={explanationId} /> : null}
+            {!showIngredientSummary && !explanation ? <RelationBlock evaluation={rowEvaluation} ingredientTerms={ingredientAvoidTerms} source={listReasons.byProduct.get(product.product_id)} /> : null}
             <span className="switch-candidate-open">{unresolved ? '원료 확인 →' : '빠른 보기 →'}</span>
           </button>
           <button

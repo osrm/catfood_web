@@ -177,9 +177,26 @@ export function ingredientDisclosureSummary(row: IngredientSource | null | undef
   return reading.listLabel === reading.label ? reading.label : reading.listLabel + ' · ' + wording
 }
 
+function fishOilExamples(raw: string) {
+  return splitIngredientText(raw).filter(value => /어유|생선.*오일|fish\s+oil/i.test(value)).slice(0, 2)
+}
+
 export function ingredientWordingExamples(row: IngredientSource | null | undefined) {
   const reading = ingredientDisclosureReading(row)
   if (reading.details.length) return reading.details.map(item => `${item.phrase} — ${item.note}`)
-  return splitIngredientText(row?.raw_text ?? '').filter(value => /어유|생선.*오일|fish\s+oil/i.test(value)).slice(0, 2)
+  return fishOilExamples(row?.raw_text ?? '')
     .map(value => /fish\s+oil\s*\(\s*herring\s*\)/i.test(value) ? `${value} — 청어를 명시한 오일` : value)
+}
+
+export function candidateIngredientSummary(row: ListIngredientSource | undefined) {
+  if (!row?.raw_text?.trim()) return '원료표 미확인'
+  const reading = ingredientDisclosureReading(row)
+  const [detail] = reading.details
+  const phrase = detail?.phrase ?? fishOilExamples(row.raw_text)[0] ?? ''
+  let wording = phrase.length > 90 ? `${phrase.slice(0, 89)}…` : phrase
+  if (detail) wording += ` · ${detail.note.replace(/세부 (?=어종|동물 종류)/g, '')}`
+  else if (/^fish\s+oil\s*\(\s*herring\s*\)$/i.test(phrase)) wording = '청어유 표기'
+  const scope = ingredientSourceScope(row).needsCheck ? '한국 판매 제품 적용 여부 미확인' : row.observation_scope === 'variant' ? '확인한 포장 기준' : ''
+  const coverage = row.completeness_status === 'full' ? '' : reading.listLabel
+  return [wording, scope, coverage].filter(Boolean).join(' · ')
 }

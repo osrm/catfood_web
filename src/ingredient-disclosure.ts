@@ -40,7 +40,7 @@ export function ingredientAvoidanceWording(
   product: CatalogProduct | ProductVariant,
   term: string,
   row?: ListIngredientSource | null,
-  { variantId, compact = false }: { variantId?: string | null; compact?: boolean | 'status-first' } = {},
+  { variantId, compact = false }: { variantId?: string | null; compact?: boolean | 'status-first' | 'result' } = {},
 ): {
   state: 'present' | 'reviewed-not-found' | 'unknown'
   summary: string
@@ -68,6 +68,7 @@ export function ingredientAvoidanceWording(
   const source = manufacturer ? '제조사 원료표' : '확인한 원료표'
   const compactSource = manufacturer ? '제조사 표기' : '원료표'
   const sourceSummary = (phrase: string, typeLabel: string) => {
+    if (compact === 'result') return `${phrase} · ${typeLabel} 미표기`
     if (compact === 'status-first') return `${typeLabel} 미표기 · ${compactSource} ‘${phrase}’`
     if (compact) return `${compactSource} · ‘${phrase}’(${typeLabel} 미표기)`
     return `${source}에 ${typeLabel} 표시 없음 · ‘${phrase}’ 표기`

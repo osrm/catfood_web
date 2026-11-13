@@ -9,6 +9,8 @@
 .candidate-explanation p { margin:8px 0; font-size:13px; }
 .switch-candidate-row > .candidate-explanation { grid-column:1/-1; grid-row:2; margin:0; }
 .candidate-explanation.is-compact { font-size:13px; gap:10px; }
+.candidate-explanation.is-card-summary { gap:4px; }
+.candidate-explanation.is-card-summary > strong { color:#29483c; font-weight:650; }
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-item:has(.candidate-explanation) { display:block; position:relative; }
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:has(> .candidate-explanation) { grid-template-areas:"image identity" "explanation explanation" "action action"; grid-template-rows:max-content max-content max-content; height:auto; align-content:start; padding:20px; }
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-candidate-row:has(> .candidate-explanation) > .switch-candidate-image { grid-area:image; }

@@ -23,6 +23,17 @@ export function JourneyMemo({ value, onSave, onClose, title = '찾으면서 기�
     <label>내 메모 <span>(선택, 200자)</span><textarea maxLength={200} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="예: 요즘 잘 안 먹어서 다른 사료도 알아보는 중" /></label>
     <p className="journey-note">메모는 이 탭 안에만 남고 서버로 보내지 않습니다.</p><button type="button" className="primary-action" onClick={() => { onSave(draft); onClose() }}>메모 남기기</button></JourneyDialog>
 }
+export function JourneyRecordsShortcut({ count }: { count: number }) {
+  if (!count) return null
+  return <button type="button" className="journey-inline-action journey-records-shortcut" aria-controls="journey-records" onClick={() => {
+    const panel = document.querySelector<HTMLDetailsElement>('details#journey-records')
+    if (!panel) return
+    panel.open = true
+    panel.focus({ preventScroll: true })
+    panel.scrollIntoView({ block: 'start' })
+  }}>남긴 후보 {count}개</button>
+}
+
 export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, onNote, onRemove, onOutcome, onQuestions }: {
   records: JourneyRecords; selectionKey: string; storageAvailable: boolean
   onNote: (id: string, value: string) => void; onRemove: (id: string) => void

@@ -1897,7 +1897,20 @@ test('reason-led disclosure keeps observation separate, opens relevant compariso
   assert.equal(session().compareTab, 'ingredients')
   assert.match(document.querySelector('.compare-stage > .decision-purpose-summary').textContent, /PRIVATE_REASON/)
   assert.equal(document.querySelector('.comparison-highlights'), null, 'ingredient comparison has one primary summary')
+  assert.equal(document.querySelector('.journey-records-shortcut'), null)
   await click('후보로 남기기')
+  const shortcut = document.querySelector('.compare-header .journey-records-shortcut')
+  assert.equal(shortcut.textContent, '남긴 후보 1개')
+  const panel = document.getElementById('journey-records')
+  let scrolled = false
+  panel.scrollIntoView = ({ block }) => { scrolled = block === 'start' }
+  panel.open = false
+  const beforeJump = window.location.href
+  await click(shortcut)
+  assert.equal(panel.open, true)
+  assert.equal(document.activeElement, panel)
+  assert.equal(scrolled, true)
+  assert.equal(window.location.href, beforeJump)
   assert.match(journey().retained[0].context.purpose.reason, /PRIVATE_REASON/)
   assert.match(app.journeyCopyText(journey()), /PRIVATE_POSITIVE/)
   const oldReason = journey().retained[0].context.purpose.reason
@@ -1905,6 +1918,7 @@ test('reason-led disclosure keeps observation separate, opens relevant compariso
   await remountApp()
   assert.equal(journey().purpose.focus, 'disclosure')
   assert.equal(journey().retained[0].context.purpose.reason, oldReason)
+  assert.equal(document.querySelector('.switch-results-title .journey-records-shortcut').textContent, '남긴 후보 1개')
   await click('조건 수정')
   await textareaValue(document.querySelector('.decision-purpose-writing label:nth-of-type(1) textarea'), 'PRIVATE_CHANGED 다음 확인 이유')
   assert.equal(journey().retained[0].context.purpose.reason, oldReason, 'saved reasoning is historical')

@@ -40,6 +40,9 @@ jobs:
       - name: Validate Pages asset paths
         run: grep -Eq '(src|href)="\./assets/' dist/index.html
 
+      - name: Check public Data API access
+        run: node scripts/check-pages-data-api.mjs
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:

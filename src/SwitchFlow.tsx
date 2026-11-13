@@ -2,7 +2,7 @@ import './switch-consumer-flow.css'
 import IngredientComposition from './IngredientComposition'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
 import SiteHeader from './SiteHeader'
-import { JourneyMemo, JourneyRecordsPanel, JourneyDialog, JourneyCopy } from './JourneyReview'
+import { JourneyMemo, JourneyRecordsPanel, JourneyRecordsShortcut, JourneyDialog, JourneyCopy } from './JourneyReview'
 import { readJourneyRecords, writeJourneyRecords, clearJourneyRecords, hasJourneyWork, type JourneyRecords, type JourneyContext, type RetainedCandidate, type JourneyPendingIntake } from './journey-records'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
@@ -1810,6 +1810,7 @@ export default function SwitchFlow({
 
   function renderResults() {
     if (!currentProduct) return null
+    const reviewShortcut = <JourneyRecordsShortcut count={journey.retained.filter(row => row.active).length} />
 
     if (compareOpen && compareItems.length > 0) {
       return (
@@ -1818,6 +1819,7 @@ export default function SwitchFlow({
           detailContext={renderCandidateContext}
           reviewActions={renderRetainAction}
           reviewSummary={renderJourneyRecords()}
+          reviewShortcut={reviewShortcut}
           onDisplayedCandidates={(ids) => ids.forEach((id) => recordSwitchConsideration(id, 'compare_view', ids))}
           items={compareItems}
           ingredientAvoidTerms={ingredientAvoidTerms}
@@ -1930,7 +1932,7 @@ export default function SwitchFlow({
     return (
       <main className={`switch-results-stage switch-results-language switch-results-prototype${purposeFocus ? ' is-purpose-led' : ''}`}>
         <div className="switch-session-bar">
-          <div className="switch-results-title"><h1>다음 사료 살펴보기</h1></div>
+          <div className="switch-results-title"><h1>다음 사료 살펴보기</h1>{reviewShortcut}</div>
           <div className="switch-session-current">
             <span>지금 먹이는 사료</span>
             <div className="switch-session-current-product">

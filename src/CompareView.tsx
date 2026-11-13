@@ -630,7 +630,7 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, ingredientAvoidTerms = [], items, criteriaLabels = [], decisionPurpose, sourceViewLabel, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, detailContext, reviewActions, reviewSummary, onDisplayedCandidates }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, ingredientAvoidTerms = [], items, criteriaLabels = [], decisionPurpose, sourceViewLabel, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, detailContext, reviewActions, reviewSummary, reviewShortcut, onDisplayedCandidates }: {
   decisionPurpose?: DecisionPurpose
   sourceViewLabel?: string
   requestedCandidateId?: string | null
@@ -638,6 +638,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   items: CompareItem[]
   reviewActions?: (product: CatalogProduct) => ReactNode
   reviewSummary?: ReactNode
+  reviewShortcut?: ReactNode
   onDisplayedCandidates?: (ids: string[]) => void
   ingredientConditionsPending?: boolean
   ingredientLoad?: CatalogIngredientLoad
@@ -1271,7 +1272,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   }
 
   return <main className={stageClassName}>
-    <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p></div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
+    <header className="compare-header"><div><h1 ref={switchCompareHeadingRef} tabIndex={switchCompare ? -1 : undefined}>{switchCompare ? '현재 사료와 비교' : '제품 비교'}</h1><p>{headerCopy}</p>{reviewShortcut}</div><button type="button" onClick={onClose}>{switchCompare ? '← 후보 목록으로' : '← 제품 목록으로'}</button></header>
     <DecisionPurposeSummary purpose={decisionPurpose} compact />
     {sourceViewLabel ? <p className="source-view-context">{sourceViewLabel} · 목록을 나눈 기준이며 비교 제품의 품질이나 적합성을 뜻하지 않습니다.</p> : null}
     <nav className="compare-tabs" aria-label="비교 항목" role="tablist">{TABS.map(([key, label], index) => <button

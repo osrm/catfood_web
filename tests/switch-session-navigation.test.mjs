@@ -938,8 +938,10 @@ async function reachUndecidedResults() {
   await chooseCurrent()
   await click(variantButton('1 kg'))
   await click(exactButton('다음 →'))
-  assert.equal(exactButton('후보부터 보기 →').disabled, false)
-  await click(exactButton('후보부터 보기 →'))
+  const browse = document.querySelector('.switch-step-header button')
+  assert.equal(browse, exactButton('후보부터 보기 →'))
+  assert.equal(browse.disabled, false)
+  await click(browse)
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'undecided candidates')
 }
 

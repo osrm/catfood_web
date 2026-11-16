@@ -1618,6 +1618,7 @@ export default function SwitchFlow({
 
   function renderChangeStep() {
     if (!currentProduct) return null
+    const showBrowseFirst = !purposeFocus && !hasChange && !noChangeIntent && !keepBrand && criteriaCount(keep) === 0
     const feedOptions = FEED_TYPES.filter(([value]) => value !== currentProduct.feed_type)
     const lifeOptions = LIFE_STAGES.filter(([value]) => value !== currentProduct.life_stage)
     const targetOptions = TARGETS.filter(([value]) => !currentProduct.official_targets.includes(value))
@@ -1664,7 +1665,8 @@ export default function SwitchFlow({
           <div className="switch-step-header">
             <span>바꿀 점</span>
             <h1>무엇을 바꾸고 싶나요?</h1>
-            <p>달라졌으면 하는 점을 골라주세요. 후보를 먼저 보고 정해도 됩니다.</p>
+            <p>달라졌으면 하는 점을 골라주세요.</p>
+            {showBrowseFirst ? <button className="journey-inline-action" type="button" onClick={applySwitchCriteria}>후보부터 보기 →</button> : null}
           </div>
 
           {!purposeFocus ? <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div> : null}
@@ -1750,7 +1752,7 @@ export default function SwitchFlow({
           {renderKeepChoices()}
           <div className="switch-step-actions">
             <button className="switch-secondary-action" type="button" onClick={() => backToStep('sku')}>← 현재 사료와 포장</button>
-            <button className="switch-primary-action" type="button" onClick={applySwitchCriteria}>{hasChange || noChangeIntent ? '후보 제품 보기 →' : '후보부터 보기 →'}</button>
+            <button className="switch-primary-action" type="button" onClick={applySwitchCriteria}>{showBrowseFirst ? '후보 보기 →' : hasChange || noChangeIntent ? '후보 제품 보기 →' : '후보부터 보기 →'}</button>
           </div>
         </main>
       </div>

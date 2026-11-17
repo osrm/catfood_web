@@ -227,7 +227,7 @@ function installFetch() {
       if (failEnergyCount > 0) { failEnergyCount--; return new Response('', {status: 503}) }
       return Response.json(energyRows)
     }
-    if (url.pathname.endsWith('/compare_product_ingredients') || url.pathname.endsWith('/compare_product_ingredients_scoped')) {
+    if (url.pathname.endsWith('/list_product_ingredient_sources') || url.pathname.endsWith('/compare_product_ingredients_scoped')) {
       const raw = url.searchParams.get('p_product_ids') ?? url.searchParams.get('product_id')
       const ids = raw?.startsWith('{') ? JSON.parse(raw.replace('{','[').replace('}',']')) : raw?.startsWith('in.(') ? raw.slice(4,-1).split(',').map(value => value.replace(/^"|"$/g, '')) : null
       sourceRequestIds.push(ids)

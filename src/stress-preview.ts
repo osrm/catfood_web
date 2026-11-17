@@ -193,7 +193,7 @@ export function installStressPreviewFetch(): void {
     if (view === 'effective_product_catalog_summary') rows = STRESS_PRODUCTS
     if (view === 'switch_current_variant_options' || view === 'catalog_package_options') rows = STRESS_VARIANTS
     if (view === 'compare_product_nutrition' || view === 'compare_product_nutrition_scoped') rows = STRESS_NUTRITION
-    if (view === 'compare_product_ingredients_scoped') rows = STRESS_INGREDIENTS
+    if (view === 'compare_product_ingredients_scoped' || view === 'list_product_ingredient_sources') rows = STRESS_INGREDIENTS
     if (view === 'product_detail_manufacturing') rows = STRESS_MANUFACTURING
     if (view === 'product_detail_markets') rows = STRESS_MARKETS
 

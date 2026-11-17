@@ -25,9 +25,9 @@ try {
         return route.fulfill({status:500,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},
           body:JSON.stringify({code:'57014',message:'canceling statement due to statement timeout'})})
       }
-      if(url.includes('/rest/v1/compare_product_ingredients?')){
+      if(url.includes('/rest/v1/rpc/list_product_ingredient_sources?')||url.includes('/rest/v1/compare_product_ingredients?')){
         const params=new URL(url).searchParams
-        report.sourceReads.push({width,fields:params.get('select'),ids:params.get('product_id'),limit:params.get('limit')})
+        report.sourceReads.push({width,fields:params.get('select'),ids:params.get('p_product_ids')??params.get('product_id'),limit:params.get('limit')})
         if(failSources){report.injectedFailures.push({width,kind:'source',url});return route.abort()}
       }
       return route.continue()

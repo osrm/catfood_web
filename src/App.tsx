@@ -616,7 +616,7 @@ export default function App() {
   function resultIngredientVerdict(product: CatalogProduct, term: string) {
     const source = listReasons.byProduct.get(product.product_id)
     const wording = ingredientAvoidanceWording(product, term, source, { compact: 'result' })
-    if (!source && listReasons.status === 'loading' && wording.state === 'unknown') {
+    if (!listReasons.isLoaded(product.product_id) && listReasons.status === 'loading' && wording.state === 'unknown') {
       return { ...wording, summary: '원료표 확인 중' }
     }
     return wording
@@ -1041,7 +1041,7 @@ export default function App() {
       const ingredientVerdicts = [...(evaluation?.ingredientReviewedNotFound ?? []), ...(evaluation?.ingredientInsufficient ?? [])]
         .map(term => ({ term, ...resultIngredientVerdict(product, term) }))
       const shownPhrases = ingredientVerdicts.flatMap(verdict => verdict.sourcePhrase ? [verdict.sourcePhrase] : [])
-      const ingredientNote = listReasonsEnabled && listReasons.status === 'loaded'
+      const ingredientNote = listReasonsEnabled && listReasons.isLoaded(product.product_id)
         ? <IngredientListReason row={source} shownPhrases={shownPhrases} />
         : null
       const isCompared = compareIds.includes(product.product_id)

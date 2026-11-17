@@ -1771,7 +1771,7 @@ async function reachSourceResults() {
 const sourceButton = key => document.querySelector(`.source-filter-options button:nth-child(${['all','full','partial','missing','wording','scope'].indexOf(key)+1})`)
 const candidateIds = () => all('.switch-candidate-row').map(row => row.dataset.productId)
 
-test('source lenses read all 85 candidates in batches, survive search and keep hidden comparison selections', async () => {
+test('source lenses reuse visible candidate sources, cover all candidates and keep hidden comparison selections', async () => {
   const many = Array.from({length:85}, (_,i) => ({...candidateA,product_id:`product_source_${String(i).padStart(3,'0')}`,canonical_name:`후보 ${String(i).padStart(3,'0')}`}))
   catalogProducts = [current,...many]
   questionSources = many.map((p,i) => ({product_id:p.product_id,raw_text:'Chicken, Fish Oil',completeness_status:i===84?'full':'partial',observation_scope:'product',market_code:i===84?'US':'KR',is_current_resolved_formula:false}))
@@ -1781,7 +1781,7 @@ test('source lenses read all 85 candidates in batches, survive search and keep h
   sourceRequestIds=[]
   await click('원료표 상태로 살펴보기')
   await waitForUi(()=>sourceButton('full')?.disabled===false,'all source batches complete')
-  assert.deepEqual(sourceRequestIds.map(ids=>ids.length),[80,5])
+  assert.deepEqual(sourceRequestIds,[many.slice(40).map(product=>product.product_id)])
   assert.match(sourceButton('all').textContent,/85개/)
   assert.match(sourceButton('partial').textContent,/84개/)
   assert.match(sourceButton('full').textContent,/1개/)

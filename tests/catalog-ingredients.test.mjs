@@ -406,6 +406,39 @@ test('source explanation failure preserves avoidance results and retries separat
  assert.equal(document.querySelectorAll('.research-result-card').length,1)
 })
 
+test('showing more products reads only new sources and keeps loaded wording during a failed read and retry',async()=>{
+ rows=Array.from({length:41},(_,index)=>product(
+   'product_'+String(index+1).padStart(16,'0'), '후보 '+String(index).padStart(2,'0'),
+   {insufficient_evidence_ingredient_terms:['salmon'],ingredient_term_result_count:1}
+ ))
+ sourceRows=[listSource(rows[0].product_id,'닭, 어유',{is_manufacturer_source:true})]
+ await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=salmon')
+ const verdict=index=>document.querySelector(`[data-product-id="${rows[index].product_id}"] .is-ingredient-verdict`)?.textContent
+ const sourceReads=()=>requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients'))
+ assert.equal(sourceReads()[0].url.searchParams.get('limit'),'40')
+ assert.match(verdict(0),/어유 · 어종 미표기/)
+ assert.match(verdict(1),/포장 확인 필요/)
+
+ const pending=deferred()
+ sourceHandler=()=>pending.promise
+ await click('제품 더 보기')
+ assert.equal(sourceReads().length,2)
+ assert.equal(sourceReads()[1].url.searchParams.get('product_id'),`in.("${rows[40].product_id}")`)
+ assert.match(verdict(0),/어유 · 어종 미표기/)
+ assert.match(verdict(1),/포장 확인 필요/)
+ assert.match(verdict(40),/원료표 확인 중/)
+ await act(async()=>pending.resolve(new Response('',{status:503})))
+ assert.match(verdict(0),/어유 · 어종 미표기/)
+ assert.match(text(),/원료표의 추가 안내를 불러오지 못했습니다/)
+
+ sourceHandler=async()=>Response.json([])
+ await click('추가 확인 사항 다시 불러오기')
+ assert.equal(sourceReads().length,3)
+ assert.equal(sourceReads()[2].url.searchParams.get('product_id'),sourceReads()[1].url.searchParams.get('product_id'))
+ assert.match(verdict(40),/포장 확인 필요/)
+ assert.match(verdict(0),/어유 · 어종 미표기/)
+})
+
 test('list source cautions distinguish unresolved applicability, missing raw text and a full named source',async()=>{
  const row=listSource('product_scope','Fish Oil',{market_code:'US',observation_scope:'formula',is_current_resolved_formula:false})
  await act(async()=>root.render(createElement(app.IngredientListReason,{row})))

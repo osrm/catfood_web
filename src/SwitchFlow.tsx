@@ -1013,10 +1013,11 @@ export default function SwitchFlow({
     ? [...(sourceReviewRequested ? browsedCandidates : unfilteredCandidates.slice(0, visibleCandidateCount)).map(item => item.product.product_id), ...explanationIds]
     : sourceRequestEnabled && ingredientAvoidTerms.length ? [...(listReasonsEnabled ? unfilteredCandidates.slice(0, visibleCandidateCount).map(item => item.product.product_id) : []), ...explanationIds] : [])
   const currentSource = useIngredientListReasons(sourceRequestEnabled && sourceFocusAllowed && currentProductId ? [currentProductId] : [])
-  const explanationSourceStatus = currentSource.status === 'error' || listReasons.status === 'error' ? 'error' : currentSource.status === 'loaded' && listReasons.status === 'loaded' ? 'loaded' : 'loading'
   function explanationFor(product: CatalogProduct) {
+    const candidateSourceStatus = listReasons.isLoaded(product.product_id) ? 'loaded' : listReasons.status
+    const sourceStatus = currentSource.status === 'loaded' ? candidateSourceStatus : currentSource.status === 'error' || candidateSourceStatus === 'error' ? 'error' : 'loading'
     return currentProduct && purposeFocus ? candidateExplanation({ current: currentProduct, candidate: product, conditions, focus: purposeFocus,
-      beforeSource: currentSource.byProduct.get(currentProduct.product_id), afterSource: listReasons.byProduct.get(product.product_id), sourceStatus: explanationSourceStatus,
+      beforeSource: currentSource.byProduct.get(currentProduct.product_id), afterSource: listReasons.byProduct.get(product.product_id), sourceStatus,
       currentVariantId, beforeEnergy: currentEnergy, afterEnergy: energy.byProduct.get(product.product_id), energyStatus: energy.status }) : undefined
   }
   const sourceReady = sourceReviewRequested && sourceRequestEnabled && listReasons.status === 'loaded'
@@ -1888,7 +1889,7 @@ export default function SwitchFlow({
     const renderCandidateRow = (evaluation: SwitchEvaluation) => {
       const product = evaluation.product
       const explanation = showIngredientSummary ? undefined : explanationFor(product)
-      const sourceSummary = showIngredientSummary && listReasons.status === 'loaded' ? candidateIngredientSummary(listReasons.byProduct.get(product.product_id)) : ''
+      const sourceSummary = showIngredientSummary && listReasons.isLoaded(product.product_id) ? candidateIngredientSummary(listReasons.byProduct.get(product.product_id)) : ''
       const isCompared = compareIds.includes(product.product_id)
       const unresolved = unresolvedCandidateIds.has(product.product_id)
       const rowEvaluation = { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) }
@@ -1913,7 +1914,7 @@ export default function SwitchFlow({
             <span className="switch-candidate-identity">
               <span>{product.brand}</span><strong>{product.canonical_name}</strong>
               <small>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'} · {representativePackageLabel(product)}</small>
-              {listReasonsEnabled && !sourceFocusAllowed && listReasons.status === 'loaded' ? <IngredientListReason row={listReasons.byProduct.get(product.product_id)} /> : null}
+              {listReasonsEnabled && !sourceFocusAllowed && listReasons.isLoaded(product.product_id) ? <IngredientListReason row={listReasons.byProduct.get(product.product_id)} /> : null}
               {candidateEnergyOpen && purposeFocus !== 'energy' && energy.status === 'loaded' ? <CandidateEnergy current={currentProduct} candidate={product} baseline={currentEnergy} row={energy.byProduct.get(product.product_id)} packages={energyPackages.packages} packageStatus={energyPackages.status} /> : null}
             </span>
             {hasIngredientSummary ? <span id={explanationId} className="candidate-explanation is-card-summary">

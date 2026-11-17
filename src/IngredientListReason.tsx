@@ -5,20 +5,32 @@ import './ingredient-list-reason.css'
 
 // An explanation of source wording; never used to change the catalog's term verdict.
 export function useIngredientListReasons(productIds: string[]) {
-  const key = [...new Set(productIds)].sort().join(',')
-  const [retry, setRetry] = useState(0)
-  const [result, setResult] = useState<{ key: string; rows: ListIngredientSource[]; status: 'loaded' | 'error' }>({ key: '', rows: [], status: 'loaded' })
+  // A completed read without a source is recorded as null. Errors leave the
+  // affected products unread so that a retry can request them again.
+  const [sources, setSources] = useState(() => new Map<string, ListIngredientSource | null>())
+  const [attempt, setAttempt] = useState(0)
+  const [failure, setFailure] = useState<{ key: string; attempt: number }>()
+  const missingKey = [...new Set(productIds)].filter(id => !sources.has(id)).sort().join(',')
   useEffect(() => {
-    if (!key || result.key === key && result.status === 'loaded') return
+    if (!missingKey) return
+    const ids = missingKey.split(',')
     const controller = new AbortController()
-    fetchListIngredientSources(key.split(','), controller.signal).then(rows => {
-      if (!controller.signal.aborted) setResult({ key, rows, status: 'loaded' })
-    }).catch(() => { if (!controller.signal.aborted) setResult({ key, rows: [], status: 'error' }) })
+    fetchListIngredientSources(ids, controller.signal).then(rows => {
+      if (controller.signal.aborted) return
+      const received = new Map(rows.map(row => [row.product_id, row]))
+      setSources(previous => {
+        const next = new Map(previous)
+        ids.forEach(id => next.set(id, received.get(id) ?? null))
+        return next
+      })
+    }).catch(() => {
+      if (!controller.signal.aborted) setFailure({ key: missingKey, attempt })
+    })
     return () => controller.abort()
-  }, [key, retry])
-  const status = !key ? 'loaded' : result.key === key ? result.status : 'loading'
-  const byProduct = useMemo(() => new Map(result.rows.map(row => [row.product_id, row])), [result.rows])
-  return { status, byProduct, retry: () => setRetry(value => value + 1) }
+  }, [missingKey, attempt])
+  const status: 'loaded' | 'loading' | 'error' = !missingKey ? 'loaded' : failure?.key === missingKey && failure.attempt === attempt ? 'error' : 'loading'
+  const byProduct = useMemo(() => new Map([...sources].filter((entry): entry is [string, ListIngredientSource] => entry[1] !== null)), [sources])
+  return { status, byProduct, isLoaded: (id: string) => sources.has(id), retry: () => setAttempt(value => value + 1) }
 }
 
 export function IngredientReasonStatus({ status, onRetry }: { status: string; onRetry: () => void }) {

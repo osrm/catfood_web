@@ -92,14 +92,29 @@ try{
   assert.match(await quick.innerText(),/연어 포함 여부/)
   await capture('salmon-unknown','.research-quick-view')
   await page.locator('.quick-view-actions button').first().click();await (await button('닫기 ×')).click()
-  await page.locator(`[data-compare-product-id="${reviewedId}"]`).click();await (await button('비교 보기 →')).click()
+  const reviewedCompare=page.locator(`[data-compare-product-id="${reviewedId}"]`)
+  await reviewedCompare.click()
+  if(width===390) await reviewedCompare.evaluate(node=>node.scrollIntoView({block:'start',behavior:'instant'}))
+  const resultsScroll=await page.evaluate(()=>scrollY)
+  if(width===390) assert.ok(resultsScroll>0,'the comparison starts from a scrolled results list')
+  await (await button('비교 보기 →')).click()
   await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/연어/)
+  if(width===390){
+   const summary=page.locator('.compare-highlights-mobile .comparison-highlights')
+   const firstView=await summary.evaluate(node=>{
+    const inView=el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight}
+    const cards=[...node.querySelectorAll('.highlight-cards > article')]
+    return {focused:document.activeElement===node,title:inView(node.querySelector('h2')),cards:cards.map(card=>inView(card.querySelector('h3'))&&inView(card.querySelector('.highlight-conditions')))}
+   })
+   assert.deepEqual(firstView,{focused:true,title:true,cards:[true,true]},'both products and the selected-ingredient results appear before scrolling')
+  }
   await capture('salmon-comparison','.compare-stage')
   await page.getByRole('tab',{name:'원재료',exact:true}).click()
   await page.locator('.compare-ingredient-reading').filter({visible:true}).first().waitFor({timeout:45000})
   await capture('salmon-source-comparison','.compare-stage')
   await page.getByRole('button',{name:/제품 목록으로/}).filter({visible:true}).first().click()
   await page.locator('.research-result-card').first().waitFor()
+  if(width===390) await page.waitForFunction(expected=>Math.abs(scrollY-expected)<=2,resultsScroll)
   const restored=new URL(page.url()).searchParams
   assert.equal(restored.get('avoidIngredients'),'salmon');assert.ok(restored.get('compare').includes(unknownId)&&restored.get('compare').includes(reviewedId))
   report.observations.push({width,case:'salmon',displayed:displayedIds.length,reviewedId,unknownId,positiveSalmonExcluded:true,returnPreserved:true})

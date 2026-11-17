@@ -1,7 +1,7 @@
 import { JourneyDialog, JourneyCopy } from './JourneyReview'
 import { clearJourneyRecords, hasJourneyWork, readJourneyRecords } from './journey-records'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
 import SiteHeader from './SiteHeader'
@@ -278,6 +278,7 @@ export default function App() {
   const quickViewListRestore = useRef<ListRestore | null>(initialNavigation.selectedId
     ? ((typeof window !== 'undefined' ? window.history.state : null) as HistoryPayload | null)?.catfoodList ?? null : null)
   const pendingCompareReturnIds = useRef<string[] | null>(null)
+  const pendingAvoidanceOverview = useRef(false)
   const switchSessionRef = useRef<SwitchSessionState>(initialSwitchSession)
   const generalNavigationRef = useRef<NavigationState>(
     initialNavigation.mode !== 'switch' ? initialNavigation
@@ -654,6 +655,18 @@ export default function App() {
     }), [compareIds, products, activeComparisonCriteria, ingredientConditionsPending, search, refine, energyMax, energyByProduct, energyPending, energyError, listReasons.byProduct])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
 
+  useLayoutEffect(() => {
+    if (!compareOpen || !pendingAvoidanceOverview.current) return
+    pendingAvoidanceOverview.current = false
+    const overview = document.querySelector<HTMLElement>('.compare-highlights-mobile')
+    if (!overview?.getClientRects().length) return
+    const summary = overview.querySelector<HTMLElement>('.comparison-highlights')
+    if (!summary) return
+    summary.focus({ preventScroll: true })
+    // Start at the pair picker when there are more than two products.
+    overview.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [compareOpen])
+
   useEffect(() => {
     if (!pendingRestore.current || screen !== 'workspace' || selectedId || detailProductId || compareOpen || loading) return
     const restore = pendingRestore.current
@@ -790,6 +803,7 @@ export default function App() {
   function openCompare() {
     if (!compareIds.length) return
     pendingCompareReturnIds.current = null
+    pendingAvoidanceOverview.current = mode === 'explore' && activeComparisonCriteria && Boolean(search.ingredientAvoidTerms?.length)
     const restore = selectedId && quickViewListRestore.current ? quickViewListRestore.current : captureListRestore(null)
     replaceHistory(snapshot(), { ...(window.history.state ?? {}), catfoodList: restore })
     const next = snapshot({ compareOpen: true, compareTab: 'overview' }); setCompareOpen(true); setCompareTab('overview'); pushHistory(next, { catfoodCompareEntry: true })

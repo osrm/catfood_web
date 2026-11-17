@@ -296,8 +296,14 @@ function IngredientPairSummary({ products, currentProductId, currentVariantText,
   return <section className="compare-ingredient-pair-summary" aria-label="두 제품 원재료 비교">
     <div className="compare-ingredient-pair">
       {products.map((product) => <div key={product.product_id}>
-        <MobileProductHead role={product.product_id === currentProductId ? '현재 사료 · 기준' : currentProductId ? '후보' : '비교 제품'} product={product} variantText={product.product_id === currentProductId ? currentVariantText : undefined} onDetail={() => onDetail(product.product_id)} onRemove={product.product_id === currentProductId ? undefined : () => onRemove(product.product_id)} />
-        {avoidance?.(product)}
+        <MobileProductHead
+          role={product.product_id === currentProductId ? '현재 사료 · 기준' : currentProductId ? '후보' : '비교 제품'}
+          product={product}
+          variantText={product.product_id === currentProductId ? currentVariantText : undefined}
+          ingredientVerdict={avoidance?.(product)}
+          onDetail={() => onDetail(product.product_id)}
+          onRemove={product.product_id === currentProductId ? undefined : () => onRemove(product.product_id)}
+        />
         <div className="compare-ingredient-summary-values">
           {product.direct_evidence_ingredient_terms?.length ? <p>{labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)}</p> : null}
           {product.flavor_associated_ingredient_terms?.length ? <p><small>향미 관련</small>{labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)}</p> : null}
@@ -338,12 +344,20 @@ function CurrentProductHead({ product, variantText, evidenceNote }: { product: C
     <div className="compare-product-identity">{product.display_image_url ? <img src={product.display_image_url} alt="" /> : <div className="compare-image-placeholder">이미지 없음</div>}<div className="compare-product-copy"><span>{product.brand}</span><strong>{product.canonical_name}</strong><small>사용 규격 · {variantText || '사용 규격 모름'}</small>{evidenceNote ? <small className="compare-current-nutrition-evidence">{evidenceNote}</small> : null}<small>판매 규격 · {representativePackageLabel(product)}</small></div></div>
   </div>
 }
-function MobileProductHead({ role, product, variantText, onDetail, onRemove }: { role: string; product: CatalogProduct; variantText?: string; onDetail?: () => void; onRemove?: () => void }) {
+function MobileProductHead({ role, product, variantText, ingredientVerdict, onDetail, onRemove }: {
+  role: string
+  product: CatalogProduct
+  variantText?: string
+  ingredientVerdict?: ReactNode
+  onDetail?: () => void
+  onRemove?: () => void
+}) {
   return <div className={`compare-mobile-product-head${onRemove ? ' is-candidate' : ' is-current'}`}>
     <span>{role}</span>
     <small className="compare-mobile-product-brand">{product.brand}</small>
     <strong>{product.canonical_name}</strong>
     {variantText ? <small>사용 규격 · {variantText}</small> : null}
+    {ingredientVerdict}
     <small>판매 규격 · {representativePackageLabel(product)}</small>
     {onDetail || onRemove ? <div className="compare-mobile-head-actions">{onDetail ? <button type="button" onClick={onDetail}>상세 보기 →</button> : null}{onRemove ? <button type="button" onClick={onRemove}>비교에서 제거</button> : null}</div> : null}
   </div>
@@ -1239,7 +1253,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   const overviewProducts = currentProduct ? [currentProduct, ...items.map((item) => item.product)] : items.map((item) => item.product)
   const collapseTargets = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'targets'))
   const collapseFeatures = overviewProducts.length > 0 && overviewProducts.every((product) => !hasOverviewListValue(product, 'features'))
-  const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ' is-general-compare'}${switchOverview ? ' is-switch-overview' : ''}${switchNutrition ? ' is-switch-nutrition' : ''}${!switchCompare && tab === 'overview' ? ' is-general-overview' : ''}${!switchCompare && tab === 'nutrition' ? ' is-general-nutrition' : ''}`
+  const stageClassName = `compare-stage${switchCompare ? ' is-switch-compare' : ' is-general-compare'}${switchOverview ? ' is-switch-overview' : ''}${switchNutrition ? ' is-switch-nutrition' : ''}${switchCompare && tab === 'ingredients' ? ' is-switch-ingredients' : ''}${!switchCompare && tab === 'overview' ? ' is-general-overview' : ''}${!switchCompare && tab === 'nutrition' ? ' is-general-nutrition' : ''}`
   const generalEnergyScale = sharedEnergyScale(items.map((item) => nutritionByProduct.get(item.product.product_id)))
   const switchEnergyScale = sharedEnergyScale([currentNutrition, ...items.map((item) => nutritionByProduct.get(item.product.product_id))])
   const headerCopy = currentProduct

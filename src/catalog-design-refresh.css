@@ -3072,10 +3072,10 @@ summary:focus-visible,
   .compare-stage .compare-mobile-two-product-slot { font-size: 12px; font-weight: 400; color: var(--atlas-muted); word-break: keep-all; overflow-wrap: normal; }
   .compare-stage .compare-mobile-two-product-section-label { background: transparent; }
   .compare-stage .compare-mobile-two-product-section-label strong { font-size: 15px; font-weight: 600; }
-  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding-block: 18px; }
-  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header p { display: none; }
-  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header h1 { font-size: 24px; }
-  .compare-stage:is(.is-switch-overview,.is-switch-nutrition) .compare-header > button { min-height: 44px; font-size: 12px; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition,.is-switch-ingredients) .compare-header { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; padding-block: 18px; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition,.is-switch-ingredients) .compare-header p { display: none; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition,.is-switch-ingredients) .compare-header h1 { font-size: 24px; }
+  .compare-stage:is(.is-switch-overview,.is-switch-nutrition,.is-switch-ingredients) .compare-header > button { min-height: 44px; font-size: 12px; }
   .switch-results-stage .switch-session-bar { background: transparent; border: 0; padding: 0 0 20px; gap: 10px 16px; }
   .switch-results-stage .switch-session-bar > div { padding: 0; border: 0; }
   .switch-results-stage .switch-results-title { padding-bottom: 8px; }

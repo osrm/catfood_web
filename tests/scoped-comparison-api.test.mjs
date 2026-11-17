@@ -75,7 +75,11 @@ test('aborting catalog packaging propagates cancellation without retry or fallba
 test('ingredient reads keep their neutral source wording on an older API', async () => {
   const selects = []
   globalThis.fetch = async input => {
-    const fields = new URL(input).searchParams.get('select').split(',')
+    const url = new URL(input)
+    if (url.pathname.endsWith('/list_product_ingredient_sources')) {
+      return Response.json({ code: 'PGRST202' }, { status: 404 })
+    }
+    const fields = url.searchParams.get('select').split(',')
     selects.push(fields)
     if (fields.includes('is_manufacturer_source')) {
       return Response.json({ code: '42703', message: 'column is_manufacturer_source does not exist' }, { status: 400 })
@@ -90,6 +94,38 @@ test('ingredient reads keep their neutral source wording on an older API', async
   assert.deepEqual(selects.map(fields => fields.includes('is_manufacturer_source')), [true, false, true, false])
 })
 
+test('list sources scope GET batches to eighty products and use the view only when the RPC is missing', async () => {
+  const ids = ['product_a,b', 'product_"quoted"', 'product_back\\slash', ...Array.from({ length: 78 }, (_, index) => 'product_' + index)]
+  const controller = new AbortController()
+  for (const missingRpc of [false, true]) {
+    const reads = []
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input)
+      const isRpc = url.pathname.endsWith('/rpc/list_product_ingredient_sources')
+      assert.equal(init.method ?? 'GET', 'GET')
+      assert.equal(init.signal, controller.signal)
+      assert.equal(init.headers['Accept-Profile'], 'api')
+      assert.equal(url.searchParams.get('select').split(',').length, 8)
+      const list = isRpc ? url.searchParams.get('p_product_ids').slice(1, -1) : url.searchParams.get('product_id').slice(4, -1)
+      const batch = JSON.parse('[' + list + ']')
+      assert.equal(+url.searchParams.get('limit'), batch.length)
+      reads.push([isRpc, batch])
+      if (isRpc && missingRpc) return Response.json({ code: 'PGRST202' }, { status: 404 })
+      assert.equal(url.pathname, isRpc ? '/rest/v1/rpc/list_product_ingredient_sources' : '/rest/v1/compare_product_ingredients')
+      return Response.json(batch.map(product_id => ({ product_id, raw_text: '어유', is_manufacturer_source: true })))
+    }
+    const rows = await api.fetchListIngredientSources([...ids, ids[0]], controller.signal)
+    assert.deepEqual(rows.map(row => row.product_id), ids)
+    assert.deepEqual(reads.map(([isRpc, batch]) => [isRpc, batch.length]), missingRpc ? [[true, 80], [false, 80], [false, 1]] : [[true, 80], [true, 1]])
+  }
+
+  globalThis.fetch = async input => {
+    assert.ok(new URL(input).pathname.endsWith('/rpc/list_product_ingredient_sources'))
+    return Response.json({ code: 'PGRST205' }, { status: 404 })
+  }
+  await assert.rejects(api.fetchListIngredientSources(ids), /Data API 404.*PGRST205/)
+})
+
 const statementTimeout = () => Response.json({
   code: '57014', message: 'canceling statement due to statement timeout',
 }, { status: 500 })
@@ -102,7 +138,7 @@ test('affected catalog and ingredient reads retry a statement timeout once with 
   for (const [endpoint, read] of [
     ['effective_product_catalog_summary', () => api.fetchCatalog(controller.signal)],
     ['effective_product_catalog_summary', () => api.fetchCatalogIngredientFacts([id], controller.signal)],
-    ['compare_product_ingredients', () => api.fetchListIngredientSources([id], controller.signal)],
+    ['list_product_ingredient_sources', () => api.fetchListIngredientSources([id], controller.signal)],
     ['compare_product_ingredients_scoped', () => api.fetchCompareIngredients([id], controller.signal)],
   ]) {
     const requests = []

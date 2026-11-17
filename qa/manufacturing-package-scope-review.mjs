@@ -56,7 +56,7 @@ async function pageAt(w,h){
    if(name==='switch_current_variant_options'){const id=(url.searchParams.get('product_id')||'').replace(/^eq\./,'');return json(route,variants[id]||[])}
    if(name==='product_detail_manufacturing'){const id=(url.searchParams.get('product_id')||'').replace(/^eq\./,'');const row=(scopeRows[id]||[])[0];return json(route,row?[{...row,variant_id:undefined,display_rank:undefined}]:[])}
    if(name==='product_detail_manufacturing_scope'){const id=(url.searchParams.get('product_id')||'').replace(/^eq\./,'');return json(route,scopeRows[id]||[])}
-   if(name==='compare_product_nutrition'||name==='compare_product_ingredients'||name==='product_detail_markets') return json(route,[])
+   if(name==='compare_product_nutrition'||name==='list_product_ingredient_sources'||name==='product_detail_markets') return json(route,[])
    return json(route,[])
   }
   await route.continue()

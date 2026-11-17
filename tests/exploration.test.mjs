@@ -925,7 +925,7 @@ test('ingredient editor, results and analytics preserve verdicts with bounded li
   assert.match(document.querySelector('.research-quick-view').textContent, /닭 포함 여부/)
   await click('닫기 ×')
   assert.equal(requests.some(request => /compare_product_nutrition/.test(request.path)), false)
-  const listReads = requests.filter(request => request.path.endsWith('/compare_product_ingredients'))
+  const listReads = requests.filter(request => request.path.endsWith('/list_product_ingredient_sources'))
   assert.ok(listReads.length > 0, 'visible avoidance cards may read minimal source wording together')
   assert.ok(listReads.every(request => {
     const fields = new URLSearchParams(request.query).get('select').split(',')

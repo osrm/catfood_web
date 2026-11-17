@@ -62,7 +62,7 @@ export function installDemoPreviewFetch(): void {
     if (view === 'effective_product_catalog_summary') rows = DEMO_PREVIEW_PRODUCTS
     if (view === 'switch_current_variant_options' || view === 'catalog_package_options') rows = DEMO_VARIANTS
     if (view === 'compare_product_nutrition' || view === 'compare_product_nutrition_scoped') rows = DEMO_NUTRITION
-    if (view === 'compare_product_ingredients_scoped') rows = DEMO_PREVIEW_INGREDIENTS
+    if (view === 'compare_product_ingredients_scoped' || view === 'list_product_ingredient_sources') rows = DEMO_PREVIEW_INGREDIENTS
     if (view === 'product_detail_manufacturing') rows = DEMO_MANUFACTURING
     if (view === 'product_detail_markets') rows = DEMO_MARKETS
 

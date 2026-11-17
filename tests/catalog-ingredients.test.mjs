@@ -74,7 +74,7 @@ beforeEach(()=>{
  globalThis.fetch=window.fetch=async(input,init={})=>{
    const url=new URL(String(input));assert.equal(url.origin,'https://api.test');requests.push({url,signal:init.signal})
    if(url.pathname.endsWith('/effective_product_catalog_summary'))return url.searchParams.get('select').split(',').includes('ingredient_term_result_count')?factsHandler(url,init):Response.json(rows)
-   if(url.pathname.endsWith('/compare_product_ingredients'))return sourceHandler(url,init)
+   if(url.pathname.endsWith('/list_product_ingredient_sources'))return sourceHandler(url,init)
    if(url.pathname.endsWith('/compare_product_ingredients_scoped'))return Response.json(rows.map(row=>({product_id:row.product_id,ingredient_names:['chicken','peas'],raw_text:'chicken, peas',ingredient_count:2,completeness_status:'full',declaration_scope:'product'})))
    return Response.json([])
  };root=createRoot(document.getElementById('root'))
@@ -348,7 +348,7 @@ test('avoidance list explains generic wording without changing verdicts or prefe
    listSource(generic.product_id, '쌀, 어유', {is_manufacturer_source:true}),
  ]
  await mount('?view=workspace&mode=lookup&q=Test%20Brand')
- assert.equal(requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients')).length,0)
+ assert.equal(requests.filter(r=>r.url.pathname.endsWith('/list_product_ingredient_sources')).length,0)
  await act(async()=>root.unmount());root=createRoot(document.getElementById('root'))
  const pendingSource=deferred()
  sourceHandler=()=>pendingSource.promise
@@ -379,7 +379,7 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  await click('Delta')
  assert.match(document.querySelector('.research-quick-view').textContent,/연어 포함 여부.*어유 · 어종 미표기/s)
  await click('닫기')
- const sourceRequests=requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients'))
+ const sourceRequests=requests.filter(r=>r.url.pathname.endsWith('/list_product_ingredient_sources'))
  assert.equal(sourceRequests.length,1,'one batched read covers the visible list')
  assert.equal(sourceRequests[0].url.searchParams.get('select').split(',').length,8)
  assert.ok(sourceRequests[0].url.searchParams.get('select').split(',').includes('is_manufacturer_source'))
@@ -414,7 +414,7 @@ test('showing more products reads only new sources and keeps loaded wording duri
  sourceRows=[listSource(rows[0].product_id,'닭, 어유',{is_manufacturer_source:true})]
  await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=salmon')
  const verdict=index=>document.querySelector(`[data-product-id="${rows[index].product_id}"] .is-ingredient-verdict`)?.textContent
- const sourceReads=()=>requests.filter(r=>r.url.pathname.endsWith('/compare_product_ingredients'))
+ const sourceReads=()=>requests.filter(r=>r.url.pathname.endsWith('/list_product_ingredient_sources'))
  assert.equal(sourceReads()[0].url.searchParams.get('limit'),'40')
  assert.match(verdict(0),/어유 · 어종 미표기/)
  assert.match(verdict(1),/포장 확인 필요/)
@@ -423,7 +423,7 @@ test('showing more products reads only new sources and keeps loaded wording duri
  sourceHandler=()=>pending.promise
  await click('제품 더 보기')
  assert.equal(sourceReads().length,2)
- assert.equal(sourceReads()[1].url.searchParams.get('product_id'),`in.("${rows[40].product_id}")`)
+ assert.equal(sourceReads()[1].url.searchParams.get('p_product_ids'),`{"${rows[40].product_id}"}`)
  assert.match(verdict(0),/어유 · 어종 미표기/)
  assert.match(verdict(1),/포장 확인 필요/)
  assert.match(verdict(40),/원료표 확인 중/)
@@ -434,7 +434,7 @@ test('showing more products reads only new sources and keeps loaded wording duri
  sourceHandler=async()=>Response.json([])
  await click('추가 확인 사항 다시 불러오기')
  assert.equal(sourceReads().length,3)
- assert.equal(sourceReads()[2].url.searchParams.get('product_id'),sourceReads()[1].url.searchParams.get('product_id'))
+ assert.equal(sourceReads()[2].url.searchParams.get('p_product_ids'),sourceReads()[1].url.searchParams.get('p_product_ids'))
  assert.match(verdict(40),/포장 확인 필요/)
  assert.match(verdict(0),/어유 · 어종 미표기/)
 })

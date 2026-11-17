@@ -705,10 +705,35 @@ export async function fetchEnergyPackages(variantIds: string[], signal?: AbortSi
 // Selected-source wording and scope only; variant identity prevents package equivalence claims.
 export async function fetchListIngredientSources(productIds: string[], signal?: AbortSignal): Promise<ListIngredientSource[]> {
   const ids = [...new Set(productIds)].filter(id => !hiddenProductIds.has(id))
+  if (!ids.length) return []
+  const { baseUrl, publishableKey } = apiConfig()
+  const fields = 'product_id,variant_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula,is_manufacturer_source'
   const rows: ListIngredientSource[] = []
+  let useLegacyView = false
   for (let start = 0; start < ids.length; start += 80) {
     const batch = ids.slice(start, start + 80)
-    const page = await fetchRows<ListIngredientSource>('compare_product_ingredients', 'product_id,variant_id,raw_text,completeness_status,observation_scope,market_code,is_current_resolved_formula,is_manufacturer_source', `in.(${batch.map(id => JSON.stringify(id)).join(',')})`, signal, 'product_id.asc', String(batch.length))
+    const encodedIds = batch.map(id => JSON.stringify(id)).join(',')
+    const limit = String(batch.length)
+    let page: ListIngredientSource[] | undefined
+    if (!useLegacyView) {
+      const url = new URL(`${baseUrl}/rest/v1/rpc/list_product_ingredient_sources`)
+      url.search = new URLSearchParams({ select: fields, p_product_ids: `{${encodedIds}}`, order: 'product_id.asc', limit }).toString()
+      const response = await fetchAfterStatementTimeout(url, { signal, headers: requestHeaders(publishableKey) })
+      if (response.ok) page = await response.json() as ListIngredientSource[]
+      else {
+        const error = response.status === 404 ? await response.clone().json().catch(() => null) : null
+        if (error?.code !== 'PGRST202') {
+          const detail = (await response.text()).slice(0, 240)
+          throw new Error(`Data API ${response.status}: ${detail || response.statusText}`)
+        }
+        // The existing view keeps working while the database migration is rolled out.
+        useLegacyView = true
+      }
+    }
+    if (!page) {
+      signal?.throwIfAborted()
+      page = await fetchRows<ListIngredientSource>('compare_product_ingredients', fields, `in.(${encodedIds})`, signal, 'product_id.asc', limit)
+    }
     if (page.some(row => !batch.includes(row.product_id)) || new Set(page.map(row => row.product_id)).size !== page.length) throw new Error('Ambiguous ingredient sources')
     rows.push(...page)
   }

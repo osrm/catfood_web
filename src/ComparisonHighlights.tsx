@@ -68,7 +68,7 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
     {commonConditions.length ? <p className="highlight-common">{baseline ? '후보 모두에서 확인' : '제품 모두에서 확인'} · {commonConditions.join(' / ')}</p> : null}
     {commonFacts.length ? <details className="highlight-common"><summary>함께 확인된 제품 표기 {commonFacts.length}개</summary><p>{commonFacts.map(fact => `${fact.label} · ${fact.value}`).join(' / ')}</p></details> : null}
   </>
-  return <section className="comparison-highlights" aria-label="핵심 차이 먼저 보기">
+  return <section className="comparison-highlights" aria-label="핵심 차이 먼저 보기" tabIndex={-1}>
     <header><h2>핵심 차이 먼저 보기</h2>
       {baseline ? <>
         <p>현재 사료 · {baseline.brand} {baseline.canonical_name}</p>

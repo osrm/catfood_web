@@ -66,6 +66,13 @@ try {
   assert.match(lines[0],/^연어 포함 여부.*연어 표기 없음.*포함 여부를 알기 어려워요/);assert.ok(lines.some(line=>/확인한 원료표.*fish oil.*herring/i.test(line)))
   await page.locator('.compare-ingredient-reading').getByText(/fish oil.*herring/i).filter({visible:true}).first().waitFor({timeout:45000})
   await capture('comparison')
+  if(width===390){
+   const verdicts=await page.locator('.compare-ingredient-pair .compare-ingredient-avoidance').evaluateAll(nodes=>nodes.map(node=>{
+    const {top,bottom}=node.getBoundingClientRect()
+    return top>=0&&bottom<=innerHeight
+   }))
+   assert.deepEqual(verdicts,[true,true],'both selected-ingredient results are visible before scrolling')
+  }
   await retain.getByRole('button',{name:'후보로 남기기',exact:true}).click()
   await page.reload({waitUntil:'domcontentloaded'})
   await page.locator('.journey-records .saved-candidate-explanation').waitFor({timeout:45000})

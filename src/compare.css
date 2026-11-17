@@ -1592,7 +1592,7 @@
   .compare-ingredient-avoidance { margin: 16px 0; }
   .compare-ingredient-avoidance > div + div { margin-top: 16px; }
   .compare-ingredient-avoidance dt { margin-bottom: 6px; font-size: 12px; font-weight: 700; }
-  .compare-ingredient-avoidance dd { margin: 0; }
+  .compare-ingredient-avoidance dd { margin: 0; word-break: keep-all; }
   .compare-ingredient-summary-values p { margin: 12px 0; font-size: 15.5px; line-height: 1.65; }
   .compare-ingredient-summary-values p small { display: block; }
   .compare-ingredient-pair .compare-ingredient-text { font-size: 13px; line-height: 1.65; }

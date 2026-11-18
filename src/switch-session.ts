@@ -33,6 +33,7 @@ export type SwitchSessionState = {
   visibleCandidateCount: number
   selectedCandidateId: string | null
   compareIds: string[]
+  compareCandidateId: string | null
   compareOpen: boolean
   compareTab: CompareTab
   detailProductId: string | null
@@ -128,6 +129,7 @@ export function createInitialSwitchSession(query = '', restartId = ''): SwitchSe
     visibleCandidateCount: 40,
     selectedCandidateId: null,
     compareIds: [],
+    compareCandidateId: null,
     compareOpen: false,
     compareTab: 'overview',
     detailProductId: null,
@@ -161,6 +163,7 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
   if (!source) return null
   const currentProductId = nullableString(source.currentProductId)
   const compareIds = uniqueStrings(source.compareIds, 5)
+  const compareCandidateId = nullableString(source.compareCandidateId)
   const rawVisible = typeof source.visibleCandidateCount === 'number' ? source.visibleCandidateCount : Number.NaN
   const visibleCandidateCount = Number.isFinite(rawVisible) && rawVisible > 0 ? Math.min(Math.floor(rawVisible), 1000) : 40
   const rawStep = source.step as SwitchStep | undefined
@@ -190,6 +193,7 @@ export function parseSwitchSessionState(value: unknown): SwitchSessionState | nu
     visibleCandidateCount,
     selectedCandidateId: currentProductId ? nullableString(source.selectedCandidateId) : null,
     compareIds: currentProductId ? compareIds : [],
+    compareCandidateId: currentProductId && compareCandidateId && compareIds.includes(compareCandidateId) ? compareCandidateId : null,
     compareOpen: Boolean(currentProductId && source.compareOpen === true && compareIds.length > 0),
     compareTab: rawCompareTab && COMPARE_TABS.has(rawCompareTab) ? rawCompareTab : 'overview',
     detailProductId: currentProductId ? nullableString(source.detailProductId) : null,
@@ -245,9 +249,11 @@ export function sanitizeSwitchSessionForCatalog(state: SwitchSessionState, valid
   if (!state.currentProductId) return state
   const selectedCandidateId = state.selectedCandidateId && validIds.has(state.selectedCandidateId) ? state.selectedCandidateId : null
   const compareIds = state.compareIds.filter((id) => validIds.has(id))
+  const compareCandidateId = state.compareCandidateId && compareIds.includes(state.compareCandidateId) ? state.compareCandidateId : null
   const detailProductId = state.detailProductId && validIds.has(state.detailProductId) ? state.detailProductId : null
   if (
     selectedCandidateId === state.selectedCandidateId
+    && compareCandidateId === state.compareCandidateId
     && detailProductId === state.detailProductId
     && compareIds.length === state.compareIds.length
   ) return state
@@ -255,6 +261,7 @@ export function sanitizeSwitchSessionForCatalog(state: SwitchSessionState, valid
     ...state,
     selectedCandidateId,
     compareIds,
+    compareCandidateId,
     compareOpen: state.compareOpen && compareIds.length > 0,
     detailProductId,
     detailTab: detailProductId ? state.detailTab : 'overview',

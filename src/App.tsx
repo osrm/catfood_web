@@ -464,7 +464,8 @@ export default function App() {
         && restored
         && !restored.compareOpen
       ) {
-        patch = { compareIds: switchSessionRef.current.compareIds }
+        const { compareIds, compareCandidateId, compareTab } = switchSessionRef.current
+        patch = { compareIds, compareCandidateId, compareTab }
       }
       if (restored || patch) {
         const next = restoreSwitchSession(patch ? { ...(restored ?? switchSessionRef.current), ...patch } : restored ?? switchSessionRef.current)

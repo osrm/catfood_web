@@ -687,7 +687,7 @@ export default function SwitchFlow({
   }
   const {
     step, query, currentProductId, change, keep, changeBrand, keepBrand, ingredientAvoidTerms, includeAllLifeStages, noChangeIntent, criteriaUndecided,
-    selectedCandidateId, visibleCandidateCount, compareIds, compareOpen, compareTab, detailProductId, detailTab, variantSelection, candidateEnergy = 'off', candidateSource = 'off',
+    selectedCandidateId, visibleCandidateCount, compareIds, compareCandidateId, compareOpen, compareTab, detailProductId, detailTab, variantSelection, candidateEnergy = 'off', candidateSource = 'off',
   } = activeSession
   const ingredientFactsPending = Boolean(ingredientLoad && ingredientLoad.status !== 'loaded')
   const needsIngredientFacts = !detailProductId && step !== 'current' && step !== 'sku'
@@ -705,7 +705,6 @@ export default function SwitchFlow({
   const setNoChangeIntent = (value: boolean | ((current: boolean) => boolean)) => setSessionField('noChangeIntent', value)
   const setSelectedCandidateId = (value: string | null) => setSessionField('selectedCandidateId', value)
   const setVisibleCandidateCount = (value: number | ((current: number) => number)) => setSessionField('visibleCandidateCount', value)
-  const setCompareIds = (value: string[] | ((current: string[]) => string[])) => setSessionField('compareIds', value)
   const setCompareOpen = (value: boolean) => setSessionField('compareOpen', value)
   const setDetailProductId = (value: string | null) => setSessionField('detailProductId', value)
   const [journey, setJourney] = useState<JourneyRecords>(readJourneyRecords)
@@ -797,23 +796,40 @@ export default function SwitchFlow({
     if (!compareIds.length) return
     pendingCompareReturnFocus.current = true
     requestExplicitScroll('compare')
-    updateSession((current) => ({ ...current, compareOpen: true, compareTab: purposeFocus === 'disclosure' || purposeFocus === 'ingredients' ? 'ingredients' : purposeFocus === 'energy' ? 'nutrition' : 'overview', detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
+    const defaultTab = purposeFocus === 'disclosure' || purposeFocus === 'ingredients' ? 'ingredients' : purposeFocus === 'energy' ? 'nutrition' : 'overview'
+    updateSession((current) => {
+      const resume = current.compareCandidateId && current.compareIds.includes(current.compareCandidateId)
+      const fromInspector = current.selectedCandidateId && current.compareIds.includes(current.selectedCandidateId)
+      return {
+        ...current, compareOpen: true,
+        compareCandidateId: resume ? current.compareCandidateId : fromInspector ? current.selectedCandidateId : current.compareIds[0] ?? null,
+        compareTab: resume ? current.compareTab : defaultTab,
+        detailProductId: null, detailTab: 'overview',
+      }
+    }, 'push', 'compare')
   }
   function closeSwitchCompare() {
-    const fallback = { ...activeSession, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
-    const patch = { compareIds: activeSession.compareIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+    const patch = { compareIds, compareCandidateId, compareTab, compareOpen: false, detailProductId: null, detailTab: 'overview' as const }
+    const fallback = { ...activeSession, ...patch }
     if (onHistoryBack) onHistoryBack(fallback, patch)
     else updateSession(fallback)
   }
   function removeSwitchCompare(productId: string) {
     const nextIds = compareIds.filter((value) => value !== productId)
     if (compareOpen && nextIds.length === 0) {
-      const fallback = { ...activeSession, compareIds: nextIds, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
-      if (onHistoryBack) onHistoryBack(fallback, { compareIds: nextIds, compareOpen: false, compareTab: 'overview', detailProductId: null, detailTab: 'overview' })
+      const patch = { compareIds: nextIds, compareCandidateId: null, compareOpen: false, compareTab: 'overview' as const, detailProductId: null, detailTab: 'overview' as const }
+      const fallback = { ...activeSession, ...patch }
+      if (onHistoryBack) onHistoryBack(fallback, patch)
       else updateSession(fallback)
       return
     }
-    setCompareIds(nextIds)
+    updateSession(current => {
+      const remaining = current.compareIds.filter(id => id !== productId)
+      const nextCandidateId = current.compareCandidateId === productId
+        ? remaining[current.compareIds.indexOf(productId)] ?? remaining.at(-1) ?? null
+        : current.compareCandidateId
+      return { ...current, compareIds: remaining, compareCandidateId: nextCandidateId }
+    })
   }
   function changeSwitchCompareTab(nextTab: SwitchSessionState['compareTab']) { setSessionField('compareTab', nextTab) }
   function changeSwitchDetailTab(nextTab: SwitchSessionState['detailTab']) { setSessionField('detailTab', nextTab) }
@@ -1356,7 +1372,7 @@ export default function SwitchFlow({
     if (!compareIds.includes(productId)) recordSwitchConsideration(productId, 'compare_add')
     pendingCompareReturnFocus.current = true
     requestExplicitScroll('compare')
-    updateSession((current) => ({ ...current, selectedCandidateId: productId, compareIds: current.compareIds.includes(productId) ? current.compareIds : [...current.compareIds, productId], compareOpen: true, compareTab: tab, detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
+    updateSession((current) => ({ ...current, selectedCandidateId: productId, compareIds: current.compareIds.includes(productId) ? current.compareIds : [...current.compareIds, productId], compareCandidateId: productId, compareOpen: true, compareTab: tab, detailProductId: null, detailTab: 'overview' }), 'push', 'compare')
   }
   function renderJourneyOverlays() {
     return <>{memoOpen ? <JourneyMemo value={journey.memo} onSave={(memo) => updateJourney((value) => ({ ...value, memo, context: journeyContext() }))} onClose={() => setMemoOpen(false)} /> : null}
@@ -1365,15 +1381,14 @@ export default function SwitchFlow({
   }
 
   function toggleCompare(productId: string) {
-    const adding = !compareIds.includes(productId) && compareIds.length < 5
-    if (adding) {
-      recordSwitchConsideration(productId, 'compare_add')
+    if (compareIds.includes(productId)) {
+      removeSwitchCompare(productId)
+      return
     }
-    setCompareIds((current) => {
-      if (current.includes(productId)) return current.filter((value) => value !== productId)
-      if (current.length >= 5) return current
-      return [...current, productId]
-    })
+    if (compareIds.length >= 5) return
+    recordSwitchConsideration(productId, 'compare_add')
+    updateSession(current => current.compareIds.includes(productId) || current.compareIds.length >= 5
+      ? current : { ...current, compareIds: [...current.compareIds, productId] })
   }
 
   function confirmCurrentProduct(product: CatalogProduct) {
@@ -1816,6 +1831,7 @@ export default function SwitchFlow({
                   selectedCandidateId: null,
                   visibleCandidateCount: 40,
                   compareIds: current.appliedCriteriaKey === selectionKey ? current.compareIds : [],
+                  compareCandidateId: null,
                   candidateQuery: current.appliedCriteriaKey === selectionKey ? current.candidateQuery : '',
                   candidateFeedTypes: selectionState.candidateFeedTypes,
                   candidateRecipeFamilies: selectionState.candidateRecipeFamilies,
@@ -1846,7 +1862,8 @@ export default function SwitchFlow({
     if (compareOpen && compareItems.length > 0) {
       return (
         <CompareView
-          requestedCandidateId={selectedCandidateId}
+          requestedCandidateId={compareCandidateId ?? selectedCandidateId}
+          onCandidateChange={(productId) => { if (productId !== compareCandidateId) setSessionField('compareCandidateId', productId) }}
           detailContext={renderCandidateContext}
           reviewActions={renderRetainAction}
           reviewSummary={renderJourneyRecords()}

@@ -80,15 +80,22 @@ try {
     await unknown.locator('.result-relations').waitFor()
     await capture('unknown-card','.result-evidence-group.is-unverified .research-result-card')
     const idsBefore=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())
-    failSources=true
     catalogTimeoutsRemaining=2
+    await page.reload({waitUntil:'domcontentloaded'})
+    await royalVerdict.waitFor({timeout:45000})
+    assert.equal(catalogTimeoutsRemaining,0,'both injected timeouts precede automatic recovery')
+    assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
+    report.catalogRecoveries.push({width,stage:'automatic recovery after two injected catalog timeouts'})
+
+    failSources=true
+    catalogTimeoutsRemaining=3
     await page.reload({waitUntil:'domcontentloaded'})
     const sourceFailure=page.getByText('원료표의 추가 안내를 불러오지 못했습니다.',{exact:true})
     const catalogRetry=page.locator('.research-results').getByRole('button',{name:'다시 시도',exact:true})
     await catalogRetry.waitFor({timeout:45000})
-    assert.equal(catalogTimeoutsRemaining,0,'both catalog attempts must fail before manual retry is offered')
+    assert.equal(catalogTimeoutsRemaining,0,'all three catalog attempts must fail before manual retry is offered')
     assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
-    report.catalogRecoveries.push({width,stage:'after two injected catalog timeouts'})
+    report.catalogRecoveries.push({width,stage:'manual recovery after three injected catalog timeouts'})
     await catalogRetry.click()
     await sourceFailure.waitFor({timeout:45000})
     const idsAfter=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())

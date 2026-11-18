@@ -28,7 +28,7 @@ test('catalog packaging uses narrow metadata while selected-product variants ret
   globalThis.fetch = async (input, init) => {
     const url = new URL(input)
     requests.push(url)
-    assert.equal(init.signal, controller.signal)
+    assert.equal(init.signal.aborted, false)
     assert.equal(init.headers['Accept-Profile'], 'api')
     if (url.pathname.endsWith('/effective_product_catalog_summary')) return catalogResponse
     if (url.pathname.endsWith('/catalog_package_options')) return Response.json([
@@ -36,6 +36,7 @@ test('catalog packaging uses narrow metadata while selected-product variants ret
       { product_id: 'product_a', variant_id: 'variant_b', package_size_text: '2 kg', package_weight_g: 2000, units_per_sale: 1, sale_total_weight_g: 2000, display_rank: 2 },
     ])
     assert.equal(url.pathname, '/rest/v1/switch_current_variant_options')
+    assert.equal(init.signal, controller.signal)
     assert.equal(url.searchParams.get('product_id'), 'eq.product_a')
     assert.match(url.searchParams.get('select'), /formula_evidence_status/)
     assert.match(url.searchParams.get('select'), /confirmed_present_ingredient_terms/)
@@ -64,8 +65,8 @@ test('aborting catalog packaging propagates cancellation without retry or fallba
     requests.push(url.pathname)
     if (url.pathname.endsWith('/effective_product_catalog_summary')) return Response.json([])
     assert.equal(url.pathname, '/rest/v1/catalog_package_options')
-    assert.equal(init.signal, controller.signal)
     controller.abort()
+    assert.equal(init.signal.aborted, true)
     throw new DOMException('Aborted', 'AbortError')
   }
   await assert.rejects(api.fetchCatalog(controller.signal), { name: 'AbortError' })
@@ -145,9 +146,13 @@ test('affected catalog, package and ingredient reads retry a statement timeout o
     const requests = []
     globalThis.fetch = async (input, init) => {
       const url = new URL(input)
-      assert.equal(init.signal, controller.signal)
       if (url.pathname.endsWith('/catalog_package_options')) return Response.json([])
       assert.ok(url.pathname.endsWith('/' + endpoint))
+      if (endpoint !== 'effective_product_catalog_summary' || url.searchParams.get('select').includes('ingredient_term_result_count')) {
+        assert.equal(init.signal, controller.signal)
+      } else {
+        assert.equal(init.signal.aborted, false)
+      }
       requests.push(url.href)
       return requests.length === 1 ? statementTimeout() : Response.json([row])
     }

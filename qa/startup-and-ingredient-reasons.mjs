@@ -11,7 +11,8 @@ let page
 try {
   for(const width of [390,1440]) {
     const context=await browser.newContext({viewport:{width,height:1000},serviceWorkers:'block'})
-    let failBoot=true,failSources=false,catalogTimeoutsRemaining=0
+    let failBoot=true,failSources=false,catalogTimeoutsRemaining=0,replayCatalog=null
+    const isCatalogRead=req=>req.method()==='GET'&&req.url().includes('/rest/v1/effective_product_catalog_summary?')&&req.url().includes('representative_package_size_text')
     page=await context.newPage()
     page.on('pageerror',e=>report.errors.push(String(e)))
     page.on('requestfailed',r=>report.network.push({width,url:r.url(),failure:r.failure()}))
@@ -19,11 +20,14 @@ try {
       const req=route.request(),url=req.url()
       if(!['GET','HEAD','OPTIONS'].includes(req.method()) || /functions\/v1|analytics|telemetry|search-runs|considerations/.test(url)){report.blockedWrites.push(url);return route.abort()}
       if(failBoot&&url.startsWith(BASE)&&['script','stylesheet'].includes(req.resourceType())){report.injectedFailures.push({width,kind:'boot',url});return route.abort()}
-      if(catalogTimeoutsRemaining>0&&req.method()==='GET'&&url.includes('/rest/v1/effective_product_catalog_summary?')&&url.includes('representative_package_size_text')){
-        catalogTimeoutsRemaining--
-        report.injectedFailures.push({width,kind:'catalog-timeout',url})
-        return route.fulfill({status:500,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},
-          body:JSON.stringify({code:'57014',message:'canceling statement due to statement timeout'})})
+      if(isCatalogRead(req)){
+        const headers={'Access-Control-Allow-Origin':'*'}
+        if(catalogTimeoutsRemaining>0){
+          catalogTimeoutsRemaining--
+          report.injectedFailures.push({width,kind:'catalog-timeout',url})
+          return route.fulfill({status:500,headers,json:{code:'57014',message:'canceling statement due to statement timeout'}})
+        }
+        if(replayCatalog)return route.fulfill({headers,json:replayCatalog})
       }
       if(url.includes('/rest/v1/rpc/list_product_ingredient_sources?')||url.includes('/rest/v1/compare_product_ingredients?')){
         const params=new URL(url).searchParams
@@ -49,7 +53,9 @@ try {
     assert.equal(await page.getByRole('button',{name:'다시 연결하기',exact:true}).isEnabled(),true)
     await capture('boot-retry-failure','#startup-panel')
     failBoot=false
+    const liveCatalogResponse=page.waitForResponse(response=>isCatalogRead(response.request())&&response.ok(),{timeout:45000})
     await page.getByRole('button',{name:'다시 연결하기',exact:true}).click()
+    const liveCatalog=await (await liveCatalogResponse).json()
     await page.locator('.research-result-card').first().waitFor({timeout:45000})
     assert.equal(await page.locator('#startup-panel').count(),0)
     assert.equal(await page.evaluate(()=>window.__startupDocumentMarker),'same document','retry must not request a new HTML document')
@@ -80,17 +86,27 @@ try {
     await unknown.locator('.result-relations').waitFor()
     await capture('unknown-card','.result-evidence-group.is-unverified .research-result-card')
     const idsBefore=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())
-    failSources=true
+    // Isolate the injected failures while still using this run's real catalog rows.
+    replayCatalog=liveCatalog
     catalogTimeoutsRemaining=2
+    await page.reload({waitUntil:'domcontentloaded'})
+    await royalVerdict.waitFor({timeout:45000})
+    assert.equal(catalogTimeoutsRemaining,0,'both injected timeouts precede automatic recovery')
+    assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
+    report.catalogRecoveries.push({width,stage:'automatic recovery after two injected catalog timeouts'})
+
+    failSources=true
+    catalogTimeoutsRemaining=3
     await page.reload({waitUntil:'domcontentloaded'})
     const sourceFailure=page.getByText('원료표의 추가 안내를 불러오지 못했습니다.',{exact:true})
     const catalogRetry=page.locator('.research-results').getByRole('button',{name:'다시 시도',exact:true})
     await catalogRetry.waitFor({timeout:45000})
-    assert.equal(catalogTimeoutsRemaining,0,'both catalog attempts must fail before manual retry is offered')
+    assert.equal(catalogTimeoutsRemaining,0,'all three catalog attempts must fail before manual retry is offered')
     assert.equal(new URL(page.url()).searchParams.get('avoidIngredients'),'salmon')
-    report.catalogRecoveries.push({width,stage:'after two injected catalog timeouts'})
+    report.catalogRecoveries.push({width,stage:'manual recovery after three injected catalog timeouts'})
     await catalogRetry.click()
     await sourceFailure.waitFor({timeout:45000})
+    replayCatalog=null
     const idsAfter=await page.locator('.research-result-card').evaluateAll(nodes=>nodes.map(node=>node.dataset.productId).sort())
     assert.deepEqual(idsAfter,idsBefore,'additional source failure must preserve filter results')
     assert.equal(await page.locator('.ingredient-list-reason').count(),0,'failed source fetch is not an unavailable-source claim')

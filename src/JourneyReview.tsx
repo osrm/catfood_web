@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { journeyCopyText, type JourneyRecords } from './journey-records'
+import { journeyCopyText, type JourneyRecords, type RetainedCandidate } from './journey-records'
 import { JourneyDialog } from './JourneyDialog'
 import IngredientQuestionsButton from './IngredientQuestions'
 import type { IngredientQuestions } from './ingredient-questions'
@@ -34,6 +34,16 @@ export function JourneyRecordsShortcut({ count }: { count: number }) {
   }}>남긴 후보 {count}개</button>
 }
 
+function savedIngredientEvidence({ context, explanation }: RetainedCandidate): string | undefined {
+  if (!explanation) return
+  // Reuse the result recorded at the time, with any selected-ingredient uncertainty first.
+  const avoidance = [...explanation.unknowns, ...explanation.differences]
+    .find(line => /^[^·]+ 포함 여부 · /.test(line))
+  return avoidance ?? (context.purpose?.focus === 'disclosure'
+    ? explanation.differences.find(line => line.startsWith('확인한 원료표 — '))
+    : undefined)
+}
+
 export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, onNote, onRemove, onOutcome, onQuestions }: {
   records: JourneyRecords; selectionKey: string; storageAvailable: boolean
   onNote: (id: string, value: string) => void; onRemove: (id: string) => void
@@ -48,18 +58,38 @@ export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, o
     <summary>남긴 후보와 이번 정리 <span>{active.length}/5</span></summary>
     <div className="journey-panel-heading"><button className="secondary-action" type="button" onClick={() => setCopy(true)}>기록 복사</button></div>
     <p className="journey-note">{storageAvailable ? '이 탭에서만 보관합니다. 탭을 닫기 전 필요하면 복사해 두세요.' : '브라우저 저장을 사용할 수 없어 새로고침하면 기록을 잃을 수 있습니다. 필요한 기록은 복사해 두세요.'}</p>
-    {active.length ? <ul>{active.map((row) => <li key={row.id}>
-      <div className="journey-panel-heading"><strong>{row.candidate.brand} · {row.candidate.name}</strong><button className="journey-inline-action" type="button" onClick={() => onRemove(row.id)}>남긴 후보에서 제거</button></div>
-      {row.context.selectionKey !== selectionKey ? <strong className="journey-old-context">이전 기준에서 남긴 후보</strong> : null}
-      <p className="journey-note">기준: {row.context.current.brand} · {row.context.current.name} · {row.context.variantLabel}</p>
-      {row.context.purpose ? <p className="journey-note">이 후보를 남길 때의 이유와 경험</p> : null}<DecisionPurposeSummary purpose={row.context.purpose} compact />
-      <details><summary>당시 조건과 내 메모</summary><p>{row.context.labels.join(' · ') || '따로 고른 조건 없음'}</p><p>{row.note || '작성한 메모 없음'}</p><button className="journey-inline-action" type="button" onClick={() => setEditingId(row.id)}>후보 메모 {row.note ? '수정' : '쓰기'}</button></details>
-      {row.explanation ? <details className="saved-candidate-explanation"><summary>남길 때 확인한 내용 · 당시 자료 기준</summary><CandidateExplanationView value={row.explanation} /></details> : null}
-      <div className="saved-ingredient-questions">{row.checkQuestions ? <><strong>확인하려고 남긴 질문</strong><p>직접 확인할 때 사용할 질문 초안입니다.</p><p>질문을 남길 때 살펴본 자료 · {row.checkQuestions.source}</p><ol>{row.checkQuestions.items.map(item => <li key={item}>{item}</li>)}</ol></> : null}
-        <IngredientQuestionsButton product={row.candidate} saved={row.checkQuestions} avoidLabels={row.context.criteria.filter(item => item.axis === 'ingredient' && item.role === 'ingredient_avoid').map(item => INGREDIENT_AVOID_LABELS[item.value] ?? item.value)} onSave={onQuestions ? value => onQuestions(row.id, value) : undefined} />
-        {row.checkQuestions && onQuestions ? <button className="journey-inline-action" type="button" onClick={() => onQuestions(row.id)}>저장한 질문 지우기</button> : null}
-      </div>
-    </li>)}</ul> : <p>아직 남긴 후보가 없습니다. 후보 상세나 비교 화면에서 남길 수 있습니다.</p>}
+    {active.length ? <ul>{active.map((row) => {
+      const evidence = savedIngredientEvidence(row)
+      const purpose = row.context.purpose
+      const showPurposeInline = purpose && (!evidence || purpose.reason || purpose.positives)
+      return <li key={row.id}>
+        <div className="journey-panel-heading"><strong>{row.candidate.brand} · {row.candidate.name}</strong><button className="journey-inline-action" type="button" onClick={() => onRemove(row.id)}>남긴 후보에서 제거</button></div>
+        {row.context.selectionKey !== selectionKey ? <strong className="journey-old-context">이전 기준에서 남긴 후보</strong> : null}
+        <p className="journey-note">기준: {row.context.current.brand} · {row.context.current.name} · {row.context.variantLabel}</p>
+        {row.explanation ? <details className="saved-candidate-explanation">
+          <summary>
+            <span>남길 때 확인한 내용 · 당시 자료 기준</span>
+            {evidence ? <strong className="saved-candidate-evidence">{evidence}</strong> : null}
+          </summary>
+          <CandidateExplanationView value={row.explanation} />
+        </details> : null}
+        {showPurposeInline ? <>
+          <p className="journey-note">이 후보를 남길 때의 이유와 경험</p>
+          <DecisionPurposeSummary purpose={purpose} compact />
+        </> : null}
+        <details>
+          <summary>당시 조건과 내 메모</summary>
+          {!showPurposeInline ? <DecisionPurposeSummary purpose={purpose} compact /> : null}
+          <p>{row.context.labels.join(' · ') || '따로 고른 조건 없음'}</p>
+          <p>{row.note || '작성한 메모 없음'}</p>
+          <button className="journey-inline-action" type="button" onClick={() => setEditingId(row.id)}>후보 메모 {row.note ? '수정' : '쓰기'}</button>
+        </details>
+        <div className="saved-ingredient-questions">{row.checkQuestions ? <><strong>확인하려고 남긴 질문</strong><p>직접 확인할 때 사용할 질문 초안입니다.</p><p>질문을 남길 때 살펴본 자료 · {row.checkQuestions.source}</p><ol>{row.checkQuestions.items.map(item => <li key={item}>{item}</li>)}</ol></> : null}
+          <IngredientQuestionsButton product={row.candidate} saved={row.checkQuestions} avoidLabels={row.context.criteria.filter(item => item.axis === 'ingredient' && item.role === 'ingredient_avoid').map(item => INGREDIENT_AVOID_LABELS[item.value] ?? item.value)} onSave={onQuestions ? value => onQuestions(row.id, value) : undefined} />
+          {row.checkQuestions && onQuestions ? <button className="journey-inline-action" type="button" onClick={() => onQuestions(row.id)}>저장한 질문 지우기</button> : null}
+        </div>
+      </li>
+    })}</ul> : <p>아직 남긴 후보가 없습니다. 후보 상세나 비교 화면에서 남길 수 있습니다.</p>}
     <div className="journey-outcome"><strong>이번에는 어떻게 정리할까요? (선택)</strong><DecisionPurposeSummary purpose={records.outcome?.context.purpose ?? records.purpose} compact /><div>
       <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'keep_current' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('keep_current')}>지금 사료 유지</button>
       <button className="secondary-action" type="button" aria-pressed={records.outcome?.kind === 'undecided' && records.outcome.context.selectionKey === selectionKey} onClick={() => onOutcome('undecided')}>아직 못 고름</button></div><small>고른 뒤에도 계속 살펴볼 수 있습니다.</small>

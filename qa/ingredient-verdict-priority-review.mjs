@@ -79,7 +79,12 @@ try {
   const records=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('catfood.switch-review.v1')))
   assert.match(records.retained[0].explanation.differences[0],/^연어 포함 여부.*연어 표기 없음.*포함 여부를 알기 어려워요/)
   assert.ok(records.retained[0].explanation.differences.some(line=>line.includes('확인한 원료표')))
-  await page.locator('.saved-candidate-explanation > summary').click()
+  const savedExplanation=page.locator('.saved-candidate-explanation')
+  assert.equal(await savedExplanation.evaluate(node=>node.open),false)
+  assert.equal(await savedExplanation.locator('.saved-candidate-evidence').innerText(),records.retained[0].explanation.differences[0])
+  await savedExplanation.locator('> summary').click()
+  assert.equal(await savedExplanation.locator('.saved-candidate-evidence').isVisible(),false)
+  assert.match(await savedExplanation.locator('.candidate-explanation').innerText(),/fish oil.*herring/i)
   await capture('restored')
   report.blockedWrites.push(...await page.evaluate(()=>window.__blockedWrites)); await context.close()
  }

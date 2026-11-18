@@ -471,7 +471,9 @@ async function fetchRows<T>(
   if (order) url.searchParams.set('order', order)
   url.searchParams.set('limit', limit)
 
-  const read = view === 'compare_product_ingredients' ? fetchAfterStatementTimeout : fetchRead
+  const read = view === 'compare_product_ingredients' || view === 'switch_current_variant_options'
+    ? fetchAfterStatementTimeout
+    : fetchRead
   const response = await read(url, {
     signal,
     headers: requestHeaders(publishableKey),

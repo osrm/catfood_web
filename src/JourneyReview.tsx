@@ -39,9 +39,11 @@ function savedIngredientEvidence({ context, explanation }: RetainedCandidate): s
   // Reuse the result recorded at the time, with any selected-ingredient uncertainty first.
   const avoidance = [...explanation.unknowns, ...explanation.differences]
     .find(line => /^[^·]+ 포함 여부 · /.test(line))
-  return avoidance ?? (context.purpose?.focus === 'disclosure'
+  if (avoidance) return avoidance
+  if (explanation.ingredientLabelExample) return `원료표 표기 예시 · ${explanation.ingredientLabelExample}`
+  return context.purpose?.focus === 'disclosure'
     ? explanation.differences.find(line => line.startsWith('확인한 원료표 — '))
-    : undefined)
+    : undefined
 }
 
 export function JourneyRecordsPanel({ records, selectionKey, storageAvailable, onNote, onRemove, onOutcome, onQuestions }: {

@@ -53,6 +53,20 @@ test('candidate explanations contrast quoted wording and explicit keep facts wit
  assert.ok(app.validCandidateExplanation(result))
 })
 
+test('a full candidate label with named oils supplies verbatim examples without claiming a difference',()=>{
+ const beforeSource=questionSource('연어, 감자')
+ const afterSource=questionSource('연어 26%, 쌀, 닭고기 오일(정제율 99.5%), 연어 오일, 건조 통달걀',{product_id:'product_candidate'})
+ const result=explain({beforeSource,afterSource})
+ assert.equal(result.ingredientLabelExample,'‘닭고기 오일(정제율 99.5%)’ · ‘연어 오일’')
+ assert.deepEqual(result.differences,[])
+ assert.ok(app.validCandidateExplanation(result))
+ assert.equal(explain({beforeSource,afterSource:{...afterSource,observation_scope:'variant'}}).ingredientLabelExample,`${result.ingredientLabelExample} (확인한 포장 기준)`)
+ for(const override of [{market_code:'US'},{completeness_status:'partial'},{product_id:'other_product'},{raw_text:null,supplemental_full_raw_text:'청어유'}]) {
+  assert.equal(explain({beforeSource,afterSource:{...afterSource,...override}}).ingredientLabelExample,undefined)
+ }
+ assert.equal(explain({beforeSource,afterSource,sourceStatus:'error'}).ingredientLabelExample,undefined)
+})
+
 test('source failure never becomes missing raw text and partial supplemental material cannot fill source gaps',()=>{
  const failed=explain({sourceStatus:'error',beforeSource:questionSource('Fish Oil'),afterSource:questionSource('fish oil (herring)')})
  assert.deepEqual(failed.differences,[])

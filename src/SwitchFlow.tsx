@@ -1824,7 +1824,16 @@ export default function SwitchFlow({
 
   function renderResults() {
     if (!currentProduct) return null
-    const reviewShortcut = <JourneyRecordsShortcut count={journey.retained.filter(row => row.active).length} />
+    const retainedCount = journey.retained.filter(row => row.active).length
+    const deferred = journey.outcome?.kind === 'undecided' && journey.outcome.context.selectionKey === journeySelectionKey()
+    const reviewShortcut = retainedCount
+      ? <JourneyRecordsShortcut count={retainedCount} />
+      : <button
+          className="journey-inline-action journey-defer-action"
+          type="button"
+          aria-pressed={deferred}
+          onClick={() => setJourneyOutcome('undecided')}
+        >아직 못 고름{deferred ? <span aria-hidden="true"> ✓</span> : null}</button>
 
     if (compareOpen && compareItems.length > 0) {
       return (

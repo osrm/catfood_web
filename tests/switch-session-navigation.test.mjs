@@ -945,6 +945,34 @@ async function reachUndecidedResults() {
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'undecided candidates')
 }
 
+test('defer is available before retaining a candidate and shares the same record across screens', async () => {
+  await reachUndecidedResults()
+  const listAction = () => document.querySelector('.switch-results-title .journey-defer-action')
+  assert.equal(listAction().getAttribute('aria-pressed'), 'false')
+  assert.equal(document.getElementById('journey-records').open, false)
+  await selectCandidate()
+  await click('원재료 비교')
+  const compareAction = document.querySelector('.compare-header .journey-defer-action')
+  assert.equal(compareAction.getAttribute('aria-pressed'), 'false')
+  await click(compareAction)
+  assert.equal(compareAction.getAttribute('aria-pressed'), 'true')
+  const saved = journey().outcome
+  assert.equal(saved.kind, 'undecided')
+  assert.equal(journey().retained.length, 0)
+  assert.ok(document.querySelector('.compare-stage'))
+  const recorded = [...document.querySelectorAll('.journey-outcome button')].find(node => node.textContent === '아직 못 고름')
+  assert.equal(recorded.getAttribute('aria-pressed'), 'true')
+  await click('후보 목록으로')
+  await waitForUi(listAction, 'return to candidate list')
+  assert.equal(listAction().getAttribute('aria-pressed'), 'true')
+  await click(listAction())
+  assert.equal(journey().outcome.revision, saved.revision)
+  await remountApp()
+  await waitForUi(listAction, 'restore candidate list')
+  assert.equal(listAction().getAttribute('aria-pressed'), 'true')
+  assert.equal(journey().outcome.id, saved.id)
+})
+
 test('written experience offers an explicit keep choice and a direct path to candidates', async () => {
   catalogProducts.push(product('product_dry_alternative', '건식 후보'))
   await renderApp()

@@ -753,6 +753,7 @@ export default function SwitchFlow({
   const candidateButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const candidateSearchInputRef = useRef<HTMLInputElement>(null)
   const packageHeadingRef = useRef<HTMLHeadingElement>(null)
+  const keepHeadingRef = useRef<HTMLHeadingElement>(null)
   const compareDockButtonRef = useRef<HTMLButtonElement>(null)
   const pendingCandidateFocus = useRef<string | null>(null)
   const pendingCompareReturnFocus = useRef(false)
@@ -1671,7 +1672,14 @@ export default function SwitchFlow({
             {showBrowseFirst ? <button className="journey-inline-action" type="button" onClick={applySwitchCriteria}>후보부터 보기 →</button> : null}
           </div>
 
-          {!purposeFocus ? <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div> : null}
+          {!purposeFocus ? <div className="journey-memo-entry">
+            {!journey.memo ? <span>찾으면서 기억해 둘 점</span> : null}
+            <button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button>
+            {journey.memo ? <button className="journey-inline-action" type="button" onClick={() => {
+              keepHeadingRef.current?.focus({ preventScroll: true })
+              keepHeadingRef.current?.scrollIntoView({ block: 'start' })
+            }}>유지할 점 고르기 ↓</button> : null}
+          </div> : null}
           {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
           <DecisionPurposeEditor
             value={journey.purpose}
@@ -1774,7 +1782,7 @@ export default function SwitchFlow({
   function renderKeepChoices() {
     if (!currentProduct) return null
     return <section className="switch-inline-keep" aria-labelledby="switch-keep-title">
-      <h2 id="switch-keep-title">그대로 두고 싶은 점</h2>
+      <h2 id="switch-keep-title" ref={keepHeadingRef} tabIndex={-1}>그대로 두고 싶은 점</h2>
       <p>지금 사료와 같았으면 하는 항목만 골라주세요.</p>
       <div className="switch-keep-options">
         {!changeBrand ? <button className={keepBrand ? 'switch-choice is-active' : 'switch-choice'} type="button" aria-pressed={keepBrand} onClick={() => setKeepBrand(value => !value)}>{currentProduct.brand} 유지</button> : null}

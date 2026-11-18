@@ -1197,9 +1197,17 @@ test('removing a previously acknowledged record during refinement keeps its orig
 
 test('a personal concern can proceed without inventing a change or sending undecided exploration', async () => {
   await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  assert.equal(exactButton('유지할 점 고르기 ↓'), undefined)
   await click('메모하기')
   await textareaValue(document.querySelector('dialog textarea'), 'PRIVATE_PRICE 가격이 부담되고 잘 먹는 것은 유지하고 싶음')
   await click('메모 남기기')
+  const heading = document.querySelector('#switch-keep-title')
+  let scrollOptions
+  heading.scrollIntoView = options => { scrollOptions = options }
+  await click(exactButton('유지할 점 고르기 ↓'))
+  assert.equal(document.activeElement, heading)
+  assert.equal(scrollOptions.block, 'start')
+  assert.equal(session().keep.feedType, '', 'opening the existing choices does not pick a condition')
   await click('후보부터 보기')
   assert.equal(session().criteriaUndecided, true)
   assert.equal(session().noChangeIntent, false)

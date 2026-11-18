@@ -644,10 +644,11 @@ function AppliedCriteriaSummary({ labels }: { labels: string[] }) {
   return <div className="compare-applied-criteria" aria-label="현재 적용한 조건"><strong>적용 조건</strong><div>{labels.map((label) => <span key={label}>{label}</span>)}</div></div>
 }
 
-export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, ingredientAvoidTerms = [], items, criteriaLabels = [], decisionPurpose, sourceViewLabel, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, detailContext, reviewActions, reviewSummary, reviewShortcut, onDisplayedCandidates }: {
+export default function CompareView({ ingredientConditionsPending = false, ingredientLoad, ingredientAvoidTerms = [], items, criteriaLabels = [], decisionPurpose, sourceViewLabel, currentProduct, currentVariantId, currentVariantText, onClose, onRemove, initialTab = 'overview', onTabChange, detailProductId: controlledDetailProductId, detailTab = 'overview', onDetailOpen, onDetailClose, onDetailTabChange, switchDetailNavigation, requestedCandidateId, onCandidateChange, detailContext, reviewActions, reviewSummary, reviewShortcut, onDisplayedCandidates }: {
   decisionPurpose?: DecisionPurpose
   sourceViewLabel?: string
   requestedCandidateId?: string | null
+  onCandidateChange?: (productId: string) => void
   detailContext?: (product: CatalogProduct, selectTab: (tab: DetailTab) => void) => ReactNode
   items: CompareItem[]
   reviewActions?: (product: CatalogProduct) => ReactNode
@@ -1137,6 +1138,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
   }
   function selectMobileCandidate(productId: string) {
     setMobileCandidateId(productId)
+    onCandidateChange?.(productId)
     setMobileCandidatePickerOpen(false)
     requestAnimationFrame(() => mobileCandidateToggleRef.current?.focus({ preventScroll: true }))
   }

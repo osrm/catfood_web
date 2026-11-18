@@ -86,6 +86,7 @@
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-prototype-criteria[open]>summary::after {content:'접기 −';}
 
 .switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-prototype-criteria .switch-criteria-summary-line {display:block;font:inherit;color:inherit;word-break:keep-all;}
+.switch-workflow-shell .switch-results-stage.switch-results-language.switch-results-prototype .switch-criteria-avoidance-note {display:block;color:var(--cf-muted,#65716b);font-size:13px;font-weight:400;word-break:keep-all;}
 
 /* The full basket stays readable without growing the fixed collapsed dock. */
 .switch-workflow-shell .switch-results-stage.switch-results-prototype .switch-compare-dock-list {overflow:visible;white-space:normal;}

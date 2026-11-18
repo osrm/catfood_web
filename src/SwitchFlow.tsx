@@ -1896,7 +1896,10 @@ export default function SwitchFlow({
     const changeLabels = criteriaLabels(change)
     if (includeAllLifeStages && change.lifeStage === 'adult') changeLabels.push('전연령 표기도 함께 보기')
     if (changeBrand) changeLabels.unshift('다른 브랜드')
-    changeLabels.push(...ingredientAvoidTerms.map((term) => `피함 · ${ingredientLabel(term)}`))
+    const avoidLabels = ingredientAvoidTerms.map(ingredientLabel)
+    const resultPurpose = avoidLabels.length && journey.purpose?.focus === 'ingredients'
+      ? { ...journey.purpose, focus: null }
+      : journey.purpose
     if (noChangeIntent && changeLabels.length === 0) changeLabels.push('특별히 바꿀 점 없음')
     const keepLabels = criteriaLabels(keep)
     if (includeAllLifeStages && keep.lifeStage === 'adult') keepLabels.push('전연령 표기도 함께 보기')
@@ -1998,12 +2001,19 @@ export default function SwitchFlow({
               <div><strong>{currentProduct.brand} · {currentProduct.canonical_name}</strong><small>{currentVariantText}</small></div>
             </div>
           </div>
-          <DecisionPurposeSummary purpose={journey.purpose} compact />
+          <DecisionPurposeSummary purpose={resultPurpose} compact />
           <details className="switch-prototype-criteria">
             <summary>찾는 조건 <span>{hasChosenCandidateCriteria
-              ? <>{changeLabels.length ? <span className="switch-criteria-summary-line">바꿀 점 · {changeLabels.join(' · ')}</span> : null}{keepLabels.length ? <span className="switch-criteria-summary-line">유지할 점 · {keepLabels.join(' · ')}</span> : null}</>
+              ? <>
+                {changeLabels.length ? <span className="switch-criteria-summary-line">바꿀 점 · {changeLabels.join(' · ')}</span> : null}
+                {keepLabels.length ? <span className="switch-criteria-summary-line">유지할 점 · {keepLabels.join(' · ')}</span> : null}
+                {avoidLabels.length ? <>
+                  <span className="switch-criteria-summary-line">피하고 싶은 원료 · {avoidLabels.join(' · ')}</span>
+                  <small className="switch-criteria-avoidance-note">포함이 확인된 제품은 제외했어요.</small>
+                </> : null}
+              </>
               : criteriaUndecided ? '후보를 보며 정하기' : '다른 사료 둘러보기'}</span></summary>
-          <div><span>바꿀 점</span><strong>{changeLabels.join(' · ') || (criteriaUndecided ? '아직 정하지 않음' : '없음')}</strong></div>
+          {changeLabels.length || !avoidLabels.length ? <div><span>바꿀 점</span><strong>{changeLabels.join(' · ') || (criteriaUndecided ? '아직 정하지 않음' : '없음')}</strong></div> : null}
           <div><span>유지할 점</span><strong>{keepLabels.join(' · ') || '따로 고르지 않음'}</strong></div>
           </details>
           {!purposeFocus ? <button type="button" onClick={() => setMemoOpen(true)}>내 메모</button> : null}
@@ -2069,7 +2079,7 @@ export default function SwitchFlow({
                   {reviewedCandidates.map(renderCandidateRow)}
                 </section> : null}
                 {unresolvedCandidates.length ? <section className="switch-candidate-group is-unresolved" aria-labelledby="switch-unresolved-heading">
-                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">포함 여부를 판단하기 어려운 후보</h2><p id="switch-unresolved-note">원료표에 세부 종류가 표시되지 않았거나 확인한 자료가 일부일 수 있어요.</p></div>
+                  <div className="switch-candidate-group-heading"><h2 id="switch-unresolved-heading">포함 여부를 판단하기 어려운 후보</h2><p id="switch-unresolved-note">포함 여부를 더 살펴볼 수 있게 후보에 남겨뒀어요.</p></div>
                   {unresolvedCandidates.map(renderCandidateRow)}
                 </section> : null}
               </> : hasChosenCandidateCriteria && !candidateBrowseActive ? <>

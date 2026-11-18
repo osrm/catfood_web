@@ -497,13 +497,13 @@ test('CHANGE KEEP ingredient avoidance and compare selection survive LOOKUP roun
   await click(exactButton('현재 사료'))
   await waitForUi(() => document.querySelector('.switch-results-stage'), 'SWITCH results after mode roundtrip')
   const summary = document.querySelector('.switch-session-bar').textContent
-  assert.match(summary, /바꿀 점.*습식.*피함 · 닭/s)
+  assert.match(summary, /바꿀 점.*습식.*피하고 싶은 원료 · 닭/s)
   assert.match(summary, /유지할 점.*실내묘/s)
   assert.match(document.querySelector('.switch-compare-dock').textContent, /전환 습식 A/)
   const runsBeforeRemount = searchRuns.length
   await remountApp()
   assert.ok(document.querySelector('.switch-results-stage'))
-  assert.match(document.querySelector('.switch-session-bar').textContent, /바꿀 점.*습식.*피함 · 닭/s)
+  assert.match(document.querySelector('.switch-session-bar').textContent, /바꿀 점.*습식.*피하고 싶은 원료 · 닭/s)
   assert.equal(searchRuns.length, runsBeforeRemount, 'restoration must not replay an old analytics search run')
 })
 
@@ -1535,6 +1535,8 @@ test('ingredient groups retain exact batch order in search runs and load-more co
 })
 
 test('candidate groups keep unspecified manufacturer wording separate from an unlisted ingredient name', async () => {
+  const confirmed = { ...candidateA, product_id: 'product_confirmed_chicken', canonical_name: '닭이 확인된 후보', confirmed_present_ingredient_terms: ['chicken'], direct_evidence_ingredient_terms: ['chicken'] }
+  catalogProducts.push(confirmed)
   questionSources = [candidateA, candidateB].map((candidate, index) => ({
     product_id: candidate.product_id,
     raw_text: index === 0 ? 'Poultry meal, Rice' : 'Herring, Rice',
@@ -1544,10 +1546,13 @@ test('candidate groups keep unspecified manufacturer wording separate from an un
   await reachResultsWithConditions()
   const row = product => document.querySelector(`.switch-candidate-row[data-product-id="${product.product_id}"]`)
   await waitForUi(() => row(candidateA)?.querySelector('.is-ingredient-unknown'), 'manufacturer wording is displayed as unresolved')
+  assert.match(document.querySelector('.switch-prototype-criteria > summary').textContent, /피하고 싶은 원료 · 닭.*포함이 확인된 제품은 제외했어요/)
   assert.match(row(candidateA).closest('.switch-candidate-group').textContent, /포함 여부를 판단하기 어려운 후보/)
+  assert.match(document.getElementById('switch-unresolved-note').textContent, /후보에 남겨뒀어요/)
   assert.match(row(candidateA).textContent, /동물 종류 표시 없음.*Poultry meal/)
   assert.match(row(candidateB).closest('.switch-candidate-group').textContent, /확인한 자료에 선택 원료 표기 없음/)
   assert.match(row(candidateB).textContent, /확인 자료에 닭 표기 없음/)
+  assert.equal(row(confirmed), null)
 })
 
 test('detail without ingredient avoidance retains a direct current-food comparison action', async () => {

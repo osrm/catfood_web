@@ -1,5 +1,6 @@
 .journey-inline-action { min-height:44px; padding:8px 0; border:0; background:none; color:var(--atlas-primary,#23463c); text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
 .journey-records-shortcut,.journey-defer-action { justify-self:start; font:inherit; font-size:14px; }
+.switch-workflow-shell .switch-session-bar .journey-defer-action > span { color: inherit; font-size: inherit; }
 .switch-results-title:has(.journey-records-shortcut) { display:flex; flex-wrap:wrap; align-items:center; column-gap:16px; }
 .switch-results-title:has(.journey-defer-action) {
   display: grid;

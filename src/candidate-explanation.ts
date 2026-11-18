@@ -1,8 +1,9 @@
 import type { CatalogProduct, ExploreEnergy, ListIngredientSource } from './api'
+import { splitIngredientText } from './ingredient-composition'
 import { ingredientAvoidanceWording, ingredientDisclosureReading, ingredientSourceScope, ingredientWordingExamples } from './ingredient-disclosure'
 import { energyText, usableEnergy } from './energy-refine'
 
-export type CandidateExplanation = { kept: string[]; differences: string[]; unknowns: string[]; references: string[] }
+export type CandidateExplanation = { kept: string[]; differences: string[]; unknowns: string[]; references: string[]; ingredientLabelExample?: string }
 type Condition = { source: 'keep' | 'change'; kind: string; value: string; label: string }
 type Status = 'loading' | 'loaded' | 'error'
 const age: Record<string, string> = { adult: '성묘', kitten: '키튼', senior: '시니어', all_life_stages: '전연령', gestation_lactation_and_kitten: '임신·수유·키튼' }
@@ -17,13 +18,25 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
 }): CandidateExplanation {
   const kept: string[] = [], differences: string[] = [], unknowns: string[] = [], references: string[] = []
   const ingredientDifferences: string[] = [], ingredientUnknowns: string[] = []
+  let ingredientLabelExample: string | undefined
   const sourceFocus = focus === 'disclosure' || focus === 'ingredients'
   if (sourceFocus) {
     if (sourceStatus !== 'loaded') unknowns.push(sourceStatus === 'error' ? '원료표 자료를 불러오지 못해 현재 사료와의 표기 차이는 미확인입니다.' : '현재 사료와 후보의 원료표 자료를 확인 중입니다.')
     else {
-      const description = (row?: ListIngredientSource) => [ingredientDisclosureReading(row).listLabel, ...ingredientWordingExamples(row).slice(0, 1).map(text => text.length > 150 ? text.slice(0, 147) + '…' : text)].join(' · ')
-      const before = description(beforeSource), after = description(afterSource)
+      const beforeWording = ingredientWordingExamples(beforeSource)[0]
+      const afterWording = ingredientWordingExamples(afterSource)[0]
+      const description = (row: ListIngredientSource | undefined, wording: string | undefined) => [ingredientDisclosureReading(row).listLabel, wording && (wording.length > 150 ? wording.slice(0, 147) + '…' : wording)].filter(Boolean).join(' · ')
+      const before = description(beforeSource, beforeWording), after = description(afterSource, afterWording)
       if (before !== after) differences.push(`확인한 원료표 — 현재: ${before} → 후보: ${after}`)
+      if (focus === 'disclosure' && !afterWording && afterSource?.raw_text
+        && afterSource.product_id === candidate.product_id && afterSource.completeness_status === 'full'
+        && !ingredientSourceScope(afterSource).needsCheck) {
+        // Keep whole entries so qualifiers in parentheses stay with the quoted wording.
+        const entries = [...new Set(splitIngredientText(afterSource.raw_text))].filter(entry => entry.length <= 60)
+        const oils = entries.filter(entry => /오일|기름|\boils?\b/i.test(entry))
+        const example = (oils.length ? oils : entries).slice(0, 2).map(entry => `‘${entry}’`).join(' · ')
+        if (example) ingredientLabelExample = example + (afterSource.observation_scope === 'variant' ? ' (확인한 포장 기준)' : '')
+      }
       const scopeChecks = ([['현재', beforeSource], ['후보', afterSource]] as const).flatMap(([label, row]) => {
         if (!row?.raw_text?.trim()) return []
         const notes = []
@@ -39,7 +52,7 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
         else {
           if (row.completeness_status !== 'full') unknowns.push(`${label}: 전체 원료 목록을 확인하지 못했습니다.`)
           if (reading.details.length) unknowns.push(`${label}: ${reading.details.slice(0, 2).map(item => `${item.phrase} — ${item.note}`).join(' / ')}`)
-          references.push(`${label} 원료표 · ${description(row)} · ${ingredientSourceScope(row).label}`)
+          references.push(`${label} 원료표 · ${label === '현재' ? before : after} · ${ingredientSourceScope(row).label}`)
           if (label === '현재' && row.observation_scope === 'variant' && row.variant_id && row.variant_id === currentVariantId) references.push('현재 원료표는 선택한 사용 규격에서 확인한 자료입니다. 다른 포장에도 동일하다는 뜻은 아닙니다.')
         }
       }
@@ -97,11 +110,13 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
   }
   // Answer the explicit avoidance criterion before general source/basic facts.
   // Compact cards show bounded lines, so this also keeps the absence caveat visible.
-  return { kept: unique(kept), differences: unique([...ingredientDifferences, ...differences]), unknowns: unique([...ingredientUnknowns, ...unknowns]), references: unique(references) }
+  return { kept: unique(kept), differences: unique([...ingredientDifferences, ...differences]), unknowns: unique([...ingredientUnknowns, ...unknowns]), references: unique(references), ...(ingredientLabelExample ? { ingredientLabelExample } : {}) }
 }
 
 export function validCandidateExplanation(value: unknown): value is CandidateExplanation {
   if (!value || typeof value !== 'object') return false
+  const { ingredientLabelExample } = value as Record<string, unknown>
+  if (ingredientLabelExample !== undefined && (typeof ingredientLabelExample !== 'string' || !ingredientLabelExample.trim() || ingredientLabelExample.length > 150)) return false
   return ['kept', 'differences', 'unknowns', 'references'].every(key => {
     const rows = (value as Record<string, unknown>)[key]
     return Array.isArray(rows) && rows.length <= 64 && rows.every(row => typeof row === 'string' && row.trim().length > 0 && row.length <= 600)

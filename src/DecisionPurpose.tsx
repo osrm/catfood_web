@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { DecisionPurpose } from './journey-records'
 import './decision-purpose.css'
 
@@ -13,7 +13,12 @@ export function purposeLabel(purpose?: DecisionPurpose | null) {
   return PURPOSE_OPTIONS.find(([key]) => key === purpose?.focus)?.[1] ?? ''
 }
 
-export function DecisionPurposeEditor({ value, onChange }: { value?: DecisionPurpose; onChange: (value: DecisionPurpose) => void }) {
+export function DecisionPurposeEditor({ value, onChange, keepChoice, onViewCandidates }: {
+  value?: DecisionPurpose
+  onChange: (value: DecisionPurpose) => void
+  keepChoice?: ReactNode
+  onViewCandidates: () => void
+}) {
   const purpose = value ?? { focus: null, reason: '', positives: '' }
   const [showAll, setShowAll] = useState(false)
   return <section className="decision-purpose-editor" aria-labelledby="purpose-title">
@@ -27,13 +32,17 @@ export function DecisionPurposeEditor({ value, onChange }: { value?: DecisionPur
       <label>사료를 바꾸려는 이유<textarea maxLength={200} rows={2} value={purpose.reason} onChange={event => onChange({ ...purpose, reason: event.target.value })} placeholder="예: 원료가 구체적으로 적힌 다른 사료도 알아보고 싶어요" /></label>
       <label>지금 사료에서 좋았던 점<textarea maxLength={200} rows={2} value={purpose.positives} onChange={event => onChange({ ...purpose, positives: event.target.value })} placeholder="예: 잘 먹었고, 건식으로 먹이는 게 편했어요" /></label>
       <p>적은 경험은 제품의 효능이나 검색 조건으로 바꾸지 않습니다. 이 탭에서만 보관합니다.</p>
+      {purpose.reason.trim() || purpose.positives.trim() ? <div className="decision-purpose-next">
+        {purpose.positives.trim() ? keepChoice : null}
+        <button className="journey-inline-action" type="button" onClick={onViewCandidates}>이대로 후보 보기 →</button>
+      </div> : null}
     </details>
   </section>
 }
 
 export function DecisionPurposeSummary({ purpose, compact = false }: { purpose?: DecisionPurpose | null; compact?: boolean }) {
   if (!purpose || !purpose.focus && !purpose.reason && !purpose.positives) return null
-  return <div className={`decision-purpose-summary${compact ? ' is-compact' : ''}`}>
+  return <div className={`decision-purpose-summary${compact ? ' is-compact' : ''}${purpose.focus ? '' : ' is-notes-only'}`}>
     {purpose.focus ? <p><span>이번에 살펴볼 점</span><strong>{purposeLabel(purpose)}</strong></p> : null}
     {purpose.reason || purpose.positives ? <details><summary>내가 남긴 이유와 경험</summary>
       {purpose.reason ? <p><span>바꾸려는 이유</span>{purpose.reason}</p> : null}

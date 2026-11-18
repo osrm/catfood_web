@@ -1620,6 +1620,7 @@ export default function SwitchFlow({
   function renderChangeStep() {
     if (!currentProduct) return null
     const showBrowseFirst = !purposeFocus && !hasChange && !noChangeIntent && !keepBrand && criteriaCount(keep) === 0
+    const keepableFeedType = change.feedType ? null : currentProduct.feed_type
     const feedOptions = FEED_TYPES.filter(([value]) => value !== currentProduct.feed_type)
     const lifeOptions = LIFE_STAGES.filter(([value]) => value !== currentProduct.life_stage)
     const targetOptions = TARGETS.filter(([value]) => !currentProduct.official_targets.includes(value))
@@ -1672,7 +1673,17 @@ export default function SwitchFlow({
 
           {!purposeFocus ? <div className="journey-memo-entry"><span>찾으면서 기억해 둘 점</span><button className="journey-inline-action" type="button" onClick={() => setMemoOpen(true)}>{journey.memo ? '내 메모 보기' : '메모하기 (선택)'}</button></div> : null}
           {keepConflictNotice ? <p className="switch-option-empty" role="status">{keepConflictNotice}</p> : null}
-          <DecisionPurposeEditor value={journey.purpose} onChange={purpose => { updateJourney(value => ({ ...value, purpose })); if (purpose.focus !== 'disclosure' && purpose.focus !== 'ingredients') setSessionField('candidateSource', 'off') }} />
+          <DecisionPurposeEditor
+            value={journey.purpose}
+            onChange={purpose => { updateJourney(value => ({ ...value, purpose })); if (purpose.focus !== 'disclosure' && purpose.focus !== 'ingredients') setSessionField('candidateSource', 'off') }}
+            keepChoice={keepableFeedType ? <button
+              className={keep.feedType === keepableFeedType ? 'switch-choice is-active' : 'switch-choice'}
+              type="button"
+              aria-pressed={keep.feedType === keepableFeedType}
+              onClick={() => setKeepSingle('feedType', keepableFeedType)}
+            >지금처럼 {keepableFeedType} 유지</button> : null}
+            onViewCandidates={applySwitchCriteria}
+          />
           {purposeFocus === 'ingredients' ? renderIngredientAvoidance() : null}
           {purposeFocus === 'disclosure' ? <p className="switch-focus-intro">후보에서 원료 목록과 세부 종류의 표기를 함께 살펴봅니다. 같은 형태를 유지하고 싶다면 아래에서 골라주세요.</p> : null}
           {purposeFocus === 'energy' ? <p className="switch-focus-intro">후보에서 현재 사료와 표기 열량을 비교합니다. 같은 형태를 유지하고 싶다면 아래에서 골라주세요.</p> : null}
@@ -1885,6 +1896,7 @@ export default function SwitchFlow({
     const changeCandidateBrowse = (field: 'candidateFeedTypes' | 'candidateRecipeFamilies', value: string) => {
       updateSession((current) => ({ ...current, [field]: toggleValue(current[field], value), visibleCandidateCount: 40 }))
     }
+    const browseLabels = [...candidateFeedTypes, ...candidateRecipeFamilies.map(value => optionLabel(value, RECIPE_FAMILY_LABELS))]
     const showIngredientSummary = purposeFocus === 'disclosure' && !ingredientAvoidTerms.length
     const renderCandidateRow = (evaluation: SwitchEvaluation) => {
       const product = evaluation.product
@@ -1968,12 +1980,12 @@ export default function SwitchFlow({
 
         <section className={selectedCandidate ? 'switch-results-workspace is-inspecting' : 'switch-results-workspace'}>
           <div className="switch-candidate-pane">
-            {canBrowseCandidates ? <details className="switch-focus-refine" open={!purposeFocus || purposeFocus === 'other' || undefined}><summary>형태·레시피로 더 좁히기</summary><section className="switch-candidate-refinement" aria-label="후보 목록 좁히기">
+            {canBrowseCandidates ? <details className="switch-focus-refine" open={!criteriaUndecided && (!purposeFocus || purposeFocus === 'other') || undefined}><summary>형태·레시피로 더 좁히기{browseLabels.length ? ` · ${browseLabels.join(', ')}` : ''}</summary><section className="switch-candidate-refinement" aria-label="후보 목록 좁히기">
               <fieldset><legend>사료 형태 {currentProduct.feed_type ? <small>지금은 {currentProduct.feed_type}</small> : null}</legend><ChoiceButtons options={FEED_TYPES} selected={candidateFeedTypes} onToggle={(value) => changeCandidateBrowse('candidateFeedTypes', value)} /></fieldset>
               <fieldset><legend>레시피 종류 {currentRecipeFamilies.length ? <small>지금은 {currentRecipeFamilies.map((value) => optionLabel(value, RECIPE_FAMILY_LABELS)).join(' · ')}</small> : null}</legend><ChoiceButtons options={RECIPE_FAMILIES} selected={candidateRecipeFamilies} onToggle={(value) => changeCandidateBrowse('candidateRecipeFamilies', value)} /></fieldset>
               <div className="switch-browse-footer"><details><summary>레시피 종류 안내</summary><p>생선 레시피라도 닭이 함께 들어갈 수 있습니다. 피하려는 원료는 ‘조건 수정’에서 골라주세요. 선택한 표기를 확인할 자료가 없는 제품도 아래에 따로 남겨둡니다.</p></details><button type="button" onClick={() => updateSession((current) => ({ ...current, candidateFeedTypes: [], candidateRecipeFamilies: [], visibleCandidateCount: 40 }))}>좁히기 해제</button></div>
             </section></details> : null}
-            {!purposeFocus || purposeFocus === 'energy' || purposeFocus === 'other' || candidateEnergyOpen ? <section className="switch-energy-refinement" aria-label="현재 사료와 열량 비교">
+            {!purposeFocus || purposeFocus === 'energy' || purposeFocus === 'other' || candidateEnergyOpen ? <section className={criteriaUndecided && !candidateEnergyOpen ? 'switch-energy-refinement is-collapsed' : 'switch-energy-refinement'} aria-label="현재 사료와 열량 비교">
               {!candidateEnergyOpen ? <button className="secondary-action" type="button" onClick={() => setSessionField('candidateEnergy', 'all')}>후보 열량 살펴보기</button> : <>
                 <div className="switch-energy-heading"><h2>현재 사료와 표기 열량 비교</h2><button type="button" onClick={() => updateSession(current => ({ ...current, candidateEnergy: 'off', visibleCandidateCount: 40 }))}>열량 보기 닫기</button></div>
                 {energy.status === 'idle' || energy.status === 'loading' ? <p role="status">열량을 불러오는 중입니다. 후보 조건은 유지됩니다.</p> : null}

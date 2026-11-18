@@ -130,7 +130,7 @@ const statementTimeout = () => Response.json({
   code: '57014', message: 'canceling statement due to statement timeout',
 }, { status: 500 })
 
-test('affected catalog and ingredient reads retry a statement timeout once with the same scope', async () => {
+test('affected catalog, package and ingredient reads retry a statement timeout once with the same scope', async () => {
   const controller = new AbortController()
   const id = 'product_a'
   const row = { product_id: id, ingredient_term_result_count: 0, confirmed_present_ingredient_terms: [], direct_evidence_ingredient_terms: [],
@@ -138,6 +138,7 @@ test('affected catalog and ingredient reads retry a statement timeout once with 
   for (const [endpoint, read] of [
     ['effective_product_catalog_summary', () => api.fetchCatalog(controller.signal)],
     ['effective_product_catalog_summary', () => api.fetchCatalogIngredientFacts([id], controller.signal)],
+    ['switch_current_variant_options', () => api.fetchProductVariants(id, controller.signal)],
     ['list_product_ingredient_sources', () => api.fetchListIngredientSources([id], controller.signal)],
     ['compare_product_ingredients_scoped', () => api.fetchCompareIngredients([id], controller.signal)],
   ]) {
@@ -156,26 +157,48 @@ test('affected catalog and ingredient reads retry a statement timeout once with 
   }
 })
 
-test('a repeated ingredient timeout surfaces the error after two attempts', async () => {
-  let calls = 0
-  globalThis.fetch = async () => {
-    calls++
-    return statementTimeout()
+test('a repeated ingredient or package timeout surfaces the error after two attempts', async () => {
+  const reads = [
+    () => api.fetchCompareIngredients(['product_a']),
+    () => api.fetchProductVariants('product_a'),
+  ]
+  for (const read of reads) {
+    let calls = 0
+    globalThis.fetch = async () => {
+      calls++
+      return statementTimeout()
+    }
+    await assert.rejects(read(), /Data API 500/)
+    assert.equal(calls, 2)
   }
-  await assert.rejects(api.fetchCompareIngredients(['product_a']), /Data API 500/)
-  assert.equal(calls, 2)
 })
 
-test('leaving a timed-out ingredient read cancels its retry', async () => {
-  const controller = new AbortController()
+test('a package error unrelated to a statement timeout is returned immediately', async () => {
   let calls = 0
   globalThis.fetch = async () => {
     calls++
-    setTimeout(() => controller.abort(), 25)
-    return statementTimeout()
+    return Response.json({ code: '57014', message: 'canceling statement due to user request' }, { status: 500 })
   }
-  await assert.rejects(api.fetchListIngredientSources(['product_a'], controller.signal), { name: 'AbortError' })
+  await assert.rejects(api.fetchProductVariants('product_a'), /Data API 500/)
   assert.equal(calls, 1)
+})
+
+test('leaving a timed-out ingredient or package read cancels its retry', async () => {
+  const reads = [
+    signal => api.fetchListIngredientSources(['product_a'], signal),
+    signal => api.fetchProductVariants('product_a', signal),
+  ]
+  for (const read of reads) {
+    const controller = new AbortController()
+    let calls = 0
+    globalThis.fetch = async () => {
+      calls++
+      setTimeout(() => controller.abort(), 25)
+      return statementTimeout()
+    }
+    await assert.rejects(read(controller.signal), { name: 'AbortError' })
+    assert.equal(calls, 1)
+  }
 })
 
 for (const [resource, method, fields] of [['ingredients', 'fetchCompareIngredients', 18], ['nutrition', 'fetchCompareNutrition', 28]]) {

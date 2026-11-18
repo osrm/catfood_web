@@ -562,8 +562,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
             {loading.ingredients ? <div className="detail-state">원재료 정보를 불러오는 중입니다.</div> : null}
             {errors.ingredients ? <LoadError message={errors.ingredients} onRetry={() => loadResource('ingredients')} /> : null}
             {!loading.ingredients && !errors.ingredients && ingredients ? <>
-              <p className="detail-evidence-context">{evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} · {completenessLabel(ingredients.completeness_status)}</p>
-              <IngredientDisclosure row={ingredients} />
+              <IngredientDisclosure row={ingredients} sourceContext={evidenceContext(ingredients, variants, Boolean(errors.variants), loading.variants)} />
               {ingredients.raw_text?.trim() && ingredients.ingredient_names.length ? <details className="detail-disclosure detail-source-disclosure">
                 <summary>원문 보기</summary>
                 <div className="detail-ingredient-copy">{ingredients.raw_text}</div>

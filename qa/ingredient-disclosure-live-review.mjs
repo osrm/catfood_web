@@ -7,7 +7,7 @@ const OUT = process.env.OUT_DIR || 'ingredient-disclosure-live-output'
 await mkdir(OUT, { recursive: true })
 const products = [
   { id: 'product_5b13354ad9792881', key: 'royalcanin', expected: /어유[\s\S]*세부 어종 미표기/, scope: '한국 자료 · 제품 자료' },
-  { id: 'product_2bd53155d56271cf', key: 'alleva', expected: /전체 원료표 확인/, scope: '국내 동일 배합 확인 자료 · 배합 자료' },
+  { id: 'product_2bd53155d56271cf', key: 'alleva', expected: /fish oil \(herring\) — 청어를 명시한 오일/i, scope: '국내 동일 배합 확인 자료 · 배합 자료' },
   { id: 'product_3bbce42b94471540', key: 'feline', expected: /일부 원료표 확인/, scope: '한국 자료 · 확인한 포장 기준' },
   { id: 'product_072fbf975f493006', key: 'inaba', expected: /일부 원료표 확인/, scope: '한국 자료 · 제품 자료' },
 ]
@@ -54,6 +54,13 @@ try {
       await page.getByRole('group', { name: '원료 정보 확인 범위' }).waitFor({ timeout: 45000 })
       assert.match(await page.locator('.ingredient-disclosure').innerText(), product.expected)
       assert.equal(await page.locator('.ingredient-disclosure .ingredient-source-scope strong').innerText(), product.scope)
+      if (product.key === 'royalcanin' || product.key === 'alleva') {
+        assert.match(await page.locator('.ingredient-disclosure > :first-child').innerText(), product.expected)
+        const help = page.locator('.ingredient-disclosure-help')
+        await help.locator('summary').click()
+        assert.match(await help.locator('.ingredient-disclosure-note').first().innerText(), /한국 확인|같은 배합으로 확인/)
+        await help.locator('summary').click()
+      }
       await capture(product.key + '-detail', '.detail-document')
       if (product.key === 'feline') {
         // A source heading explicitly naming chicken must not claim the species was omitted.

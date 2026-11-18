@@ -86,12 +86,52 @@ async function mount(query=''){window.history.replaceState(null,'','/'+query);aw
 async function click(label){const button=[...document.querySelectorAll('button')].find(x=>x.textContent.includes(label));assert.ok(button,'missing '+label);await act(async()=>button.click())}
 async function settle(p,body){await act(async()=>p.resolve(Response.json(body)))}
 
-test('basic catalog projects 33 fields and keeps unfetched facts null, not empty',async()=>{
+test('basic catalog skips detail-only statistics and keeps unfetched facts null, not empty',async()=>{
  const products=await app.fetchCatalog();const q=requests[0].url.searchParams.get('select').split(',')
- assert.equal(q.length,33);assert.ok(!q.includes('confirmed_present_ingredient_terms'))
+ assert.equal(q.length,26)
+ for(const field of ['confirmed_present_ingredient_terms','nutrition_panel_count','has_nutrition_details','market_observation_count','has_market_details','assessed_market_country_codes','current_market_country_codes','formula_match_market_country_codes']) assert.ok(!q.includes(field),field)
  assert.equal(products[0].ingredient_term_result_count,null);assert.equal(products[0].confirmed_present_ingredient_terms,null)
  assert.equal(products[0].direct_evidence_ingredient_terms,null);assert.equal(products[0].canonical_name,'Alpha');assert.equal(facts().length,0)
 })
+
+test('catalog retries a statement timeout and a transport failure before restoring the full list',async()=>{
+ const fallback=globalThis.fetch
+ let attempts=0
+ globalThis.fetch=window.fetch=async(input,init)=>{
+   if(!new URL(input).pathname.endsWith('/effective_product_catalog_summary'))return fallback(input,init)
+   attempts+=1
+   if(attempts===1)return Response.json({code:'57014',message:'canceling statement due to statement timeout'},{status:500})
+   if(attempts===2)throw new TypeError('Failed to fetch')
+   return Response.json(rows)
+ }
+ assert.deepEqual((await app.fetchCatalog()).map(row=>row.product_id),rows.map(row=>row.product_id))
+ assert.equal(attempts,3)
+})
+
+test('catalog does not retry a schema error or hide products when package options time out',async(t)=>{
+ const fallback=globalThis.fetch
+ let attempts=0
+ globalThis.fetch=window.fetch=async(input,init)=>{
+   if(!new URL(input).pathname.endsWith('/effective_product_catalog_summary'))return fallback(input,init)
+   attempts+=1
+   return Response.json({code:'PGRST106'},{status:406})
+ }
+ await assert.rejects(app.fetchCatalog(),/Catalog API 406/)
+ assert.equal(attempts,1)
+
+ const originalTimeout=AbortSignal.timeout
+ t.mock.method(AbortSignal,'timeout',ms=>ms===6000
+   ?AbortSignal.abort(new DOMException('Package read timed out','TimeoutError'))
+   :originalTimeout.call(AbortSignal,ms))
+ globalThis.fetch=window.fetch=async(input,init)=>{
+   init.signal?.throwIfAborted()
+   return fallback(input,init)
+ }
+ const products=await app.fetchCatalog()
+ assert.equal(products.length,rows.length)
+ assert.ok(products.every(row=>row.available_package_labels.length===0))
+})
+
 test('fact API accepts loaded empty facts but rejects missing, duplicate, foreign and malformed rows',async()=>{
  const ids=rows.map(x=>x.product_id);const loaded=await app.fetchCatalogIngredientFacts(ids);assert.equal(loaded.length,2);assert.equal('brand' in loaded[0],false)
  assert.equal(facts()[0].url.searchParams.get('select').split(',').length,7)

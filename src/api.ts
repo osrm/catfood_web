@@ -22,17 +22,17 @@ export interface CatalogProduct {
   full_ingredient_declaration_count: number
   has_ingredient_details: boolean
   has_full_ingredient_declaration: boolean
-  nutrition_panel_count: number
-  has_nutrition_details: boolean
+  nutrition_panel_count?: number
+  has_nutrition_details?: boolean
   manufacturing_observation_count: number
   has_manufacturing_details: boolean
   manufacturing_country_codes: string[]
   manufacturing_has_variant_scope?: boolean
-  market_observation_count: number
-  has_market_details: boolean
-  assessed_market_country_codes: string[]
-  current_market_country_codes: string[]
-  formula_match_market_country_codes: string[]
+  market_observation_count?: number
+  has_market_details?: boolean
+  assessed_market_country_codes?: string[]
+  current_market_country_codes?: string[]
+  formula_match_market_country_codes?: string[]
   ingredient_term_result_count: number | null
   confirmed_present_ingredient_terms: string[] | null
   direct_evidence_ingredient_terms: string[] | null
@@ -209,23 +209,10 @@ const CATALOG_FIELDS = [
   'full_ingredient_declaration_count',
   'has_ingredient_details',
   'has_full_ingredient_declaration',
-  'nutrition_panel_count',
-  'has_nutrition_details',
   'manufacturing_observation_count',
   'has_manufacturing_details',
   'manufacturing_country_codes',
   'manufacturing_has_variant_scope',
-  'market_observation_count',
-  'has_market_details',
-  'assessed_market_country_codes',
-  'current_market_country_codes',
-  'formula_match_market_country_codes',
-  'ingredient_term_result_count',
-  'confirmed_present_ingredient_terms',
-  'direct_evidence_ingredient_terms',
-  'flavor_associated_ingredient_terms',
-  'reviewed_not_found_ingredient_terms',
-  'insufficient_evidence_ingredient_terms',
   'official_targets',
   'features',
   'recipe_families',
@@ -365,9 +352,6 @@ function normalizeProduct(value: CatalogProduct): CatalogProduct {
     available_package_labels: asStringArray(value.available_package_labels),
     manufacturing_country_codes: asStringArray(value.manufacturing_country_codes),
     manufacturing_has_variant_scope: value.manufacturing_has_variant_scope === true,
-    assessed_market_country_codes: asStringArray(value.assessed_market_country_codes),
-    current_market_country_codes: asStringArray(value.current_market_country_codes),
-    formula_match_market_country_codes: asStringArray(value.formula_match_market_country_codes),
     confirmed_present_ingredient_terms: value.confirmed_present_ingredient_terms == null ? null : asStringArray(value.confirmed_present_ingredient_terms),
     direct_evidence_ingredient_terms: value.direct_evidence_ingredient_terms == null ? null : asStringArray(value.direct_evidence_ingredient_terms),
     flavor_associated_ingredient_terms: value.flavor_associated_ingredient_terms == null ? null : asStringArray(value.flavor_associated_ingredient_terms),
@@ -443,11 +427,15 @@ async function fetchRead(url: URL, options: RequestInit) {
   return fetch(compatibleUrl, options)
 }
 
+async function isStatementTimeout(response: Response) {
+  if (response.status !== 500) return false
+  const error = await response.clone().json().catch(() => null)
+  return error?.code === '57014' && typeof error.message === 'string' && /statement timeout/i.test(error.message)
+}
+
 async function fetchAfterStatementTimeout(url: URL, options: RequestInit) {
   const response = await fetchRead(url, options)
-  if (response.status !== 500) return response
-  const error = await response.clone().json().catch(() => null)
-  if (error?.code !== '57014' || typeof error.message !== 'string' || !/statement timeout/i.test(error.message)) return response
+  if (!await isStatementTimeout(response)) return response
 
   // Give a timed-out read one more chance while the current screen stays open.
   options.signal?.throwIfAborted()
@@ -571,25 +559,42 @@ async function fetchCatalogPackageOptions(signal?: AbortSignal): Promise<Catalog
   }
 }
 
+async function readCatalogSummary(url: URL, headers: HeadersInit, signal?: AbortSignal): Promise<CatalogProduct[]> {
+  const retryDelays = [750, 1500]
+  for (let attempt = 0; ; attempt += 1) {
+    signal?.throwIfAborted()
+    const timeout = AbortSignal.timeout(5500)
+    const attemptSignal = signal ? AbortSignal.any([signal, timeout]) : timeout
+    const delay = retryDelays[attempt]
+    try {
+      const response = await fetch(url, { headers, signal: attemptSignal })
+      if (response.ok) return (await response.json()) as CatalogProduct[]
+      if (delay === undefined || !await isStatementTimeout(response)) {
+        const detail = (await response.text()).slice(0, 240)
+        throw new Error(`Catalog API ${response.status}: ${detail || response.statusText}`)
+      }
+    } catch (error) {
+      signal?.throwIfAborted()
+      if (delay === undefined || (!timeout.aborted && !(error instanceof TypeError))) throw error
+    }
+    // Stagger read retries so simultaneous reloads don't immediately repeat the same burst.
+    await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 250))
+  }
+}
+
 export async function fetchCatalog(signal?: AbortSignal): Promise<CatalogProduct[]> {
   const { baseUrl, publishableKey } = apiConfig()
   const url = new URL(`${baseUrl}/rest/v1/effective_product_catalog_summary`)
-  url.searchParams.set('select', CATALOG_FIELDS.split(',').filter(field => !CATALOG_INGREDIENT_FIELDS.some(fact => fact === field)).join(','))
+  url.searchParams.set('select', CATALOG_FIELDS)
   url.searchParams.set('order', 'brand.asc,canonical_name.asc')
   url.searchParams.set('limit', '1000')
 
-  const catalogRequest = fetchAfterStatementTimeout(url, {
-    signal,
-    headers: requestHeaders(publishableKey),
-  }).then(async (response) => {
-    if (!response.ok) {
-      const detail = (await response.text()).slice(0, 240)
-      throw new Error(`Catalog API ${response.status}: ${detail || response.statusText}`)
-    }
-    return (await response.json()) as CatalogProduct[]
-  })
-  const packageRequest = fetchCatalogPackageOptions(signal).catch((reason: unknown) => {
-    if (reason instanceof DOMException && reason.name === 'AbortError') throw reason
+  const catalogRequest = readCatalogSummary(url, requestHeaders(publishableKey), signal)
+  const packageTimeout = AbortSignal.timeout(6000)
+  const packageSignal = signal ? AbortSignal.any([signal, packageTimeout]) : packageTimeout
+  const packageRequest = fetchCatalogPackageOptions(packageSignal).catch((error: unknown) => {
+    signal?.throwIfAborted()
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
     return []
   })
   const [rawProducts, packageRows] = await Promise.all([catalogRequest, packageRequest])

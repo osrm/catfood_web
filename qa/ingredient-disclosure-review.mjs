@@ -84,12 +84,12 @@ try {
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${partial.product_id}&detailTab=ingredients`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('group', { name: '원료 정보 확인 범위' }).waitFor()
-    assert.match(await page.locator('.detail-document').innerText(), /일부 원료표 확인[\s\S]*세부 어종 미표기/)
+    assert.match(await page.locator('.ingredient-disclosure').innerText(), /세부 어종 미표기[\s\S]*일부 원료표 확인/)
     await capture('partial-detail', '.detail-document')
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${full.product_id}&detailTab=ingredients`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('group', { name: '원료 정보 확인 범위' }).waitFor()
-    assert.match(await page.locator('.ingredient-disclosure').innerText(), /전체 원료표 확인[\s\S]*세부 어종 미표기/)
+    assert.match(await page.locator('.ingredient-disclosure').innerText(), /세부 어종 미표기[\s\S]*전체 원료표 확인/)
     await capture('full-detail', '.detail-document')
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&detail=${specified.product_id}&detailTab=ingredients`, { waitUntil: 'domcontentloaded' })

@@ -1048,6 +1048,12 @@ export default function App() {
       const isCompared = compareIds.includes(product.product_id)
       const compareDisabled = compareIds.length >= 5 && !isCompared
       const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' ')
+      const packageLabel = packageOptionsLabel(product)
+      const packages = mode === 'explore' && activeConditions === 0
+        ? packageLabel.split(/(\d+(?:[.,]\d+)?\s+(?:kg|g|ml|l)\b)/gi).map((part, index) =>
+          /^\d+(?:[.,]\d+)?\s+(?:kg|g|ml|l)$/i.test(part)
+            ? <span className="research-package-unit" key={index}>{part}</span> : part)
+        : packageLabel
       return <div className={isCompared ? 'research-result-row is-compared' : 'research-result-row'} key={product.product_id}>
         <button
           data-product-id={product.product_id}
@@ -1061,7 +1067,7 @@ export default function App() {
             <span className="research-result-brand">{product.brand}</span>
             <strong>{product.canonical_name}</strong>
             <span className="research-result-meta">{product.feed_type ?? '형태 미확인'} · {product.life_stage ? optionLabel(product.life_stage, LIFE_STAGE_LABELS) : '연령 미확인'}</span>
-            <span className="research-result-packages">판매 규격 · {packageOptionsLabel(product)}</span>
+            <span className="research-result-packages">판매 규격 · {packages}</span>
             {!ingredientVerdicts.length ? ingredientNote : null}
           </span>
           {evaluation ? hasExploreCriteria ? <RelationSummary evaluation={evaluation} ingredientVerdicts={ingredientVerdicts}>

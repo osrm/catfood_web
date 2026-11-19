@@ -158,6 +158,44 @@ test('Home full-catalog target directly opens unfiltered EXPLORE with first fort
   assert.equal(document.querySelectorAll('.research-result-card').length, 80)
 })
 
+test('unfiltered EXPLORE preserves long names, keeps 6.8 kg together and keeps quick view and compare as separate controls', async () => {
+  const firstProduct = products[0]
+  const previousName = firstProduct.canonical_name
+  const previousSize = firstProduct.representative_package_size_text
+  try {
+    firstProduct.canonical_name = '오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피'
+    firstProduct.representative_package_size_text = '6.8 kg'
+    await renderApp('https://catfood.test/catfood_web/?view=workspace&applied=1')
+    await waitForUi(() => document.querySelectorAll('.research-results-list > .research-result-row').length === 40, 'unfiltered full catalog rows')
+    const rows = [...document.querySelectorAll('.research-results-list > .research-result-row')]
+    const card = rows[0].querySelector('.research-result-card')
+    const compare = rows[0].querySelector('.research-result-compare')
+    assert.equal(rows[0].querySelectorAll(':scope > button').length, 2, 'quick view and comparison are separate sibling buttons')
+    assert.equal(card.querySelector('button'), null, 'no nested button')
+    assert.equal(card.querySelector('.research-result-identity strong').textContent, firstProduct.canonical_name)
+    assert.equal(card.querySelector('.research-result-link').textContent, '제품 보기 →')
+    assert.match(card.querySelector('.research-result-packages').textContent, /6\.8 kg/)
+    assert.equal(card.querySelector('.research-package-unit')?.textContent, '6.8 kg', 'the number and unit are one no-wrap display segment')
+    assert.equal(compare.getAttribute('aria-pressed'), 'false')
+    await act(async () => compare.click())
+    assert.equal(compare.getAttribute('aria-pressed'), 'true')
+    assert.ok(rows[0].classList.contains('is-compared'))
+    await act(async () => card.click())
+    assert.ok(document.querySelector('.research-quick-view'), 'clicking the product opens quick view')
+    await click('닫기')
+    await act(async () => compare.click())
+    assert.equal(compare.getAttribute('aria-pressed'), 'false')
+    for (const row of rows.slice(0, 5)) await act(async () => row.querySelector('.research-result-compare').click())
+    assert.equal(rows[5].querySelector('.research-result-compare').disabled, true, 'five-product cap remains')
+    assert.equal(rows[0].querySelector('.research-result-compare').disabled, false, 'selected items can still be removed at capacity')
+    await act(async () => rows[0].querySelector('.research-result-compare').click())
+    assert.equal(rows[5].querySelector('.research-result-compare').disabled, false)
+  } finally {
+    firstProduct.canonical_name = previousName
+    firstProduct.representative_package_size_text = previousSize
+  }
+})
+
 test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, caps compare at five, and keeps Home round-trippable', () => {
   const state = app.parseNavigationState('?view=workspace&mode=wat&feed=invalid&age=nope&targets=indoor,bad,indoor&features=hairball,bad&recipes=fish,bad&detailTab=nope&compareTab=nope&compare=a,a,b,c,d,e,f&compareOpen=1')
   assert.equal(state.mode, 'explore')

@@ -220,7 +220,8 @@ test('mobile name-lookup ingredient comparison exposes failed facts once and ret
  const beforeUrl=window.location.href
  const beforeSource=pair.querySelectorAll('.compare-ingredient-text')
  const sourceText=[...beforeSource].map(node=>node.textContent)
- const scopeText=[...pair.querySelectorAll('.compare-source-context')].map(node=>node.textContent)
+ const scopeText=[...pair.querySelectorAll('.compare-evidence-disclosure .compare-muted')].map(node=>node.textContent)
+ assert.equal(scopeText.filter(value=>value.includes('한국 판매 제품 자료 · 제품 자료')).length,2,'both source scopes remain visible in the raw-source disclosures')
  const sourceReads=()=>requests.filter(row=>row.url.pathname.endsWith('/compare_product_ingredients_scoped')).length
  const sourceCount=sourceReads()
  failed=false
@@ -231,7 +232,7 @@ test('mobile name-lookup ingredient comparison exposes failed facts once and ret
  assert.equal(window.location.href,beforeUrl,'tab and two selected products stay in place')
  assert.equal(document.querySelector('[role="tab"][aria-selected="true"]').textContent,'원재료')
  assert.deepEqual([...pair.querySelectorAll('.compare-ingredient-text')].map(node=>node.textContent),sourceText)
- assert.deepEqual([...pair.querySelectorAll('.compare-source-context')].map(node=>node.textContent),scopeText)
+ assert.deepEqual([...pair.querySelectorAll('.compare-evidence-disclosure .compare-muted')].map(node=>node.textContent),scopeText)
  const values=[...pair.querySelectorAll('.compare-ingredient-summary-values')].map(node=>node.textContent)
  assert.match(values[0],/연어/)
  assert.match(values[1],/닭.*오리.*돼지.*칠면조/)

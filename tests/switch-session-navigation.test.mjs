@@ -1973,6 +1973,42 @@ test('changing the reading focus and reselecting the current product clear expli
   assert.equal(session().currentProductId,null)
 })
 
+test('disclosure-focused dry-food lookup shows a complete named salmon-oil entry without opening quick view', async () => {
+  const aatu = { ...current, brand: 'AATU', canonical_name: 'AATU 연어' }
+  const lechat = { ...candidateA, brand: '르쳇', canonical_name: '르쳇 엑설런스 어덜트 연어', feed_type: '건식' }
+  catalogProducts = [aatu, lechat]
+  questionSources = [
+    { product_id: aatu.product_id, variant_id: 'variant_current_1', raw_text: '연어, 정어리', completeness_status: 'full', observation_scope: 'variant', market_code: 'KR', is_current_resolved_formula: false },
+    { product_id: lechat.product_id, variant_id: 'variant_candidate_a', raw_text: '연어, 천연 항산화제로 보존된 연어 오일(혼합 토코페롤)', completeness_status: 'full', observation_scope: 'variant', market_code: 'KR', is_current_resolved_formula: false },
+  ]
+  await renderApp()
+  await chooseCurrent(aatu.canonical_name)
+  await click(variantButton('1 kg')); await click(exactButton('다음 →'))
+  await click('원료가 얼마나 구체적으로')
+  await click('건식 유지'); await click('후보 제품 보기')
+  await inputValue(document.querySelector('.switch-candidate-search input'), lechat.canonical_name)
+  const selector = '[data-product-id="' + lechat.product_id + '"] .candidate-explanation'
+  await waitForUi(() => document.querySelector(selector)?.textContent.includes('연어 오일'), 'full named-oil evidence on candidate')
+  assert.equal(document.querySelector(selector).textContent, '천연 항산화제로 보존된 연어 오일(혼합 토코페롤) · 확인한 포장 기준')
+  assert.equal(document.querySelectorAll('.switch-candidate-row').length, 1)
+  assert.equal(session().keep.feedType, '건식')
+  assert.equal(document.querySelector('.switch-candidate-inspector'), null, 'evidence is visible before quick view')
+})
+
+test('named-oil card wording keeps generic fish uncertainty, evidence scope and missing-data semantics', () => {
+  const id = candidateA.product_id
+  const source = { product_id: id, variant_id: null, raw_text: '현미, 천연 항산화제로 보존된 연어 오일(혼합 토코페롤)', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', is_current_resolved_formula: false }
+  assert.equal(app.candidateIngredientSummary(source, id), '천연 항산화제로 보존된 연어 오일(혼합 토코페롤)')
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '어유, 천연 항산화제로 보존된 연어 오일(혼합 토코페롤)' }, id), '천연 항산화제로 보존된 연어 오일(혼합 토코페롤) · 어유 · 어종 미표기')
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '어유' }, id), '어유 · 어종 미표기')
+  assert.equal(app.candidateIngredientSummary({ ...source, completeness_status: 'partial' }, id), '일부 원료표 확인')
+  assert.equal(app.candidateIngredientSummary({ ...source, market_code: 'US' }, id), '한국 판매 제품 적용 여부 미확인')
+  assert.equal(app.candidateIngredientSummary({ ...source, observation_scope: 'variant' }, id), '천연 항산화제로 보존된 연어 오일(혼합 토코페롤) · 확인한 포장 기준')
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '현미, 귀리' }, id), '')
+  assert.equal(app.candidateIngredientSummary(undefined, id), '원료표 미확인')
+  assert.equal(app.candidateIngredientSummary(source, 'other-product'), '원료표 미확인')
+})
+
 test('reason-led disclosure keeps observation separate, opens relevant comparison and snapshots reasons without navigation or intake text', async () => {
   questionSources = [current, candidateA, candidateB].map((product, index) => ({ product_id: product.product_id, variant_id: null, raw_text: index === 1 ? '닭고기, 어유' : 'chicken, fish oil (herring)', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', ingredient_names: ['닭고기'], ingredient_count: 1, is_current_resolved_formula: false }))
   await renderApp(); await chooseCurrent(); await click(variantButton('1 kg')); await click(exactButton('다음 →'))
@@ -2051,7 +2087,7 @@ test('candidate explanations connect explicit keep and wording differences, pers
   await remountApp()
   assert.deepEqual(journey().retained[0].explanation,snapshot,'source updates do not rewrite why the candidate was retained')
   await waitForUi(()=>!document.querySelector('.switch-candidate-list .ingredient-reason-status[role="status"]'),'updated source comparison ready')
-  assert.equal(document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`),null,'a full in-scope label without a wording example needs no card filler')
+  assert.equal(document.querySelector(`[data-product-id="${candidateA.product_id}"] .candidate-explanation`)?.textContent,'Chicken oil','full in-scope named oil is visible on the focused card')
   await click('남긴 후보에서 제거'); await selectCandidate(); await click('상세 보기')
   await waitForUi(()=>document.querySelector('.journey-retain .candidate-explanation')?.textContent.includes('Chicken oil'),'updated label example ready in detail')
   await click('후보로 남기기')

@@ -53,8 +53,9 @@ function conditionLines(item: CompareItem) {
   ])]
 }
 
-export default function ComparisonHighlights({ items, baseline, facts, criteriaLabels, onDetail, onRemove }: {
+export default function ComparisonHighlights({ items, baseline, facts, criteriaLabels, pairedFacts = false, onDetail, onRemove }: {
   items: CompareItem[]; baseline?: CatalogProduct; facts: (product: CatalogProduct) => HighlightFact[]; criteriaLabels: string[]
+  pairedFacts?: boolean
   onDetail?: (id: string) => void; onRemove?: (id: string) => void
 }) {
   const reference = baseline ?? items[0]?.product
@@ -64,6 +65,15 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
   const conditionsByItem = items.map(conditionLines)
   const commonConditions = conditionsByItem[0].filter(value => /조건 확인 ·/.test(value) && conditionsByItem.every(conditions => conditions.includes(value)))
   const commonFacts = before.filter(fact => fact.known && compared.every(item => facts(item.product).some(value => value.key === fact.key && value.known && value.value === fact.value)))
+  // Only the actual, unfiltered two-product comparison uses aligned fact columns.
+  // Keep item-specific condition or ingredient annotations in the original cards.
+  const showPair = pairedFacts && !baseline && items.length === 2 && !criteriaLabels.length
+    && items.every(item => !ingredientLines(item, true).length && !conditionLines(item).length)
+  const pairDifferences = showPair ? differentFacts(before, facts(items[1].product)) : []
+  const pairRows = (rows: typeof pairDifferences) => rows.map(fact => <tr key={fact.key}>
+    <th scope="row">{fact.label}{!fact.bothKnown ? <small>자료 확인 차이</small> : null}</th>
+    <td>{fact.before}</td><td>{fact.value}</td>
+  </tr>)
   const common = <>
     {commonConditions.length ? <p className="highlight-common">{baseline ? '후보 모두에서 확인' : '제품 모두에서 확인'} · {commonConditions.join(' / ')}</p> : null}
     {commonFacts.length ? <details className="highlight-common"><summary>함께 확인된 제품 표기 {commonFacts.length}개</summary><p>{commonFacts.map(fact => `${fact.label} · ${fact.value}`).join(' / ')}</p></details> : null}
@@ -77,7 +87,21 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
     </header>
     {criteriaLabels.length ? <p className="highlight-priorities">내가 고른 조건 · {criteriaLabels.join(' · ')}</p> : null}
     {baseline ? common : null}
-    <div className="highlight-cards">{items.map((item, index) => {
+    {showPair ? <div className="highlight-paired">
+      <table className="highlight-paired-table">
+        <colgroup><col className="highlight-paired-label-column" /><col /><col /></colgroup>
+        <thead><tr><th scope="col">비교 항목</th>{items.map(item => <th key={item.product.product_id} scope="col" data-product-id={item.product.product_id}>
+          {item.product.display_image_url ? <img className="highlight-paired-image" src={item.product.display_image_url} alt="" /> : null}
+          <h3><span>{item.product.brand}</span>{item.product.canonical_name}</h3>
+          <div className="highlight-product-actions">{onDetail ? <button type="button" onClick={() => onDetail(item.product.product_id)}>상세 보기</button> : null}{onRemove ? <button type="button" onClick={() => onRemove(item.product.product_id)}>비교에서 제거</button> : null}</div>
+        </th>)}</tr></thead>
+        <tbody>{pairRows(pairDifferences.slice(0, 3))}</tbody>
+      </table>
+      {pairDifferences.length > 3 ? <details className="highlight-paired-more"><summary>나머지 {pairDifferences.length - 3}개 보기</summary>
+        <table className="highlight-paired-table" aria-label="나머지 차이"><colgroup><col className="highlight-paired-label-column" /><col /><col /></colgroup><tbody>{pairRows(pairDifferences.slice(3))}</tbody></table>
+      </details> : null}
+      {!pairDifferences.length ? <p>확인된 기본 표기에서 기준 제품과의 차이를 찾지 못했습니다.</p> : null}
+    </div> : <div className="highlight-cards">{items.map((item, index) => {
       const isReference = !baseline && index === 0
       const differences = isReference ? [] : differentFacts(before, facts(item.product))
       const ingredients = ingredientLines(item, !baseline)
@@ -90,7 +114,7 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
         {!isReference && !differences.length ? <p>확인된 기본 표기에서 기준 제품과의 차이를 찾지 못했습니다.</p> : null}
         <div className="highlight-product-actions">{onDetail ? <button type="button" onClick={() => onDetail(item.product.product_id)}>상세 보기</button> : null}{onRemove ? <button type="button" onClick={() => onRemove(item.product.product_id)}>비교에서 제거</button> : null}</div>
       </article>
-    })}</div>
+    })}</div>}
     {baseline ? null : common}
   </section>
 }

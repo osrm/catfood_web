@@ -200,14 +200,15 @@ export function candidateIngredientSummary(row: ListIngredientSource | undefined
   if (!row?.raw_text?.trim() || productId && row.product_id !== productId) return '원료표 미확인'
   const reading = ingredientDisclosureReading(row)
   const [detail] = reading.details
-  // A named oil is shown only from a complete source applicable to this product.
-  const namedOil = row.completeness_status === 'full' && !ingredientSourceScope(row).needsCheck
+  // Preserve the original ambiguous-wording priority and 90-character treatment.
+  const existingPhrase = detail?.phrase ?? fishOilExamples(row.raw_text)[0] ?? ''
+  // Only fill an otherwise empty card; never truncate a new whole oil entry.
+  const namedOil = !existingPhrase && row.completeness_status === 'full' && !ingredientSourceScope(row).needsCheck
     ? oilIngredientEntries(row.raw_text).find(entry => NAMED_OIL_ENTRY.test(entry))
     : undefined
-  const phrase = namedOil ?? detail?.phrase ?? fishOilExamples(row.raw_text)[0] ?? ''
-  let wording = phrase
-  if (namedOil && detail) wording += ' · ' + detail.phrase + ' · ' + detail.note.replace(/세부 (?=어종|동물 종류)/g, '')
-  else if (detail) wording += ' · ' + detail.note.replace(/세부 (?=어종|동물 종류)/g, '')
+  const phrase = existingPhrase || (namedOil && namedOil.length <= 90 ? namedOil : '')
+  let wording = existingPhrase.length > 90 ? existingPhrase.slice(0, 89) + '…' : phrase
+  if (detail) wording += ' · ' + detail.note.replace(/세부 (?=어종|동물 종류)/g, '')
   else if (/^fish\s+oil\s*\(\s*herring\s*\)$/i.test(phrase)) wording = '청어유 표기'
   const scope = ingredientSourceScope(row).needsCheck ? '한국 판매 제품 적용 여부 미확인' : row.observation_scope === 'variant' ? '확인한 포장 기준' : ''
   const coverage = row.completeness_status === 'full' ? '' : reading.listLabel

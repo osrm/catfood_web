@@ -1306,7 +1306,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
 
     {tab === 'ingredients' ? <div className="compare-ingredient-mobile-summary">
       {currentProduct ? renderMobileCandidatePicker() : renderMobileGeneralPairPicker()}
-      <CatalogIngredientNotice load={ingredientAvoidTerms.length ? ingredientLoad : undefined} />
+      <CatalogIngredientNotice load={ingredientAvoidTerms.length || ingredientLoad?.status === 'error' ? ingredientLoad : undefined} />
       <IngredientPairSummary products={currentIngredientProduct && mobileCandidate ? [currentIngredientProduct, mobileCandidate.product] : mobilePairItems.map((item) => item.product)} currentProductId={currentProduct?.product_id} currentVariantText={currentVariantText} onDetail={openDetail} onRemove={removeComparedProduct} avoidance={ingredientAvoidTerms.length ? product => <dl className="compare-ingredient-avoidance">{ingredientAvoidTerms.map(term => <div key={term}><dt>{INGREDIENT_AVOID_LABELS[term] ?? term} 확인 결과</dt><dd>{renderIngredientAvoidance(product, term)}</dd></div>)}</dl> : undefined} source={(product) => {
         const isCurrent = product.product_id === currentProduct?.product_id
         const loading = isCurrent ? currentIngredientsLoading : ingredientsLoading

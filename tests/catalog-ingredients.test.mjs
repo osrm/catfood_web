@@ -182,6 +182,62 @@ test('comparison overview and nutrition skip facts; ingredients and detail reuse
  assert.match(window.location.search,/compare=/)
 })
 
+test('mobile name-lookup ingredient comparison exposes failed facts once and retries without losing pair or source', async()=>{
+ rows=[
+  product('product_0000000000000001','AATU 연어',{brand:'AATU',representative_package_size_text:'1 kg',ingredient_term_result_count:2,confirmed_present_ingredient_terms:['salmon'],direct_evidence_ingredient_terms:['salmon']}),
+  product('product_0000000000000002','노르웨이 숲 어덜트',{brand:'로얄캐닌',representative_package_size_text:'2 kg',ingredient_term_result_count:4,confirmed_present_ingredient_terms:['chicken','duck','pork','turkey'],direct_evidence_ingredient_terms:['chicken','duck','pork','turkey']}),
+ ]
+ let failed=true
+ factsHandler=async()=>failed?new Response('failed',{status:503}):Response.json(rows)
+ const originalFetch=globalThis.fetch
+ globalThis.fetch=window.fetch=async(input,init={})=>{
+  const url=new URL(String(input))
+  if(url.pathname.endsWith('/compare_product_ingredients_scoped')){
+   requests.push({url,signal:init.signal})
+   return Response.json(rows.map((row,index)=>({
+    product_id:row.product_id,variant_id:null,observation_scope:'product',market_code:'KR',
+    completeness_status:'full',raw_text:index===0?'연어, 연어 오일':'닭, 오리, 돼지, 칠면조',
+    ingredient_names:index===0?['연어','연어 오일']:['닭','오리','돼지','칠면조'],ingredient_count:index===0?2:4,
+    is_current_resolved_formula:false,
+   })))
+  }
+  return originalFetch(input,init)
+ }
+ await mount('?view=workspace&mode=lookup&q=AATU&compare='+rows.map(row=>row.product_id).join(',')+'&compareOpen=1&compareTab=ingredients')
+ const mobile=document.querySelector('.compare-ingredient-mobile-summary')
+ const pair=mobile.querySelector('.compare-ingredient-pair-summary')
+ assert.ok(pair)
+ assert.deepEqual([...pair.querySelectorAll('.compare-ingredient-summary-values p')].map(p=>p.textContent),[],'facts must not silently become empty values')
+ assert.match(pair.textContent,/AATU.*AATU 연어/s)
+ assert.match(pair.textContent,/로얄캐닌.*노르웨이 숲 어덜트/s)
+ assert.match(pair.textContent,/1 kg.*2 kg/s)
+ assert.match(pair.textContent,/연어, 연어 오일/)
+ assert.match(pair.textContent,/닭, 오리, 돼지, 칠면조/)
+ assert.match(pair.textContent,/한국 판매 제품 자료 · 제품 자료/)
+ assert.equal(mobile.querySelectorAll('.catalog-inline-state[role="alert"]').length,1)
+ assert.equal(mobile.querySelectorAll('.catalog-inline-state button').length,1)
+ assert.equal(facts().length,1)
+ const beforeUrl=window.location.href
+ const beforeSource=pair.querySelectorAll('.compare-ingredient-text')
+ const sourceText=[...beforeSource].map(node=>node.textContent)
+ const scopeText=[...pair.querySelectorAll('.compare-source-context')].map(node=>node.textContent)
+ const sourceReads=()=>requests.filter(row=>row.url.pathname.endsWith('/compare_product_ingredients_scoped')).length
+ const sourceCount=sourceReads()
+ failed=false
+ await act(async()=>mobile.querySelector('.catalog-inline-state button').click())
+ assert.equal(mobile.querySelector('.catalog-inline-state'),null,'loaded facts need no new notice')
+ assert.equal(facts().length,2,'retry fetches facts once')
+ assert.equal(sourceReads(),sourceCount,'retry does not reread successful source declarations')
+ assert.equal(window.location.href,beforeUrl,'tab and two selected products stay in place')
+ assert.equal(document.querySelector('[role="tab"][aria-selected="true"]').textContent,'원재료')
+ assert.deepEqual([...pair.querySelectorAll('.compare-ingredient-text')].map(node=>node.textContent),sourceText)
+ assert.deepEqual([...pair.querySelectorAll('.compare-source-context')].map(node=>node.textContent),scopeText)
+ const values=[...pair.querySelectorAll('.compare-ingredient-summary-values')].map(node=>node.textContent)
+ assert.match(values[0],/연어/)
+ assert.match(values[1],/닭.*오리.*돼지.*칠면조/)
+ assert.equal(document.querySelectorAll('.compare-ingredient-mobile-summary .catalog-inline-state button').length,0)
+})
+
 test('empty ingredient summaries disappear while the actual declaration remains readable', async()=>{
  rows=rows.map(row=>({...row,direct_evidence_ingredient_terms:[],confirmed_present_ingredient_terms:[],flavor_associated_ingredient_terms:[]}))
  await mount('?view=workspace&mode=lookup&q=Alpha&compare='+rows.map(r=>r.product_id).join(',')+'&compareOpen=1&compareTab=ingredients')

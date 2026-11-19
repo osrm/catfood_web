@@ -124,6 +124,40 @@ async function selectValue(element, value) {
   })
 }
 
+test('Home offers the unfiltered full catalog and keeps three crawlable label examples in its guide', async () => {
+  await renderApp('https://catfood.test/catfood_web/')
+  const routes = document.querySelector('.home-explore-route')
+  assert.ok(routes.querySelector('button').textContent.includes('조건 고르기'), 'existing condition selection remains')
+  const browse = [...routes.querySelectorAll('a')].find(link => link.textContent.includes('전체 사료 보기'))
+  assert.ok(browse, 'primary catalog link is available from Home')
+  assert.equal(new URL(browse.href).pathname, '/catfood_web/')
+  assert.equal(new URL(browse.href).search, '?view=workspace&applied=1')
+  const guide = [...document.querySelectorAll('details.home-flow-disclosure')]
+    .find(node => node.querySelector('summary')?.textContent.includes('사료 정보를 읽는 법'))
+  assert.ok(guide)
+  assert.equal(guide.open, false, 'example entry remains inside the collapsed reading guide')
+  const examples = [...guide.querySelectorAll('a')].find(link => link.textContent.includes('제품 표기 예시 보기'))
+  assert.ok(examples)
+  assert.equal(new URL(examples.href).pathname, '/catfood_web/foods/')
+  assert.equal([...routes.querySelectorAll('a')].some(link => link.href.includes('/foods/')), false)
+})
+
+test('Home full-catalog target directly opens unfiltered EXPLORE with first forty comparison actions', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&applied=1')
+  const navigation = app.parseNavigationState(window.location.search)
+  assert.equal(navigation.screen, 'workspace')
+  assert.equal(navigation.mode, 'explore')
+  assert.equal(navigation.editingConditions, false)
+  assert.deepEqual(navigation.search.feedType, [])
+  await waitForUi(() => document.querySelectorAll('.research-result-card').length === 40, 'forty unfiltered products')
+  assert.equal(document.querySelectorAll('.research-result-compare').length, 40)
+  const first = document.querySelector('.research-result-compare')
+  await act(async () => first.click())
+  assert.equal(first.getAttribute('aria-pressed'), 'true', 'products can enter comparison immediately')
+  await click('제품 더 보기')
+  assert.equal(document.querySelectorAll('.research-result-card').length, 80)
+})
+
 test('URL parser rejects unknown filters and tabs, deduplicates compare IDs, caps compare at five, and keeps Home round-trippable', () => {
   const state = app.parseNavigationState('?view=workspace&mode=wat&feed=invalid&age=nope&targets=indoor,bad,indoor&features=hairball,bad&recipes=fish,bad&detailTab=nope&compareTab=nope&compare=a,a,b,c,d,e,f&compareOpen=1')
   assert.equal(state.mode, 'explore')

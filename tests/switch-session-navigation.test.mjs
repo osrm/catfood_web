@@ -1999,8 +1999,17 @@ test('named-oil card wording keeps generic fish uncertainty, evidence scope and 
   const id = candidateA.product_id
   const source = { product_id: id, variant_id: null, raw_text: '현미, 천연 항산화제로 보존된 연어 오일(혼합 토코페롤)', completeness_status: 'full', observation_scope: 'product', market_code: 'KR', is_current_resolved_formula: false }
   assert.equal(app.candidateIngredientSummary(source, id), '천연 항산화제로 보존된 연어 오일(혼합 토코페롤)')
-  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '어유, 천연 항산화제로 보존된 연어 오일(혼합 토코페롤)' }, id), '천연 항산화제로 보존된 연어 오일(혼합 토코페롤) · 어유 · 어종 미표기')
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '어유, 천연 항산화제로 보존된 연어 오일(혼합 토코페롤)' }, id), '어유 · 어종 미표기')
   assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '어유' }, id), '어유 · 어종 미표기')
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '연어 오일 또는 어유' }, id), '연어 오일 또는 어유 · 사용 어종 추가 확인 필요', 'alternatives must not repeat the same entry')
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '연어 오일(혼합 토코페롤) 또는 어유, 연어 오일' }, id), '연어 오일(혼합 토코페롤) 또는 어유 · 사용 어종 추가 확인 필요', 'an ambiguous first entry still outranks another named oil')
+  const longNamedOil = '천연 항산화제로 보존된 연어 오일(' + '원문한정'.repeat(27) + ')'
+  assert.ok(longNamedOil.length > 90)
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: '현미, ' + longNamedOil }, id), '', 'long new entries are omitted rather than truncated inside parentheses')
+  const longExisting = 'Fish Oil ' + 'unidentified '.repeat(12)
+  assert.ok(longExisting.length > 90)
+  assert.equal(app.candidateIngredientSummary({ ...source, raw_text: longExisting }, id), longExisting.slice(0, 89) + '… · 어종 미표기', 'existing cards retain their original 90-character limit')
+
   assert.equal(app.candidateIngredientSummary({ ...source, completeness_status: 'partial' }, id), '일부 원료표 확인')
   assert.equal(app.candidateIngredientSummary({ ...source, market_code: 'US' }, id), '한국 판매 제품 적용 여부 미확인')
   assert.equal(app.candidateIngredientSummary({ ...source, observation_scope: 'variant' }, id), '천연 항산화제로 보존된 연어 오일(혼합 토코페롤) · 확인한 포장 기준')

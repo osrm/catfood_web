@@ -532,6 +532,96 @@ test('lookup search ignores spacing, preserves and/& behavior, and supports conf
   )
 })
 
+test('package-qualified lookup matches confirmed individual sizes, retains numeric names and never sums bundles', () => {
+  const fixture = catalog(5)
+  Object.assign(fixture[0], {
+    brand: 'AATU', canonical_name: '연어',
+    available_package_labels: ['1 kg', '3 kg'],
+    representative_package_size_text: '5 kg',
+  })
+  Object.assign(fixture[1], {
+    brand: 'AATU', canonical_name: '가금류',
+    available_package_labels: [], representative_package_size_text: '3 kg',
+  })
+  Object.assign(fixture[2], {
+    brand: '로얄캐닌', canonical_name: '캣 에이징 15+',
+    available_package_labels: ['1 kg'],
+  })
+  Object.assign(fixture[3], {
+    brand: 'Test', canonical_name: '묶음 연어',
+    available_package_labels: ['500 g × 2'], representative_sale_total_weight_g: 1000,
+  })
+  Object.assign(fixture[4], {
+    brand: 'Test', canonical_name: '습식',
+    available_package_labels: ['1 l'],
+  })
+  const ids = (query) => app.lookupCatalog(fixture, query).map((product) => product.product_id)
+
+  for (const query of ['AATU 연어', 'AATU 연어 1kg', '아투 연어 1 kg', 'AATU 연어 3kg', 'AATU 연어 1,000 g', 'AATU 연어 3000g']) {
+    assert.deepEqual(ids(query), [fixture[0].product_id], query)
+  }
+  for (const query of ['AATU 연어 11kg', 'AATU 연어 2kg', 'AATU 연어 5kg', 'AATU 연어 1.5kg', 'AATU 연어 1l', 'AATU 연어 1kgx']) {
+    assert.deepEqual(ids(query), [], query)
+  }
+  assert.deepEqual(ids('1kg'), [], 'a package alone is not a product-name search')
+  assert.deepEqual(ids('AATU 가금류 3kg'), [fixture[1].product_id], 'representative package is a fallback when no options are loaded')
+  assert.deepEqual(ids('AATU 가금류 1kg'), [])
+  assert.deepEqual(ids('로얄캐닌 에이징 15 1kg'), [fixture[2].product_id], 'digits in the product name are preserved')
+  assert.deepEqual(ids('로얄캐닌 에이징 11 1kg'), [])
+  assert.deepEqual(ids('Test 묶음 연어 500g'), [fixture[3].product_id], 'explicit size on a multi-unit sale is searchable')
+  assert.deepEqual(ids('Test 묶음 연어 1kg'), [], 'a bundle total is never inferred as an additional package')
+  assert.deepEqual(ids('Test 습식 1000ml'), [fixture[4].product_id])
+  assert.deepEqual(ids('Test 습식 1kg'), [], 'volume is not equivalent to weight')
+})
+
+test('LOOKUP and both SWITCH search surfaces share confirmed package matching', async () => {
+  products = catalog(2)
+  Object.assign(products[0], {
+    brand: 'AATU', canonical_name: '연어',
+    available_package_labels: ['1 kg', '3 kg'], representative_package_size_text: '1 kg',
+  })
+  Object.assign(products[1], { brand: 'Other', canonical_name: '현재 사료' })
+  packageOptions = [1000, 3000].map((weight) => ({
+    product_id: products[0].product_id, variant_id: `variant_${weight}`,
+    package_size_text: `${weight / 1000} kg`, package_weight_g: weight, units_per_sale: 1,
+  }))
+  await act(async () => root.render(createElement(app.App)))
+  const submitLookup = async (query) => {
+    // First search submits Home's form; subsequent queries use LOOKUP's live input.
+    const input = document.querySelector('.lookup-input') ?? document.querySelector('input[type="search"]')
+    assert.ok(input, 'LOOKUP input is present')
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, query)
+      input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    })
+    const form = input.closest('form')
+    if (form) await act(async () => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
+    return rows('.research-result-card').map((row) => row.getAttribute('data-product-id'))
+  }
+  assert.deepEqual(await submitLookup('AATU 연어 1kg'), [products[0].product_id], 'product lookup')
+  assert.deepEqual(await submitLookup('AATU 연어 11kg'), [], 'product lookup rejects unlisted package')
+
+  const props = {
+    products, loading: false, error: null,
+    onHome() {}, onModeChange() {}, onRetryCatalog() {},
+  }
+  const initial = app.createInitialSwitchSession('아투 연어 1 kg')
+  await act(async () => root.render(createElement(app.SwitchFlow, { ...props, session: initial })))
+  assert.equal(rows('.switch-find-result').length, 1, 'current-food lookup accepts package-qualified alias')
+  await act(async () => root.render(createElement(app.SwitchFlow, { ...props, session: { ...initial, query: '아투 연어 11kg' } })))
+  assert.equal(rows('.switch-find-result').length, 0, 'current-food lookup rejects other size')
+
+  const results = {
+    ...initial, step: 'results', currentProductId: products[1].product_id,
+    variantSelection: { kind: 'unknown', variantId: null },
+    candidateQuery: 'AATU 연어 3kg', noChangeIntent: true,
+  }
+  await act(async () => root.render(createElement(app.SwitchFlow, { ...props, session: results })))
+  assert.equal(rows('.switch-candidate-item').length, 1, 'candidate search accepts confirmed 3 kg')
+  await act(async () => root.render(createElement(app.SwitchFlow, { ...props, session: { ...results, candidateQuery: 'AATU 연어 11kg' } })))
+  assert.equal(rows('.switch-candidate-item').length, 0, 'candidate search excludes unlisted size')
+})
+
 test('brand and separated product words match one identity without borrowing missing name terms from its brand', () => {
   const fixture = catalog(5)
   Object.assign(fixture[0],{brand:'로얄캐닌',canonical_name:'캣 에이징 15+'})

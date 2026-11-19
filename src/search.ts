@@ -101,6 +101,49 @@ function normalizedLookupText(value: string): string {
     .replace(/\s+/g, '')
 }
 
+type PackageAmount = { kind: 'mass' | 'volume'; amount: number }
+
+// A package expression must be an independent token, not digits embedded in a product name.
+const PACKAGE_QUERY_SIZE = /(^|[^\p{L}\p{N}])(\d+(?:,\d{3})*(?:\.\d+)?)\s*(kg|g|ml|l)(?=$|[^\p{L}\p{N}])/giu
+const PACKAGE_LABEL_SIZE = /^(\d+(?:,\d{3})*(?:\.\d+)?)\s*(kg|g|ml|l)(?=$|[^\p{L}\p{N}])/iu
+
+function packageAmount(quantity: string, unit: string): PackageAmount | null {
+  const number = Number(quantity.replaceAll(',', ''))
+  if (!Number.isFinite(number) || number <= 0) return null
+  return {
+    kind: unit === 'kg' || unit === 'g' ? 'mass' : 'volume',
+    amount: number * (unit === 'kg' || unit === 'l' ? 1000 : 1),
+  }
+}
+
+function separatePackageQuery(query: string): { nameQuery: string; amounts: PackageAmount[] } {
+  const amounts: PackageAmount[] = []
+  const nameQuery = query.replace(PACKAGE_QUERY_SIZE, (match, separator: string, quantity: string, unit: string) => {
+    const amount = packageAmount(quantity, unit.toLowerCase())
+    if (!amount) return match
+    amounts.push(amount)
+    return separator
+  })
+  return { nameQuery, amounts }
+}
+
+function matchesConfirmedPackages(product: CatalogProduct, requested: PackageAmount[]): boolean {
+  if (!requested.length) return true
+  // The public catalog list is authoritative; only use the same representative-size
+  // fallback shown in the UI when there are no loaded package options.
+  const labels = product.available_package_labels?.length
+    ? product.available_package_labels
+    : [product.representative_package_size_text ?? '']
+  const available = labels.flatMap((label) => {
+    const size = PACKAGE_LABEL_SIZE.exec(label.trim())
+    if (!size) return []
+    const amount = packageAmount(size[1], size[2].toLowerCase())
+    return amount ? [amount] : []
+  })
+  // Compare explicit per-package sizes, never a sum derived from bundle counts.
+  return requested.every((size) => available.some((option) => option.kind === size.kind && option.amount === size.amount))
+}
+
 // Search labels only: keep catalog identities unchanged. See docs/brand-search-aliases.md.
 const CONFIRMED_BRAND_ALIAS_GROUPS = [
   ['내추럴발란스', 'natural balance'],
@@ -204,12 +247,14 @@ function conditionLabel(value: string, labels: Record<string, string>): string {
 }
 
 export function lookupCatalog(products: CatalogProduct[], query: string): CatalogProduct[] {
-  const originalNeedle = normalizedText(query)
-  const lookupNeedle = normalizedLookupText(query)
+  const { nameQuery, amounts } = separatePackageQuery(query)
+  const originalNeedle = normalizedText(nameQuery)
+  const lookupNeedle = normalizedLookupText(nameQuery)
   if (!lookupNeedle) return []
-  const terms = [...new Set(query.trim().split(/\s+/u).map(normalizedLookupText).filter(Boolean))]
+  const terms = [...new Set(nameQuery.trim().split(/\s+/u).map(normalizedLookupText).filter(Boolean))]
 
   return products.filter((product) => {
+    if (!matchesConfirmedPackages(product, amounts)) return false
     const brandLabels = [product.brand, ...confirmedBrandAliases(product.brand)]
     const values = [
       `${product.brand} ${product.canonical_name}`,

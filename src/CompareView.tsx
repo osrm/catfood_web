@@ -1283,8 +1283,10 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
       return { key, label, value, known, priority: chosen.has(label) || value.split(' · ').some(part => chosen.has(part)) }
     })]
   }
+  const pairedHighlights = !currentProduct && items.length === 2 && !criteriaLabels.length
+    && !ingredientAvoidTerms.length && !ingredientConditionsPending
   function renderHighlights(visibleItems: CompareItem[], baseline?: CatalogProduct) {
-    return <ComparisonHighlights items={visibleItems} baseline={baseline} facts={highlightFacts} criteriaLabels={criteriaLabels} onDetail={openDetail} onRemove={removeComparedProduct} />
+    return <ComparisonHighlights items={visibleItems} baseline={baseline} facts={highlightFacts} criteriaLabels={criteriaLabels} pairedFacts={pairedHighlights} onDetail={openDetail} onRemove={removeComparedProduct} />
   }
 
   return <main className={stageClassName}>

@@ -399,6 +399,77 @@ test('mobile highlights follow the selected candidate and candidate removal', as
   assert.doesNotMatch(summary().textContent, /두 번째 후보 제품/)
 })
 
+test('unfiltered two-product highlights align named columns with age and unknown evidence even in reverse order', async () => {
+  const first = product('long_product_first', '공통브랜드', '오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피', {
+    feed_type: '건식', life_stage: 'adult', official_targets: ['indoor'], recipe_details: ['salmon'],
+    available_package_labels: ['1 kg'],
+  })
+  const second = product('long_product_second', '공통브랜드', '노르웨이 숲 어덜트 포뮬러 아주 긴 제품명', {
+    feed_type: '건식', life_stage: 'all_life_stages', official_targets: [], recipe_details: ['chicken'],
+    available_package_labels: ['6.8 kg'],
+  })
+  const checkPair = (expectedIds, expectedAges, expectedTargets) => {
+    for (const location of ['desktop', 'mobile']) {
+      const summary = document.querySelector('.compare-highlights-' + location + ' .comparison-highlights')
+      assert.ok(summary.querySelector('.highlight-paired'))
+      assert.equal(summary.querySelector('.highlight-cards'), null)
+      const headers = [...summary.querySelectorAll('.highlight-paired-table thead th[data-product-id]')]
+      assert.deepEqual(headers.map(node => node.dataset.productId), expectedIds)
+      assert.deepEqual(headers.map(node => node.querySelector('h3').textContent), expectedIds.map(id => id === first.product_id ? first.brand + first.canonical_name : second.brand + second.canonical_name))
+      assert.deepEqual(headers.map(node => [...node.querySelectorAll('button')].map(button => button.textContent)), [['상세 보기', '비교에서 제거'], ['상세 보기', '비교에서 제거']])
+      const rows = [...summary.querySelectorAll('.highlight-paired-table tbody tr')]
+      const values = (label) => {
+        const row = rows.find(node => node.querySelector('th')?.textContent.includes(label))
+        assert.ok(row, 'missing difference: ' + label)
+        return [...row.querySelectorAll('td')].map(node => node.textContent)
+      }
+      assert.deepEqual(values('대상 연령'), expectedAges)
+      assert.deepEqual(values('제품 표기 대상'), expectedTargets)
+      assert.match(rows.find(node => node.querySelector('th')?.textContent.includes('제품 표기 대상')).querySelector('th').textContent, /자료 확인 차이/)
+      assert.equal(summary.querySelector('.highlight-paired-table > tbody').querySelectorAll('tr').length, 3, 'keep the first-three difference limit')
+      assert.match(summary.querySelector('.highlight-paired-more summary').textContent, /나머지 1개 보기/)
+      assert.match(summary.textContent, /함께 확인된 제품 표기/)
+    }
+  }
+
+  let state = await renderCompare({ currentProduct: null, criteriaLabels: [], items: [{ product: first }, { product: second }] })
+  checkPair([first.product_id, second.product_id], ['성묘', '전연령'], ['실내묘', '미확인'])
+  const more = document.querySelector('.compare-highlights-mobile .highlight-paired-more')
+  more.open = true
+  assert.deepEqual([...more.querySelectorAll('tbody tr td')].map(node => node.textContent), ['1 kg', '6.8 kg'])
+  const firstHeader = document.querySelector('.compare-highlights-mobile .highlight-paired-table thead th[data-product-id]')
+  await click([...firstHeader.querySelectorAll('button')].find(node => node.textContent === '상세 보기'))
+  await click([...firstHeader.querySelectorAll('button')].find(node => node.textContent === '비교에서 제거'))
+  assert.deepEqual(state.detailed, [first.product_id])
+  assert.deepEqual(state.removed, [first.product_id])
+  assert.equal(requests.length, 0, 'paired facts require no additional reads')
+
+  await act(async () => root.unmount())
+  root = null
+  document.body.innerHTML = '<div id="root"></div>'
+  state = await renderCompare({ currentProduct: null, criteriaLabels: [], items: [{ product: second }, { product: first }] })
+  checkPair([second.product_id, first.product_id], ['전연령', '성묘'], ['미확인', '실내묘'])
+  assert.equal(requests.length, 0)
+})
+
+test('paired highlight layout does not apply to applied conditions, avoidance, SWITCH or a mobile pair from three items', async () => {
+  const simple = [{ product: candidateA }, { product: candidateB }]
+  const base = { currentProduct: null, items: simple }
+  const { baseProps } = await renderCompare({ ...base, criteriaLabels: ['대상 연령 · 성묘'] })
+  for (const loc of ['desktop', 'mobile']) {
+    assert.equal(document.querySelector('.compare-highlights-' + loc + ' .highlight-paired'), null)
+    assert.equal(document.querySelectorAll('.compare-highlights-' + loc + ' .highlight-cards article').length, 2)
+  }
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, criteriaLabels: [], ingredientAvoidTerms: ['salmon'] })))
+  assert.equal(document.querySelector('.compare-highlights-mobile .highlight-paired'), null)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, criteriaLabels: [], ingredientAvoidTerms: [], currentProduct: current })))
+  assert.equal(document.querySelector('.compare-highlights-desktop .highlight-paired'), null)
+  await act(async () => root.render(createElement(app.CompareView, { ...baseProps, criteriaLabels: [], ingredientAvoidTerms: [], currentProduct: null, items: [{ product: candidateA }, { product: candidateB }, { product: current }] })))
+  assert.equal(document.querySelector('.compare-highlights-mobile .highlight-paired'), null, 'three actual items retain the original card layout')
+  assert.equal(document.querySelectorAll('.compare-highlights-mobile .highlight-cards article').length, 2)
+  assert.equal(document.querySelectorAll('.compare-highlights-desktop .highlight-cards article').length, 3)
+})
+
 test('general mobile highlights follow its chosen pair without retaining the original reference', async () => {
   const candidateC = product('product_candidate_c', '셋째브랜드', '세 번째 후보', { feed_type: '동결건조' })
   const listed = { label: '연어', summary: '확인한 원료표에 표기 없음' }

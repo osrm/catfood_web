@@ -1938,7 +1938,7 @@ export default function SwitchFlow({
     const renderCandidateRow = (evaluation: SwitchEvaluation) => {
       const product = evaluation.product
       const explanation = showIngredientSummary ? undefined : explanationFor(product)
-      const sourceSummary = showIngredientSummary && listReasons.isLoaded(product.product_id) ? candidateIngredientSummary(listReasons.byProduct.get(product.product_id)) : ''
+      const sourceSummary = showIngredientSummary && listReasons.isLoaded(product.product_id) ? candidateIngredientSummary(listReasons.byProduct.get(product.product_id), product.product_id) : ''
       const isCompared = compareIds.includes(product.product_id)
       const unresolved = unresolvedCandidateIds.has(product.product_id)
       const rowEvaluation = { ...evaluation, keepMatches: evaluation.keepMatches.filter((label) => !sharedKeep.includes(label)), changeMatches: evaluation.changeMatches.filter((label) => !sharedChange.includes(label)) }

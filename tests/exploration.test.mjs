@@ -586,14 +586,16 @@ test('LOOKUP and both SWITCH search surfaces share confirmed package matching', 
     package_size_text: `${weight / 1000} kg`, package_weight_g: weight, units_per_sale: 1,
   }))
   await act(async () => root.render(createElement(app.App)))
-  const input = document.querySelector('input[type="search"]')
-  assert.ok(input, 'LOOKUP input is present')
   const submitLookup = async (query) => {
+    // First search submits Home's form; subsequent queries use LOOKUP's live input.
+    const input = document.querySelector('.lookup-input') ?? document.querySelector('input[type="search"]')
+    assert.ok(input, 'LOOKUP input is present')
     await act(async () => {
       Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, query)
       input.dispatchEvent(new window.Event('input', { bubbles: true }))
     })
-    await act(async () => input.closest('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
+    const form = input.closest('form')
+    if (form) await act(async () => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
     return rows('.research-result-card').map((row) => row.getAttribute('data-product-id'))
   }
   assert.deepEqual(await submitLookup('AATU 연어 1kg'), [products[0].product_id], 'product lookup')

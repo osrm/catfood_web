@@ -1,6 +1,6 @@
 import type { CatalogProduct, ExploreEnergy, ListIngredientSource } from './api'
 import { splitIngredientText } from './ingredient-composition'
-import { ingredientAvoidanceWording, ingredientDisclosureReading, ingredientSourceScope, ingredientWordingExamples } from './ingredient-disclosure'
+import { ingredientAvoidanceWording, ingredientDisclosureReading, ingredientSourceScope, ingredientWordingExamples, oilIngredientEntries } from './ingredient-disclosure'
 import { energyText, usableEnergy } from './energy-refine'
 
 export type CandidateExplanation = { kept: string[]; differences: string[]; unknowns: string[]; references: string[]; ingredientLabelExample?: string }
@@ -33,7 +33,7 @@ export function candidateExplanation({ current, candidate, conditions, focus, be
         && !ingredientSourceScope(afterSource).needsCheck) {
         // Keep whole entries so qualifiers in parentheses stay with the quoted wording.
         const entries = [...new Set(splitIngredientText(afterSource.raw_text))].filter(entry => entry.length <= 60)
-        const oils = entries.filter(entry => /오일|기름|\boils?\b/i.test(entry))
+        const oils = oilIngredientEntries(afterSource.raw_text).filter(entry => entry.length <= 60)
         const example = (oils.length ? oils : entries).slice(0, 2).map(entry => `‘${entry}’`).join(' · ')
         if (example) ingredientLabelExample = example + (afterSource.observation_scope === 'variant' ? ' (확인한 포장 기준)' : '')
       }

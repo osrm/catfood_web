@@ -10,6 +10,14 @@ test('public identity entries have unique crawlable product URLs, exact app iden
   const base = 'https://osrm.github.io/catfood_web/'
   const index = new JSDOM(pages.get('foods/index.html'), { url: base + 'foods/' })
   assert.equal(index.window.document.querySelectorAll('.product-list a[href]').length, 3)
+  assert.match(index.window.document.title, /제품 표기 예시/)
+  assert.equal(index.window.document.querySelector('main h1').textContent, '제품 표기 예시')
+  assert.match(index.window.document.querySelector('main > p').textContent, /전체 사료 목록/)
+  const fullCatalog = new URL(index.window.document.querySelector('a.text-link').href)
+  assert.equal(fullCatalog.pathname, '/catfood_web/')
+  assert.equal(fullCatalog.searchParams.get('view'), 'workspace')
+  assert.equal(fullCatalog.searchParams.get('applied'), '1')
+  assert.equal(fullCatalog.searchParams.get('mode'), null)
   for (const p of snapshot.products) {
     const doc = new JSDOM(pages.get(`foods/${p.slug}/index.html`), { url: base + `foods/${p.slug}/` }).window.document
     assert.equal(doc.querySelector('link[rel=canonical]').href, base + `foods/${p.slug}/`)

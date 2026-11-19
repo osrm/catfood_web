@@ -3179,7 +3179,7 @@ summary:focus-visible,
 
 /* Unfiltered EXPLORE catalog only: give product names the available row width. */
 .research-shell[data-catalog-mode="explore"].is-browsing .research-results-list > .research-result-row {
-  grid-template-columns: minmax(0, 1fr) 100px;
+  grid-template-columns: minmax(0, 1fr) 132px;
   justify-content: stretch;
   gap: 16px;
   align-items: center;
@@ -3228,6 +3228,17 @@ summary:focus-visible,
   min-height: 44px;
   margin: 0;
   justify-self: end;
+  flex-direction: row;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.research-shell[data-catalog-mode="explore"].is-browsing .research-results-list > .research-result-row > .research-result-compare > span,
+.research-shell[data-catalog-mode="explore"].is-browsing .research-results-list > .research-result-row > .research-result-compare > strong {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
 }
 
 @media (max-width: 760px) {

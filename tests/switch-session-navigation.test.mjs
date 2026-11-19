@@ -1985,7 +1985,7 @@ test('disclosure-focused dry-food lookup shows a complete named salmon-oil entry
   await chooseCurrent(aatu.canonical_name)
   await click(variantButton('1 kg')); await click(exactButton('다음 →'))
   await click('원료가 얼마나 구체적으로')
-  await click('건식 유지'); await click('후보 제품 보기')
+  await click('건식 유지'); await click('후보부터 보기')
   await inputValue(document.querySelector('.switch-candidate-search input'), lechat.canonical_name)
   const selector = '[data-product-id="' + lechat.product_id + '"] .candidate-explanation'
   await waitForUi(() => document.querySelector(selector)?.textContent.includes('연어 오일'), 'full named-oil evidence on candidate')

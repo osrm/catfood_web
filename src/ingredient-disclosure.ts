@@ -182,6 +182,13 @@ function fishOilExamples(raw: string) {
   return splitIngredientText(raw).filter(value => /어유|생선.*오일|fish\s+oil/i.test(value)).slice(0, 2)
 }
 
+// Reuse complete source entries; splitIngredientText keeps parentheses with the name.
+export function oilIngredientEntries(raw: string) {
+  return [...new Set(splitIngredientText(raw).filter(value => /오일|기름|\boils?\b/i.test(value)))]
+}
+
+const NAMED_OIL_ENTRY = new RegExp('(?:' + FISH_SPECIES.source + '|' + ANIMAL_SPECIES.source + ')\\s*(?:오일|기름|유|oils?)(?=$|[^\\p{L}\\p{N}])', 'iu')
+
 export function ingredientWordingExamples(row: IngredientSource | null | undefined) {
   const reading = ingredientDisclosureReading(row)
   if (reading.details.length) return reading.details.map(item => `${item.phrase} — ${item.note}`)
@@ -189,13 +196,18 @@ export function ingredientWordingExamples(row: IngredientSource | null | undefin
     .map(value => /fish\s+oil\s*\(\s*herring\s*\)/i.test(value) ? `${value} — 청어를 명시한 오일` : value)
 }
 
-export function candidateIngredientSummary(row: ListIngredientSource | undefined) {
-  if (!row?.raw_text?.trim()) return '원료표 미확인'
+export function candidateIngredientSummary(row: ListIngredientSource | undefined, productId?: string) {
+  if (!row?.raw_text?.trim() || productId && row.product_id !== productId) return '원료표 미확인'
   const reading = ingredientDisclosureReading(row)
   const [detail] = reading.details
-  const phrase = detail?.phrase ?? fishOilExamples(row.raw_text)[0] ?? ''
-  let wording = phrase.length > 90 ? `${phrase.slice(0, 89)}…` : phrase
-  if (detail) wording += ` · ${detail.note.replace(/세부 (?=어종|동물 종류)/g, '')}`
+  // A named oil is shown only from a complete source applicable to this product.
+  const namedOil = row.completeness_status === 'full' && !ingredientSourceScope(row).needsCheck
+    ? oilIngredientEntries(row.raw_text).find(entry => NAMED_OIL_ENTRY.test(entry))
+    : undefined
+  const phrase = namedOil ?? detail?.phrase ?? fishOilExamples(row.raw_text)[0] ?? ''
+  let wording = phrase
+  if (namedOil && detail) wording += ' · ' + detail.phrase + ' · ' + detail.note.replace(/세부 (?=어종|동물 종류)/g, '')
+  else if (detail) wording += ' · ' + detail.note.replace(/세부 (?=어종|동물 종류)/g, '')
   else if (/^fish\s+oil\s*\(\s*herring\s*\)$/i.test(phrase)) wording = '청어유 표기'
   const scope = ingredientSourceScope(row).needsCheck ? '한국 판매 제품 적용 여부 미확인' : row.observation_scope === 'variant' ? '확인한 포장 기준' : ''
   const coverage = row.completeness_status === 'full' ? '' : reading.listLabel

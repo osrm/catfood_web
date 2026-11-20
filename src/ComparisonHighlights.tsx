@@ -98,7 +98,13 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
         <tbody>{pairRows(pairDifferences.slice(0, 3))}</tbody>
       </table>
       {pairDifferences.length > 3 ? <details className="highlight-paired-more"><summary>나머지 {pairDifferences.length - 3}개 보기</summary>
-        <table className="highlight-paired-table" aria-label="나머지 차이"><colgroup><col className="highlight-paired-label-column" /><col /><col /></colgroup><tbody>{pairRows(pairDifferences.slice(3))}</tbody></table>
+        <table className="highlight-paired-table" aria-label="나머지 차이">
+          <colgroup><col className="highlight-paired-label-column" /><col /><col /></colgroup>
+          <thead><tr><th scope="col">비교 항목</th>{items.map(item => <th key={item.product.product_id} scope="col" data-product-id={item.product.product_id}>
+            <span className="highlight-paired-more-name">{item.product.brand} · {item.product.canonical_name}</span>
+          </th>)}</tr></thead>
+          <tbody>{pairRows(pairDifferences.slice(3))}</tbody>
+        </table>
       </details> : null}
       {!pairDifferences.length ? <p>확인된 기본 표기에서 기준 제품과의 차이를 찾지 못했습니다.</p> : null}
     </div> : <div className="highlight-cards">{items.map((item, index) => {

@@ -132,6 +132,18 @@ try{
   await page.locator('.switch-candidate-row').first().waitFor({timeout:45000})
   const switchEnergyReadsBefore=energyReads
   await (await button('후보 열량 살펴보기')).click()
+  for(let attempt=0;attempt<2;attempt++){
+   await page.waitForFunction(()=>document.querySelector('.switch-energy-baseline')?.textContent.includes('370')
+     || [...document.querySelectorAll('button')].some(button=>button.textContent?.trim()==='열량 다시 불러오기'),null,{timeout:45000})
+   if(await page.evaluate(()=>Boolean(document.querySelector('.switch-energy-baseline')?.textContent.includes('370'))))break
+   report.energyRetries??=[];report.energyRetries.push({width,attempt:attempt+1})
+   const retryEnergy=page.getByRole('button',{name:'열량 다시 불러오기',exact:true})
+   try { await retryEnergy.click({timeout:5000}) }
+   catch(error) {
+    // A concurrent successful read can remove the retry control before the click.
+    if(await retryEnergy.isVisible())throw error
+   }
+  }
   await page.waitForFunction(()=>document.querySelector('.switch-energy-baseline')?.textContent.includes('370'),null,{timeout:45000})
   await page.waitForFunction(()=>document.querySelector('.switch-energy-refinement')?.textContent.includes('열량 확인 포장 · 3 kg'),null,{timeout:45000})
   assert.match(await page.locator('.switch-energy-refinement').innerText(),/사용 규격과 다른 포장에서 확인/)

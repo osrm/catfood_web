@@ -655,6 +655,12 @@ export default function App() {
       }
     }), [compareIds, products, activeComparisonCriteria, ingredientConditionsPending, search, refine, energyMax, energyByProduct, energyPending, energyError, listReasons.byProduct])
   const detailProduct = detailProductId ? products.find((product) => product.product_id === detailProductId) ?? null : null
+  // External /foods/ entries load a detail-only LOOKUP URL without an actual list to return to.
+  // Internal detail history and explicit search/condition context retain their normal back path.
+  const detailWithoutReturnList = Boolean(detailProduct) && mode === 'lookup'
+    && !(window.history.state as HistoryPayload | null)?.catfoodDetailEntry
+    && !lookupQuery.trim() && !comparisonCriteriaApplied && !selectedId && !compareOpen
+    && countActiveConditions(search, refine) === 0
 
   useLayoutEffect(() => {
     if (!compareOpen || !pendingAvoidanceOverview.current) return
@@ -825,6 +831,18 @@ export default function App() {
   function closeDetail() {
     const state = (window.history.state ?? {}) as HistoryPayload
     if (state.catfoodDetailEntry) { window.history.back(); return }
+    if (detailWithoutReturnList) {
+      const next = snapshot({
+        screen: 'workspace', mode: 'explore', lookupQuery: '',
+        search: INITIAL_SEARCH, refine: INITIAL_REFINE,
+        comparisonCriteriaApplied: false, editingConditions: false,
+        selectedId: null, visibleCount: 40, compareOpen: false, compareTab: 'overview',
+        detailProductId: null, detailTab: 'overview',
+      })
+      applyNavigation(next)
+      replaceHistory(next)
+      return
+    }
     const next = snapshot({ detailProductId: null, detailTab: 'overview', screen: 'workspace' })
     setDetailProductId(null); setDetailTab('overview'); setScreen('workspace'); replaceHistory(next)
   }
@@ -1121,7 +1139,7 @@ export default function App() {
   const pendingSwitchProduct = products.find((product) => product.product_id === pendingSwitchProductId)
   const replaceSwitchDialog = pendingSwitchProduct ? <JourneyDialog title="이 사료에서 새로 찾아볼까요?" onClose={() => setPendingSwitchProductId(null)}><p>진행하던 탐색과 남긴 후보가 지워집니다. 필요하면 먼저 복사해 두세요.</p><button className="secondary-action" type="button" onClick={() => setCopyJourneyOpen(true)}>기록 복사</button><button className="primary-action" type="button" onClick={() => startSwitchFromProduct(pendingSwitchProduct, true)}>이 사료에서 새로 찾기</button></JourneyDialog> : null
   const journeyOverlays = <>{restartJourneyDialog}{replaceSwitchDialog}{copyJourneyOpen ? <JourneyCopy records={readJourneyRecords()} onClose={() => setCopyJourneyOpen(false)} /> : null}</>
-  if (detailProduct) return <>{journeyOverlays}<ProductDetail product={detailProduct} backLabel={selectedProduct ? '← 돌아가기 · 제품 정보' : undefined} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onFindAlternatives={() => startSwitchFromProduct(detailProduct)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} /></>
+  if (detailProduct) return <>{journeyOverlays}<ProductDetail product={detailProduct} backLabel={selectedProduct ? '← 돌아가기 · 제품 정보' : detailWithoutReturnList ? '전체 사료 보기' : undefined} onHome={goHome} compared={compareIds.includes(detailProduct.product_id)} compareFull={compareIds.length >= 5} onToggleCompare={() => toggleCompare(detailProduct.product_id)} onFindAlternatives={() => startSwitchFromProduct(detailProduct)} onClose={closeDetail} initialTab={detailTab} onTabChange={changeDetailTab} /></>
   const resumableCurrent = products.find((product) => product.product_id === switchSession.currentProductId)
   const switchProgress = switchSession.currentProductId
     ? resumableCurrent ? resumableCurrent.brand + ' · ' + resumableCurrent.canonical_name : '이전 작업'

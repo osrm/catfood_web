@@ -273,6 +273,68 @@ test('direct detail URL restores the selected tab and still provides a way back 
   assert.ok(document.querySelector('.research-results'))
 })
 
+test('detail-only /foods/ entry returns to the unfiltered full catalog with the existing comparison selection', async () => {
+  const opened = products[2], previous = products[1]
+  // /foods/<slug>/ rewrites its direct entry to this detail-only LOOKUP URL.
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&detail=' + opened.product_id + '&detailTab=ingredients&compare=' + previous.product_id)
+  assert.equal(document.querySelector('#detail-tab-ingredients')?.getAttribute('aria-selected'), 'true')
+  assert.equal(document.querySelector('.detail-return-action')?.textContent, '전체 사료 보기')
+  assert.equal(document.querySelector('.detail-identity-actions button:last-child')?.textContent, '비교에 추가')
+  await click('비교에 추가')
+  assert.equal(document.querySelector('.detail-identity-actions button:last-child')?.textContent, '비교에서 제거')
+  assert.deepEqual(app.parseNavigationState(window.location.search).compareIds, [previous.product_id, opened.product_id])
+  await click('전체 사료 보기')
+  assert.equal(document.querySelector('.detail-stage'), null)
+  assert.ok(document.querySelector('.research-results'))
+  assert.equal(document.querySelectorAll('.research-result-card').length, 40, 'full catalog starts with its usual first 40 products')
+  assert.match(document.querySelector('.research-results-heading').textContent, new RegExp(String(products.length) + '개 중 40개 표시'))
+  const state = app.parseNavigationState(window.location.search)
+  assert.equal(state.mode, 'explore')
+  assert.equal(state.editingConditions, false)
+  assert.equal(state.comparisonCriteriaApplied, true, 'applied=1 is the existing full-list navigation marker, not a selected criterion')
+  assert.equal(new URLSearchParams(window.location.search).has('criteria'), false)
+  assert.deepEqual(state.search.feedType, [])
+  assert.equal(state.lookupQuery, '')
+  assert.equal(state.visibleCount, 40)
+  assert.equal(state.detailProductId, null)
+  assert.equal(new URLSearchParams(window.location.search).get('applied'), '1')
+  assert.equal(new URLSearchParams(window.location.search).has('q'), false)
+  assert.deepEqual(state.compareIds, [previous.product_id, opened.product_id], 'both the existing and newly added comparison choices survive')
+  assert.equal(document.querySelector('[data-compare-product-id="' + previous.product_id + '"]')?.getAttribute('aria-pressed'), 'true')
+  assert.equal(document.querySelector('[data-compare-product-id="' + opened.product_id + '"]')?.getAttribute('aria-pressed'), 'true')
+  assert.match(document.querySelector('.switch-compare-dock').textContent, /비교 2\/5/)
+  await click('비교 보기')
+  assert.ok(document.querySelector('.compare-stage'), 'preserved selections are still comparable')
+})
+
+test('direct detail with an explicit condition still returns to its original LOOKUP context', async () => {
+  const opened = products[3]
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=lookup&criteria=1&feed=' + encodeURIComponent('건식') + '&detail=' + opened.product_id)
+  assert.equal(document.querySelector('.detail-return-action').textContent, '← 돌아가기 · 제품 목록')
+  await click('제품 목록')
+  const state = app.parseNavigationState(window.location.search)
+  assert.equal(state.mode, 'lookup')
+  assert.equal(state.comparisonCriteriaApplied, true)
+  assert.deepEqual(state.search.feedType, ['건식'])
+  assert.equal(state.detailProductId, null)
+})
+
+test('internal unfiltered EXPLORE detail keeps list history, comparison and return focus', async () => {
+  await renderApp('https://catfood.test/catfood_web/?view=workspace&applied=1')
+  const first = document.querySelector('.research-result-row .research-result-card')
+  const id = products[0].product_id
+  await act(async () => first.click())
+  await waitForUi(() => document.querySelector('.research-quick-view') !== null, 'quick view opens from full catalog')
+  await click('상세 보기')
+  assert.ok(document.querySelector('.detail-stage'))
+  assert.equal(document.querySelector('.detail-return-action').textContent, '← 돌아가기 · 제품 정보')
+  assert.equal(window.history.state?.catfoodDetailEntry, true)
+  await click('제품 정보')
+  await waitForUi(() => document.querySelector('.research-quick-view') !== null && document.querySelector('.detail-stage') === null, 'internal detail returns to quick view')
+  assert.equal(app.parseNavigationState(window.location.search).mode, 'explore')
+  assert.equal(app.parseNavigationState(window.location.search).selectedId, id)
+})
+
 test('direct list compare stays separate from quick view and persists across EXPLORE and LOOKUP', async () => {
   const first = products[0]
   await renderApp('https://catfood.test/catfood_web/?view=workspace&mode=explore&applied=1&feed=건식&age=adult')

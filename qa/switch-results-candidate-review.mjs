@@ -27,7 +27,15 @@ async function setup(page){
  await page.locator('.switch-find-search input').fill('AATU')
  const row=page.locator('.switch-find-result').filter({hasText:/연어/}).first();await row.waitFor({state:'visible'});await row.click()
  const sku=page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first();await sku.waitFor({state:'visible'});await sku.click();await page.locator('.switch-step-actions .switch-primary-action').click()
- await page.getByRole('heading',{name:'무엇을 바꾸고 싶나요?',exact:true}).waitFor({state:'visible'})
+ const changeHeading=page.getByRole('heading',{name:'무엇을 바꾸고 싶나요?',exact:true})
+ const ingredientRetry=page.locator('.catalog-inline-state[role="alert"]').filter({hasText:'원료 확인 정보를 불러오지 못했습니다.'}).getByRole('button',{name:'다시 시도',exact:true})
+ for(let attempt=0;attempt<2;attempt++){
+  await changeHeading.or(ingredientRetry).first().waitFor({state:'visible',timeout:30000})
+  if(await changeHeading.isVisible())break
+  report.ingredientRetries??=[];report.ingredientRetries.push({viewport:page.viewportSize(),attempt:attempt+1})
+  await ingredientRetry.click()
+ }
+ await changeHeading.waitFor({state:'visible',timeout:30000})
  if(page.viewportSize().width===390){
   const browse=page.locator('.switch-step-header').getByRole('button',{name:'후보부터 보기 →',exact:true})
   const onFirstScreen=await browse.evaluate(el=>{

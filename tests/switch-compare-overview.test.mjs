@@ -402,21 +402,34 @@ test('mobile highlights follow the selected candidate and candidate removal', as
 test('unfiltered two-product highlights align named columns with age and unknown evidence even in reverse order', async () => {
   const first = product('long_product_first', '공통브랜드', '오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피', {
     feed_type: '건식', life_stage: 'adult', official_targets: ['indoor'], recipe_details: ['salmon'],
-    available_package_labels: ['1 kg'],
+    available_package_labels: ['1 kg'], display_image_url: 'https://example.invalid/first.png',
   })
   const second = product('long_product_second', '공통브랜드', '노르웨이 숲 어덜트 포뮬러 아주 긴 제품명', {
     feed_type: '건식', life_stage: 'all_life_stages', official_targets: [], recipe_details: ['chicken'],
-    available_package_labels: ['6.8 kg'],
+    available_package_labels: ['6.8 kg'], display_image_url: 'https://example.invalid/second.png',
   })
   const checkPair = (expectedIds, expectedAges, expectedTargets) => {
     for (const location of ['desktop', 'mobile']) {
       const summary = document.querySelector('.compare-highlights-' + location + ' .comparison-highlights')
       assert.ok(summary.querySelector('.highlight-paired'))
       assert.equal(summary.querySelector('.highlight-cards'), null)
-      const headers = [...summary.querySelectorAll('.highlight-paired-table thead th[data-product-id]')]
+      const tables = [...summary.querySelectorAll('.highlight-paired-table')]
+      assert.equal(tables.length, 2, 'primary and expanded differences use their own named table')
+      const headers = [...tables[0].querySelectorAll('thead th[data-product-id]')]
       assert.deepEqual(headers.map(node => node.dataset.productId), expectedIds)
       assert.deepEqual(headers.map(node => node.querySelector('h3').textContent), expectedIds.map(id => id === first.product_id ? first.brand + first.canonical_name : second.brand + second.canonical_name))
       assert.deepEqual(headers.map(node => [...node.querySelectorAll('button')].map(button => button.textContent)), [['상세 보기', '비교에서 제거'], ['상세 보기', '비교에서 제거']])
+      assert.deepEqual(headers.map(node => node.querySelector('.highlight-paired-image')?.getAttribute('src')), expectedIds.map(id => id === first.product_id ? first.display_image_url : second.display_image_url), 'both images remain alongside the full product names')
+      const expandedHeaders = [...tables[1].querySelectorAll('thead th[data-product-id]')]
+      assert.deepEqual(expandedHeaders.map(node => node.dataset.productId), expectedIds)
+      assert.deepEqual(expandedHeaders.map(node => node.textContent), expectedIds.map(id => {
+        const product = id === first.product_id ? first : second
+        return product.brand + ' · ' + product.canonical_name
+      }), 'expanded values have full, visible product column headers')
+      for (const table of tables) {
+        assert.deepEqual([...table.querySelectorAll('thead th')].map(node => node.getAttribute('scope')), ['col', 'col', 'col'])
+        assert.ok([...table.querySelectorAll('tbody tr')].every(row => row.querySelector('th')?.getAttribute('scope') === 'row' && row.querySelectorAll('td').length === 2), 'each value belongs to a named column and a scoped row header')
+      }
       const rows = [...summary.querySelectorAll('.highlight-paired-table tbody tr')]
       const values = (label) => {
         const row = rows.find(node => node.querySelector('th')?.textContent.includes(label))
@@ -429,6 +442,8 @@ test('unfiltered two-product highlights align named columns with age and unknown
       assert.equal(summary.querySelector('.highlight-paired-table > tbody').querySelectorAll('tr').length, 3, 'keep the first-three difference limit')
       assert.match(summary.querySelector('.highlight-paired-more summary').textContent, /나머지 1개 보기/)
       assert.match(summary.textContent, /함께 확인된 제품 표기/)
+      const ids = [...document.querySelectorAll('.comparison-highlights [id]')].map(node => node.id)
+      assert.equal(new Set(ids).size, ids.length, 'desktop and mobile tables do not duplicate DOM IDs')
     }
   }
 

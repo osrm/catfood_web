@@ -287,7 +287,7 @@ test('detail-only /foods/ entry returns to the unfiltered full catalog with the 
   assert.equal(document.querySelector('.detail-stage'), null)
   assert.ok(document.querySelector('.research-results'))
   assert.equal(document.querySelectorAll('.research-result-card').length, 40, 'full catalog starts with its usual first 40 products')
-  assert.match(document.querySelector('.research-results-heading').textContent, new RegExp(String(products.length) + '개의 제품'))
+  assert.match(document.querySelector('.research-results-heading').textContent, new RegExp(String(products.length) + '개 중 40개 표시'))
   const state = app.parseNavigationState(window.location.search)
   assert.equal(state.mode, 'explore')
   assert.equal(state.editingConditions, false)

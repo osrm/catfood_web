@@ -400,11 +400,11 @@ test('mobile highlights follow the selected candidate and candidate removal', as
 })
 
 test('unfiltered two-product highlights align named columns with age and unknown evidence even in reverse order', async () => {
-  const first = product('long_product_first', '공통브랜드', '오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피', {
+  const first = product('long_product_first', '첫번째브랜드', '오리지날 울트라 그레인프리 인도어 닭 & 연어 레시피', {
     feed_type: '건식', life_stage: 'adult', official_targets: ['indoor'], recipe_details: ['salmon'],
     available_package_labels: ['1 kg'], display_image_url: 'https://example.invalid/first.png',
   })
-  const second = product('long_product_second', '공통브랜드', '노르웨이 숲 어덜트 포뮬러 아주 긴 제품명', {
+  const second = product('long_product_second', '두번째브랜드', '노르웨이 숲 어덜트 포뮬러 아주 긴 제품명', {
     feed_type: '건식', life_stage: 'all_life_stages', official_targets: [], recipe_details: ['chicken'],
     available_package_labels: ['6.8 kg'], display_image_url: 'https://example.invalid/second.png',
   })
@@ -440,7 +440,9 @@ test('unfiltered two-product highlights align named columns with age and unknown
       assert.deepEqual(values('제품 표기 대상'), expectedTargets)
       assert.match(rows.find(node => node.querySelector('th')?.textContent.includes('제품 표기 대상')).querySelector('th').textContent, /자료 확인 차이/)
       assert.equal(summary.querySelector('.highlight-paired-table > tbody').querySelectorAll('tr').length, 3, 'keep the first-three difference limit')
-      assert.match(summary.querySelector('.highlight-paired-more summary').textContent, /나머지 1개 보기/)
+      assert.deepEqual([...tables[0].querySelectorAll('tbody th')].map(node => node.textContent), ['대상 연령', '제품 표기 대상자료 확인 차이', '주요 레시피'])
+      assert.deepEqual(values('브랜드'), expectedIds.map(id => id === first.product_id ? first.brand : second.brand))
+      assert.match(summary.querySelector('.highlight-paired-more summary').textContent, /나머지 2개 보기/)
       assert.match(summary.textContent, /함께 확인된 제품 표기/)
       const ids = [...document.querySelectorAll('.comparison-highlights [id]')].map(node => node.id)
       assert.equal(new Set(ids).size, ids.length, 'desktop and mobile tables do not duplicate DOM IDs')
@@ -451,7 +453,7 @@ test('unfiltered two-product highlights align named columns with age and unknown
   checkPair([first.product_id, second.product_id], ['성묘', '전연령'], ['실내묘', '미확인'])
   const more = document.querySelector('.compare-highlights-mobile .highlight-paired-more')
   more.open = true
-  assert.deepEqual([...more.querySelectorAll('tbody tr td')].map(node => node.textContent), ['1 kg', '6.8 kg'])
+  assert.deepEqual([...more.querySelectorAll('tbody tr td')].map(node => node.textContent), ['1 kg', '6.8 kg', first.brand, second.brand])
   const firstHeader = document.querySelector('.compare-highlights-mobile .highlight-paired-table thead th[data-product-id]')
   await click([...firstHeader.querySelectorAll('button')].find(node => node.textContent === '상세 보기'))
   await click([...firstHeader.querySelectorAll('button')].find(node => node.textContent === '비교에서 제거'))
@@ -538,6 +540,24 @@ test('fact comparison omits shared and mutually unknown values while prioritizin
     { key: 'age', value: '미확인', known: false },
   ])
   assert.deepEqual(compared.map(value => [value.key, value.bothKnown]), [['age', false], ['recipe', true]])
+})
+
+test('general multi-product highlights defer repeated brand behind known differences without changing evidence', async () => {
+  const third = product('third_brand_product', '셋째브랜드', '세 번째 제품', { feed_type: '습식', life_stage: 'all_life_stages' })
+  await renderCompare({ currentProduct: null, criteriaLabels: [], items: [{ product: current }, { product: third }, { product: candidateA }] })
+  for (const location of ['desktop', 'mobile']) {
+    const card = document.querySelector('.compare-highlights-' + location + ' [data-product-id="' + third.product_id + '"]')
+    assert.ok(card)
+    const rows = [...card.querySelectorAll(':scope > ul > li, :scope > details ul li')].map(node => node.textContent)
+    assert.equal(rows[0], '사료 형태: 건식 → 습식')
+    assert.equal(rows[1], '대상 연령: 성묘 → 전연령')
+    assert.ok(rows.includes('브랜드: 현재브랜드 → 셋째브랜드'))
+    assert.ok(rows.includes('제품 표기 대상 · 자료 확인 차이: 실내묘 → 미확인'))
+  }
+  await click(document.querySelector('.compare-full-record-toggle'))
+  assert.equal(document.querySelector('.compare-full-record').hidden, false)
+  assert.match(document.querySelector('.compare-full-record').textContent, /셋째브랜드/)
+  assert.equal(requests.length, 0)
 })
 
 test('energy highlights follow the energy field source and exclude unresolved foreign and supplemental sources', () => {

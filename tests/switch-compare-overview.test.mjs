@@ -543,7 +543,7 @@ test('fact comparison omits shared and mutually unknown values while prioritizin
 })
 
 test('general multi-product highlights defer repeated brand behind known differences without changing evidence', async () => {
-  const third = product('third_brand_product', '셋째브랜드', '세 번째 제품', { feed_type: '습식', life_stage: 'all_life_stages' })
+  const third = product('third_brand_product', '셋째브랜드', '세 번째 제품', { feed_type: '습식', life_stage: 'all_life_stages', recipe_details: ['chicken'] })
   await renderCompare({ currentProduct: null, criteriaLabels: [], items: [{ product: current }, { product: third }, { product: candidateA }] })
   for (const location of ['desktop', 'mobile']) {
     const card = document.querySelector('.compare-highlights-' + location + ' [data-product-id="' + third.product_id + '"]')

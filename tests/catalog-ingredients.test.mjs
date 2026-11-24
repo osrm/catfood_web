@@ -438,11 +438,13 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  rows=rows.map(row=>({...row,confirmed_present_ingredient_terms:row.canonical_name==='Alpha'?['salmon']:[],direct_evidence_ingredient_terms:[],reviewed_not_found_ingredient_terms:row.canonical_name==='Beta'?['salmon']:[]}))
  const unknown=product('product_0000000000000003','Gamma',{insufficient_evidence_ingredient_terms:['salmon'],ingredient_term_result_count:1})
  const generic = product('product_0000000000000004', 'Delta', {reviewed_not_found_ingredient_terms:['salmon'], ingredient_term_result_count:1})
- rows.push(unknown, generic)
+ const derivatives = product('product_0000000000000005', 'Epsilon', {reviewed_not_found_ingredient_terms:['salmon'], ingredient_term_result_count:1})
+ rows.push(unknown, generic, derivatives)
  sourceRows=[
    listSource(rows[1].product_id, 'Peas, Fish Oil, Natural Flavor'),
    listSource(unknown.product_id, '동물성 단백질원: 닭고기', {completeness_status:'summary'}),
    listSource(generic.product_id, '쌀, 어유', {is_manufacturer_source:true}),
+   listSource(derivatives.product_id, 'Meat and animal derivatives, fish and fish derivatives, Natural Flavor', {market_code:null, observation_scope:'formula', is_current_resolved_formula:true, is_manufacturer_source:true}),
  ]
  await mount('?view=workspace&mode=lookup&q=Test%20Brand')
  assert.equal(requests.filter(r=>r.url.pathname.endsWith('/list_product_ingredient_sources')).length,0)
@@ -451,7 +453,7 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  sourceHandler=()=>pendingSource.promise
  await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=salmon')
  const cards=[...document.querySelectorAll('.research-result-card')]
- assert.equal(cards.length,3)
+ assert.equal(cards.length,4)
  const beta=cards.find(card=>card.textContent.includes('Beta')),gamma=cards.find(card=>card.textContent.includes('Gamma'))
  assert.match(gamma.querySelector('.is-ingredient-verdict').textContent,/연어 포함 여부.*원료표 확인 중/s)
  assert.doesNotMatch(gamma.textContent,/포장 확인 필요/)
@@ -466,6 +468,12 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  assert.ok(delta.querySelector('.is-ingredient-verdict.is-unknown'))
  assert.equal(delta.querySelector('.ingredient-list-reason'), null)
  assert.equal(delta.textContent.match(/어유/g)?.length, 1)
+ const epsilon=document.querySelector(`.research-result-card[data-product-id="${derivatives.product_id}"]`)
+ assert.match(epsilon.querySelector('.is-ingredient-verdict').textContent,/연어 포함 여부.*fish and fish derivatives · 어종 미표기/s)
+ assert.equal(epsilon.textContent.match(/fish and fish derivatives/g)?.length,1)
+ assert.match(epsilon.querySelector('.ingredient-list-reason').textContent,/Natural Flavor — 향료 세부 구성 미표기/)
+ assert.doesNotMatch(epsilon.textContent,/어유/)
+ assert.equal(epsilon.closest('.result-evidence-group').getAttribute('aria-label'),'포함 여부를 판단하기 어려운 후보')
  assert.match(beta.textContent,/Fish Oil — 세부 어종 미표기/)
  assert.match(beta.textContent,/Natural Flavor — 향료 세부 구성 미표기/)
  assert.match(beta.textContent,/연어 포함 여부.*확인한 원료표에 표기 없음/s)

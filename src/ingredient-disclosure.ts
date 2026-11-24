@@ -32,7 +32,7 @@ const POULTRY_AVOID_TERMS = new Set(['chicken', 'duck', 'turkey', 'goose', 'quai
 const LAND_ANIMAL_AVOID_TERMS = new Set(['beef', 'lamb', 'pork', 'rabbit', 'venison', 'goat', 'boar'])
 // Require a complete generic entry here. A qualifier may name a species even
 // if it is outside the search vocabulary.
-const GENERIC_FISH_ENTRY = new RegExp(`^(?:정제\\s*)?(?:${FISH_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
+const GENERIC_FISH_ENTRY = new RegExp(`^(?:정제\\s*)?(?:${FISH_CATEGORY.source}|fish\\s+and\\s+fish\\s+derivatives)(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
 const GENERIC_POULTRY_ENTRY = /^(?:가금(?:류|육)(?:\s*(?:지방|단백질|육분|분말))?|poultry(?:\s+(?:fat|meal|protein))?)(?:\s*\d+(?:[.,]\d+)?\s*%)?$/i
 const GENERIC_ANIMAL_ENTRY = new RegExp(`^(?:${ANIMAL_CATEGORY.source})(?:\\s*\\d+(?:[.,]\\d+)?\\s*%)?$`, 'i')
 

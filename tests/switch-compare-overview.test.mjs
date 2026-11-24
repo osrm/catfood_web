@@ -278,6 +278,46 @@ test('avoidance shows only relevant generic terms from applicable full labels', 
   assert.equal(mobileCandidate.querySelector('.compare-ingredient-verdict strong').textContent, originalLabel)
 })
 
+test('fish and fish derivatives use the selected species result without duplicate generic notes', async () => {
+  const phrase = 'fish and fish derivatives'
+  const fish = { ...candidateA, reviewed_not_found_ingredient_terms: ['salmon', 'chicken'] }
+  const named = { ...candidateB, confirmed_present_ingredient_terms: ['salmon'], direct_evidence_ingredient_terms: ['salmon'] }
+  const source = { product_id: fish.product_id, raw_text: 'Meat and animal derivatives, ' + phrase + ', Natural Flavor', ingredient_names: [], completeness_status: 'full', observation_scope: 'formula', market_code: null, is_current_resolved_formula: true, is_manufacturer_source: true }
+  const namedSource = { ...source, product_id: named.product_id, raw_text: 'Salmon oil, ' + phrase }
+  const fetchDefault = globalThis.fetch
+  globalThis.fetch = window.fetch = async input => {
+    const url = new URL(String(input))
+    if (url.pathname.endsWith('/compare_product_ingredients_scoped')) return Response.json([source, namedSource])
+    return fetchDefault(input)
+  }
+  await renderCompare({ currentProduct: null, initialTab: 'ingredients', ingredientAvoidTerms: ['salmon', 'chicken'], items: [{ product: fish }, { product: named }] })
+  const rows = [...document.querySelectorAll('.compare-ingredient-wide .compare-row')]
+  const salmon = rows.find(row => row.querySelector('.compare-row-label')?.textContent === '연어 확인 결과')
+  const chicken = rows.find(row => row.querySelector('.compare-row-label')?.textContent === '닭 확인 결과')
+  assert.deepEqual([...salmon.querySelectorAll('.compare-ingredient-verdict')].map(node => [node.dataset.evidenceState, node.textContent]), [['reviewed-not-found', "제조사 표기 · ‘fish and fish derivatives’(어종 미표기)"], ['present', '확인됨']])
+  assert.equal(chicken.querySelector('.compare-ingredient-verdict').textContent, '확인한 원료표에 표기 없음')
+  for (const location of ['.compare-ingredient-wide', '.compare-ingredient-pair-summary']) {
+    const section = document.querySelector(location)
+    const readings = [...section.querySelectorAll('.compare-ingredient-reading')]
+    assert.doesNotMatch(readings[0].textContent, /fish and fish derivatives/)
+    assert.match(readings[0].textContent, /Natural Flavor/)
+    assert.match(readings[1].textContent, /fish and fish derivatives/)
+  }
+  const mobile = document.querySelector('.compare-ingredient-pair-summary')
+  assert.match(mobile.querySelector('.compare-ingredient-verdict').textContent, /fish and fish derivatives.*어종 미표기/)
+  assert.ok(document.querySelector('.compare-ingredient-wide .compare-evidence-disclosure').textContent.includes(phrase))
+  const wording = (row, product = fish, term = 'salmon') => app.ingredientAvoidanceWording(product, term, row, { compact: 'result' })
+  assert.equal(wording(source).state, 'reviewed-not-found')
+  assert.equal(wording(source).summary, phrase + ' · 어종 미표기')
+  assert.equal(wording({ ...source, is_manufacturer_source: false }).summary, '확인한 원료표에 표기 없음')
+  assert.equal(app.ingredientAvoidanceWording({ ...fish, reviewed_not_found_ingredient_terms: [] }, 'salmon', { ...source, is_manufacturer_source: false }, { compact: true }).summary, '원료표 · ‘fish and fish derivatives’(어종 미표기)')
+  for (const row of [null, { ...source, raw_text: null }, { ...source, raw_text: 'Natural Flavor' }, { ...source, raw_text: phrase + ' (salmon)' }, { ...source, completeness_status: 'partial' }, { ...source, is_current_resolved_formula: false }, { ...source, product_id: 'other' }]) {
+    assert.equal(wording(row).summary, '확인한 원료표에 표기 없음')
+  }
+  assert.equal(wording(source, fish, 'chicken').summary, '확인한 원료표에 표기 없음')
+  assert.equal(wording(namedSource, named).summary, '확인됨')
+})
+
 test('selected current package uses its own ingredient evidence and qualifies an unmatched formula label', async () => {
   const variant = (id, status, terms) => ({
     product_id: current.product_id, variant_id: id, formula_evidence_status: status,

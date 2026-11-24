@@ -238,11 +238,14 @@ function ingredientDetailContext(detail: CompareIngredients | undefined, variant
 }
 const PACKAGE_INGREDIENT_REFERENCE = '참고용 원료표 · 포장 확인 필요'
 
-function IngredientReadingSummary({ row, packageReference = false }: { row?: CompareIngredients | null; packageReference?: boolean }) {
+function IngredientReadingSummary({ row, packageReference = false, shownPhrases = [] }: { row?: CompareIngredients | null; packageReference?: boolean; shownPhrases?: string[] }) {
   const scope = ingredientSourceScope(row)
   const reading = ingredientDisclosureReading(row)
+  const examples = reading.details.length
+    ? reading.details.filter(detail => !shownPhrases.includes(detail.phrase)).map(detail => `${detail.phrase} — ${detail.note}`)
+    : ingredientWordingExamples(row)
   const summary = reading.listLabel === '전체 원료표 확인'
-    ? ingredientWordingExamples(row).slice(0, 2).join(' · ') || '—'
+    ? examples.slice(0, 2).join(' · ') || '—'
     : ingredientDisclosureSummary(row)
   return <span className="compare-ingredient-reading">
     <span>{summary}</span>
@@ -829,6 +832,18 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
     const packageSource = source?.observation_scope === 'variant' && source.variant_id === currentVariantId ? source : null
     return <IngredientAvoidanceResult product={currentIngredientVariant} term={term} source={packageSource} />
   }
+  function renderIngredientReading(product: CatalogProduct, row?: CompareIngredients | null, packageReference = false) {
+    const selectedPackage = product.product_id === currentProduct?.product_id && currentVariantId
+    const verdictProduct = selectedPackage ? currentIngredientVariant : product
+    const applicable = !selectedPackage || (row?.observation_scope === 'variant' && row.variant_id === currentVariantId)
+    const shownPhrases = verdictProduct && applicable && !packageReference && (!selectedPackage || !currentVariantLookupFailed && currentVariantsLoadedProductRef.current === product.product_id)
+      ? ingredientAvoidTerms.flatMap(term => {
+        const wording = ingredientAvoidanceWording(verdictProduct, term, row, { compact: true })
+        const pending = verdictProduct.confirmed_present_ingredient_terms == null || verdictProduct.reviewed_not_found_ingredient_terms == null
+        return wording.sourcePhrase && !(wording.state === 'unknown' && pending && ingredientLoad && ingredientLoad.status !== 'loaded') ? [wording.sourcePhrase] : []
+      }) : []
+    return <IngredientReadingSummary row={row} packageReference={packageReference} shownPhrases={shownPhrases} />
+  }
   const additionalNutrientKeys = useMemo(() => {
     const keys = new Set<string>()
     nutrition.forEach((row) => (row.additional_nutrients ?? []).forEach((value) => { if (value.amount != null) keys.add(value.nutrient_key) }))
@@ -1315,7 +1330,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         const error = isCurrent ? currentIngredientsError : activeIngredientsError
         const row = isCurrent ? currentIngredients ?? undefined : ingredientsByProduct.get(product.product_id)
         return loading ? <p role="status">원재료를 불러오는 중입니다.</p> : error ? <p role="alert">원재료를 불러오지 못했습니다.</p> : <>
-          <p className="compare-ingredient-context"><IngredientReadingSummary row={row} packageReference={isCurrent && currentIngredientPackageReference} /></p>
+          <p className="compare-ingredient-context">{renderIngredientReading(product, row, isCurrent && currentIngredientPackageReference)}</p>
           <IngredientSourceDisclosure row={row} context={isCurrent && currentIngredientPackageReference ? PACKAGE_INGREDIENT_REFERENCE : ingredientDetailContext(row, isCurrent ? currentVariants : variantsByProduct[product.product_id], isCurrent ? currentVariantLookupFailed : variantLookupFailures.includes(product.product_id), isCurrent ? currentVariantsLoading : variantsLoading)} />
         </>
       }} />
@@ -1448,8 +1463,8 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
           {ingredientAvoidTerms.length ? <CatalogIngredientNotice load={ingredientLoad} /> : null}
           {ingredientAvoidTerms.map(term => <SwitchOverviewRow key={term} label={`${INGREDIENT_AVOID_LABELS[term] ?? term} 확인 결과`} currentProduct={currentProduct} items={items} currentValue={product => renderIngredientAvoidance(product, term)} candidateValue={item => renderIngredientAvoidance(item.product, term)} />)}
           <SwitchOverviewRow label="세부 원료 표시" currentProduct={currentProduct} items={items}
-            currentValue={() => currentIngredientsLoading ? '불러오는 중' : currentIngredientsError ? '조회 실패' : currentIngredients ? <IngredientReadingSummary row={currentIngredients} packageReference={currentIngredientPackageReference} /> : '원재료 자료 없음'}
-            candidateValue={(item) => ingredientsLoading ? '불러오는 중' : activeIngredientsError ? '조회 실패' : ingredientsByProduct.has(item.product.product_id) ? <IngredientReadingSummary row={ingredientsByProduct.get(item.product.product_id)} /> : '원재료 자료 없음'} />
+            currentValue={() => currentIngredientsLoading ? '불러오는 중' : currentIngredientsError ? '조회 실패' : currentIngredients ? renderIngredientReading(currentProduct, currentIngredients, currentIngredientPackageReference) : '원재료 자료 없음'}
+            candidateValue={(item) => ingredientsLoading ? '불러오는 중' : activeIngredientsError ? '조회 실패' : ingredientsByProduct.has(item.product.product_id) ? renderIngredientReading(item.product, ingredientsByProduct.get(item.product.product_id)) : '원재료 자료 없음'} />
           <SwitchOverviewRow label="직접 확인 원료" currentProduct={currentIngredientProduct ?? currentProduct} items={items} currentValue={(product) => product.direct_evidence_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(product.direct_evidence_ingredient_terms, RECIPE_LABELS)} candidateValue={(item) => item.product.direct_evidence_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
           <SwitchOverviewRow label="향미 연관 원료" currentProduct={currentIngredientProduct ?? currentProduct} items={items} currentValue={(product) => product.flavor_associated_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(product.flavor_associated_ingredient_terms, RECIPE_LABELS)} candidateValue={(item) => item.product.flavor_associated_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
           <SwitchOverviewRow label="출처 원문" currentProduct={currentProduct} items={items} currentValue={() => currentIngredientsLoading ? '불러오는 중' : currentIngredientsError ? '조회 실패' : <IngredientSourceDisclosure row={currentIngredients ?? undefined} context={currentIngredientPackageReference ? PACKAGE_INGREDIENT_REFERENCE : ingredientDetailContext(currentIngredients ?? undefined, currentVariants, currentVariantLookupFailed, currentVariantsLoading)} />} candidateValue={(item) => ingredientsLoading ? '불러오는 중' : activeIngredientsError ? '조회 실패' : <IngredientSourceDisclosure row={ingredientsByProduct.get(item.product.product_id)} context={ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)} />} />
@@ -1499,7 +1514,7 @@ export default function CompareView({ ingredientConditionsPending = false, ingre
         {tab === 'ingredients' ? ingredientAvoidTerms.map(term => <CompareRow key={term} label={`${INGREDIENT_AVOID_LABELS[term] ?? term} 확인 결과`} items={items} render={item => renderIngredientAvoidance(item.product, term)} />) : null}
         {tab === 'ingredients' && !ingredientsLoading && !activeIngredientsError ? <>
           <CompareSection title="원재료" />
-          <CompareRow label="세부 원료 표시" items={items} render={(item) => <IngredientReadingSummary row={ingredientsByProduct.get(item.product.product_id)} />} />
+          <CompareRow label="세부 원료 표시" items={items} render={(item) => renderIngredientReading(item.product, ingredientsByProduct.get(item.product.product_id))} />
           <CompareRow label="직접 확인 원료" items={items} render={(item) => item.product.direct_evidence_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.direct_evidence_ingredient_terms, RECIPE_LABELS)} />
           <CompareRow label="향미 연관 원료" items={items} render={(item) => item.product.flavor_associated_ingredient_terms == null ? ingredientLoad?.status === 'error' ? '조회 실패' : '불러오는 중' : labels(item.product.flavor_associated_ingredient_terms, RECIPE_LABELS)} />
           <CompareRow label="출처 원문" items={items} render={(item) => <IngredientSourceDisclosure row={ingredientsByProduct.get(item.product.product_id)} context={ingredientDetailContext(ingredientsByProduct.get(item.product.product_id), variantsByProduct[item.product.product_id], variantLookupFailures.includes(item.product.product_id), variantsLoading)} />} />

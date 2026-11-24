@@ -5,12 +5,22 @@ import './comparison-highlights.css'
 
 export type HighlightFact = { key: string; label: string; value: string; known: boolean; priority?: boolean }
 
-export function differentFacts(baseline: HighlightFact[], candidate: HighlightFact[]) {
-  return candidate.flatMap(fact => {
+export function differentFacts(baseline: HighlightFact[], candidate: HighlightFact[], deferBrand = false) {
+  const differences = candidate.flatMap(fact => {
     const before = baseline.find(value => value.key === fact.key)
     if (!before || !before.known && !fact.known || before.known && fact.known && before.value === fact.value) return []
     return [{ ...fact, priority: fact.priority || before.priority, before: before.value, bothKnown: before.known && fact.known }]
   }).sort((a, b) => Number(Boolean(b.priority)) - Number(Boolean(a.priority)))
+  if (deferBrand) {
+    // The product headers already identify brands. Keep other facts in their existing order.
+    const brandIndex = differences.findIndex(fact => fact.key === 'brand')
+    const lastKnownDifference = differences.reduce((last, fact, index) => fact.key !== 'brand' && fact.bothKnown ? index : last, -1)
+    if (brandIndex >= 0 && brandIndex < lastKnownDifference) {
+      const [brand] = differences.splice(brandIndex, 1)
+      differences.splice(lastKnownDifference, 0, brand)
+    }
+  }
+  return differences
 }
 
 // A numeric contrast follows the energy field's own market and formula source.
@@ -69,7 +79,7 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
   // Keep item-specific condition or ingredient annotations in the original cards.
   const showPair = pairedFacts && !baseline && items.length === 2 && !criteriaLabels.length
     && items.every(item => !ingredientLines(item, true).length && !conditionLines(item).length)
-  const pairDifferences = showPair ? differentFacts(before, facts(items[1].product)) : []
+  const pairDifferences = showPair ? differentFacts(before, facts(items[1].product), true) : []
   const pairRows = (rows: typeof pairDifferences) => rows.map(fact => <tr key={fact.key}>
     <th scope="row">{fact.label}{!fact.bothKnown ? <small>자료 확인 차이</small> : null}</th>
     <td>{fact.before}</td><td>{fact.value}</td>
@@ -109,7 +119,7 @@ export default function ComparisonHighlights({ items, baseline, facts, criteriaL
       {!pairDifferences.length ? <p>확인된 기본 표기에서 기준 제품과의 차이를 찾지 못했습니다.</p> : null}
     </div> : <div className="highlight-cards">{items.map((item, index) => {
       const isReference = !baseline && index === 0
-      const differences = isReference ? [] : differentFacts(before, facts(item.product))
+      const differences = isReference ? [] : differentFacts(before, facts(item.product), !baseline)
       const ingredients = ingredientLines(item, !baseline)
       const conditions = isReference ? ingredients : [...ingredients, ...conditionsByItem[index].filter(value => !commonConditions.includes(value))]
       return <article key={item.product.product_id} data-product-id={item.product.product_id}>

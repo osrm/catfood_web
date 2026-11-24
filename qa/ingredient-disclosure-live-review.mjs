@@ -95,7 +95,7 @@ try {
     assert.deepEqual(await productHeads.evaluateAll(nodes => nodes.map(node => node.dataset.productId)), [products[0].id, products[1].id])
     assert.match(await productHeads.nth(0).innerText(), /로얄캐닌/)
     assert.match(await productHeads.nth(1).innerText(), /Alleva/)
-    const brandRow = paired.locator('tbody tr').filter({ hasText: '브랜드' }).first()
+    const brandRow = highlights.locator('.highlight-paired-table tbody tr').filter({ has: page.getByRole('rowheader', { name: '브랜드', exact: true, includeHidden: true }) }).first()
     assert.deepEqual(await brandRow.locator('td').allTextContents(), ['로얄캐닌', 'Alleva'], 'brand values stay in their product columns')
     assert.doesNotMatch(await highlights.innerText(), /사료 형태: 건식 → 건식/)
     await capture('compare-overview', '.compare-stage')

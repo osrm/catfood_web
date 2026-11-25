@@ -141,8 +141,9 @@ test('fact API accepts loaded empty facts but rejects missing, duplicate, foreig
 })
 test('HOME and pure name search do not start a fact read',async()=>{
  await mount();assert.equal(facts().length,0)
- await click('제품 찾기');assert.equal(facts().length,0)
- const input=document.querySelector('input[type="search"]');await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Alpha');input.dispatchEvent(new window.Event('input',{bubbles:true}))})
+ const input=document.querySelector('.home-entry-search input');await act(async()=>{Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,'Alpha');input.dispatchEvent(new window.Event('input',{bubbles:true}))})
+ assert.equal(facts().length,0)
+ await act(async()=>input.closest('form').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true})))
  assert.match(text(),/Alpha/);assert.equal(facts().length,0)
 })
 test('ingredient exclusion deep link waits, then excludes confirmed products without calling pending evidence unknown',async()=>{

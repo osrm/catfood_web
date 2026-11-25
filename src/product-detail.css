@@ -1063,3 +1063,6 @@
 }
 .detail-stage .detail-return-bar > button { min-height: 44px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
 .detail-stage:has(.detail-return-bar) .detail-tabs { top: 56px; }
+
+/* Shared detail identity: plain, wrapping Korean package summary, not a selector. */
+.detail-stage .detail-identity-copy .detail-package-summary {margin:6px 0 0;line-height:1.7;white-space:normal;overflow-wrap:anywhere;color:var(--cf-muted)}

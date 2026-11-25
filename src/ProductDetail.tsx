@@ -419,7 +419,8 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
     product.official_targets.length ? ['제품 표기 대상', listLabel(product.official_targets, TARGET_LABELS)] : null,
     product.official_recipe_traits.includes('grain_free') ? ['Grain-Free', '제품에 표기됨'] : null,
   ].filter((item): item is [string, string] => item !== null)
-  const showPackageDetails = variants.some((variant) =>
+  const packageSummaryLoading = resourceProductId.current !== product.product_id || loading.variants
+  const showPackageDetails = !packageSummaryLoading && !errors.variants && variants.some((variant) =>
     variant.sales_bundle_status !== 'not_a_bundle'
     || variant.units_per_sale !== 1
     || variant.package_weight_g == null
@@ -455,6 +456,7 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
           <span>{product.brand}</span>
           <h1>{product.canonical_name}</h1>
           <p>{product.feed_type ?? '형태 미확인'} · {product.life_stage ? valueLabel(product.life_stage, LIFE_STAGE_LABELS) : '대상 연령 미확인'}</p>
+          {packageSummaryLoading ? <p className="detail-package-summary">판매 규격을 불러오는 중입니다.</p> : errors.variants ? <LoadError message={errors.variants} onRetry={() => loadResource('variants')} /> : <p className="detail-package-summary">{variants.length ? <>한국 판매 규격 · {variants.map((variant) => variantSizeLabel(variant) ?? '규격 표기 미확인').join(' · ')}</> : '확인된 판매 규격이 없습니다.'}</p>}
         </div>
         <ProductImage product={product} />
         {!selectionContext && (onToggleCompare || onFindAlternatives) ? <div className="detail-identity-actions">{onFindAlternatives ? <button className="primary-action" type="button" onClick={onFindAlternatives}>이 사료에서 후보 찾기 →</button> : null}{onToggleCompare ? <button className={compared || onFindAlternatives ? 'secondary-action' : 'primary-action'} type="button" disabled={compareFull && !compared} onClick={onToggleCompare}>{compared ? '비교에서 제거' : compareFull ? '비교는 최대 5개' : '비교에 추가'}</button> : null}</div> : null}
@@ -486,25 +488,19 @@ export default function ProductDetail({ product, onClose, backLabel = '← 돌�
                 </> : <div className="detail-empty">확인된 영양 정보가 없습니다.</div>}
               </div>
             </section>
-            <section className="detail-section">
+            {showPackageDetails ? <section className="detail-section">
               <div className="detail-section-heading"><h2>한국 판매 규격</h2></div>
               <div className="detail-section-content">
-                {loading.variants ? <div className="detail-state">판매 규격을 불러오는 중입니다.</div> : null}
-                {errors.variants ? <LoadError message={errors.variants} onRetry={() => loadResource('variants')} /> : null}
-                {!loading.variants && !errors.variants && variants.length ? <>
-                  <div className="detail-size-list">{variants.map((variant) => <span key={variant.variant_id}>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</span>)}</div>
-                  {showPackageDetails ? <details className="detail-disclosure">
-                    <summary>판매 단위와 총중량</summary>
-                    <div className="detail-variant-list">{variants.map((variant) => <div className="detail-variant-row" key={variant.variant_id}>
-                      <div><span>판매 규격</span><strong>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</strong></div>
-                      <div><span>판매 단위</span><strong>{variant.units_per_sale != null ? `${variant.units_per_sale}개` : '미확인'}</strong></div>
-                      <div><span>총 판매 중량</span><strong>{weightLabel(variant.sale_total_weight_g)}</strong></div>
-                    </div>)}</div>
-                  </details> : null}
-                </> : null}
-                {!loading.variants && !errors.variants && variants.length === 0 ? <div className="detail-empty">확인된 판매 규격이 없습니다.</div> : null}
+                <details className="detail-disclosure">
+                  <summary>판매 단위와 총중량</summary>
+                  <div className="detail-variant-list">{variants.map((variant) => <div className="detail-variant-row" key={variant.variant_id}>
+                    <div><span>판매 규격</span><strong>{variantSizeLabel(variant) ?? '규격 표기 미확인'}</strong></div>
+                    <div><span>판매 단위</span><strong>{variant.units_per_sale != null ? `${variant.units_per_sale}개` : '미확인'}</strong></div>
+                    <div><span>총 판매 중량</span><strong>{weightLabel(variant.sale_total_weight_g)}</strong></div>
+                  </div>)}</div>
+                </details>
               </div>
-            </section>
+            </section> : null}
             <section className="detail-section">
               <div className="detail-section-heading"><h2>원재료 요약</h2></div>
               <div className="detail-section-content">

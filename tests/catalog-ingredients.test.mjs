@@ -496,6 +496,35 @@ test('avoidance list explains generic wording without changing verdicts or prefe
  assert.equal(result.querySelector('[data-evidence-state="reviewed-not-found"]')?.textContent,'확인한 원료표에 표기 없음')
 })
 
+test('mobile two-product avoidance rows separate verified original phrases from verdicts and preserve other evidence',async()=>{
+ rows=[
+   product('product_0000000000000001','Alpha',{representative_package_size_text:'85 g',reviewed_not_found_ingredient_terms:['salmon'],direct_evidence_ingredient_terms:['chicken'],confirmed_present_ingredient_terms:['chicken'],ingredient_term_result_count:2}),
+   product('product_0000000000000002','Beta',{representative_package_size_text:'2 kg',insufficient_evidence_ingredient_terms:['salmon'],ingredient_term_result_count:1}),
+ ]
+ const normal=globalThis.fetch
+ globalThis.fetch=window.fetch=async(input,init={})=>{
+   const url=new URL(String(input))
+   if(url.pathname.endsWith('/compare_product_ingredients_scoped'))return Response.json(rows.map((row,index)=>({...listSource(row.product_id,index?'쌀, 어유':'fish and fish derivatives, chicken',{is_manufacturer_source:index===0}),ingredient_names:index?['쌀','어유']:['fish and fish derivatives','chicken'],ingredient_count:2})))
+   return normal(input,init)
+ }
+ await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=salmon,chicken&compare='+rows.map(row=>row.product_id).join(',')+'&compareOpen=1&compareTab=ingredients')
+ const table=document.querySelector('.compare-mobile-aligned-ingredients table')
+ assert.ok(table)
+ const groups=[...table.querySelectorAll('tbody.compare-mobile-two-product-field')]
+ const fields=groups.map(group=>group.querySelector('th').textContent)
+ assert.deepEqual(fields,['연어 포함 여부','관련 원료 원문','닭 포함 여부','판매 규격'])
+ const cells=group=>[...group.querySelectorAll('td')].map(td=>td.textContent)
+ assert.deepEqual(cells(groups[0]),['어종 미표기','어종 미표기'])
+ assert.deepEqual(cells(groups[1]),['제조사 표기fish and fish derivatives','확인한 원료표어유'])
+ assert.deepEqual(cells(groups[2]),['확인됨','포장 확인 필요'])
+ assert.deepEqual(cells(groups[3]),['85 g','2 kg'])
+ assert.equal(table.querySelectorAll('.compare-source-layers').length,2)
+ assert.equal(table.querySelectorAll('.compare-ingredient-summary-values p').length,1)
+ assert.equal(table.querySelectorAll('thead th[scope="col"]').length,2)
+ for(const group of groups)for(const cell of group.querySelectorAll('td'))for(const id of cell.getAttribute('headers').split(' '))assert.ok(document.getElementById(id))
+ assert.equal(document.querySelectorAll('.compare-ingredient-wide .compare-row-label').length>0,true,'desktop original comparison remains')
+})
+
 test('source explanation failure preserves avoidance results and retries separately from term facts',async()=>{
  sourceHandler=async()=>new Response('',{status:503})
  await mount('?view=workspace&mode=explore&applied=1&avoidIngredients=chicken')

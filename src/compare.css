@@ -1606,3 +1606,18 @@
   .compare-ingredient-pair summary { min-height: 44px; display: flex; align-items: center; }
   .compare-ingredient-pair .compare-mobile-head-actions button { min-height: 44px; min-width: 44px; }
 }
+
+@media (max-width: 760px) {
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-table { background: transparent; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-key th { position: static; background: transparent; padding: 8px 10px; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-key th > strong { font-size: 14px; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-key td { padding: 8px 10px; vertical-align: top; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-value { vertical-align: top; overflow-wrap: anywhere; padding: 10px; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-row-label { background: transparent; padding: 10px 10px 4px; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-aligned-ingredient-source small { display: block; font-size: 11px; color: var(--cf-muted); }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-aligned-ingredient-source span { display: block; font-size: 13px; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-disclosure { margin: 8px 0; min-width: 0; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-disclosure summary { min-height: 44px; overflow-wrap: anywhere; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-ingredient-text { overflow-wrap: anywhere; }
+}

@@ -343,7 +343,6 @@ function MobileTwoProductIngredients({ items, terms, load, sourceFor, loading, e
       <caption className="compare-mobile-two-product-visually-hidden">두 제품 원재료 항목별 비교</caption>
       <thead className="compare-mobile-two-product-key">
         <tr>{items.map((item, index) => <th key={item.product.product_id} id={headerId(item, index)} scope="col"><span>{item.product.brand}</span><strong>{item.product.canonical_name}</strong></th>)}</tr>
-        <tr>{items.map((item, index) => <td key={item.product.product_id} headers={headerId(item, index)}><div className="compare-mobile-two-product-actions"><button type="button" aria-label={`${item.product.brand} ${item.product.canonical_name} 상세 보기`} onClick={() => onDetail(item.product.product_id)}>상세 보기</button><button type="button" aria-label={`${item.product.brand} ${item.product.canonical_name} 비교에서 제거`} onClick={() => onRemove(item.product.product_id)}>제거</button></div></td>)}</tr>
       </thead>
       {terms.map(term => {
         const phrases = items.map(item => sourcePhrase(item.product, term))
@@ -357,6 +356,9 @@ function MobileTwoProductIngredients({ items, terms, load, sourceFor, loading, e
       })}
       <MobileTwoProductOverviewField fieldKey="ingredient-packages" label="판매 규격" items={items} render={item => representativePackageLabel(item.product)} />
       <tbody><tr>{items.map((item, index) => <td className="compare-mobile-two-product-value" key={item.product.product_id} headers={headerId(item, index)}>{renderDetails(item.product)}</td>)}</tr></tbody>
+      <tfoot className="compare-mobile-two-product-ingredient-actions">
+        <tr>{items.map((item, index) => <td key={item.product.product_id} headers={headerId(item, index)}><div className="compare-mobile-two-product-actions"><button type="button" aria-label={`${item.product.brand} ${item.product.canonical_name} 상세 보기`} onClick={() => onDetail(item.product.product_id)}>상세 보기</button><button type="button" aria-label={`${item.product.brand} ${item.product.canonical_name} 비교에서 제거`} onClick={() => onRemove(item.product.product_id)}>제거</button></div></td>)}</tr>
+      </tfoot>
     </table>
   </section>
 }

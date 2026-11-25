@@ -100,8 +100,23 @@ try {
     await capture('specified-detail', '.detail-document')
 
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${full.product_id},${partial.product_id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })
-    await page.getByText(/일부 원료표 확인.*어유/).filter({ visible: true }).first().waitFor()
-    const original = page.locator('.compare-stage .compare-evidence-disclosure').filter({ visible: true }).first()
+    let original
+    if (width <= 760) {
+      const table = page.locator('.compare-mobile-aligned-ingredients table')
+      const productCell = id => table.locator(`td[headers$="-${id}"]`).filter({ has: page.locator('.compare-ingredient-reading') })
+      const fullCell = productCell(full.product_id), partialCell = productCell(partial.product_id)
+      const partialReading = partialCell.locator('details').filter({ has: page.locator('summary', { hasText: /^세부 원료 표시$/ }) })
+      await partialReading.locator('summary').click()
+      assert.match(await partialReading.locator('.compare-ingredient-reading').innerText(), /일부 원료표 확인.*어유/s)
+      assert.match(await partialReading.locator('.compare-ingredient-reading').innerText(), /한국 판매 제품과 같은 배합인지 미확인/)
+      const fullReading = fullCell.locator('details').filter({ has: page.locator('summary', { hasText: /^세부 원료 표시$/ }) })
+      await fullReading.locator('summary').click()
+      assert.match(await fullReading.locator('.compare-ingredient-reading').innerText(), /어유.*세부 어종 미표기/s)
+      original = fullCell.locator('.compare-evidence-disclosure')
+    } else {
+      await page.getByText(/일부 원료표 확인.*어유/).filter({ visible: true }).first().waitFor()
+      original = page.locator('.compare-stage .compare-evidence-disclosure').filter({ visible: true }).first()
+    }
     assert.equal(await original.getAttribute('open'), null)
     await original.locator('summary').click()
     assert.match(await original.innerText(), /전체 원료표 확인/)

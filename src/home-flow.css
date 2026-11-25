@@ -17,7 +17,7 @@
 .home-flow-shell.discovery-home .home-entry-search:is(:focus-within,:has(input:focus-visible)){background:transparent;border-bottom-color:var(--interaction-focus);outline:2px solid var(--interaction-focus);outline-offset:3px}
 .home-flow-shell.discovery-home .home-entry-search-field{padding-left:0}
 .home-flow-shell.discovery-home .home-entry-search input{height:54px;min-height:54px;font-size:16px;color:var(--home-ink);padding:8px 0}
-.home-flow-shell.discovery-home .home-entry-search-submit,.home-flow-shell.discovery-home .home-entry-search-submit:not(:disabled):hover{height:54px;min-height:54px;min-width:44px;width:auto;padding:0 4px;border:0;border-radius:0;font-size:15px;background:transparent;color:var(--home-ink)}
+.home-flow-shell.discovery-home .home-entry-search-submit,.home-flow-shell.discovery-home .home-entry-search-submit:not(:disabled),.home-flow-shell.discovery-home .home-entry-search-submit:not(:disabled):hover{height:54px;min-height:54px;min-width:44px;width:auto;padding:0 4px;border:0;border-radius:0;font-size:15px;background:transparent;color:var(--home-ink)}
 .home-flow-shell.discovery-home .home-entry-search-submit:disabled{color:#81786f;background:transparent}
 .home-flow-shell.discovery-home .home-entry-search-submit:focus-visible{outline-offset:2px}
 .home-flow-shell.discovery-home .home-entry-board{background:transparent;border:0;padding:0;margin:14px 0 0;width:100%}

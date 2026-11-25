@@ -95,9 +95,14 @@ try{
   const reviewedCompare=page.locator(`[data-compare-product-id="${reviewedId}"]`)
   await reviewedCompare.click()
   if(width===390) await reviewedCompare.evaluate(node=>node.scrollIntoView({block:'start',behavior:'instant'}))
-  const resultsScroll=await page.evaluate(()=>scrollY)
+  const openCompare = await button('비교 보기 →')
+  // Measure at activation, after layout updates and Playwright's scroll into view.
+  if(width===390) await openCompare.evaluate(node => {
+   node.addEventListener('click', () => { window.__qaCompareScroll = scrollY }, { capture: true, once: true })
+  })
+  await openCompare.click()
+  const resultsScroll = width===390 ? await page.evaluate(() => window.__qaCompareScroll) : 0
   if(width===390) assert.ok(resultsScroll>0,'the comparison starts from a scrolled results list')
-  await (await button('비교 보기 →')).click()
   await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/연어/)
   if(width===390){
    const summary=page.locator('.compare-highlights-mobile .comparison-highlights')

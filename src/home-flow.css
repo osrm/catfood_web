@@ -8,29 +8,33 @@
 .home-flow-shell.discovery-home .home-header-nav button{min-height:44px;border:0;background:transparent;padding:0;color:var(--home-ink);font-size:14px;font-weight:550;white-space:nowrap}
 .home-flow-shell.discovery-home .home-main{width:min(1120px,calc(100% - 42px));margin:0 auto;padding:42px 0 30px}
 .home-flow-shell.discovery-home .home-start{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"copy scene";align-items:center;gap:48px;text-align:left;padding:0 0 28px}
-.home-flow-shell.discovery-home .home-scene{grid-area:scene;margin:0;justify-self:center;min-width:0}
-.home-flow-shell.discovery-home .home-scene img{display:block;width:auto;height:320px;max-width:100%;object-fit:contain;mix-blend-mode:multiply}
+.home-flow-shell.discovery-home .home-scene{grid-area:scene;margin:0;justify-self:stretch;min-width:0;width:100%;max-width:100%}
+.home-flow-shell.discovery-home .home-scene img{display:block;margin:0 auto;width:auto;height:auto;max-width:100%;max-height:320px;object-fit:contain;mix-blend-mode:multiply}
 .home-flow-shell.discovery-home .home-start-copy{grid-area:copy;display:block;padding:0;margin:0;min-width:0;width:100%;background:transparent}
 .home-flow-shell.discovery-home .home-start-copy h1{font-family:HomeSeed,var(--cf-font);font-size:46px;font-weight:700;line-height:1.25;letter-spacing:-1.5px;color:var(--home-ink);margin:0;max-width:none}
 .home-flow-shell.discovery-home .home-entry-lookup{width:100%;padding:0;margin:15px 0 0;text-align:left}
-.home-flow-shell.discovery-home .home-entry-search{display:grid;grid-template-columns:minmax(0,1fr) 86px;gap:0;padding:0;border:1px solid #aaa198;border-radius:4px;background:#fff;overflow:hidden}
-.home-flow-shell.discovery-home .home-entry-search-field{padding-left:15px}
+.home-flow-shell.discovery-home .home-entry-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:0;border:0;border-bottom:1px solid #aaa198;border-radius:0;background:transparent;overflow:visible}
+.home-flow-shell.discovery-home .home-entry-search:focus-within{background:transparent;border-bottom-color:var(--interaction-focus);outline:2px solid var(--interaction-focus);outline-offset:3px}
+.home-flow-shell.discovery-home .home-entry-search-field{padding-left:0}
 .home-flow-shell.discovery-home .home-entry-search input{height:54px;min-height:54px;font-size:16px;color:var(--home-ink);padding:8px 0}
-.home-flow-shell.discovery-home .home-entry-search-submit{height:54px;min-height:54px;border:0;border-radius:0;font-size:15px;background:var(--home-ink);color:#fff}
-.home-flow-shell.discovery-home .home-entry-search-submit:disabled{color:#81786f;background:#fff}
-.home-flow-shell.discovery-home .home-entry-search-submit:focus-visible{outline-offset:-4px}
+.home-flow-shell.discovery-home .home-entry-search-submit,.home-flow-shell.discovery-home .home-entry-search-submit:not(:disabled):hover{height:54px;min-height:54px;min-width:44px;width:auto;padding:0 4px;border:0;border-radius:0;font-size:15px;background:transparent;color:var(--home-ink)}
+.home-flow-shell.discovery-home .home-entry-search-submit:disabled{color:#81786f;background:transparent}
+.home-flow-shell.discovery-home .home-entry-search-submit:focus-visible{outline-offset:2px}
 .home-flow-shell.discovery-home .home-entry-board{background:transparent;border:0;padding:0;margin:14px 0 0;width:100%}
 .home-flow-shell.discovery-home .home-entry-route{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:0;padding:0;min-height:0;gap:0}
 .home-flow-shell.discovery-home .home-entry-route>button,.home-flow-shell.discovery-home .home-switch-actions button:first-child{align-self:flex-start;min-height:48px;padding:9px 0;border:0;border-radius:0;background:transparent;color:var(--home-ink);font-size:17px;font-weight:650;line-height:1.4;text-align:left}
 .home-flow-shell.discovery-home .home-switch-actions{justify-content:flex-start;gap:8px 20px}
 .home-flow-shell.discovery-home .home-switch-actions button:last-child{min-height:44px;border:0;background:transparent;padding:8px 0;color:var(--home-ink);text-decoration:underline;text-underline-offset:4px}
 .home-flow-shell.discovery-home .home-switch-progress{margin:0;font-size:14px;line-height:1.65;color:#5d554e;overflow-wrap:anywhere}
-.home-flow-shell.discovery-home .home-entry-route .home-purpose-promise{margin:0;font-size:14px;line-height:1.65;color:#6a625b;max-width:470px;word-break:keep-all}
-.home-flow-shell.discovery-home .home-explore-route{border-top:1px solid var(--home-rule);margin:0;padding:0;justify-content:flex-start}
-.home-flow-shell.discovery-home .home-explore-route>a{display:flex;align-items:center;min-height:56px;margin:0;color:var(--home-ink);font-size:15px;font-weight:550;text-decoration:none}
+.home-flow-shell.discovery-home .home-secondary-links{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0 28px;border-top:1px solid var(--home-rule)}
+.home-flow-shell.discovery-home .home-explore-route{order:3;margin:0 0 0 auto;padding:0;border:0;justify-content:flex-end}
+.home-flow-shell.discovery-home .home-explore-route>a{display:flex;align-items:center;min-height:58px;margin:0;color:var(--home-ink);font-size:15px;font-weight:550;text-decoration:none}
 .home-flow-shell.discovery-home .home-explore-route>a:hover{text-decoration:underline;text-underline-offset:4px}
-.home-flow-shell.discovery-home .home-flow-disclosure{border-top:1px solid #dedbd7}
-.home-flow-shell.discovery-home .home-flow-disclosure>summary{min-height:58px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:14px;list-style:none}
+.home-flow-shell.discovery-home .home-flow-disclosure{border:0;order:1;min-width:0}
+.home-flow-shell.discovery-home .home-flow-disclosure:nth-of-type(2){order:2}
+.home-flow-shell.discovery-home .home-secondary-links:has(>.home-flow-disclosure[open]){display:grid;grid-template-columns:minmax(0,1fr)}
+.home-flow-shell.discovery-home .home-secondary-links:has(>.home-flow-disclosure[open])>.home-flow-disclosure{border-top:1px solid var(--home-rule)}
+.home-flow-shell.discovery-home .home-flow-disclosure>summary{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font-size:14px;list-style:none}
 .home-flow-shell.discovery-home .home-flow-disclosure>summary::-webkit-details-marker{display:none}
 .home-flow-shell.discovery-home .home-flow-disclosure>summary span{font-size:20px;color:#6a625b}
 .home-flow-shell.discovery-home .home-flow-disclosure[open]>summary span{transform:rotate(45deg)}
@@ -53,14 +57,14 @@
  .home-flow-shell.discovery-home .home-header-nav button{font-size:13px}
  .home-flow-shell.discovery-home .home-main{padding:20px 0 24px}
  .home-flow-shell.discovery-home .home-start{grid-template-columns:minmax(0,1fr);grid-template-areas:"scene" "copy";gap:18px;padding-bottom:18px}
- .home-flow-shell.discovery-home .home-scene img{height:178px}
+ .home-flow-shell.discovery-home .home-scene img{max-height:178px}
  .home-flow-shell.discovery-home .home-start-copy h1{font-size:32px;line-height:1.25;letter-spacing:-.8px;text-wrap:balance}
  .home-flow-shell.discovery-home .home-entry-lookup{margin-top:8px}
- .home-flow-shell.discovery-home .home-entry-search{grid-template-columns:minmax(0,1fr) 76px}
- .home-flow-shell.discovery-home .home-entry-search-field{padding-left:13px}
+ .home-flow-shell.discovery-home .home-secondary-links{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+ .home-flow-shell.discovery-home .home-explore-route{order:0;margin:0;justify-content:flex-start}
+ .home-flow-shell.discovery-home .home-flow-disclosure{border-top:1px solid var(--home-rule)}
  .home-flow-shell.discovery-home .home-entry-board{margin-top:10px}
  .home-flow-shell.discovery-home .home-entry-route>button,.home-flow-shell.discovery-home .home-switch-actions button:first-child{font-size:16px}
- .home-flow-shell.discovery-home .home-entry-route .home-purpose-promise{font-size:13px}
  .home-flow-shell.discovery-home .home-flow-disclosure>summary,.home-flow-shell.discovery-home .home-explore-route>a{min-height:52px;font-size:14px}
  .home-flow-shell.discovery-home .home-label-reader{grid-template-columns:minmax(0,1fr);gap:20px}
 }

@@ -133,7 +133,7 @@ export default function Home({
       </header>
       <main className="home-main home-knowledge-main">
         <section className="home-start">
-          <figure className="home-scene"><img src={homeDrawing} alt="크레용으로 그린 사람과 옆에 앉은 고양이" width={1536} height={1024} /></figure>
+          <figure className="home-scene"><img src={homeDrawing} alt="크레용으로 그린 사람과 옆에 앉은 고양이" /></figure>
           <div className="home-start-copy">
             <h1 id="home-lookup-title">어떤 사료를 찾으세요?</h1>
             <section className="home-entry-lookup" aria-labelledby="home-lookup-title">
@@ -144,13 +144,14 @@ export default function Home({
             </section>
             <section className="home-entry-board" aria-label="현재 사료에서 다음 후보 찾기">
               <article className="home-entry-route">
-                {switchProgress ? <div className="home-switch-resume"><p className="home-switch-progress">{switchProgress}</p><div className="home-switch-actions"><button type="button" onClick={() => onStart('switch')}>이어서 찾기 →</button><button type="button" onClick={onRestartSwitch}>새로 찾기</button></div></div> : <button className="home-switch-start" type="button" onClick={() => onStart('switch')}>먹이던 사료와 비교하기 →</button>}
-                <p className="home-purpose-promise">지금 먹이는 사료를 기준으로, 유지할 점과 확인하고 싶은 차이를 살펴보세요.</p>
+                {switchProgress ? <div className="home-switch-resume"><p className="home-switch-progress">{switchProgress}</p><div className="home-switch-actions"><button type="button" aria-describedby="home-switch-purpose" onClick={() => onStart('switch')}>이어서 찾기 →</button><button type="button" onClick={onRestartSwitch}>새로 찾기</button></div></div> : <button className="home-switch-start" aria-describedby="home-switch-purpose" type="button" onClick={() => onStart('switch')}>먹이던 사료와 비교하기 →</button>}
+                <p id="home-switch-purpose" className="home-purpose-promise visually-hidden">지금 먹이는 사료를 기준으로, 유지할 점과 확인하고 싶은 차이를 살펴보세요.</p>
               </article>
             </section>
             {error ? <div className="home-catalog-error" role="alert"><div><strong>제품 목록을 불러오지 못했습니다.</strong><span>잠시 후 다시 시도해 주세요.</span></div><button type="button" onClick={onRetryCatalog}>다시 시도</button></div> : null}
           </div>
         </section>
+        <div className="home-secondary-links">
         <div className="home-explore-route"><a href="./?view=workspace&amp;applied=1">전체 사료 보기</a></div>
 
         <details className="home-flow-disclosure"><summary>사료 정보를 읽는 법 <span aria-hidden="true">+</span></summary>
@@ -198,6 +199,7 @@ export default function Home({
         </section>
 
         </details>
+        </div>
 
         {demo ? (
           <section className="home-section home-safety" aria-labelledby="home-safety-title">

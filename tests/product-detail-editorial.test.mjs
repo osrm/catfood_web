@@ -224,7 +224,9 @@ test('editorial detail preserves long identity, bundle SKU facts, partial ingred
   await render()
   assert.match(document.querySelector('.detail-identity h1').textContent, /아주 긴 제품 이름도 줄임표 없이 모두 보여 주는 테스트용 고양이 사료/)
   assert.match(document.body.textContent, /이미지 없음/)
-  assert.match(document.body.textContent, /85 g × 6/)
+  assert.equal(document.querySelector('.detail-identity-copy > .detail-package-summary').textContent, '한국 판매 규격 · 85 g × 6 · 규격 표기 미확인')
+  assert.equal(document.querySelector('.detail-package-summary').querySelector('button, a, input, select'), null)
+  assert.equal(document.querySelector('.detail-overview .detail-size-list'), null)
   assert.match(document.body.textContent, /습식 · 전연령/)
   assert.equal([...document.querySelectorAll('.detail-fact')].filter((node) => /사료 형태|대상 연령|레시피 종류|주요 레시피/.test(node.textContent)).length, 0)
   assert.match(document.body.textContent, /제품 특징소화/)
@@ -438,7 +440,8 @@ test('overview omits repeated package facts for a confirmed single unit and omit
     root.render(createElement(app.ProductDetail, { product: single, onClose() {} }))
     await Promise.resolve()
   })
-  assert.match(document.body.textContent, /80 g/)
+  assert.equal(document.querySelector('.detail-package-summary').textContent, '한국 판매 규격 · 80 g')
+  assert.equal([...document.querySelectorAll('.detail-overview h2')].some(node => node.textContent === '한국 판매 규격'), false)
   assert.equal([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')), false)
   assert.equal(document.querySelector('.detail-section-overview-facts'), null)
   assert.match(document.querySelector('.detail-summary-meta')?.textContent ?? '', /원료 표기:/)
@@ -496,7 +499,7 @@ test('overview keeps package details unless the API confirms a matching single u
       root.render(createElement(app.ProductDetail, { key: values.key, product: target, onClose() {} }))
       await Promise.resolve()
     })
-    assert.match(document.querySelector('.detail-size-list')?.textContent ?? '', new RegExp(values.package_size_text.replace(' × ', ' × ')))
+    assert.equal(document.querySelector('.detail-package-summary')?.textContent, `한국 판매 규격 · ${values.package_size_text}`)
     assert.ok([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('판매 단위와 총중량')))
   }
 })
@@ -667,16 +670,53 @@ for (const [tab, expected] of [
     }
     await render({ initialTab: tab, product: { ...target, ingredient_term_result_count: undefined } })
     assert.deepEqual([...calls].sort(), [...expected].sort())
+    assert.equal(document.querySelector('.detail-package-summary').textContent, '한국 판매 규격 · 85 g × 6 · 규격 표기 미확인')
     const selectedLabel = document.querySelector('.detail-tabs [aria-selected="true"]').textContent
     await click('제조 · 유통')
     await click('영양')
     await click('원재료')
     await click('개요')
     await click(selectedLabel)
+    assert.equal(document.querySelector('.detail-package-summary').textContent, '한국 판매 규격 · 85 g × 6 · 규격 표기 미확인')
     assert.equal(new Set(calls).size, calls.length, 'each resource is fetched once across tab round trips')
     assert.equal(calls.length, 7)
   })
 }
+
+test('shared package summary preserves API order, wraps long lists and resets during product changes', async () => {
+  const nextProduct = { ...target, product_id: 'product_editorial0002', canonical_name: '다음 제품' }
+  const finalProduct = { ...target, product_id: 'product_editorial0003', canonical_name: '규격 없는 제품' }
+  const rows = Array.from({ length: 12 }, (_, index) => ({
+    ...variants[0], variant_id: 'variant_long_' + index,
+    package_size_text: index === 0 ? '120 g × 12' : (100 - index) + ' g',
+    display_rank: index + 1,
+  }))
+  let resolveNext, nextSignal, variantCalls = 0
+  const pending = new Promise(resolve => { resolveNext = resolve })
+  handler = async (url, init) => {
+    if (url.pathname.endsWith('/switch_current_variant_options')) {
+      assert.equal(url.searchParams.get('order'), 'display_rank.asc,variant_id.asc')
+      variantCalls++
+      if (url.searchParams.get('product_id') === 'eq.' + nextProduct.product_id) { nextSignal = init.signal; return pending }
+      if (url.searchParams.get('product_id') === 'eq.' + finalProduct.product_id) return Response.json([])
+      return Response.json(rows)
+    }
+    return Response.json([])
+  }
+  await render({ initialTab: 'nutrition' })
+  assert.equal(document.querySelector('.detail-package-summary').textContent, '한국 판매 규격 · ' + rows.map(row => row.package_size_text).join(' · '))
+  await click('원재료')
+  assert.equal(variantCalls, 1)
+  await render({ product: nextProduct, initialTab: 'overview' })
+  assert.equal(document.querySelector('.detail-package-summary').textContent, '판매 규격을 불러오는 중입니다.')
+  assert.equal(document.querySelector('.detail-variant-list'), null)
+  await render({ product: finalProduct, initialTab: 'context' })
+  assert.equal(nextSignal.aborted, true)
+  assert.equal(document.querySelector('.detail-package-summary').textContent, '확인된 판매 규격이 없습니다.')
+  await act(async () => { resolveNext(Response.json([{ ...variants[0], product_id: nextProduct.product_id, package_size_text: '999 g' }])); await Promise.resolve() })
+  assert.equal(document.querySelector('.detail-package-summary').textContent, '확인된 판매 규격이 없습니다.')
+  assert.equal(variantCalls, 3)
+})
 
 test('detail retains pending reads across tab changes without treating unrequested data as empty', async () => {
   const normal = handler, calls = []

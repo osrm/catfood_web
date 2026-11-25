@@ -127,7 +127,12 @@ async function selectValue(element, value) {
 test('Home offers the unfiltered full catalog and keeps three crawlable label examples in its guide', async () => {
   await renderApp('https://catfood.test/catfood_web/')
   const routes = document.querySelector('.home-explore-route')
-  assert.ok(routes.querySelector('button').textContent.includes('조건 고르기'), 'existing condition selection remains')
+  assert.deepEqual([...document.querySelectorAll('.home-header button')].map(node => node.textContent), ['조건으로 찾기', '정보 안내'], 'home header has only the condition and information entries')
+  assert.equal(routes.querySelector('button'), null, 'no duplicate condition entry')
+  assert.equal(document.querySelectorAll('.home-entry-search').length, 1)
+  assert.equal(document.querySelector('.home-entry-search-submit').textContent, '검색')
+  assert.equal(document.querySelector('.home-switch-start').textContent, '먹이던 사료와 비교하기 →')
+  assert.ok(document.querySelector('.home-entry-search').compareDocumentPosition(document.querySelector('.home-switch-start')) & window.Node.DOCUMENT_POSITION_FOLLOWING)
   const browse = [...routes.querySelectorAll('a')].find(link => link.textContent.includes('전체 사료 보기'))
   assert.ok(browse, 'primary catalog link is available from Home')
   assert.equal(new URL(browse.href).pathname, '/catfood_web/')
@@ -1523,7 +1528,7 @@ test('ingredient criteria and manual comparison survive lookup and refresh, whil
     checkAvoidanceLabel('피하고 싶은 원료 · 닭 · 오리', 2)
     assert.deepEqual(app.parseNavigationState(window.location.search).compareIds, [], 'changed conditions use existing reset policy')
     await click(document.querySelector('.site-wordmark').textContent)
-    await click('조건 고르기')
+    await click('조건으로 찾기')
     assert.deepEqual(app.parseNavigationState(window.location.search).search.ingredientAvoidTerms, [])
   } finally {
     a.reviewed_not_found_ingredient_terms = prevA
@@ -1573,7 +1578,7 @@ test('brand comparison context survives LOOKUP manual additions, reload and deta
     await click('목록으로');await click('조건으로 찾기');await click('이 조건으로 찾기')
     assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,['로얄캐닌'])
     assert.deepEqual(app.parseNavigationState(window.location.search).compareIds,expected.compareIds)
-    await click(document.querySelector('.site-wordmark').textContent);await click('조건 고르기')
+    await click(document.querySelector('.site-wordmark').textContent);await click('조건으로 찾기')
     assert.deepEqual(app.parseNavigationState(window.location.search).refine.brands,[])
   } finally {a.brand=oldA;b.brand=oldB}
 })

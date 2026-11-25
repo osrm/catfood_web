@@ -117,7 +117,7 @@ try {
     await capture('source-recovered','.research-result-card[data-product-id="product_5b13354ad9792881"]')
 
     await page.goto(BASE,{waitUntil:'domcontentloaded'})
-    await page.getByRole('button',{name:'먹이는 사료 찾기 →',exact:true}).click()
+    await page.getByRole('button',{name:'먹이던 사료와 비교하기 →',exact:true}).click()
     await page.locator('.switch-find-search input').fill('AATU')
     const current=page.locator('.switch-find-result').filter({hasText:'연어'}).first()
     const retryCatalog=page.locator('.switch-state-message.is-error').getByRole('button',{name:'다시 시도',exact:true})

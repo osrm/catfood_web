@@ -223,7 +223,7 @@ test('HOME information guide opens optionally, moves focus with reduced-motion s
     await act(async () => root.render(createElement(app.App)))
     await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 1개'), 'catalog loaded on home')
 
-    const trigger = button('정보 안내 →')
+    const trigger = button('정보 안내')
     const panel = document.getElementById('home-info-panel')
     const heading = document.getElementById('home-info-title')
     assert.ok(trigger)
@@ -310,7 +310,7 @@ test('catalog retry preserves applied EXPLORE conditions', async () => {
 
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => !document.body.textContent.includes('불러오는 중'), 'initial catalog failure')
-  await click('조건 고르기')
+  await click('조건으로 찾기')
   await click('습식')
   await click('이 조건으로 찾기')
   await waitForUi(() => document.querySelector('[role="alert"]'), 'explore catalog error')
@@ -426,7 +426,7 @@ test('complete recipe list exposes every catalog value, breaks frequency ties by
 
   await act(async () => root.render(createElement(app.App)))
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 42개'), 'catalog loaded on home')
-  await click('조건 고르기')
+  await click('조건으로 찾기')
   await click('이 조건으로 찾기')
   assert.equal(all('.recipe-detail-grid:not(.brand-refine-grid) .choice').length, 8, 'initial choices remain short')
   await click('레시피 전체 보기')
@@ -473,7 +473,7 @@ test('HOME starts from current food and exposes reading topics without inventing
   assert.match(document.querySelector('.home-safety-scope').textContent, /자동으로 모으거나.*확인해 주지는 않습니다/)
   assert.equal(document.querySelector('.home-safety-list'), null, 'no fictitious recall records on the normal HOME')
   assert.equal(calls(), 1, 'reading the guide does not refetch catalog')
-  await click('먹이는 사료 찾기 →')
+  await click('먹이던 사료와 비교하기 →')
   await waitForUi(() => document.querySelector('.switch-workflow-shell'), 'current-food entry')
   assert.match(document.querySelector('h1').textContent, /현재 먹이는 사료/)
 })

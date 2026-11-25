@@ -120,7 +120,7 @@ try{
   report.observations.push({width,case:'salmon',displayed:displayedIds.length,reviewedId,unknownId,positiveSalmonExcluded:true,returnPreserved:true})
 
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
-  await (await button('먹이는 사료 찾기 →')).click();await page.locator('.switch-find-search input').fill('AATU')
+  await (await button('먹이던 사료와 비교하기 →')).click();await page.locator('.switch-find-search input').fill('AATU')
   const current=page.locator('.switch-find-result').filter({hasText:/연어/}).first()
   const retryCatalog=page.locator('.switch-state-message.is-error').getByRole('button',{name:'다시 시도',exact:true})
   await waitForCatalog(current,retryCatalog,'switch-catalog')

@@ -35,7 +35,7 @@ try {
    }
   }
   await page.goto(BASE,{waitUntil:'domcontentloaded'})
-  await button('먹이는 사료 찾기 →').click({timeout:45000})
+  await button('먹이던 사료와 비교하기 →').click({timeout:45000})
   await page.locator('.switch-find-search input').fill('AATU')
   await page.locator('.switch-find-result').filter({hasText:'연어'}).first().click({timeout:45000})
   await page.locator('.switch-sku-option').filter({hasText:/1\s*kg|1[,.]?000\s*g/i}).first().click()

@@ -53,9 +53,53 @@ try {
     }
     await page.goto(BASE, { waitUntil: 'domcontentloaded' })
     await page.getByRole('heading', { name: '어떤 사료를 찾으세요?' }).waitFor({ timeout: 45000 })
-    assert.match(await page.locator('.home-purpose-promise').innerText(), /유지할 점과 확인하고 싶은 차이/)
+    assert.match(await page.locator('.home-switch-start').getAttribute('aria-describedby'), /home-switch-purpose/)
+    assert.match(await page.locator('#home-switch-purpose').textContent(), /유지할 점과 확인하고 싶은 차이/)
+    assert.match(await page.locator('.home-switch-start').evaluate(node => document.getElementById(node.getAttribute('aria-describedby'))?.textContent || ''), /유지할 점과 확인하고 싶은 차이/)
+    const homeGeometry = await page.evaluate(async () => {
+      const img = document.querySelector('.home-scene img')
+      await img.decode()
+      await document.fonts.ready
+      const box = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom} }
+      const form = document.querySelector('.home-entry-search'), submit = form.querySelector('button'), style = getComputedStyle(form)
+      return {main:box('.home-main'),header:box('.home-header'),figure:box('.home-scene'),image:box('.home-scene img'),heading:box('.home-start-copy h1'),form:box('.home-entry-search'),switch:box('.home-switch-start'),all:box('.home-explore-route'),guide:box('.home-flow-disclosure:nth-of-type(1) > summary'),recall:box('.home-flow-disclosure:nth-of-type(2) > summary'),naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,ratio:img.naturalWidth/img.naturalHeight,formStyle:{background:style.backgroundColor,borders:[style.borderTopWidth,style.borderRightWidth,style.borderBottomWidth,style.borderLeftWidth],submitBackground:getComputedStyle(submit).backgroundColor},nav:[...document.querySelectorAll('.home-header button')].map(b=>b.textContent)}
+    })
+    report.observations.push({width,homeGeometry})
+    console.log('HOME geometry', JSON.stringify({width,homeGeometry}))
+    assert.deepEqual(homeGeometry.nav,['조건으로 찾기','정보 안내'])
+    assert.ok(homeGeometry.naturalWidth>0 && homeGeometry.naturalHeight>0,'original drawing loaded')
+    assert.ok(Math.abs(homeGeometry.image.width/homeGeometry.image.height-homeGeometry.ratio)<0.02,'original drawing aspect ratio')
+    assert.ok(homeGeometry.image.x>=homeGeometry.figure.x-1 && homeGeometry.image.right<=homeGeometry.figure.right+1,'drawing fits its figure')
+    assert.ok(homeGeometry.switch.y>=homeGeometry.form.bottom,'search precedes comparison entry')
+    assert.deepEqual(homeGeometry.formStyle.borders,['0px','0px','1px','0px'])
+    assert.equal(homeGeometry.formStyle.background,'rgba(0, 0, 0, 0)')
+    assert.equal(homeGeometry.formStyle.submitBackground,'rgba(0, 0, 0, 0)')
+    if(width<=760){
+      assert.ok(homeGeometry.all.y>=homeGeometry.switch.bottom && homeGeometry.guide.y>=homeGeometry.all.bottom && homeGeometry.recall.y>=homeGeometry.guide.bottom,'mobile catalog then two guides')
+    } else {
+      assert.ok(homeGeometry.guide.y>=homeGeometry.switch.bottom && Math.abs(homeGeometry.guide.y-homeGeometry.recall.y)<1 && Math.abs(homeGeometry.all.y-homeGeometry.guide.y)<1,'desktop secondary links share a row')
+      assert.ok(homeGeometry.guide.right<=homeGeometry.recall.x+1 && homeGeometry.recall.right<=homeGeometry.all.x+1 && Math.abs(homeGeometry.all.right-homeGeometry.main.right)<1,'desktop guides left and catalog right')
+    }
+    if(width===390){
+      assert.ok(Math.abs(homeGeometry.main.x-21)<1 && Math.abs(homeGeometry.main.width-348)<1)
+      assert.ok(Math.abs(homeGeometry.image.height-178)<1)
+      assert.ok(homeGeometry.heading.y>=homeGeometry.image.bottom)
+      assert.ok(Math.abs(homeGeometry.form.y-homeGeometry.heading.bottom-8)<2)
+    }
+    if(width===1440){
+      assert.ok(Math.abs(homeGeometry.main.width-1120)<1 && Math.abs(homeGeometry.main.x-160)<1)
+      assert.ok(Math.abs(homeGeometry.image.height-320)<1)
+      assert.ok(homeGeometry.image.x>=homeGeometry.form.right)
+      assert.ok(Math.abs(homeGeometry.form.y-homeGeometry.heading.bottom-15)<2)
+    }
+    await page.locator('.home-entry-search input').focus()
+    assert.notEqual(await page.locator('.home-entry-search').evaluate(node => getComputedStyle(node).outlineStyle), 'none', 'focused search remains visible')
+    await page.locator('.home-entry-search input').fill('AATU')
+    assert.equal(await page.locator('.home-entry-search-submit').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)', 'enabled search is a text button')
+    await page.locator('.home-entry-search input').fill('')
+    await page.locator('.home-entry-search input').blur()
     await capture('home')
-    await (await button('먹이는 사료 찾기 →')).click()
+    await (await button('먹이던 사료와 비교하기 →')).click()
     await page.locator('.switch-find-search input').fill('AATU')
     await page.locator('.switch-find-result').filter({ hasText: /연어/ }).first().click({ timeout: 45000 })
     await page.locator('.switch-sku-option').filter({ hasText: /1\s*kg|1[,.]?000\s*g/i }).first().click()

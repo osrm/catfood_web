@@ -264,7 +264,7 @@ test('comparison hides server diagnostics and retries nutrition', async () => {
 })
 async function explore() {
   await act(async () => root.render(createElement(app.App)))
-  await click('조건 고르기')
+  await click('조건으로 찾기')
   await click('이 조건으로 찾기')
 }
 async function switchResults() {
@@ -379,7 +379,7 @@ test('catalog failure is visible on Home and EXPLORE condition entry, masks inte
   await waitForUi(() => document.body.textContent.includes('제품 목록을 불러오지 못했습니다.'), 'home catalog failure')
   assert.match(document.querySelector('.home-catalog-status')?.textContent ?? '', /제품 목록 조회 실패/)
   assert.doesNotMatch(document.body.textContent, /Data API|503|internal provenance/)
-  await click('조건 고르기')
+  await click('조건으로 찾기')
   const conditionAlert = document.querySelector('.catalog-inline-state[role="alert"]')
   assert.ok(conditionAlert)
   assert.match(conditionAlert.textContent, /제품 목록을 불러오지 못했습니다/)
@@ -412,7 +412,7 @@ test('EXPLORE guidance keeps the unknown policy in one place and labels recipe r
   await waitForUi(() => document.body.textContent.includes('현재 확인된 제품 85개'), 'home catalog count')
   assert.doesNotMatch(document.body.textContent, /명백히 충돌하는 제품만 제외/)
 
-  await click('조건 고르기')
+  await click('조건으로 찾기')
   const editorText = document.body.textContent
   assert.match(editorText, /필요한 항목만 골라주세요\./)
   assert.equal((editorText.match(/여러 개 고르면 그중 하나에 해당하는 제품을 찾습니다\. 표기가 없는 제품도 함께 봅니다\./g) ?? []).length, 1)
@@ -878,7 +878,7 @@ test('EXPLORE previews additional choices and explains their real effect without
   products = catalog(3)
   products[2].features = ['weight_management']
   await act(async () => root.render(createElement(app.App)))
-  await click('조건 고르기')
+  await click('조건으로 찾기')
   const toggle = document.querySelector('.mobile-additional-toggle')
   assert.match(toggle.textContent, /실내묘 · 중성화묘 · 헤어볼 · 체중 관리/)
   assert.match(toggle.textContent, /펼치기/)
@@ -1201,7 +1201,7 @@ test('late energy response cannot revive a condition after Home new start',async
  await energyExplore();await click(document.querySelector('.energy-refine button'))
  assert.match(document.body.textContent,/열량을 불러오는 중/)
  await click(document.querySelector('.site-wordmark'))
- await click('조건 고르기');await click('이 조건으로 찾기')
+ await click('조건으로 찾기');await click('이 조건으로 찾기')
  await act(async()=>resolveEnergy(Response.json([energyFixture(0,100)])))
  assert.equal(document.querySelector('.energy-refine'),null)
  assert.equal(app.parseNavigationState(window.location.search).refine.energyMax,undefined)

@@ -17,7 +17,7 @@ async function visibleButton(page,name){const xs=page.getByRole('button',{name,e
 async function setup(page){
  try {
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000})
- await page.getByRole('button',{name:'먹이는 사료 찾기 →'}).click()
+ await page.getByRole('button',{name:'먹이던 사료와 비교하기 →'}).click()
  await page.waitForFunction(()=>/제품\s*\d+개/.test(document.querySelector('.switch-task-status')?.textContent||'')||Boolean(document.querySelector('.switch-state-message.is-error')),null,{timeout:30000})
  if(await page.locator('.switch-state-message.is-error').count()){
   report.catalogRetries??=[];report.catalogRetries.push({viewport:page.viewportSize(),message:await page.locator('.switch-state-message.is-error').textContent()})

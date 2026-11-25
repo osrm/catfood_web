@@ -1,0 +1,39 @@
+name: One-off direct list compare postdeploy review
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/direct-list-compare-review.yml'
+      - 'qa/direct-list-compare-review.mjs'
+permissions:
+  contents: read
+jobs:
+  pages-browser:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCT_SHA: 7dd8202dda2522b762c4cea9dec496e0b2442955
+    steps:
+      - name: Checkout QA harness
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - name: Install browser driver
+        run: |
+          mkdir -p /tmp/direct-list-compare-review
+          cp qa/direct-list-compare-review.mjs /tmp/direct-list-compare-review/
+          cd /tmp/direct-list-compare-review
+          npm init -y >/dev/null
+          npm install --no-save --package-lock=false playwright-core@1.55.1
+          if command -v google-chrome >/dev/null; then echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"; else echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"; fi
+      - name: Chrome Pages postdeploy review
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/direct-list-compare-review-output" CANDIDATE_URL="https://osrm.github.io/catfood_web/" PRODUCT_SHA="$PRODUCT_SHA" node /tmp/direct-list-compare-review/direct-list-compare-review.mjs
+          cp /tmp/direct-list-compare-review/direct-list-compare-review.mjs "$GITHUB_WORKSPACE/direct-list-compare-review-output/validation-source.mjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: direct-list-compare-postdeploy-review
+          path: direct-list-compare-review-output
+          retention-days: 7

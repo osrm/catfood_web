@@ -14,7 +14,7 @@
 .home-flow-shell.discovery-home .home-start-copy h1{font-family:HomeSeed,var(--cf-font);font-size:46px;font-weight:700;line-height:1.25;letter-spacing:-1.5px;color:var(--home-ink);margin:0;max-width:none}
 .home-flow-shell.discovery-home .home-entry-lookup{width:100%;padding:0;margin:15px 0 0;text-align:left}
 .home-flow-shell.discovery-home .home-entry-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:0;border:0;border-bottom:1px solid #aaa198;border-radius:0;background:transparent;overflow:visible}
-.home-flow-shell.discovery-home .home-entry-search:focus-within{background:transparent;border-bottom-color:var(--interaction-focus);outline:2px solid var(--interaction-focus);outline-offset:3px}
+.home-flow-shell.discovery-home .home-entry-search:is(:focus-within,:has(input:focus-visible)){background:transparent;border-bottom-color:var(--interaction-focus);outline:2px solid var(--interaction-focus);outline-offset:3px}
 .home-flow-shell.discovery-home .home-entry-search-field{padding-left:0}
 .home-flow-shell.discovery-home .home-entry-search input{height:54px;min-height:54px;font-size:16px;color:var(--home-ink);padding:8px 0}
 .home-flow-shell.discovery-home .home-entry-search-submit,.home-flow-shell.discovery-home .home-entry-search-submit:not(:disabled):hover{height:54px;min-height:54px;min-width:44px;width:auto;padding:0 4px;border:0;border-radius:0;font-size:15px;background:transparent;color:var(--home-ink)}

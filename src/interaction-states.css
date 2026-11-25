@@ -12,13 +12,6 @@
   box-shadow: none;
 }
 
-.home-flow-shell.discovery-home .home-entry-search:is(:focus-within, :has(input:focus-visible)) {
-  border-color: #a59c93;
-  border-bottom-color: var(--interaction-focus);
-  background: #fff;
-  outline: none;
-  box-shadow: none;
-}
 .home-flow-shell.discovery-home .home-entry-search input:is(:focus, :focus-visible) {
   outline: none;
   box-shadow: none;

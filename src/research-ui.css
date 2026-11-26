@@ -3401,3 +3401,6 @@
  .research-workspace:has(.condition-actions) .condition-additional-label { flex-basis:70%; }
  .research-workspace:has(.condition-actions) .research-filter-scroll { padding-bottom:calc(104px + env(safe-area-inset-bottom)); }
 }
+
+/* LOOKUP only: keep the package line typography and emphasize the exact matched label. */
+.research-shell[data-catalog-mode="lookup"] .research-result-packages .research-package-match { font-weight: 700; }

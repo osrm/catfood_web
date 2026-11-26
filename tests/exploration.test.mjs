@@ -578,10 +578,10 @@ test('LOOKUP and both SWITCH search surfaces share confirmed package matching', 
   products = catalog(2)
   Object.assign(products[0], {
     brand: 'AATU', canonical_name: '연어',
-    available_package_labels: ['1 kg', '3 kg'], representative_package_size_text: '1 kg',
+    available_package_labels: ['1 kg', '2.5 kg', '3 kg', '5 kg', '15 kg'], representative_package_size_text: '1 kg',
   })
-  Object.assign(products[1], { brand: 'Other', canonical_name: '현재 사료' })
-  packageOptions = [1000, 3000].map((weight) => ({
+  Object.assign(products[1], { brand: 'Other', canonical_name: '현재 사료', representative_package_size_text: '500 g', representative_units_per_sale: 2 })
+  packageOptions = [1000, 2500, 3000, 5000, 15000].map((weight) => ({
     product_id: products[0].product_id, variant_id: `variant_${weight}`,
     package_size_text: `${weight / 1000} kg`, package_weight_g: weight, units_per_sale: 1,
   }))
@@ -598,7 +598,22 @@ test('LOOKUP and both SWITCH search surfaces share confirmed package matching', 
     if (form) await act(async () => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })))
     return rows('.research-result-card').map((row) => row.getAttribute('data-product-id'))
   }
+  const emphasis = () => rows('.research-result-packages .research-package-match').map(node => node.textContent)
+  const packageText = () => document.querySelector('.research-result-packages')?.textContent
   assert.deepEqual(await submitLookup('AATU 연어 1kg'), [products[0].product_id], 'product lookup')
+  assert.deepEqual(emphasis(), ['1 kg'])
+  const originalPackageText = packageText()
+  assert.deepEqual(await submitLookup('AATU 연어 5kg'), [products[0].product_id])
+  assert.deepEqual(emphasis(), ['5 kg'], '15 kg must not be emphasized by a partial number')
+  assert.equal(packageText(), originalPackageText, 'labels and order are unchanged')
+  assert.deepEqual(await submitLookup('AATU 연어 2,500g 5 KG'), [products[0].product_id])
+  assert.deepEqual(emphasis(), ['2.5 kg', '5 kg'], 'both exact normalized requested sizes are emphasized')
+  assert.deepEqual(await submitLookup('AATU 연어'), [products[0].product_id])
+  assert.deepEqual(emphasis(), [], 'name-only search has no emphasis')
+  assert.equal(packageText(), originalPackageText)
+  assert.deepEqual(await submitLookup('Other 현재 사료 500g'), [products[1].product_id])
+  assert.deepEqual(emphasis(), ['500 g × 2'], 'existing representative bundle label is emphasized as one option')
+  assert.deepEqual(await submitLookup('Other 현재 사료 1kg'), [], 'bundle total is not a matching size')
   assert.deepEqual(await submitLookup('AATU 연어 11kg'), [], 'product lookup rejects unlisted package')
 
   const props = {

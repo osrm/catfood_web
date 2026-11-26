@@ -3286,3 +3286,98 @@ summary:focus-visible,
     margin: 0 0 10px;
   }
 }
+
+/* Mobile LOOKUP: keep the card and independent compare button as siblings.
+   The final 44px card row reserves the right column for the toggle; it never
+   covers the product identity or the visible product-view link. */
+.research-shell[data-catalog-mode="lookup"] .research-result-compare > .research-result-compare-mobile {
+  display: none;
+}
+@media (max-width: 760px) {
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 0;
+    align-items: stretch;
+    --lookup-compare-width: 88px;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row > .research-result-card {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: 60px minmax(0, 1fr) var(--lookup-compare-width);
+    grid-template-rows: auto 44px;
+    column-gap: 10px;
+    row-gap: 4px;
+    padding: 14px 0 10px;
+    align-content: start;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .research-result-image,
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .image-placeholder {
+    grid-column: 1;
+    grid-row: 1;
+    width: 60px;
+    height: 78px;
+    align-self: start;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .research-result-identity {
+    grid-column: 2 / -1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .research-result-packages {
+    max-width: none;
+    overflow-wrap: anywhere;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row .research-result-link {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-self: start;
+    align-self: stretch;
+    min-height: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-results .research-result-row > .research-result-compare {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    align-self: end;
+    z-index: 1;
+    box-sizing: border-box;
+    width: var(--lookup-compare-width);
+    min-width: var(--lookup-compare-width);
+    height: 44px;
+    min-height: 44px;
+    margin: 0 0 10px;
+    padding: 0 6px;
+    flex-direction: row;
+    white-space: nowrap;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-compare > span:not(.research-result-compare-mobile),
+  .research-shell[data-catalog-mode="lookup"] .research-result-compare > strong {
+    display: none;
+  }
+
+  .research-shell[data-catalog-mode="lookup"] .research-result-compare > .research-result-compare-mobile {
+    display: inline;
+    color: inherit;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+}

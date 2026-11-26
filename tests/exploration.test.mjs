@@ -677,6 +677,39 @@ test('EXPLORE direct list compare records compare_add without opening quick view
   assert.equal(document.querySelector('.switch-compare-dock'), null)
 })
 
+test('LOOKUP card comparison toggles remain separate from product opening and respect the limit', async () => {
+  products = catalog(6)
+  dom.reconfigure({url:'https://catfood.test/?view=workspace&mode=lookup&q=Test%20Brand'})
+  await act(async () => root.render(createElement(app.App)))
+  await waitForUi(() => rows('.research-result-compare').length === 6, 'lookup cards loaded')
+  const toggles = rows('.research-result-compare')
+  const cards = rows('.research-result-card')
+  assert.equal(cards.length, 6)
+  for (let i=0;i<5;i++) {
+    const toggle=toggles[i]
+    assert.equal(toggle.parentElement, cards[i].parentElement)
+    assert.equal(cards[i].contains(toggle), false)
+    assert.equal(toggle.getAttribute('aria-pressed'), 'false')
+    assert.equal(toggle.getAttribute('aria-label'), products[i].canonical_name + ' 비교에 추가')
+    assert.equal(toggle.querySelector('.research-result-compare-mobile').textContent, '＋ 비교')
+    toggle.focus()
+    await click(toggle)
+    assert.equal(document.activeElement, toggle)
+    assert.equal(toggle.getAttribute('aria-pressed'), 'true')
+    assert.equal(toggle.getAttribute('aria-label'), products[i].canonical_name + ' 비교에서 제거')
+    assert.equal(toggle.querySelector('.research-result-compare-mobile').textContent, '✓ 담김')
+    assert.equal(document.querySelector('.research-quick-view'), null)
+  }
+  assert.equal(toggles[5].disabled, true)
+  assert.equal(toggles[5].querySelector('.research-result-compare-mobile').textContent, '5/5')
+  await click(toggles[0])
+  assert.equal(toggles[0].getAttribute('aria-pressed'), 'false')
+  assert.equal(toggles[5].disabled, false)
+  await click(cards[0])
+  assert.match(document.querySelector('.research-quick-view h1').textContent, /Product 000/)
+  assert.equal(toggles[0].getAttribute('aria-pressed'), 'false')
+})
+
 test('later candidates still respect the five-product comparison limit', async () => {
   await explore()
   await click('제품 더 보기')

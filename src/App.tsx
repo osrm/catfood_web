@@ -1111,6 +1111,7 @@ export default function App() {
           onClick={() => toggleCompare(product.product_id)}
         >
           <span>{isCompared ? '비교에서' : '비교에'}</span><strong>{isCompared ? '제거' : compareDisabled ? '5/5' : '추가'}</strong>
+          {mode === 'lookup' ? <span className="research-result-compare-mobile" aria-hidden="true">{isCompared ? '✓ 담김' : compareDisabled ? '5/5' : '＋ 비교'}</span> : null}
         </button>
         {mode === 'explore' && energyEligible && needsEnergy && energyRows != null ? <EnergyResult row={energyByProduct.get(product.product_id)} sameFeed={product.feed_type === search.feedType[0]} /> : null}
       </div>

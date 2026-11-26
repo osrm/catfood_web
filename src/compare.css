@@ -1609,6 +1609,15 @@
 
 @media (max-width: 760px) {
   .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-table { background: transparent; }
+  .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-key {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
   .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-key th { position: static; background: transparent; padding: 8px 10px; }
   .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-key th > strong { font-size: 14px; }
   .compare-stage .compare-mobile-aligned-ingredients .compare-mobile-two-product-ingredient-actions td { padding: 8px 10px; vertical-align: top; }

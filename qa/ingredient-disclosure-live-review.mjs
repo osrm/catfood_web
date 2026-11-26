@@ -74,6 +74,14 @@ try {
     await capture('quick-view', '.ingredient-composition-inspector')
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${products[0].id},${products[1].id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })
     if (width === 390) {
+      const header = page.locator('.compare-mobile-aligned-ingredients:visible thead')
+      await header.scrollIntoViewIfNeeded()
+      for (const name of await header.locator('th strong').all()) {
+        assert.ok(await name.evaluate(node => {
+          const box = node.getBoundingClientRect()
+          return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+        }), 'each product name is painted above its ingredient column')
+      }
       const columns = page.locator('.compare-mobile-aligned-ingredients:visible tbody td').filter({ has: page.getByText('세부 원료 표시', { exact: true }) })
       for (let index = 0; index < 2; index++) {
         await columns.nth(index).getByText('세부 원료 표시', { exact: true }).click()

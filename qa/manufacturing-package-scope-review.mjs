@@ -44,7 +44,7 @@ const scopeRows={
 }
 function json(route,body){return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)})}
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',args:['--no-sandbox']})
-async function pageAt(w,h){
+async function pageAt(w,h,lookupPackages=null){
  const context=await browser.newContext({viewport:{width:w,height:h},serviceWorkers:'block'}),page=await context.newPage()
  // Installed before the first navigation: writes/analytics are never allowed to leave the fixture browser.
  await page.route('**/*',async route=>{
@@ -53,6 +53,7 @@ async function pageAt(w,h){
   if(url.origin==='https://api.test'||url.hostname.endsWith('.supabase.co')){
    const name=url.pathname.split('/').at(-1)
    if(name==='effective_product_catalog_summary') return json(route,products)
+   if(name==='catalog_package_options' && lookupPackages) return json(route,lookupPackages)
    if(name==='switch_current_variant_options'){const id=(url.searchParams.get('product_id')||'').replace(/^eq\./,'');return json(route,variants[id]||[])}
    if(name==='product_detail_manufacturing'){const id=(url.searchParams.get('product_id')||'').replace(/^eq\./,'');const row=(scopeRows[id]||[])[0];return json(route,row?[{...row,variant_id:undefined,display_rank:undefined}]:[])}
    if(name==='product_detail_manufacturing_scope'){const id=(url.searchParams.get('product_id')||'').replace(/^eq\./,'');return json(route,scopeRows[id]||[])}
@@ -121,6 +122,60 @@ for(const [label,w,h] of [['390',390,844],['1440',1440,900]]){
  const inspectorName=await assertVisibleNoHorizontalOverflow(page,'.switch-inspector-identity h1',`${label} inspector long product name`)
  const inspectorPage=await assertNoHorizontalPageOverflow(page,`${label} inspector`)
  report.views[`${label}-inspector`]={text:(await page.locator('.switch-candidate-inspector').innerText()).slice(0,2200),targets:inspectorTargets,longName:inspectorName,horizontalLayout:inspectorPage,overflowTolerancePx:OVERFLOW_TOLERANCE_PX}
+ await context.close()
+}
+// Same guarded fixture browser: validate real geometry and native keyboard activation.
+const lookupPackages=[2000,2500,3500,5000,7500,10000,15000,20000].map((weight,index)=>({
+ product_id:multi.product_id,variant_id:'lookup_variant_'+index,package_size_text:(weight/1000)+' kg',
+ package_weight_g:weight,units_per_sale:1,sale_total_weight_g:weight,display_rank:index+1,
+}))
+for(const w of [320,390,1440]){
+ const {context,page}=await pageAt(w,900,lookupPackages)
+ await page.goto(BASE+'?view=workspace&mode=lookup&q='+encodeURIComponent('Scope Brand 5kg'),{waitUntil:'domcontentloaded'})
+ const card=page.locator(`[data-product-id="${multi.product_id}"]`)
+ const row=card.locator('..'), toggle=row.locator('.research-result-compare'), link=card.locator('.research-result-link')
+ await card.waitFor()
+ await card.scrollIntoViewIfNeeded()
+ await page.evaluate(()=>document.fonts.ready)
+ assert.equal(await card.locator('.research-package-match').innerText(),'5 kg')
+ assert.match(await card.locator('.research-result-packages').innerText(),/2 kg.*15 kg.*20 kg/s)
+ const geometry=()=>row.evaluate(node=>{
+  const box=selector=>{const r=node.querySelector(selector).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom}}
+  const r=node.getBoundingClientRect()
+  return {row:{x:r.x,right:r.right,w:r.width},card:box('.research-result-card'),identity:box('.research-result-identity'),link:box('.research-result-link'),toggle:box('.research-result-compare')}
+ })
+ const before=await geometry()
+ if(w<=760){
+  assert.ok(Math.abs(before.card.w-before.row.w)<=1,'mobile body uses full row width')
+  assert.ok(Math.abs(before.toggle.right-before.row.right)<=1,'toggle at right edge')
+  assert.ok(before.toggle.w>=44&&before.toggle.h>=44&&before.link.h>=44)
+  assert.ok(Math.abs(before.toggle.y-before.link.y)<=1,'actions share the same row')
+  assert.ok(before.identity.bottom<=before.toggle.y+1&&before.link.right<=before.toggle.x+1,'toggle does not obscure identity or product-view link')
+  assert.equal(await toggle.locator('.research-result-compare-mobile').innerText(),'＋ 비교')
+ }else{
+  assert.ok(before.card.right<=before.toggle.x+1,'desktop keeps independent right column')
+  assert.equal(await toggle.locator('.research-result-compare-mobile').isVisible(),false)
+ }
+ assert.equal(await toggle.getAttribute('aria-pressed'),'false')
+ assert.equal(await toggle.getAttribute('aria-label'),multi.canonical_name+' 비교에 추가')
+ await toggle.focus()
+ await toggle.press('Space')
+ assert.equal(await toggle.getAttribute('aria-pressed'),'true')
+ assert.equal(await toggle.getAttribute('aria-label'),multi.canonical_name+' 비교에서 제거')
+ assert.equal(await toggle.evaluate(n=>n===document.activeElement),true)
+ assert.equal(await page.locator('.research-quick-view').count(),0)
+ const added=await geometry()
+ for(const key of ['x','y','w','h']) assert.ok(Math.abs(before.toggle[key]-added.toggle[key])<=1,'toggle geometry stable: '+key)
+ if(w<=760)assert.equal(await toggle.locator('.research-result-compare-mobile').innerText(),'✓ 담김')
+ await screenshotView(page,w+'-lookup-card.png')
+ await toggle.click()
+ assert.equal(await toggle.getAttribute('aria-pressed'),'false')
+ assert.equal(await page.locator('.research-quick-view').count(),0)
+ await link.click()
+ await page.locator('.research-quick-view h1').filter({hasText:multi.canonical_name}).waitFor()
+ assert.equal(await toggle.getAttribute('aria-pressed'),'false')
+ const overflow=await assertNoHorizontalPageOverflow(page,w+' lookup')
+ report.views[w+'-lookup-card']={before,added,overflow}
  await context.close()
 }
 assert.ok(blocked.every(x=>!['GET','HEAD','OPTIONS'].includes(x.method)||/search-runs|considerations|event_log|analytics|telemetry|functions\/v1/i.test(x.url)))

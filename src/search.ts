@@ -127,6 +127,24 @@ function separatePackageQuery(query: string): { nameQuery: string; amounts: Pack
   return { nameQuery, amounts }
 }
 
+function packageLabelAmount(label: string): PackageAmount | null {
+  const size = PACKAGE_LABEL_SIZE.exec(label.trim())
+  return size ? packageAmount(size[1], size[2].toLowerCase()) : null
+}
+
+function samePackageAmount(a: PackageAmount, b: PackageAmount): boolean {
+  return a.kind === b.kind && a.amount === b.amount
+}
+
+// Use exactly the same explicit per-package amount semantics as lookup.
+export function matchingPackageLabels(labels: readonly string[], query: string): Set<string> {
+  const { amounts } = separatePackageQuery(query)
+  return new Set(labels.filter(label => {
+    const size = packageLabelAmount(label)
+    return size !== null && amounts.some(requested => samePackageAmount(requested, size))
+  }))
+}
+
 function matchesConfirmedPackages(product: CatalogProduct, requested: PackageAmount[]): boolean {
   if (!requested.length) return true
   // The public catalog list is authoritative; only use the same representative-size
@@ -134,14 +152,9 @@ function matchesConfirmedPackages(product: CatalogProduct, requested: PackageAmo
   const labels = product.available_package_labels?.length
     ? product.available_package_labels
     : [product.representative_package_size_text ?? '']
-  const available = labels.flatMap((label) => {
-    const size = PACKAGE_LABEL_SIZE.exec(label.trim())
-    if (!size) return []
-    const amount = packageAmount(size[1], size[2].toLowerCase())
-    return amount ? [amount] : []
-  })
+  const available = labels.map(packageLabelAmount).filter((size): size is PackageAmount => size !== null)
   // Compare explicit per-package sizes, never a sum derived from bundle counts.
-  return requested.every((size) => available.some((option) => option.kind === size.kind && option.amount === size.amount))
+  return requested.every((size) => available.some((option) => samePackageAmount(option, size)))
 }
 
 // Search labels only: keep catalog identities unchanged. See docs/brand-search-aliases.md.

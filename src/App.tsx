@@ -1,7 +1,7 @@
 import { JourneyDialog, JourneyCopy } from './JourneyReview'
 import { clearJourneyRecords, hasJourneyWork, readJourneyRecords } from './journey-records'
 import { CatalogIngredientNotice, useCatalogIngredients, type CatalogIngredientLoad } from './catalog-ingredients'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import CompareView, { type CompareItem } from './CompareView'
 import Home from './Home'
 import SiteHeader from './SiteHeader'
@@ -48,6 +48,7 @@ import {
   evaluateCatalog,
   evaluateComparisonCriteria,
   lookupCatalog,
+  matchingPackageLabels,
   matchesBrandQuery,
   toggleValue,
   type CandidateEvaluation,
@@ -128,12 +129,15 @@ function additionalConditionLabels(search: SearchState) {
 function avoidanceCriteriaLabel(terms: SearchState['ingredientAvoidTerms']) {
   return terms?.length ? '피하고 싶은 원료 · ' + terms.map(term => optionLabel(term, INGREDIENT_AVOID_LABELS)).join(' · ') : null
 }
-function packageOptionsLabel(product: CatalogProduct) {
+function packageOptionLabels(product: CatalogProduct): string[] {
   const labels = product.available_package_labels ?? []
-  if (labels.length) return labels.join(' · ')
+  if (labels.length) return labels
   const size = product.representative_package_size_text ?? '판매 규격 미확인'
   const units = product.representative_units_per_sale ?? null
-  return units && units > 1 ? `${size} × ${units}` : size
+  return [units && units > 1 ? `${size} × ${units}` : size]
+}
+function packageOptionsLabel(product: CatalogProduct) {
+  return packageOptionLabels(product).join(' · ')
 }
 function relationLabel(value: string) {
   const separator = value.indexOf(':')
@@ -1066,8 +1070,12 @@ export default function App() {
       const isCompared = compareIds.includes(product.product_id)
       const compareDisabled = compareIds.length >= 5 && !isCompared
       const cardClass = ['research-result-card', product.product_id === selectedId ? 'is-selected' : '', evaluation && !hasExploreCriteria ? 'is-unfiltered' : ''].filter(Boolean).join(' ')
-      const packageLabel = packageOptionsLabel(product)
-      const packages = mode === 'explore' && activeConditions === 0
+      const packageLabels = packageOptionLabels(product)
+      const packageLabel = packageLabels.join(' · ')
+      const matchedPackages = mode === 'lookup' ? matchingPackageLabels(packageLabels, lookupQuery) : null
+      const packages = matchedPackages?.size
+        ? packageLabels.map((label, index) => <Fragment key={index}>{index > 0 ? ' · ' : ''}{matchedPackages.has(label) ? <span className="research-package-match">{label}</span> : label}</Fragment>)
+        : mode === 'explore' && activeConditions === 0
         ? packageLabel.split(/(\d+(?:[.,]\d+)?\s+(?:kg|g|ml|l)\b)/gi).map((part, index) =>
           /^\d+(?:[.,]\d+)?\s+(?:kg|g|ml|l)$/i.test(part)
             ? <span className="research-package-unit" key={index}>{part}</span> : part)

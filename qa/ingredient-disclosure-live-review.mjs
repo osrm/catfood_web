@@ -73,6 +73,12 @@ try {
     assert.equal(await page.locator('.ingredient-disclosure .ingredient-source-scope strong').innerText(), products[0].scope)
     await capture('quick-view', '.ingredient-composition-inspector')
     await page.goto(`${BASE}?view=workspace&mode=lookup&compare=${products[0].id},${products[1].id}&compareOpen=1&compareTab=ingredients`, { waitUntil: 'domcontentloaded' })
+    if (width === 390) {
+      const columns = page.locator('.compare-mobile-aligned-ingredients:visible tbody td').filter({ has: page.getByText('세부 원료 표시', { exact: true }) })
+      for (let index = 0; index < 2; index++) {
+        await columns.nth(index).getByText('세부 원료 표시', { exact: true }).click()
+      }
+    }
     await page.getByText(/어유.*세부 어종 미표기/).filter({ visible: true }).first().waitFor({ timeout: 45000 })
     assert.equal(await page.locator('.compare-stage .ingredient-source-scope').filter({ visible: true }).count(), 0)
     const sources = page.locator('.compare-stage .compare-evidence-disclosure').filter({ visible: true })

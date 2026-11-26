@@ -304,7 +304,10 @@ test('fish and fish derivatives use the selected species result without duplicat
     assert.match(readings[1].textContent, /fish and fish derivatives/)
   }
   const mobile = document.querySelector('.compare-ingredient-pair-summary')
-  assert.match(mobile.querySelector('.compare-ingredient-verdict').textContent, /fish and fish derivatives.*어종 미표기/)
+  const verdict = mobile.querySelector('#compare-mobile-two-row-ingredient-salmon').closest('tbody')
+  assert.deepEqual([...verdict.querySelectorAll('.compare-ingredient-verdict')].map(node => [node.dataset.evidenceState, node.textContent]), [['reviewed-not-found', '어종 미표기'], ['present', '확인됨']])
+  const original = mobile.querySelector('#compare-mobile-two-row-ingredient-source-salmon').closest('tbody')
+  assert.deepEqual([...original.querySelectorAll('td')].map(node => node.textContent), ['제조사 표기' + phrase, '—'])
   assert.ok(document.querySelector('.compare-ingredient-wide .compare-evidence-disclosure').textContent.includes(phrase))
   const wording = (row, product = fish, term = 'salmon') => app.ingredientAvoidanceWording(product, term, row, { compact: 'result' })
   assert.equal(wording(source).state, 'reviewed-not-found')

@@ -95,9 +95,14 @@ try{
   const reviewedCompare=page.locator(`[data-compare-product-id="${reviewedId}"]`)
   await reviewedCompare.click()
   if(width===390) await reviewedCompare.evaluate(node=>node.scrollIntoView({block:'start',behavior:'instant'}))
-  const resultsScroll=await page.evaluate(()=>scrollY)
+  const openCompare = await button('비교 보기 →')
+  // Measure at activation, after layout updates and Playwright's scroll into view.
+  if(width===390) await openCompare.evaluate(node => {
+   node.addEventListener('click', () => { window.__qaCompareScroll = scrollY }, { capture: true, once: true })
+  })
+  await openCompare.click()
+  const resultsScroll = width===390 ? await page.evaluate(() => window.__qaCompareScroll) : 0
   if(width===390) assert.ok(resultsScroll>0,'the comparison starts from a scrolled results list')
-  await (await button('비교 보기 →')).click()
   await page.locator('.compare-stage').waitFor();assert.match(await page.locator('.compare-stage').innerText(),/연어/)
   if(width===390){
    const summary=page.locator('.compare-highlights-mobile .comparison-highlights')
@@ -110,7 +115,16 @@ try{
   }
   await capture('salmon-comparison','.compare-stage')
   await page.getByRole('tab',{name:'원재료',exact:true}).click()
-  await page.locator('.compare-ingredient-reading').filter({visible:true}).first().waitFor({timeout:45000})
+  if(width===390){
+   const table=page.locator('.compare-mobile-aligned-ingredients table')
+   for(const id of [unknownId,reviewedId]){
+    const cell=table.locator(`td[headers$="-${id}"]`).filter({has:page.locator('.compare-ingredient-reading')})
+    const reading=cell.locator('details').filter({has:page.locator('summary',{hasText:/^세부 원료 표시$/})})
+    await reading.locator('summary').click({timeout:45000})
+    await reading.locator('.compare-ingredient-reading').waitFor({timeout:45000})
+    assert.ok((await reading.locator('.compare-ingredient-reading').innerText()).trim(),'selected product retains its ingredient reading')
+   }
+  }else await page.locator('.compare-ingredient-reading').filter({visible:true}).first().waitFor({timeout:45000})
   await capture('salmon-source-comparison','.compare-stage')
   await page.getByRole('button',{name:/제품 목록으로/}).filter({visible:true}).first().click()
   await page.locator('.research-result-card').first().waitFor()

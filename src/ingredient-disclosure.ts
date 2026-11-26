@@ -46,6 +46,7 @@ export function ingredientAvoidanceWording(
   summary: string
   detail?: string
   sourcePhrase?: string
+  sourceStatus?: string
 } {
   const label = INGREDIENT_AVOID_LABELS[term] ?? term
   if (product.confirmed_present_ingredient_terms?.includes(term)) {
@@ -76,12 +77,12 @@ export function ingredientAvoidanceWording(
   const entries = splitIngredientText(row.raw_text)
   if (FISH_AVOID_TERMS.has(term)) {
     const phrase = entries.find(entry => GENERIC_FISH_ENTRY.test(entry) && !(term === 'whitefish' && /^white\s*fish\b/i.test(entry)))
-    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: sourceSummary(phrase, '어종') }
+    if (phrase) return { state: fallback.state, sourcePhrase: phrase, sourceStatus: '어종 미표기', summary: sourceSummary(phrase, '어종') }
   }
   if (POULTRY_AVOID_TERMS.has(term) || LAND_ANIMAL_AVOID_TERMS.has(term)) {
     const poultry = POULTRY_AVOID_TERMS.has(term)
     const phrase = entries.find(entry => GENERIC_POULTRY_ENTRY.test(entry) ? poultry : GENERIC_ANIMAL_ENTRY.test(entry))
-    if (phrase) return { state: fallback.state, sourcePhrase: phrase, summary: sourceSummary(phrase, '동물 종류') }
+    if (phrase) return { state: fallback.state, sourcePhrase: phrase, sourceStatus: '동물 종류 미표기', summary: sourceSummary(phrase, '동물 종류') }
   }
   return fallback
 }
